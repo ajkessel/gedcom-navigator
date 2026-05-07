@@ -97,6 +97,15 @@ TIP_PAGE_MARKER = (
     "Enter a unique keyword to use as a page marker when finding relationship paths. "
     "Leave this blank to use only the tag keyword to find relationship paths."
 )
+TIP_SET_HOME = (
+    "Set Home Person (Ctrl+H)\n"
+    "Set the selected person as the home person for finding relationship paths."
+)
+TIP_SHOW_PERSON = (
+    "Show Person (Ctrl+S)\n"
+    "View the full GEDCOM record for the selected person, along with a summary "
+    "of biographical and family information."
+)
 TIP_SELECT_TAG = (
     "Select Tag for Finding Paths (Ctrl+T)\n"
     "Select a new tag for finding the path between the selected person"

@@ -381,9 +381,11 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
         self.show_person_btn = ctk.CTkButton(
             action_frame, text=BTN_SHOW_PERSON, command=self._show_person)
         self.show_person_btn.pack(side='right', padx=(0, 6))
+        Tooltip(self.show_person_btn, TIP_SHOW_PERSON)
         self.set_home_btn = ctk.CTkButton(
             action_frame, text=BTN_SET_HOME, command=self._set_home_person)
         self.set_home_btn.pack(side='right', padx=(0, 4))
+        Tooltip(self.set_home_btn, TIP_SET_HOME)
         _top_n_label = ctk.CTkLabel(action_frame, text=LBL_TOP_N)
         _top_n_label.pack(side='left')
         self.top_n_spin = ttk.Spinbox(

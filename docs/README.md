@@ -74,11 +74,9 @@ The pre-built executables have no requirements.
 If you want to run these scripts from the source code, you will need:
 
 - Python 3.8 or newer
-- Tkinter (only for the GUI). It ships with the official Python installers on
-  Windows and macOS. On most Linux distributions it is in a separate package,
-  typically `python3-tk`.
+- [customtkinter](https://github.com/tomschimansky/customtkinter) (only for the GUI)
 
-No third-party libraries; the entire tool uses only the Python standard library.
+Aside from customtkinter, no other third-party libraries are used; everything else is included with the Python standard library.
 
 ## Installation
 
@@ -100,9 +98,10 @@ After installation two commands are available:
 | `gedcom-dna-finder`     | Command-line interface |
 | `gedcom_dna_finder_gui` | Graphical interface    |
 
-The GUI requires Tkinter, which ships with the official Python installers on Windows and macOS. On most Linux distributions it is in a separate package:
+The GUI requires customtkinter, which can be installed with pip once you have a python-tk package installed:
 
 ```
+# install python-tk
 # Debian / Ubuntu
 sudo apt install python3-tk
 
@@ -118,11 +117,14 @@ sudo pacman -S tk
 ```
 git clone https://github.com/ajkessel/gedcom-dna-finder.git
 cd gedcom-dna-finder
+python -m venv .venv
+source .venv/bin/activate
+pip install customtkinter
 python src/gedcom_dna_finder_gui.py        # GUI
 python src/gedcom_dna_finder_cli.py --help # CLI
 ```
 
-No third-party libraries are needed to run from source.
+No third-party libraries other than customtkinter are needed to run from source.
 
 ### Build executables yourself
 
