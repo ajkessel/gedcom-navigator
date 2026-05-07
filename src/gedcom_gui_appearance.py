@@ -288,7 +288,7 @@ class AppearanceMixin:
                 self._apply_window_background(win)
         self._apply_styles()
         is_dark = ctk.get_appearance_mode() == 'Dark'
-        self._link_color = get_link_color(is_dark)
+        self._link_color = get_link_color(is_dark, theme_name)
         if hasattr(self, 'tree'):
             self.tree.tag_configure(
                 'flagged_row', background=get_flag_bg(is_dark))

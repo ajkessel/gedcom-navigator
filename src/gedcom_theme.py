@@ -20,9 +20,9 @@ CTK_THEME_MAP = {
     'Green':  ('light',  'green'),
 }
 
-# Accent-aware colors for flagged rows and hyperlinks per mode
+# Accent-aware colors for flagged rows and hyperlinks per mode/theme
 _FLAG_BG  = {'Light': '#fff4cc', 'Dark': '#3d3000'}
-_LINK_COL = {'Light': '#1155bb', 'Dark': '#6bbfff'}
+_LINK_COL = {'Light': '#1155bb', 'Dark': '#6bbfff', 'Green': '#2e8b57'}
 
 
 def get_flag_bg(is_dark: bool) -> str:
@@ -30,8 +30,10 @@ def get_flag_bg(is_dark: bool) -> str:
     return _FLAG_BG['Dark'] if is_dark else _FLAG_BG['Light']
 
 
-def get_link_color(is_dark: bool) -> str:
+def get_link_color(is_dark: bool, theme_name: str = None) -> str:
     """Return the foreground colour used for person-link text tags."""
+    if theme_name in _LINK_COL:
+        return _LINK_COL[theme_name]
     return _LINK_COL['Dark'] if is_dark else _LINK_COL['Light']
 
 

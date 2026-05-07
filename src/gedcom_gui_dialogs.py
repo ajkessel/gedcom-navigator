@@ -546,8 +546,12 @@ class DialogsMixin:
             except AttributeError:
                 return frame.cget('background')
 
+        # macOS Aqua renders ttk.Radiobutton with a transparent/native background
+        # that blends automatically — forcing a colour breaks it.  On Windows and
+        # Linux the explicit background is needed to match the CTkFrame colour.
         _rb_style = ttk.Style()
-        _rb_style.configure('Pref.TRadiobutton', background=_section_bg(font_frame))
+        if sys.platform != 'darwin':
+            _rb_style.configure('Pref.TRadiobutton', background=_section_bg(font_frame))
 
         size_var = tk.StringVar(value=self._font_size_pref)
 
