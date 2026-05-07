@@ -47,6 +47,13 @@ def check_codesigning_key():
 # tcl86t.dll / tk86t.dll are required by _tkinter.pyd. Same issue — they live
 # under base_prefix\Library\bin, not under the venv Scripts directory.
 _extra_binaries = []
+_excludes = []
+if sys.platform == 'darwin':
+    # Pillow's optional AVIF extension is not needed by this app and may be
+    # distributed as a single-arch binary. Excluding it keeps universal2 macOS
+    # builds from failing PyInstaller's strict architecture validation.
+    _excludes.append('PIL._avif')
+
 if sys.platform == 'win32':
     _base = os.path.dirname(sys.executable)
     _conda_base = sys.base_prefix  # resolves to conda root even inside a venv
@@ -84,7 +91,7 @@ a = Analysis(
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=[],
+    excludes=_excludes,
     noarchive=False,
     optimize=0,
 )
