@@ -398,12 +398,21 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
         Tooltip(self.set_home_btn, TIP_SET_HOME)
         self.show_person_btn = ctk.CTkButton(
             action_frame, text=BTN_SHOW_PERSON, command=self._show_person)
-        self.show_person_btn.grid(row=0, column=6, padx=(0, 6))
+        self.show_person_btn.grid(row=0, column=6)
         Tooltip(self.show_person_btn, TIP_SHOW_PERSON)
+
+        # Primary action on its own row — spans full width so it never competes
+        # for horizontal space with the spinboxes/buttons in row 0.
+        # The <Configure> binding keeps CTkButton's internal label width in sync
+        # with the allocated cell width (CTkButton doesn't do this automatically).
         self.find_matches_btn = ctk.CTkButton(
-            action_frame, text=BTN_FIND_MATCHES, command=self._find_matches,
-            width=600)
-        self.find_matches_btn.grid(row=0, column=7)
+            action_frame, text=BTN_FIND_MATCHES, command=self._find_matches)
+        self.find_matches_btn.grid(
+            row=1, column=0, columnspan=7, sticky='ew', pady=(4, 0))
+        self.find_matches_btn.bind(
+            '<Configure>',
+            lambda e: self.find_matches_btn.configure(width=e.width) if e.width > 1 else None,
+        )
 
         # --- Right pane ---
         right = ctk.CTkFrame(paned, fg_color='transparent')
