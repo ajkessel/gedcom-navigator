@@ -87,29 +87,85 @@ class Tooltip:
         self._tip = None
         widget.bind('<Enter>', self._show)
         widget.bind('<Leave>', self._hide)
+        widget.bind('<ButtonPress>', self._hide)
 
-    def _show(self, _event=None):
-        """Create and position the tooltip window."""
-        x = self._widget.winfo_rootx() + 20
-        y = self._widget.winfo_rooty() + self._widget.winfo_height() + 4
-        self._tip = tk.Toplevel(self._widget)
+    def _apply_window_style(self):
+        """Make the tooltip popup behave like a native transient helper."""
         if sys.platform == 'darwin':
             try:
                 self._tip.tk.call(
                     'tk::unsupported::MacWindowStyle', 'style',
                     self._tip._w, 'help', 'noActivates',
                 )
+                return
             except tk.TclError:
-                self._tip.wm_overrideredirect(True)
+                pass
         else:
-            self._tip.wm_overrideredirect(True)
+            try:
+                self._tip.wm_attributes('-topmost', True)
+            except tk.TclError:
+                pass
+            if sys.platform == 'win32':
+                try:
+                    self._tip.wm_attributes('-toolwindow', True)
+                except tk.TclError:
+                    pass
+        self._tip.wm_overrideredirect(True)
+
+    def _create_label(self):
+        """Create tooltip content using platform-native colours where available."""
+        label = tk.Label(
+            self._tip,
+            text=self._text,
+            justify='left',
+            wraplength=360,
+            padx=6,
+            pady=3,
+        )
+        if sys.platform == 'win32':
+            label.configure(
+                background='SystemInfoBackground',
+                foreground='SystemInfoText',
+                relief='solid',
+                borderwidth=1,
+            )
+        elif sys.platform == 'darwin':
+            for bg_name in ('systemHelpBackgroundColor', 'systemWindowBackgroundColor'):
+                try:
+                    label.configure(background=bg_name)
+                    break
+                except tk.TclError:
+                    pass
+            try:
+                label.configure(foreground='systemTextColor')
+            except tk.TclError:
+                pass
+        return label
+
+    def _position_tip(self):
+        """Place the tooltip near the widget without running off screen."""
+        self._tip.update_idletasks()
+        x = self._widget.winfo_rootx() + 20
+        y = self._widget.winfo_rooty() + self._widget.winfo_height() + 4
+        req_w = self._tip.winfo_reqwidth()
+        req_h = self._tip.winfo_reqheight()
+        screen_w = self._tip.winfo_screenwidth()
+        screen_h = self._tip.winfo_screenheight()
+        x = max(0, min(x, screen_w - req_w - 4))
+        y = max(0, min(y, screen_h - req_h - 4))
         self._tip.wm_geometry(f'+{x}+{y}')
-        self._tip.configure(background='#ffffe0')
-        tk.Label(
-            self._tip, text=self._text, justify='left',
-            background='#ffffe0', relief='solid', borderwidth=1,
-            wraplength=360, padx=4, pady=2,
-        ).pack(padx=3, pady=3)
+
+    def _show(self, _event=None):
+        """Create and position the tooltip window."""
+        if self._tip is not None:
+            return
+        self._tip = tk.Toplevel(self._widget)
+        self._tip.withdraw()
+        self._apply_window_style()
+        label = self._create_label()
+        label.pack()
+        self._position_tip()
+        self._tip.deiconify()
 
     def _hide(self, _event=None):
         """Destroy the tooltip window if it is visible."""
