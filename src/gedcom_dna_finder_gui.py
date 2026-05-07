@@ -402,7 +402,7 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
         Tooltip(self.show_person_btn, TIP_SHOW_PERSON)
         self.find_matches_btn = ctk.CTkButton(
             action_frame, text=BTN_FIND_MATCHES, command=self._find_matches,
-            width=200)
+            width=230)
         self.find_matches_btn.grid(row=0, column=7)
 
         # --- Right pane ---
