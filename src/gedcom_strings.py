@@ -77,6 +77,22 @@ BTN_COPY = "Copy"
 TIP_BROWSE = (
     "Browse to select a GEDCOM file. You can also select a ZIP file containing a GEDCOM."
 )
+TIP_FIND = (
+    "Type to filter the list of people. Search by any name variation. Use the filter box "
+    "to search by other information in a person's GEDCOM record, such as geographic location. "
+    "Press Enter to jump directly to the first match. "
+    "Use the checkboxes to show only DNA-flagged people and to allow fuzzy name matching."
+)
+TIP_FILTER = (
+    "Type to filter the list of people by any information in their GEDCOM record, "
+    "such as geographic location. This filter is applied in addition to the Find box above."
+)   
+TIP_TAG_KEYWORD = (
+    "Enter a keyword to filter the list of tags used for finding relationship paths."
+)
+TIP_PAGE_MARKER = (
+    "Enter a unique keyword to use as a page marker when finding relationship paths."
+)
 TIP_SELECT_TAG = (
     "Select a new tag for finding the path between the selected person"
     " and the closest people with that tag."
@@ -99,6 +115,14 @@ TIP_MAX_DEPTH = (
 TIP_FUZZY_THRESHOLD = (
     "Similarity cutoff for fuzzy name search, from 0.00 to 1.00."
     " Lower values allow more matches; higher values are stricter."
+)
+TIP_DNA_FLAGGED_ONLY = (
+    "When checked, only people flagged as DNA matches will be shown in search results."
+)
+TIP_FUZZY = (
+    "Allow fuzzy name matching in search results. "
+    "Fuzzy matching uses the Levenshtein distance to find names similar to the search term, "
+    "which can help find matches when names are misspelled or have minor variations."
 )
 
 # ---------------------------------------------------------------------------

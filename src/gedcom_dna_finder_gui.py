@@ -270,14 +270,17 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
         settings_frame = ctk.CTkFrame(settings_group, fg_color='transparent')
         settings_frame.pack(fill='x', padx=8, pady=(0, 8))
 
+        # Tag Keyword and Page Marker settings
         ctk.CTkLabel(settings_frame, text=LBL_TAG_KEYWORD).grid(
             row=0, column=0, sticky='w', padx=(0, 4))
         ctk.CTkEntry(settings_frame, textvariable=self.tag_keyword,
                      width=150).grid(row=0, column=1, padx=(0, 16))
+        Tooltip(settings_frame.grid_slaves(row=0, column=1)[0], TIP_TAG_KEYWORD)
         ctk.CTkLabel(settings_frame, text=LBL_PAGE_MARKER).grid(
             row=0, column=2, sticky='w', padx=(0, 4))
         ctk.CTkEntry(settings_frame, textvariable=self.page_marker,
                      width=240).grid(row=0, column=3, padx=(0, 16))
+        Tooltip(settings_frame.grid_slaves(row=0, column=3)[0], TIP_PAGE_MARKER)
         _select_tag_btn = ctk.CTkButton(
             settings_frame, text=BTN_SELECT_TAG, width=100, command=self._view_tags)
         _select_tag_btn.grid(row=0, column=4, padx=4)
@@ -297,6 +300,7 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
 
         search_frame = ctk.CTkFrame(left, fg_color='transparent')
         search_frame.pack(fill='x')
+        # Find: box
         ctk.CTkLabel(search_frame, text=LBL_FIND).pack(
             side='left', padx=(0, 4))
         self.search_entry = ctk.CTkEntry(
@@ -304,15 +308,20 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
         self.search_entry.pack(side='left', fill='x', expand=True)
         self.search_entry.bind(
             '<Return>', lambda *_: self._search_flush_and_jump())
+        Tooltip(self.search_entry, TIP_FIND)
+        # DNA-flagged only and fuzzy search checkboxes
         ctk.CTkCheckBox(
             search_frame, text=CHK_DNA_FLAGGED_ONLY,
             variable=self.show_flagged_only, width=0,
         ).pack(side='left', padx=(8, 0))
+        Tooltip(search_frame.winfo_children()[-1], TIP_DNA_FLAGGED_ONLY)
         ctk.CTkCheckBox(
             search_frame, text=CHK_FUZZY,
             variable=self.fuzzy_search, width=0,
         ).pack(side='left', padx=(8, 0))
+        Tooltip(search_frame.winfo_children()[-1], TIP_FUZZY)
 
+        # Filter: box
         filter_frame = ctk.CTkFrame(left, fg_color='transparent')
         filter_frame.pack(fill='x', pady=(2, 0))
         ctk.CTkLabel(filter_frame, text=LBL_FILTER).pack(
@@ -321,6 +330,7 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
             filter_frame, textvariable=self.filter_text)
         self.filter_entry.pack(side='left', fill='x', expand=True)
         self.filter_entry.bind('<Return>', lambda *_: self._kb_focus_list())
+        Tooltip(self.filter_entry, TIP_FILTER)
 
         list_frame = ctk.CTkFrame(left, fg_color='transparent')
         list_frame.pack(fill='both', expand=True, pady=(4, 0))
@@ -362,6 +372,18 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
         # Action controls
         action_frame = ctk.CTkFrame(left, fg_color='transparent')
         action_frame.pack(fill='x', pady=(6, 0))
+        # Buttons are packed first (side='right') so they claim their full
+        # width before the spinboxes. On Linux, larger font metrics can leave
+        # set_home_btn with insufficient room when left-side widgets pack first.
+        self.find_matches_btn = ctk.CTkButton(
+            action_frame, text=BTN_FIND_MATCHES, command=self._find_matches)
+        self.find_matches_btn.pack(side='right')
+        self.show_person_btn = ctk.CTkButton(
+            action_frame, text=BTN_SHOW_PERSON, command=self._show_person)
+        self.show_person_btn.pack(side='right', padx=(0, 6))
+        self.set_home_btn = ctk.CTkButton(
+            action_frame, text=BTN_SET_HOME, command=self._set_home_person)
+        self.set_home_btn.pack(side='right', padx=(0, 4))
         _top_n_label = ctk.CTkLabel(action_frame, text=LBL_TOP_N)
         _top_n_label.pack(side='left')
         self.top_n_spin = ttk.Spinbox(
@@ -376,15 +398,6 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
         self.max_depth_spin.pack(side='left', padx=(2, 12))
         Tooltip(_max_depth_label, TIP_MAX_DEPTH)
         Tooltip(self.max_depth_spin, TIP_MAX_DEPTH)
-        self.find_matches_btn = ctk.CTkButton(
-            action_frame, text=BTN_FIND_MATCHES, command=self._find_matches)
-        self.find_matches_btn.pack(side='right')
-        self.show_person_btn = ctk.CTkButton(
-            action_frame, text=BTN_SHOW_PERSON, command=self._show_person)
-        self.show_person_btn.pack(side='right', padx=(0, 6))
-        self.set_home_btn = ctk.CTkButton(
-            action_frame, text=BTN_SET_HOME, command=self._set_home_person)
-        self.set_home_btn.pack(side='right', padx=(0, 4))
 
         # --- Right pane ---
         right = ctk.CTkFrame(paned, fg_color='transparent')

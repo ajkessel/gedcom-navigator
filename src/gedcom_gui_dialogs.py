@@ -534,11 +534,27 @@ class DialogsMixin:
         font_frame = ctk.CTkFrame(font_section, fg_color='transparent')
         font_frame.pack(fill='x', padx=12, pady=(0, 10))
 
+        # Resolve the CTkFrame background so ttk.Radiobutton blends in.
+        # Walk up _fg_color chain past any transparent frames.
+        def _section_bg(frame):
+            try:
+                fg = frame._fg_color
+                if fg == 'transparent':
+                    return _section_bg(frame.master)
+                is_dark = ctk.get_appearance_mode() == 'Dark'
+                return (fg[1] if is_dark else fg[0]) if isinstance(fg, (list, tuple)) else fg
+            except AttributeError:
+                return frame.cget('background')
+
+        _rb_style = ttk.Style()
+        _rb_style.configure('Pref.TRadiobutton', background=_section_bg(font_frame))
+
         size_var = tk.StringVar(value=self._font_size_pref)
 
         for label, key in ((FONT_SMALL, "small"), (FONT_MEDIUM, "medium"), (FONT_LARGE, "large")):
-            ctk.CTkRadioButton(
+            ttk.Radiobutton(
                 font_frame, text=label, variable=size_var, value=key,
+                style='Pref.TRadiobutton',
             ).pack(side='left', padx=8)
 
         # Theme section
@@ -553,8 +569,9 @@ class DialogsMixin:
         theme_var = tk.StringVar(value=self._theme_pref)
 
         for name in self._THEME_NAMES:
-            ctk.CTkRadioButton(
+            ttk.Radiobutton(
                 theme_frame, text=name, variable=theme_var, value=name,
+                style='Pref.TRadiobutton',
             ).pack(side='left', padx=6)
 
         # Search defaults section
@@ -611,12 +628,12 @@ class DialogsMixin:
         ctk.CTkLabel(name_order_row, text=LBL_NAME_FORMAT).pack(
             side='left', padx=(0, 8))
         name_order_var = tk.StringVar(value=self._name_order)
-        ctk.CTkRadioButton(name_order_row, text=NAME_FIRST_LAST,
+        ttk.Radiobutton(name_order_row, text=NAME_FIRST_LAST,
                            variable=name_order_var,
-                           value='first_last').pack(side='left', padx=(0, 8))
-        ctk.CTkRadioButton(name_order_row, text=NAME_LAST_FIRST,
+                           value='first_last', style='Pref.TRadiobutton').pack(side='left', padx=(0, 8))
+        ttk.Radiobutton(name_order_row, text=NAME_LAST_FIRST,
                            variable=name_order_var,
-                           value='last_first').pack(side='left')
+                           value='last_first', style='Pref.TRadiobutton').pack(side='left')
 
         # Cache section
         cache_section = ctk.CTkFrame(outer, border_width=1)
@@ -678,6 +695,7 @@ class DialogsMixin:
                       command=on_cancel).pack(side='right')
 
         self._fit_window_to_content(win, min_w=500, min_h=420)
+        win.after(50, win.focus_force)
 
     def _resource_path(self, filename):
         """Locate a bundled resource whether running from source or PyInstaller."""
