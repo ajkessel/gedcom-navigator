@@ -546,19 +546,28 @@ class DialogsMixin:
             except AttributeError:
                 return frame.cget('background')
 
-        # macOS Aqua renders ttk.Radiobutton with a transparent/native background
-        # that blends automatically — forcing a colour breaks it.  On Windows and
-        # Linux the explicit background is needed to match the CTkFrame colour.
+        # On Windows/Linux, stamp the CTkFrame colour onto a named ttk style so
+        # ttk.Radiobutton blends in.  On macOS the Aqua ttk theme ignores the
+        # background style option; tk.Radiobutton (same native indicator, but
+        # classic widget) does respect it, so we use that instead.
         _rb_style = ttk.Style()
         if sys.platform != 'darwin':
             _rb_style.configure('Pref.TRadiobutton', background=_section_bg(font_frame))
 
+        def _radiobutton(parent, *, text, variable, value):
+            if sys.platform == 'darwin':
+                bg = _section_bg(parent)
+                return tk.Radiobutton(parent, text=text, variable=variable,
+                                      value=value, background=bg,
+                                      activebackground=bg, highlightthickness=0)
+            return ttk.Radiobutton(parent, text=text, variable=variable,
+                                   value=value, style='Pref.TRadiobutton')
+
         size_var = tk.StringVar(value=self._font_size_pref)
 
         for label, key in ((FONT_SMALL, "small"), (FONT_MEDIUM, "medium"), (FONT_LARGE, "large")):
-            ttk.Radiobutton(
+            _radiobutton(
                 font_frame, text=label, variable=size_var, value=key,
-                style='Pref.TRadiobutton',
             ).pack(side='left', padx=8)
 
         # Theme section
@@ -573,9 +582,8 @@ class DialogsMixin:
         theme_var = tk.StringVar(value=self._theme_pref)
 
         for name in self._THEME_NAMES:
-            ttk.Radiobutton(
+            _radiobutton(
                 theme_frame, text=name, variable=theme_var, value=name,
-                style='Pref.TRadiobutton',
             ).pack(side='left', padx=6)
 
         # Search defaults section
@@ -632,12 +640,10 @@ class DialogsMixin:
         ctk.CTkLabel(name_order_row, text=LBL_NAME_FORMAT).pack(
             side='left', padx=(0, 8))
         name_order_var = tk.StringVar(value=self._name_order)
-        ttk.Radiobutton(name_order_row, text=NAME_FIRST_LAST,
-                           variable=name_order_var,
-                           value='first_last', style='Pref.TRadiobutton').pack(side='left', padx=(0, 8))
-        ttk.Radiobutton(name_order_row, text=NAME_LAST_FIRST,
-                           variable=name_order_var,
-                           value='last_first', style='Pref.TRadiobutton').pack(side='left')
+        _radiobutton(name_order_row, text=NAME_FIRST_LAST,
+                     variable=name_order_var, value='first_last').pack(side='left', padx=(0, 8))
+        _radiobutton(name_order_row, text=NAME_LAST_FIRST,
+                     variable=name_order_var, value='last_first').pack(side='left')
 
         # Cache section
         cache_section = ctk.CTkFrame(outer, border_width=1)
