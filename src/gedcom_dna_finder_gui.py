@@ -369,37 +369,40 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
         self.tree.bind('<Home>', lambda *_: self._tree_jump('first') or 'break')
         self.tree.bind('<End>', lambda *_: self._tree_jump('last') or 'break')
 
-        # Action controls
+        # Action controls — grid layout so spinboxes and buttons never compete
+        # for space.  Column 4 is a weightless spacer that absorbs any surplus;
+        # every other column is sized to its widget's natural width.
         action_frame = ctk.CTkFrame(left, fg_color='transparent')
         action_frame.pack(fill='x', pady=(6, 0))
-        # Buttons are packed first (side='right') so they claim their full
-        # width before the spinboxes. On Linux, larger font metrics can leave
-        # set_home_btn with insufficient room when left-side widgets pack first.
-        self.find_matches_btn = ctk.CTkButton(
-            action_frame, text=BTN_FIND_MATCHES, command=self._find_matches)
-        self.find_matches_btn.pack(side='right')
-        self.show_person_btn = ctk.CTkButton(
-            action_frame, text=BTN_SHOW_PERSON, command=self._show_person)
-        self.show_person_btn.pack(side='right', padx=(0, 6))
-        Tooltip(self.show_person_btn, TIP_SHOW_PERSON)
-        self.set_home_btn = ctk.CTkButton(
-            action_frame, text=BTN_SET_HOME, command=self._set_home_person)
-        self.set_home_btn.pack(side='right', padx=(0, 4))
-        Tooltip(self.set_home_btn, TIP_SET_HOME)
+        action_frame.grid_columnconfigure(4, weight=1)
+
         _top_n_label = ctk.CTkLabel(action_frame, text=LBL_TOP_N)
-        _top_n_label.pack(side='left')
+        _top_n_label.grid(row=0, column=0, sticky='w')
         self.top_n_spin = ttk.Spinbox(
             action_frame, from_=1, to=20, textvariable=self.top_n, width=4)
-        self.top_n_spin.pack(side='left', padx=(2, 12))
+        self.top_n_spin.grid(row=0, column=1, padx=(2, 12))
         Tooltip(_top_n_label, TIP_TOP_N)
         Tooltip(self.top_n_spin, TIP_TOP_N)
+
         _max_depth_label = ctk.CTkLabel(action_frame, text=LBL_MAX_DEPTH)
-        _max_depth_label.pack(side='left')
+        _max_depth_label.grid(row=0, column=2, sticky='w')
         self.max_depth_spin = ttk.Spinbox(
             action_frame, from_=1, to=200, textvariable=self.max_depth, width=5)
-        self.max_depth_spin.pack(side='left', padx=(2, 12))
+        self.max_depth_spin.grid(row=0, column=3, padx=(2, 0))
         Tooltip(_max_depth_label, TIP_MAX_DEPTH)
         Tooltip(self.max_depth_spin, TIP_MAX_DEPTH)
+
+        self.set_home_btn = ctk.CTkButton(
+            action_frame, text=BTN_SET_HOME, command=self._set_home_person)
+        self.set_home_btn.grid(row=0, column=5, padx=(0, 6))
+        Tooltip(self.set_home_btn, TIP_SET_HOME)
+        self.show_person_btn = ctk.CTkButton(
+            action_frame, text=BTN_SHOW_PERSON, command=self._show_person)
+        self.show_person_btn.grid(row=0, column=6, padx=(0, 6))
+        Tooltip(self.show_person_btn, TIP_SHOW_PERSON)
+        self.find_matches_btn = ctk.CTkButton(
+            action_frame, text=BTN_FIND_MATCHES, command=self._find_matches)
+        self.find_matches_btn.grid(row=0, column=7)
 
         # --- Right pane ---
         right = ctk.CTkFrame(paned, fg_color='transparent')
