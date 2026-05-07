@@ -2,7 +2,8 @@
 gedcom_markdown.py
 
 Standalone markdown-to-tkinter-Text renderer.  No dependency on the app
-class; callers pass link_color explicitly.
+class; callers pass link_color explicitly.  Supports both tk.Text widgets
+and customtkinter CTkTextbox (resolved via the _textbox attribute).
 """
 
 import re
@@ -22,6 +23,11 @@ _INLINE_RE = re.compile(
 )
 
 
+def _raw(widget):
+    """Return the underlying tk.Text for a CTkTextbox, or the widget itself."""
+    return getattr(widget, '_textbox', widget)
+
+
 def _visual_len(text):
     """Return rendered length of markdown text after stripping markup markers."""
     t = re.sub(r'\*\*(.+?)\*\*', r'\1', text)
@@ -34,33 +40,38 @@ def _visual_len(text):
 
 def _insert_hr(widget):
     """Embed a canvas horizontal rule that fills and resizes with the widget."""
-    padx = int(widget.cget('padx'))
-    bg = widget.cget('background') or 'white'
-    fg = widget.cget('foreground') or 'gray60'
+    tw = _raw(widget)
 
-    canvas = tk.Canvas(widget, height=10, bd=0, highlightthickness=0, bg=bg)
+    try:
+        padx = int(tw.cget('padx'))
+    except Exception:  # pylint: disable=broad-exception-caught
+        padx = 0
+    bg = tw.cget('background') or 'white'
+    fg = tw.cget('foreground') or 'gray60'
+
+    canvas = tk.Canvas(tw, height=10, bd=0, highlightthickness=0, bg=bg)
     line_id = canvas.create_line(0, 5, 10, 5, fill=fg)
 
-    if not hasattr(widget, '_hr_canvases'):
-        widget._hr_canvases = []
+    if not hasattr(tw, '_hr_canvases'):
+        tw._hr_canvases = []
 
         def _on_resize(e):
-            usable = max(10, e.width - 2 * int(widget.cget('padx')))
-            for c, lid in widget._hr_canvases:
+            usable = max(10, e.width - 2 * int(tw.cget('padx') or 0))
+            for c, lid in tw._hr_canvases:
                 try:
                     c.configure(width=usable)
                     c.coords(lid, 0, 5, usable, 5)
-                except Exception: # pylint: disable=broad-exception-caught
+                except Exception:  # pylint: disable=broad-exception-caught
                     pass
 
-        widget.bind('<Configure>', _on_resize)
+        tw.bind('<Configure>', _on_resize)
 
-    widget._hr_canvases.append((canvas, line_id))
-    widget.window_create('end', window=canvas)
-    widget.insert('end', '\n')
+    tw._hr_canvases.append((canvas, line_id))
+    tw.window_create('end', window=canvas)
+    tw.insert('end', '\n')
 
     def _init_size():
-        w = widget.winfo_width()
+        w = tw.winfo_width()
         if w > 1:
             usable = max(10, w - 2 * padx)
             canvas.configure(width=usable)
@@ -69,31 +80,45 @@ def _insert_hr(widget):
     widget.after(1, _init_size)
 
 
-def render_markdown(widget, content, link_color='#0066cc', url_handler=None):
+def render_markdown(widget, content, link_color='#0066cc', url_handler=None,
+                    code_bg='#f0f0f0'):
     """Render basic markdown into a tkinter Text widget using tag formatting."""
-    base = tkfont.Font(font=widget.cget('font'))
-    info = base.actual()
+    tw = _raw(widget)
+    try:
+        base = tkfont.Font(font=tw.cget('font'))
+        info = base.actual()
+    except Exception:  # pylint: disable=broad-exception-caught
+        info = {'family': 'TkTextFont', 'size': 10}
     family = info['family']
     size = abs(info['size']) or 10
-    mono = 'Menlo' if sys.platform == 'darwin' else 'Courier'
+    if sys.platform == 'darwin':
+        mono = 'Menlo'
+    elif sys.platform == 'win32':
+        mono = 'Consolas'
+    else:
+        available = set(tkfont.families())
+        mono = next(
+            (n for n in ('DejaVu Sans Mono', 'Liberation Mono', 'Courier New')
+             if n in available),
+            'Courier',
+        )
 
-    widget.tag_configure('h1', font=(
+    tw.tag_configure('h1', font=(
         family, size + 7, 'bold'), spacing1=10, spacing3=5)
-    widget.tag_configure('h2', font=(
+    tw.tag_configure('h2', font=(
         family, size + 4, 'bold'), spacing1=8, spacing3=4)
-    widget.tag_configure('h3', font=(
+    tw.tag_configure('h3', font=(
         family, size + 2, 'bold'), spacing1=6, spacing3=3)
-    widget.tag_configure('bold', font=(family, size, 'bold'))
-    widget.tag_configure('italic', font=(family, size, 'italic'))
-    widget.tag_configure('code_inline', font=(
-        mono, size - 1), background='#f0f0f0')
-    widget.tag_configure('code_block', font=(mono, size - 1), background='#f0f0f0',
-                         lmargin1=16, lmargin2=16, spacing1=1, spacing3=1)
-    widget.tag_configure('link', foreground=link_color)
-    widget.tag_configure('bullet', lmargin1=16, lmargin2=32)
-    widget.tag_configure('normal', font=(family, size))
-    widget.tag_configure('table_cell', font=(mono, size - 1))
-    widget.tag_configure('table_bold', font=(mono, size - 1, 'bold'))
+    tw.tag_configure('bold', font=(family, size, 'bold'))
+    tw.tag_configure('italic', font=(family, size, 'italic'))
+    tw.tag_configure('code_inline', font=(mono, size - 1), background=code_bg)
+    tw.tag_configure('code_block', font=(mono, size - 1), background=code_bg,
+                     lmargin1=16, lmargin2=16, spacing1=1, spacing3=1)
+    tw.tag_configure('link', foreground=link_color)
+    tw.tag_configure('bullet', lmargin1=16, lmargin2=32)
+    tw.tag_configure('normal', font=(family, size))
+    tw.tag_configure('table_cell', font=(mono, size - 1))
+    tw.tag_configure('table_bold', font=(mono, size - 1, 'bold'))
 
     lines = content.split('\n')
 
@@ -223,6 +248,7 @@ def render_markdown(widget, content, link_color='#0066cc', url_handler=None):
 def insert_inline(widget, text, base_tag, link_color='#0066cc',
                   bold_tag='bold', url_handler=None):
     """Insert text with inline markdown (bold, italic, code, links) into widget."""
+    tw = _raw(widget)
     pos = 0
     for m in _INLINE_RE.finditer(text):
         if m.start() > pos:
@@ -235,12 +261,10 @@ def insert_inline(widget, text, base_tag, link_color='#0066cc',
             widget._link_count = lc + 1
             tag = f'_url_{lc}'
             _open = url_handler if url_handler is not None else webbrowser.open
-            widget.tag_configure(tag, foreground=link_color)
-            widget.tag_bind(tag, '<Button-1>', lambda _, u=url, h=_open: h(u))
-            widget.tag_bind(
-                tag, '<Enter>', lambda _: widget.config(cursor='hand2'))
-            widget.tag_bind(
-                tag, '<Leave>', lambda _: widget.config(cursor=''))
+            tw.tag_configure(tag, foreground=link_color)
+            tw.tag_bind(tag, '<Button-1>', lambda _, u=url, h=_open: h(u))
+            tw.tag_bind(tag, '<Enter>', lambda _: tw.config(cursor='hand2'))
+            tw.tag_bind(tag, '<Leave>', lambda _: tw.config(cursor=''))
             if not hasattr(widget, '_url_tags'):
                 widget._url_tags = {}
             widget._url_tags[tag] = url

@@ -1,6 +1,16 @@
 # optional configuration for signing executables
 # create self-signed certificate with powershell script like the following:
 # New-SelfSignedCertificate -Type CodeSigningCert -Subject "gedcom-dna-finder" -CertStoreLocation Cert:\CurrentUser\My
+$searchPaths = ($env:ProgramData+"\miniforge3\scripts\"),($env:localappdata+"\miniconda3\scripts\"),($env:appdata+"\miniconda3\scripts\")
+$fileName = "conda.exe"
+$foundFile = Get-ChildItem -Path $searchPaths -Filter $fileName -ErrorAction SilentlyContinue | Select-Object -First 1
+If ($foundFile) {
+  write-output("Found conda at "+$foundfile)
+  write-output("Activating base environment.")
+  (& $foundFile "shell.powershell" "hook") | Out-String | ?{$_} | Invoke-Expression
+} else {
+  write-output("Conda not found. Will attempt to use locally installed Python."
+}
 $signTool = 'C:\Program Files (x86)\Windows Kits\10\App Certification Kit\SignTool.exe'
 $certName = 'gedcom-dna-finder'
 Set-Location -Path $PSScriptRoot/..

@@ -9,8 +9,29 @@ import tkinter as tk
 import tkinter.font as tkfont
 from tkinter import ttk, messagebox
 import sys
+import customtkinter as ctk
 from gedcom_strings import *  # noqa: F401,F403
-from gedcom_theme import DEFAULT_TTK, Tooltip, THEME_NAMES, THEMES
+from gedcom_theme import (
+    Tooltip, THEME_NAMES, CTK_THEME_MAP,
+    ttk_colors, get_flag_bg, get_link_color,
+)
+
+# Background tints injected into ThemeManager for the named Blue/Green themes.
+# Each value is [light_color, dark_color]; only the mode-appropriate one shows.
+_BG_TINTS = {
+    'Blue': {
+        'CTk':         ['#EBF0FA', '#1A2535'],
+        'CTkToplevel': ['#EBF0FA', '#1A2535'],
+        'CTkFrame':    {'fg_color':     ['#E3EAF5', '#1F2D3D'],
+                        'top_fg_color': ['#D8E1F0', '#243447']},
+    },
+    'Green': {
+        'CTk':         ['#EBF5EB', '#1D2B1D'],
+        'CTkToplevel': ['#EBF5EB', '#1D2B1D'],
+        'CTkFrame':    {'fg_color':     ['#E1EDE1', '#223122'],
+                        'top_fg_color': ['#D5E6D5', '#263826']},
+    },
+}
 
 
 class AppearanceMixin:
@@ -34,7 +55,7 @@ class AppearanceMixin:
         history = [filepath] + [p for p in self._recent_files if p != filepath]
         history = history[:self.MAX_RECENT]
         self._recent_files = history
-        self.path_combo['values'] = history
+        self.path_combo.configure(values=history)
         self._config.set_recent_files(history)
 
     def _clear_cache(self):
@@ -69,11 +90,11 @@ class AppearanceMixin:
         self._config.set_font_preference(size_name)
 
     def _apply_font_size(self, size_name):
-        """Apply a named font-size preset to UI and monospace fonts."""
+        """Apply a named font-size preset to CTk, monospace, and ttk fonts."""
         sizes = self._FONT_SIZES[size_name]
         mono_sz = sizes['mono']
         ui_sz = sizes['ui']
-
+        self._mono_size = mono_sz
         self._mono_font.configure(size=mono_sz)
         self._mono_font_bold.configure(size=mono_sz)
 
@@ -86,179 +107,243 @@ class AppearanceMixin:
         self._apply_styles()
 
         if hasattr(self, 'results'):
+            # CTkTextbox fonts are passed as tuples; update on size change.
+            self.results.configure(font=(self._mono_family, mono_sz))
+            self.results._textbox.tag_configure(
+                'bold', font=(self._mono_family, mono_sz, 'bold'))
             self.root.after(0, self._refit_windows)
+
+    def _fit_window_to_content(
+        self,
+        win,
+        *,
+        min_w=400,
+        min_h=300,
+        preferred_w=None,
+        preferred_h=None,
+        max_screen_ratio=0.9,
+        center_on_root=True,
+        preserve_position=False,
+    ):
+        """Size a window from requested content, clamped to the visible screen."""
+        win.update_idletasks()
+        self.root.update_idletasks()
+
+        req_w = win.winfo_reqwidth()
+        req_h = win.winfo_reqheight()
+        target_w = max(req_w, preferred_w or 0, min_w)
+        target_h = max(req_h, preferred_h or 0, min_h)
+
+        screen_w = win.winfo_screenwidth()
+        screen_h = win.winfo_screenheight()
+        margin = 32
+        max_w = max(min_w, min(int(screen_w * max_screen_ratio), screen_w - margin))
+        max_h = max(min_h, min(int(screen_h * max_screen_ratio), screen_h - margin))
+        w = min(target_w, max_w)
+        h = min(target_h, max_h)
+
+        win.minsize(min(min_w, max_w), min(min_h, max_h))
+
+        if preserve_position:
+            x = win.winfo_x()
+            y = win.winfo_y()
+        elif center_on_root and win is not self.root:
+            root_x = self.root.winfo_x()
+            root_y = self.root.winfo_y()
+            root_w = self.root.winfo_width()
+            root_h = self.root.winfo_height()
+            x = root_x + (root_w - w) // 2
+            y = root_y + (root_h - h) // 2
+        else:
+            x = (screen_w - w) // 2
+            y = (screen_h - h) // 2
+
+        x = max(0, min(x, screen_w - w))
+        y = max(0, min(y, screen_h - h))
+        win.geometry(f"{w}x{h}+{x}+{y}")
+        return w, h
 
     def _refit_windows(self):
         """Grow open windows as needed to fit the current font metrics."""
-        self.root.update_idletasks()
-        req_w = self.root.winfo_reqwidth()
-        cur_w = self.root.winfo_width()
-        cur_h = self.root.winfo_height()
-        self.root.minsize(max(req_w, 800), 500)
-        if cur_w < req_w:
-            self.root.geometry(f"{req_w}x{cur_h}")
+        self._fit_window_to_content(
+            self.root,
+            min_w=800,
+            min_h=500,
+            preferred_w=self.root.winfo_width(),
+            preferred_h=self.root.winfo_height(),
+            max_screen_ratio=0.92,
+            center_on_root=False,
+            preserve_position=True,
+        )
         for win in self.root.winfo_children():
             if not isinstance(win, tk.Toplevel):
                 continue
             try:
-                rw = win.winfo_reqwidth()
-                rh = win.winfo_reqheight()
-                cw = win.winfo_width()
-                ch = win.winfo_height()
-                new_w = max(cw, rw)
-                new_h = max(ch, rh)
-                if new_w != cw or new_h != ch:
-                    win.geometry(f"{new_w}x{new_h}")
+                self._fit_window_to_content(
+                    win,
+                    preferred_w=win.winfo_width(),
+                    preferred_h=win.winfo_height(),
+                    preserve_position=True,
+                )
             except tk.TclError:
                 pass
 
     def _apply_styles(self):
-        """Apply the current theme colours + font metrics to the ttk Style engine."""
+        """Apply ttk styles for Treeview / Spinbox / PanedWindow to match the CTk theme."""
         style = ttk.Style()
-        pref = getattr(self, '_theme_pref', 'Default')
-        t = self._THEMES.get(pref)
+        is_dark = ctk.get_appearance_mode() == 'Dark'
+        t = ttk_colors(is_dark)
 
-        if t is None:
-            try:
-                style.theme_use(DEFAULT_TTK)
-            except tk.TclError:
-                pass
-        else:
-            try:
-                style.theme_use(t['ttk'])
-            except tk.TclError:
-                pass
-            bg, fg = t['bg'], t['fg']
-            bbg, fbg = t['button_bg'], t['field_bg']
-            sel_bg, sel_fg = t['select_bg'], t['select_fg']
-            hbg, tr = t['heading_bg'], t['trough']
+        try:
+            style.theme_use('aqua' if sys.platform == 'darwin' else 'clam')
+        except tk.TclError:
+            pass
 
-            style.configure('.', background=bg, foreground=fg)
-            style.configure('TFrame', background=bg)
-            style.configure('TLabelframe', background=bg, foreground=fg)
-            style.configure('TLabelframe.Label', background=bg, foreground=fg)
-            style.configure('TLabel', background=bg, foreground=fg)
-            style.configure('TButton', background=bbg, foreground=fg)
-            style.map('TButton',
-                      background=[('active', sel_bg), ('pressed', sel_bg)],
-                      foreground=[('active', sel_fg), ('pressed', sel_fg)])
-            style.configure('TEntry', fieldbackground=fbg, foreground=fg,
-                            selectbackground=sel_bg, selectforeground=sel_fg)
-            style.configure('TCombobox', fieldbackground=fbg, foreground=fg,
-                            selectbackground=sel_bg, selectforeground=sel_fg,
-                            background=bbg, arrowcolor=fg)
-            style.map('TCombobox',
-                      fieldbackground=[('readonly', fbg)],
-                      selectbackground=[('readonly', sel_bg)],
-                      foreground=[('readonly', fg)])
-            style.configure('TSpinbox', fieldbackground=fbg, foreground=fg,
-                            background=bbg, arrowcolor=fg)
-            style.configure('TCheckbutton', background=bg, foreground=fg)
-            style.map('TCheckbutton', background=[('active', bg)])
-            style.configure('TRadiobutton', background=bg, foreground=fg)
-            style.map('TRadiobutton', background=[('active', bg)])
-            style.configure('TScrollbar', background=bbg, troughcolor=tr,
-                            arrowcolor=fg, bordercolor=bg,
-                            darkcolor=bbg, lightcolor=bbg)
-            style.configure('TPanedwindow', background=bg)
-            style.configure('Treeview', background=fbg, foreground=fg,
-                            fieldbackground=fbg)
-            style.configure('Treeview.Heading', background=hbg, foreground=fg)
-            style.map('Treeview',
-                      background=[('selected', sel_bg)],
-                      foreground=[('selected', sel_fg)])
+        bg, fg = t['bg'], t['fg']
+        field_bg = t['field_bg']
+        sel_bg, sel_fg = t['select_bg'], t['select_fg']
+        hbg = t['heading_bg']
+        tr = t['trough']
+
+        style.configure('.', background=bg, foreground=fg)
+        style.configure('TFrame', background=bg)
+        style.configure('TLabelframe', background=bg, foreground=fg)
+        style.configure('TLabelframe.Label', background=bg, foreground=fg)
+        style.configure('TLabel', background=bg, foreground=fg)
+        style.configure('TButton', background=sel_bg, foreground=sel_fg)
+        style.map('TButton',
+                  background=[('active', sel_bg), ('pressed', sel_bg)],
+                  foreground=[('active', sel_fg), ('pressed', sel_fg)])
+        style.configure('TEntry', fieldbackground=field_bg, foreground=fg,
+                        selectbackground=sel_bg, selectforeground=sel_fg)
+        style.configure('TCombobox', fieldbackground=field_bg, foreground=fg,
+                        selectbackground=sel_bg, selectforeground=sel_fg,
+                        background=bg, arrowcolor=fg)
+        style.map('TCombobox',
+                  fieldbackground=[('readonly', field_bg)],
+                  selectbackground=[('readonly', sel_bg)],
+                  foreground=[('readonly', fg)])
+        style.configure('TSpinbox', fieldbackground=field_bg, foreground=fg,
+                        background=bg, arrowcolor=fg,
+                        selectbackground=sel_bg, selectforeground=sel_fg)
+        style.configure('TCheckbutton', background=bg, foreground=fg)
+        style.map('TCheckbutton', background=[('active', bg)])
+        style.configure('TRadiobutton', background=bg, foreground=fg)
+        style.map('TRadiobutton', background=[('active', bg)])
+        style.configure('TScrollbar', background=bg, troughcolor=tr,
+                        arrowcolor=fg, bordercolor=bg,
+                        darkcolor=bg, lightcolor=bg)
+        style.configure('TPanedwindow', background=bg)
+        style.configure('Treeview', background=field_bg, foreground=fg,
+                        fieldbackground=field_bg)
+        style.configure('Treeview.Heading', background=hbg, foreground=fg)
+        style.map('Treeview',
+                  background=[('selected', sel_bg)],
+                  foreground=[('selected', sel_fg)])
 
         row_h = tkfont.nametofont('TkDefaultFont').metrics('linespace') + 6
         style.configure('Treeview', font='TkDefaultFont', rowheight=row_h)
         style.configure('Treeview.Heading', font='TkDefaultFont')
 
+    def _inject_theme_backgrounds(self, theme_name):
+        """Overwrite ThemeManager background colors for Blue/Green named themes."""
+        tint = _BG_TINTS.get(theme_name)
+        if tint is None:
+            return
+        theme = ctk.ThemeManager.theme
+        for widget, value in tint.items():
+            if widget not in theme:
+                continue
+            if isinstance(value, dict):
+                for prop, colors in value.items():
+                    theme[widget][prop] = colors
+            else:
+                theme[widget]['fg_color'] = value
+
     def _apply_theme(self, theme_name):
-        """Apply a named color theme to the application."""
+        """Apply a named colour theme to the application."""
+        old_color_theme = CTK_THEME_MAP.get(self._theme_pref, ('system', 'blue'))[1]
+        old_tinted = self._theme_pref in _BG_TINTS
         self._theme_pref = theme_name
-        t = self._THEMES.get(theme_name)
+        mode, color_theme = CTK_THEME_MAP.get(theme_name, ('system', 'blue'))
+        ctk.set_default_color_theme(color_theme)
+        self._inject_theme_backgrounds(theme_name)
+        ctk.set_appearance_mode(mode)
         self._apply_styles()
-        self._recolor_all(t)
+        is_dark = ctk.get_appearance_mode() == 'Dark'
+        self._link_color = get_link_color(is_dark)
         if hasattr(self, 'tree'):
             self.tree.tag_configure(
-                'flagged_row',
-                background=t['flag_bg'] if t else '',
-            )
-        if hasattr(self, 'results'):
+                'flagged_row', background=get_flag_bg(is_dark))
+        if not hasattr(self, 'results'):
+            return
+        needs_rebuild = color_theme != old_color_theme or old_tinted != (theme_name in _BG_TINTS)
+        if needs_rebuild:
+            self.root.after(0, self._rebuild_ui_for_theme)
+        else:
             self.root.after(0, self._refit_windows)
 
-    def _recolor_all(self, theme, start_widget=None):
-        """Recolor every tk.Text widget and window background to match theme."""
-        root = start_widget if start_widget is not None else self.root
-
-        if theme is None:
-            # System theme: reset Text widgets to platform defaults.
-            self._link_color = '#0066cc'
-
-            def recolor(widget):
+    def _rebuild_ui_for_theme(self):
+        """Destroy and rebuild main-window widgets to apply a new colour theme."""
+        # CTkEntry/CTkComboBox register write-traces on their textvariables that
+        # survive Tkinter cascade-destroy (Python trace not removed, Tcl widget gone).
+        # Clear every trace on the affected vars now; re-add our own below.
+        _app_traces = [
+            (self.search_text,  'write', self._on_search_change),
+            (self.filter_text,  'write', self._on_search_change),
+            (self.tag_keyword,  'write', self._on_dna_settings_change),
+            (self.page_marker,  'write', self._on_dna_settings_change),
+        ]
+        for var, *_ in _app_traces:
+            for mode, idx in list(var.trace_info()):
                 try:
-                    if isinstance(widget, tk.Text):
-                        widget.configure(
-                            bg='', fg='',
-                            insertbackground='',
-                            selectbackground='',
-                            selectforeground='',
-                        )
-                        if hasattr(widget, 'frame'):
-                            widget.frame.configure(bg='')
-                        for tag in widget.tag_names():
-                            if tag.startswith('pers_'):
-                                widget.tag_configure(tag, foreground=self._link_color)
+                    var.trace_remove(mode, idx)
                 except tk.TclError:
                     pass
-                for child in widget.winfo_children():
-                    recolor(child)
 
-            recolor(root)
-            return
-
-        text_bg, text_fg = theme['text_bg'], theme['text_fg']
-        insert_col = theme['insert']
-        sel_bg, sel_fg = theme['select_bg'], theme['select_fg']
-        link_col = theme['link']
-        root_bg = theme['bg']
-
-        self._link_color = link_col
-
-        def recolor(widget):
+        for child in list(self.root.winfo_children()):
+            if isinstance(child, tk.Toplevel):
+                continue
             try:
-                if isinstance(widget, tk.Text):
-                    widget.configure(
-                        bg=text_bg, fg=text_fg,
-                        insertbackground=insert_col,
-                        selectbackground=sel_bg,
-                        selectforeground=sel_fg,
-                    )
-                    if hasattr(widget, 'frame'):
-                        widget.frame.configure(bg=text_bg)
-                    for tag in widget.tag_names():
-                        if tag.startswith('pers_'):
-                            widget.tag_configure(tag, foreground=link_col)
-                elif isinstance(widget, (tk.Tk, tk.Toplevel)) and root_bg:
-                    widget.configure(bg=root_bg)
+                child.destroy()
             except tk.TclError:
                 pass
-            for child in widget.winfo_children():
-                recolor(child)
+        self._build_ui()
 
-        recolor(root)
+        # Re-register application traces (_build_ui already re-added CTk's own traces).
+        for var, mode, cb in _app_traces:
+            var.trace_add(mode, cb)
+
+        if self.individuals:
+            self._populate_tree()
+            self._refresh_result()
+        self.root.after(0, self._refit_windows)
 
     def _apply_theme_to_window(self, win):
-        """Apply the active theme colours to a newly created Toplevel window."""
-        pref = getattr(self, '_theme_pref', 'Default')
-        t = self._THEMES.get(pref)
-        self._recolor_all(t, start_widget=win)
+        """Update flagged-row tag colours in any Treeview inside a new window."""
+        is_dark = ctk.get_appearance_mode() == 'Dark'
+        flag_bg = get_flag_bg(is_dark)
+        self._update_flagged_rows(win, flag_bg)
+
+    def _update_flagged_rows(self, widget, flag_bg):
+        """Recursively update flagged_row tag background in all child Treeviews."""
+        for child in widget.winfo_children():
+            if isinstance(child, ttk.Treeview):
+                child.tag_configure('flagged_row', background=flag_bg)
+            try:
+                self._update_flagged_rows(child, flag_bg)
+            except tk.TclError:
+                pass
 
     def _load_theme_preference(self):
-        """Load the saved color theme preference."""
-        return self._config.get_theme_preference(self._THEME_NAMES)
+        """Load the saved colour theme preference."""
+        pref = self._config.get_theme_preference(self._THEME_NAMES)
+        if pref not in self._THEME_NAMES:
+            pref = 'System'
+        return pref
 
     def _save_theme_preference(self, theme_name):
-        """Persist the selected color theme preference."""
+        """Persist the selected colour theme preference."""
         self._config.set_theme_preference(theme_name)
 
     def _load_show_person_geometry(self):
@@ -313,14 +398,15 @@ class AppearanceMixin:
         bind('<Control-l>', self._clear_results)
         bind('<Escape>', self._clear_results)
         # Ctrl-C: only invoke _copy_results when a Text widget isn't focused
-        # (Text widgets capture Ctrl-C themselves to copy selected text).
         self.root.bind('<Control-c>', self._kb_copy)
 
-        # Explicit tab chain:
-        # tree → results → top_n → max_depth → set_home → show_person → find_matches
-        self.results.configure(takefocus=True)
+        # Explicit tab chain via the internal tk widgets for CTk widgets:
+        # tree → results_text → top_n_spin → max_depth_spin →
+        # set_home_btn → show_person_btn → find_matches_btn
+        results_inner = self.results._textbox
+        results_inner.configure(takefocus=True)
         tab_chain = [
-            self.tree, self.results,
+            self.tree, results_inner,
             self.top_n_spin, self.max_depth_spin,
             self.set_home_btn, self.show_person_btn, self.find_matches_btn,
         ]
@@ -333,13 +419,13 @@ class AppearanceMixin:
         self.root.bind('<Alt-m>', lambda _: self._open_app_menu() or 'break')
         self.root.bind('<Alt-M>', lambda _: self._open_app_menu() or 'break')
 
-        r = self.results
-        r.bind('<Up>', lambda _: r.yview_scroll(-1, 'units') or 'break')
-        r.bind('<Down>', lambda _: r.yview_scroll(1, 'units') or 'break')
-        r.bind('<Prior>', lambda _: r.yview_scroll(-1, 'pages') or 'break')
-        r.bind('<Next>', lambda _: r.yview_scroll(1, 'pages') or 'break')
-        r.bind('<Home>', lambda _: r.yview_moveto(0) or 'break')
-        r.bind('<End>', lambda _: r.yview_moveto(1) or 'break')
+        r_inner = self.results._textbox
+        r_inner.bind('<Up>', lambda _: self.results.yview_scroll(-1, 'units') or 'break')
+        r_inner.bind('<Down>', lambda _: self.results.yview_scroll(1, 'units') or 'break')
+        r_inner.bind('<Prior>', lambda _: self.results.yview_scroll(-1, 'pages') or 'break')
+        r_inner.bind('<Next>', lambda _: self.results.yview_scroll(1, 'pages') or 'break')
+        r_inner.bind('<Home>', lambda _: self.results.yview_moveto(0) or 'break')
+        r_inner.bind('<End>', lambda _: self.results.yview_moveto(1) or 'break')
 
     def _open_app_menu(self):
         """Post the application menu at the top-left of the root window."""
@@ -429,7 +515,6 @@ class AppearanceMixin:
         app_menu.add_command(label=MENU_ABOUT, underline=0,
                              command=self._show_about)
 
-        # macOS supplies Quit via Cmd+Q automatically; only add it explicitly elsewhere.
         if sys.platform != 'darwin':
             app_menu.add_separator()
             app_menu.add_command(label=MENU_QUIT, underline=0,
@@ -439,13 +524,11 @@ class AppearanceMixin:
 
     # ---------------------------------------------------------- Window centering helper
     def _center_on_root(self, win, w=None, h=None):
-        """Center a Toplevel window over the root window."""
-        win.update_idletasks()
-        self.root.update_idletasks()
-        if w is None:
-            w = win.winfo_reqwidth()
-        if h is None:
-            h = win.winfo_reqheight()
-        px = self.root.winfo_x() + (self.root.winfo_width() - w) // 2
-        py = self.root.winfo_y() + (self.root.winfo_height() - h) // 2
-        win.geometry(f"{w}x{h}+{px}+{py}")
+        """Fit and center a Toplevel window over the root window."""
+        self._fit_window_to_content(
+            win,
+            min_w=w or 400,
+            min_h=h or 300,
+            preferred_w=w,
+            preferred_h=h,
+        )

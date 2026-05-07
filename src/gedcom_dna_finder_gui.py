@@ -2,7 +2,7 @@
 """
 gedcom_dna_finder_gui.py
 
-Tkinter GUI for finding the nearest DNA-flagged relative(s) to a target
+customtkinter GUI for finding the nearest DNA-flagged relative(s) to a target
 person in a GEDCOM tree.
 
 Workflow:
@@ -18,8 +18,7 @@ Two DNA-flag signals are detected (either is sufficient):
   - An _MTTAG pointer to a tag-record whose NAME contains "DNA"
     (configurable from the UI)
 
-Pure stdlib. Requires Python 3 with tkinter (standard on Windows / macOS;
-on Linux you may need a python3-tk package).
+Pure stdlib + customtkinter. Requires Python 3.8+.
 """
 
 import tkinter.font as tkfont
@@ -31,11 +30,14 @@ import subprocess
 import sys
 import threading
 import webbrowser
-from tkinter import ttk, filedialog, messagebox, scrolledtext
 import tkinter as tk
+from tkinter import ttk, filedialog, messagebox
+import customtkinter as ctk
+
 from gedcom_data_model import GedcomDataModel
 from gedcom_config import ConfigManager
-from gedcom_strings import *  # user-facing strings noqa: F401,F403 # pylint: disable=unused-wildcard-import,wildcard-import
+# user-facing strings noqa: F401,F403 # pylint: disable=unused-wildcard-import,wildcard-import
+from gedcom_strings import *
 from gedcom_core import (
     bfs_find_dna_matches,
     bfs_find_all_paths,
@@ -47,15 +49,13 @@ from gedcom_relationship import (
     get_descendant_depths,
     describe_relationship,
 )
-from gedcom_theme import Tooltip, THEME_NAMES, THEMES
+from gedcom_theme import Tooltip, THEME_NAMES, get_flag_bg, get_link_color
 from gedcom_gui_appearance import AppearanceMixin
 from gedcom_gui_dialogs import DialogsMixin
 
 
 def _open_url(url):
     # webbrowser.open() silently fails in PyInstaller .app bundles on macOS
-    # because Python routes through osascript, which can break in frozen apps.
-    # /usr/bin/open is always available and handles URLs reliably.
     if sys.platform == 'darwin':
         subprocess.run(['/usr/bin/open', url], check=False)
     else:
@@ -88,18 +88,32 @@ __version__, __release_date__ = _read_version()
 # ===========================================================================
 
 class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
-    """Tkinter application for browsing GEDCOM people and finding DNA matches."""
+    """customtkinter application for browsing GEDCOM people and finding DNA matches."""
 
-    MAX_LIST_DISPLAY = 2000  # cap visible rows in the people list
-    FUZZY_THRESHOLD = 0.72   # minimum SequenceMatcher ratio to count as a match
-    MAX_RECENT = 10          # number of recent files to remember
+    MAX_LIST_DISPLAY = 2000
+    FUZZY_THRESHOLD = 0.72
+    MAX_RECENT = 10
+    MAIN_PREFERRED_WIDTH = 1500
+    MAIN_PREFERRED_HEIGHT = 760
+    RESULTS_PREFERRED_WIDTH = 850
     _FONT_SIZES = {
-        'small':  {'ui': 9,  'mono': 9},
-        'medium': {'ui': 10, 'mono': 10},
-        'large':  {'ui': 13, 'mono': 12},
+        'small':  {'ui': 9,  'mono': 11},
+        'medium': {'ui': 11, 'mono': 14},
+        'large':  {'ui': 15, 'mono': 18},
     }
     _THEME_NAMES = THEME_NAMES
-    _THEMES = THEMES
+
+    @staticmethod
+    def _pick_mono_family():
+        if sys.platform == 'darwin':
+            return 'Menlo'
+        if sys.platform == 'win32':
+            return 'Consolas'
+        available = set(tkfont.families())
+        for name in ('DejaVu Sans Mono', 'Liberation Mono', 'Courier New'):
+            if name in available:
+                return name
+        return 'Courier'
 
     def __init__(self, root):
         """Initialize application state, preferences, data model, and widgets."""
@@ -108,25 +122,29 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
 
         self.root = root
         self.root.title(APP_TITLE)
-        self.root.geometry("1100x720")
-        self.root.minsize(800, 500)
+
         if sys.platform == 'win32':
-            self.root.iconbitmap(self._resource_path('icons/family_tree.ico'))
+            try:
+                self.root.iconbitmap(
+                    self._resource_path('icons/family_tree.ico'))
+            except Exception:  # pylint: disable=broad-exception-caught
+                pass
         elif sys.platform != 'darwin':
-            icon = tk.PhotoImage(
-                file=self._resource_path('icons/family_tree.png'))
-            self.root.iconphoto(True, icon)
-        # macOS: icon is handled by the .app bundle's .icns file
+            try:
+                icon = tk.PhotoImage(
+                    file=self._resource_path('icons/family_tree.png'))
+                self.root.iconphoto(True, icon)
+            except Exception:  # pylint: disable=broad-exception-caught
+                pass
 
         # Data state
         self.individuals = {}
         self.families = {}
         self.tag_records = {}
-        # all IDs sorted by name (computed once after load)
         self.sorted_ids = []
-        self._home_person_id = None   # persisted per GEDCOM file
+        self._home_person_id = None
 
-        # UI state
+        # UI state variables
         self.gedcom_path = tk.StringVar()
         self.tag_keyword = tk.StringVar(value="DNA")
         self.page_marker = tk.StringVar(value="AncestryDNA Match")
@@ -138,7 +156,6 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
         self.fuzzy_threshold = tk.DoubleVar(
             value=self._config.get_fuzzy_threshold(self.FUZZY_THRESHOLD))
         self.status_text = tk.StringVar(value=STATUS_NO_FILE)
-
         self.fuzzy_search = tk.BooleanVar(value=False)
         self.show_ids = tk.BooleanVar(value=self._config.get_show_ids())
         self._name_order = self._config.get_name_order()
@@ -157,7 +174,6 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
         self.tag_keyword.trace_add('write', self._on_dna_settings_change)
         self.page_marker.trace_add('write', self._on_dna_settings_change)
         self._dna_settings_after_id = None
-        # {'type': 'dna_matches'|'path', 'start_id': ..., 'end_id': ...}
         self._last_result = None
         self._busy = False
         self._sort_col = 'name'
@@ -166,11 +182,20 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
         self._recent_files = self._load_history()
         self._show_person_geometry = self._load_show_person_geometry()
 
-        self._default_ttk_theme = ttk.Style().theme_use()
-        self._mono_font = tkfont.Font(family='Courier', size=10)
+        self._mono_family = self._pick_mono_family()
+        self._mono_size = self._FONT_SIZES['medium']['mono']
+        # tkfont.Font objects are used by render_markdown and tag introspection;
+        # CTkTextbox requires tuple/CTkFont at creation time (see _build_ui).
+        self._mono_font = tkfont.Font(
+            family=self._mono_family, size=self._mono_size)
         self._mono_font_bold = tkfont.Font(
-            family='Courier', size=10, weight='bold')
+            family=self._mono_family, size=self._mono_size, weight='bold')
         self._link_color = '#0066cc'
+
+        # Progress animation state
+        self._progress_anim_id = None
+        self._progress_anim_val = 0.0
+
         self._font_size_pref = self._load_font_preference()
         self._theme_pref = self._load_theme_preference()
         self._apply_font_size(self._font_size_pref)
@@ -179,7 +204,6 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
         self._version = __version__
         self._release_date = __release_date__
 
-        # Remove any leftover .pkl files from the old pickle-based cache
         try:
             for _pkl in self._cache_dir().glob('*.pkl'):
                 _pkl.unlink(missing_ok=True)
@@ -187,66 +211,79 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
             pass
 
         self._build_ui()
+        self._fit_window_to_content(
+            self.root,
+            min_w=800,
+            min_h=500,
+            preferred_w=self.MAIN_PREFERRED_WIDTH,
+            preferred_h=self.MAIN_PREFERRED_HEIGHT,
+            max_screen_ratio=0.92,
+            center_on_root=False,
+        )
 
-        # Snap the initial window width up to what Tk actually needs so that
-        # all action-bar buttons are fully visible on first launch.
-        # update_idletasks() is a best-effort pass; geometry propagation in Tk
-        # can require multiple idle rounds, so we also schedule a deferred
-        # refit that runs after the event loop starts and layout has settled.
-        # This is necessary when a non-default font (e.g. "large") is configured
-        # at startup, because a single update_idletasks() call may return a
-        # stale winfo_reqwidth() before all geometry passes have completed.
-        self.root.update_idletasks()
-        min_w = self.root.winfo_reqwidth()
-        if min_w > self.root.winfo_width():
-            self.root.geometry(f"{min_w}x{self.root.winfo_height()}")
-        self.root.minsize(max(min_w, 800), 500)
-        self.root.after(0, self._refit_windows)
-
-        # Re-open the most-recently-used file automatically on startup
         if self._recent_files and os.path.isfile(self._recent_files[0]):
             self.gedcom_path.set(self._recent_files[0])
             self.root.after(0, self._load_file)
+
+    # ---------------------------------------------------------- UI build helpers
+    def _section(self, parent, label=None):
+        """Return a CTkFrame styled as a labelled section group."""
+        outer = ctk.CTkFrame(parent)
+        if label:
+            ctk.CTkLabel(outer, text=label, anchor='w').pack(
+                anchor='nw', padx=10, pady=(6, 2))
+        inner = ctk.CTkFrame(outer, fg_color='transparent')
+        inner.pack(fill='x', padx=8, pady=(0, 8))
+        return inner
 
     # ---------------------------------------------------------- UI build
     def _build_ui(self):
         """Build the main application window and connect primary controls."""
         self._setup_menu()
-        outer = ttk.Frame(self.root, padding=8)
-        outer.pack(fill='both', expand=True)
+        outer = ctk.CTkFrame(self.root, fg_color='transparent')
+        outer.pack(fill='both', expand=True, padx=8, pady=8)
 
         # File row
-        file_frame = ttk.LabelFrame(outer, text=FRAME_GEDCOM_FILE, padding=8)
-        file_frame.pack(fill='x')
-        self.path_combo = ttk.Combobox(
-            file_frame, textvariable=self.gedcom_path, values=self._recent_files
+        file_group = ctk.CTkFrame(outer)
+        file_group.pack(fill='x')
+        ctk.CTkLabel(file_group, text=FRAME_GEDCOM_FILE, anchor='w').pack(
+            anchor='nw', padx=10, pady=(6, 2))
+        file_frame = ctk.CTkFrame(file_group, fg_color='transparent')
+        file_frame.pack(fill='x', padx=8, pady=(0, 8))
+
+        self.path_combo = ctk.CTkComboBox(
+            file_frame, variable=self.gedcom_path,
+            values=self._recent_files,
+            command=lambda _: self._load_file(),
         )
         self.path_combo.pack(side='left', fill='x', expand=True, padx=(0, 4))
-        self.path_combo.bind('<<ComboboxSelected>>',
-                             lambda _: self._load_file())
-        self.browse_btn = ttk.Button(file_frame, text=BTN_BROWSE,
-                                     command=self._browse)
+        self.browse_btn = ctk.CTkButton(
+            file_frame, text=BTN_BROWSE, width=80, command=self._browse)
         self.browse_btn.pack(side='left', padx=2)
         Tooltip(self.browse_btn, TIP_BROWSE)
 
         # Settings row
-        settings_frame = ttk.LabelFrame(
-            outer, text=FRAME_DNA_SETTINGS, padding=8)
-        settings_frame.pack(fill='x', pady=(8, 0))
-        ttk.Label(settings_frame, text=LBL_TAG_KEYWORD).grid(
+        settings_group = ctk.CTkFrame(outer)
+        settings_group.pack(fill='x', pady=(8, 0))
+        ctk.CTkLabel(settings_group, text=FRAME_DNA_SETTINGS, anchor='w').pack(
+            anchor='nw', padx=10, pady=(6, 2))
+        settings_frame = ctk.CTkFrame(settings_group, fg_color='transparent')
+        settings_frame.pack(fill='x', padx=8, pady=(0, 8))
+
+        ctk.CTkLabel(settings_frame, text=LBL_TAG_KEYWORD).grid(
             row=0, column=0, sticky='w', padx=(0, 4))
-        ttk.Entry(settings_frame, textvariable=self.tag_keyword,
-                  width=20).grid(row=0, column=1, padx=(0, 16))
-        ttk.Label(settings_frame, text=LBL_PAGE_MARKER).grid(
+        ctk.CTkEntry(settings_frame, textvariable=self.tag_keyword,
+                     width=150).grid(row=0, column=1, padx=(0, 16))
+        ctk.CTkLabel(settings_frame, text=LBL_PAGE_MARKER).grid(
             row=0, column=2, sticky='w', padx=(0, 4))
-        ttk.Entry(settings_frame, textvariable=self.page_marker,
-                  width=30).grid(row=0, column=3, padx=(0, 16))
-        _select_tag_btn = ttk.Button(settings_frame, text=BTN_SELECT_TAG,
-                                     underline=7, command=self._view_tags)
+        ctk.CTkEntry(settings_frame, textvariable=self.page_marker,
+                     width=240).grid(row=0, column=3, padx=(0, 16))
+        _select_tag_btn = ctk.CTkButton(
+            settings_frame, text=BTN_SELECT_TAG, width=100, command=self._view_tags)
         _select_tag_btn.grid(row=0, column=4, padx=4)
         Tooltip(_select_tag_btn, TIP_SELECT_TAG)
-        _find_path_btn = ttk.Button(settings_frame, text=BTN_FIND_PATH,
-                                    underline=18, command=self._find_path)
+        _find_path_btn = ctk.CTkButton(
+            settings_frame, text=BTN_FIND_PATH, width=120, command=self._find_path)
         _find_path_btn.grid(row=0, column=5, padx=(12, 4))
         Tooltip(_find_path_btn, TIP_FIND_PATH)
 
@@ -254,36 +291,38 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
         paned = ttk.PanedWindow(outer, orient='horizontal')
         paned.pack(fill='both', expand=True, pady=(8, 0))
 
-        # --- Left pane: search + list + action controls ---
-        left = ttk.Frame(paned)
+        # --- Left pane ---
+        left = ctk.CTkFrame(paned, fg_color='transparent')
         paned.add(left, weight=1)
 
-        search_frame = ttk.Frame(left)
+        search_frame = ctk.CTkFrame(left, fg_color='transparent')
         search_frame.pack(fill='x')
-        ttk.Label(search_frame, text=LBL_FIND, underline=0).pack(
+        ctk.CTkLabel(search_frame, text=LBL_FIND).pack(
             side='left', padx=(0, 4))
-        self.search_entry = ttk.Entry(
+        self.search_entry = ctk.CTkEntry(
             search_frame, textvariable=self.search_text)
         self.search_entry.pack(side='left', fill='x', expand=True)
         self.search_entry.bind(
             '<Return>', lambda _: self._search_flush_and_jump())
-        ttk.Checkbutton(
-            search_frame, text=CHK_DNA_FLAGGED_ONLY, underline=0, variable=self.show_flagged_only
+        ctk.CTkCheckBox(
+            search_frame, text=CHK_DNA_FLAGGED_ONLY,
+            variable=self.show_flagged_only, width=0,
         ).pack(side='left', padx=(8, 0))
-        ttk.Checkbutton(
-            search_frame, text=CHK_FUZZY, variable=self.fuzzy_search, underline=1
+        ctk.CTkCheckBox(
+            search_frame, text=CHK_FUZZY,
+            variable=self.fuzzy_search, width=0,
         ).pack(side='left', padx=(8, 0))
 
-        filter_frame = ttk.Frame(left)
+        filter_frame = ctk.CTkFrame(left, fg_color='transparent')
         filter_frame.pack(fill='x', pady=(2, 0))
-        ttk.Label(filter_frame, text=LBL_FILTER, underline=1).pack(
+        ctk.CTkLabel(filter_frame, text=LBL_FILTER).pack(
             side='left', padx=(0, 4))
-        self.filter_entry = ttk.Entry(
+        self.filter_entry = ctk.CTkEntry(
             filter_frame, textvariable=self.filter_text)
         self.filter_entry.pack(side='left', fill='x', expand=True)
         self.filter_entry.bind('<Return>', lambda _: self._kb_focus_list())
 
-        list_frame = ttk.Frame(left)
+        list_frame = ctk.CTkFrame(left, fg_color='transparent')
         list_frame.pack(fill='both', expand=True, pady=(4, 0))
 
         self.tree = ttk.Treeview(
@@ -305,15 +344,14 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
         self.tree.column('death', width=55, anchor='w', stretch=False)
         self.tree.column('flagged', width=50, anchor='center', stretch=False)
 
-        ysb = ttk.Scrollbar(list_frame, orient='vertical',
-                            command=self.tree.yview)
-        ysb.configure(takefocus=False)
+        ysb = ctk.CTkScrollbar(list_frame, orientation='vertical',
+                               command=self.tree.yview)
         self.tree.configure(yscrollcommand=ysb.set)
         self.tree.pack(side='left', fill='both', expand=True)
         ysb.pack(side='right', fill='y')
 
-        # Highlight flagged rows
-        self.tree.tag_configure('flagged_row', background='#fff4cc')
+        is_dark = ctk.get_appearance_mode() == 'Dark'
+        self.tree.tag_configure('flagged_row', background=get_flag_bg(is_dark))
 
         self.tree.bind('<Double-1>', lambda e: self._find_matches())
         self.tree.bind('<Return>', lambda e: self._find_matches())
@@ -322,80 +360,89 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
         self.tree.bind('<End>', lambda e: self._tree_jump('last') or 'break')
 
         # Action controls
-        action_frame = ttk.Frame(left)
+        action_frame = ctk.CTkFrame(left, fg_color='transparent')
         action_frame.pack(fill='x', pady=(6, 0))
-        _top_n_label = ttk.Label(action_frame, text=LBL_TOP_N)
+        _top_n_label = ctk.CTkLabel(action_frame, text=LBL_TOP_N)
         _top_n_label.pack(side='left')
         self.top_n_spin = ttk.Spinbox(
             action_frame, from_=1, to=20, textvariable=self.top_n, width=4)
         self.top_n_spin.pack(side='left', padx=(2, 12))
         Tooltip(_top_n_label, TIP_TOP_N)
         Tooltip(self.top_n_spin, TIP_TOP_N)
-        _max_depth_label = ttk.Label(action_frame, text=LBL_MAX_DEPTH)
+        _max_depth_label = ctk.CTkLabel(action_frame, text=LBL_MAX_DEPTH)
         _max_depth_label.pack(side='left')
         self.max_depth_spin = ttk.Spinbox(
             action_frame, from_=1, to=200, textvariable=self.max_depth, width=4)
         self.max_depth_spin.pack(side='left', padx=(2, 12))
         Tooltip(_max_depth_label, TIP_MAX_DEPTH)
         Tooltip(self.max_depth_spin, TIP_MAX_DEPTH)
-        self.find_matches_btn = ttk.Button(
-            action_frame, text=BTN_FIND_MATCHES, underline=5,
-            command=self._find_matches
-        )
+        self.find_matches_btn = ctk.CTkButton(
+            action_frame, text=BTN_FIND_MATCHES, command=self._find_matches)
         self.find_matches_btn.pack(side='right')
-        self.show_person_btn = ttk.Button(
-            action_frame, text=BTN_SHOW_PERSON, underline=0,
-            command=self._show_person
-        )
+        self.show_person_btn = ctk.CTkButton(
+            action_frame, text=BTN_SHOW_PERSON, command=self._show_person)
         self.show_person_btn.pack(side='right', padx=(0, 6))
-        self.set_home_btn = ttk.Button(
-            action_frame, text=BTN_SET_HOME, underline=4,
-            command=self._set_home_person
-        )
+        self.set_home_btn = ctk.CTkButton(
+            action_frame, text=BTN_SET_HOME, command=self._set_home_person)
         self.set_home_btn.pack(side='right', padx=(0, 4))
 
-        # --- Right pane: results ---
-        right = ttk.Frame(paned)
-        paned.add(right, weight=2)
+        # --- Right pane ---
+        right = ctk.CTkFrame(paned, fg_color='transparent')
+        paned.add(right, weight=3)
 
-        results_header = ttk.Frame(right)
+        results_header = ctk.CTkFrame(right, fg_color='transparent')
         results_header.pack(fill='x')
-        ttk.Label(results_header, text=LBL_RESULTS).pack(side='left')
-        ttk.Button(results_header, text=BTN_COPY, underline=0,
-                   command=self._copy_results).pack(side='right')
-        
-        self.results = scrolledtext.ScrolledText(
-            right, font=self._mono_font, wrap='word', height=10
+        ctk.CTkLabel(results_header, text=LBL_RESULTS).pack(side='left')
+        ctk.CTkButton(results_header, text=BTN_COPY, width=60,
+                      command=self._copy_results).pack(side='right')
+
+        self.results = ctk.CTkTextbox(
+            right,
+            font=(self._mono_family, self._mono_size),
+            wrap='word', height=10, width=self.RESULTS_PREFERRED_WIDTH,
+            activate_scrollbars=True,
         )
         self.results.pack(fill='both', expand=True, pady=(4, 0))
-        self.results.tag_configure('bold', font=self._mono_font_bold)
+        self.results._textbox.tag_configure(
+            'bold', font=(self._mono_family, self._mono_size, 'bold'))
         self.results.configure(state='disabled')
 
         # Status bar
-        status_bar = ttk.Frame(outer, relief='sunken')
+        status_bar = ctk.CTkFrame(outer)
         status_bar.pack(fill='x', pady=(8, 0))
         status_bar.columnconfigure(0, weight=1)
-        ttk.Label(status_bar, textvariable=self.status_text, anchor='w').grid(
-            row=0, column=0, sticky='ew', padx=(4, 0), pady=1)
-        self._progress_bar = ttk.Progressbar(
-            status_bar, mode='indeterminate', length=130)
-        self._progress_bar.grid(row=0, column=1, padx=(4, 2), pady=2)
-        self._progress_bar.grid_remove()  # hidden until a long operation starts
+        ctk.CTkLabel(
+            status_bar, textvariable=self.status_text, anchor='w',
+        ).grid(row=0, column=0, sticky='ew', padx=(8, 0), pady=4)
+        self._progress_bar = ctk.CTkProgressBar(status_bar, width=130)
+        self._progress_bar.set(0)
+        self._progress_bar.grid(row=0, column=1, padx=(4, 8), pady=4)
+        self._progress_bar.grid_remove()
 
         self._setup_keybindings()
 
     # ---------------------------------------------------------- Busy / progress
     def _show_progress(self, msg=None):
-        """Reveal the indeterminate progress bar and optionally set status text."""
+        """Reveal the animated progress bar and optionally set status text."""
         if msg:
             self.status_text.set(msg)
         self._progress_bar.grid()
-        self._progress_bar.start(12)
+        self._progress_anim_val = 0.0
+        if self._progress_anim_id is None:
+            self._tick_progress()
         self.root.update_idletasks()
+
+    def _tick_progress(self):
+        """Advance the progress bar animation one step."""
+        self._progress_anim_val = (self._progress_anim_val + 0.03) % 1.0
+        self._progress_bar.set(self._progress_anim_val)
+        self._progress_anim_id = self.root.after(50, self._tick_progress)
 
     def _hide_progress(self):
         """Stop and hide the progress bar."""
-        self._progress_bar.stop()
+        if self._progress_anim_id is not None:
+            self.root.after_cancel(self._progress_anim_id)
+            self._progress_anim_id = None
         self._progress_bar.grid_remove()
 
     def _set_busy(self, busy):
@@ -540,7 +587,6 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
 
     def _on_search_change(self, *_):
         """Debounce person-list filtering while the user types."""
-        # Debounce so typing doesn't refilter on every keystroke
         if self._search_after_id is not None:
             self.root.after_cancel(self._search_after_id)
         self._search_after_id = self.root.after(150, self._populate_tree)
@@ -556,7 +602,6 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
     def _populate_tree(self):
         """Populate the people list using current search, filter, and sort settings."""
         self._search_after_id = None
-        # Save current selection so we can restore it if still visible
         prev_sel = self.tree.selection()
         prev_id = prev_sel[0] if prev_sel else None
 
@@ -572,7 +617,6 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
         flagged_count = sum(
             1 for i in self.individuals.values() if i['dna_markers'])
 
-        # Update column heading sort indicators
         _col_labels = {'name': COL_NAME, 'birth': COL_BIRTH,
                        'death': COL_DEATH, 'flagged': COL_DNA}
         for _col, _label in _col_labels.items():
@@ -580,7 +624,6 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
                 ' ▼' if self._sort_rev else ' ▲') if _col == self._sort_col else ''
             self.tree.heading(_col, text=_label + suffix)
 
-        # Sort ids according to current sort column/direction
         def _sort_key(indi_id):
             indi = self.individuals[indi_id]
             name = self._display_name(indi).lower()
@@ -644,7 +687,6 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
             )
             shown += 1
 
-        # Restore selection if still present; auto-select if exactly one result
         if prev_id and self.tree.exists(prev_id):
             self.tree.selection_set(prev_id)
             self.tree.see(prev_id)
@@ -653,7 +695,6 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
             self.tree.selection_set(only)
             self.tree.see(only)
 
-        # Status
         total = len(self.individuals)
         if truncated:
             self.status_text.set(STATUS_SHOWING_FIRST.format(
@@ -731,24 +772,30 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
     def _render_results(self, start_id, results):
         """Render DNA match search results and family context."""
         w = self.results
+        tw = w._textbox
         w.configure(state='normal')
         w.delete('1.0', 'end')
         self._clear_person_tags(w)
 
-        w.tag_configure('person_link')
-        w.tag_bind('person_link', '<Enter>',
-                   lambda _: w.config(cursor='hand2'))
-        w.tag_bind('person_link', '<Leave>', lambda _: w.config(cursor=''))
+        tw.tag_configure('person_link')
+        tw.tag_bind('person_link', '<Enter>',
+                    lambda _: tw.config(cursor='hand2'))
+        tw.tag_bind('person_link', '<Leave>',
+                    lambda _: tw.config(cursor=''))
 
         def nl(text='', bold=False):
             w.insert('end', text + '\n', ('bold',) if bold else ())
 
         def hr():
             w.update_idletasks()
-            pix_width = max(w.winfo_width() - 4, 100)
-            sep = tk.Frame(w, height=2, width=pix_width, bg=w.cget('fg'), bd=0, relief='flat')
-            w.window_create('end', window=sep)
-            w.insert('end', '\n')
+            tw = w._textbox
+            pix_width = max(tw.winfo_width() - 4, 100)
+            is_dark = ctk.get_appearance_mode() == 'Dark'
+            sep_color = '#DCE4EE' if is_dark else '#1a1a1a'
+            sep = tk.Frame(tw, height=2, width=pix_width,
+                           bg=sep_color, bd=0, relief='flat')
+            tw.window_create('end', window=sep)
+            tw.insert('end', '\n')
 
         def person(indi_id, prefix='', suffix='', bold=False):
             base = ('bold',) if bold else ()
@@ -757,9 +804,9 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
             tag = f'pers_{indi_id.strip("@")}'
             w.insert('end', describe(self.individuals[indi_id], show_id=self.show_ids.get()),
                      base + ('person_link', tag))
-            w.tag_configure(tag, foreground=self._link_color)
-            w.tag_bind(tag, '<Button-1>',
-                       lambda _, iid=indi_id: self._navigate_to(iid))
+            tw.tag_configure(tag, foreground=self._link_color)
+            tw.tag_bind(tag, '<Button-1>',
+                        lambda _, iid=indi_id: self._navigate_to(iid))
             if suffix:
                 w.insert('end', suffix, base)
             w.insert('end', '\n')
@@ -803,7 +850,6 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
         # Family section
         nl(FAM_SECTION, bold=True)
         family_found = False
-
         parents, siblings, children = self._get_family_members(start_id)
 
         if parents:
@@ -811,19 +857,16 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
             nl(FAM_PARENTS)
             for pid in parents:
                 person(pid, prefix="    ")
-
         if siblings:
             family_found = True
             nl(FAM_SIBLINGS)
             for sib_id in siblings:
                 person(sib_id, prefix="    ")
-
         if children:
             family_found = True
             nl(FAM_CHILDREN)
             for child_id in children:
                 person(child_id, prefix="    ")
-
         if not family_found:
             nl(FAM_NO_INFO)
         nl()
@@ -890,10 +933,11 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
         return re.sub(r'\s*\(@[^@]+@\)\s*$', '', marker)
 
     def _clear_person_tags(self, widget):
-        """Remove generated person-link tags from a Text widget."""
-        for tag in widget.tag_names():
+        """Remove generated person-link tags from a Text-like widget."""
+        tw = getattr(widget, '_textbox', widget)
+        for tag in tw.tag_names():
             if tag.startswith('pers_'):
-                widget.tag_delete(tag)
+                tw.tag_delete(tag)
 
     def _navigate_to(self, indi_id):
         """Select a person in the list and render their DNA match results."""
@@ -965,15 +1009,13 @@ def main():
     )
     args = parser.parse_args()
 
-    root = tk.Tk()
+    root = ctk.CTk()
     app = DNAMatchFinderApp(root)
 
     if args.gedcom:
         path = os.path.abspath(os.path.expanduser(args.gedcom))
         app.gedcom_path.set(path)
         if os.path.isfile(path):
-            # Defer the load until after the window is mapped, so the
-            # status bar and cursor change are visible during parsing.
             root.after(50, app._load_file)
         else:
             root.after(

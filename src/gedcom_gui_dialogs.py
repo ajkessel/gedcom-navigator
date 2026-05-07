@@ -7,11 +7,13 @@ preferences, and documentation windows for DNAMatchFinderApp.
 
 import tkinter as tk
 import tkinter.font as tkfont
-from tkinter import ttk, messagebox, scrolledtext
+from tkinter import ttk, messagebox
 import os
 import sys
 import threading
 import webbrowser
+import customtkinter as ctk
+
 from gedcom_core import bfs_find_all_paths, describe
 from gedcom_relationship import (
     _extract_event, get_ancestor_depths, get_descendant_depths,
@@ -19,7 +21,7 @@ from gedcom_relationship import (
 )
 from gedcom_markdown import render_markdown
 from gedcom_strings import *  # noqa: F401,F403
-from gedcom_theme import Tooltip
+from gedcom_theme import Tooltip, get_flag_bg, get_link_color
 
 
 class DialogsMixin:
@@ -38,10 +40,7 @@ class DialogsMixin:
 
     def _show_person_for(self, indi_id):
         """Open a detail window for a specific individual ID."""
-        win = tk.Toplevel(self.root)
-        win.geometry(self._show_person_geometry or "700x520")
-        win.minsize(400, 300)
-        win.focus_force()
+        win = ctk.CTkToplevel(self.root)
 
         _geo_after = [None]
 
@@ -53,24 +52,26 @@ class DialogsMixin:
             _geo_after[0] = win.after(
                 400, lambda: self._persist_show_person_geometry(win))
 
-        win.bind('<Configure>', _on_win_configure)
         win.bind('<Escape>', lambda _: win.destroy())
+
+        text = ctk.CTkTextbox(
+            win, font=(self._mono_family, self._mono_size), wrap='none')
+        text._textbox.configure(padx=8, pady=8)
+        text.pack(fill='both', expand=True)
+        text._textbox.tag_configure(
+            'bold', font=(self._mono_family, self._mono_size, 'bold'))
+        text._textbox.tag_configure('person_link')
+        text._textbox.tag_bind('person_link', '<Enter>',
+                               lambda _: text._textbox.config(cursor='hand2'))
+        text._textbox.tag_bind('person_link', '<Leave>',
+                               lambda _: text._textbox.config(cursor=''))
+
         win.bind('<Up>', lambda _: text.yview_scroll(-1, 'units') or 'break')
         win.bind('<Down>', lambda _: text.yview_scroll(1, 'units') or 'break')
         win.bind('<Prior>', lambda _: text.yview_scroll(-1, 'pages') or 'break')
         win.bind('<Next>', lambda _: text.yview_scroll(1, 'pages') or 'break')
         win.bind('<Home>', lambda _: text.yview_moveto(0) or 'break')
         win.bind('<End>', lambda _: text.yview_moveto(1) or 'break')
-
-        text = scrolledtext.ScrolledText(
-            win, font=self._mono_font, wrap='none', padx=8, pady=8)
-        text.pack(fill='both', expand=True)
-        text.tag_configure('bold', font=self._mono_font_bold)
-        text.tag_configure('person_link')
-        text.tag_bind('person_link', '<Enter>',
-                      lambda _: text.config(cursor='hand2'))
-        text.tag_bind('person_link', '<Leave>',
-                      lambda _: text.config(cursor=''))
 
         def populate(iid):
             indi = self.individuals[iid]
@@ -86,12 +87,12 @@ class DialogsMixin:
                 if prefix:
                     text.insert('end', prefix)
                 tag = f'pers_{pid.strip("@")}'
-                text.insert('end', describe(self.individuals[pid], show_id=self.show_ids.get()),
+                text.insert('end', describe(self.individuals[pid],
+                                            show_id=self.show_ids.get()),
                             ('person_link', tag))
-                text.tag_configure(
-                    tag, foreground=self._link_color)
-                text.tag_bind(tag, '<Button-1>',
-                              lambda _, p=pid: populate(p))
+                text._textbox.tag_configure(tag, foreground=self._link_color)
+                text._textbox.tag_bind(tag, '<Button-1>',
+                                       lambda _, p=pid: populate(p))
                 text.insert('end', '\n')
 
             add(BIO_SECTION, bold=True)
@@ -136,7 +137,6 @@ class DialogsMixin:
 
             add(FAM_SECTION, bold=True)
             family_found = False
-
             parents, siblings, children = self._get_family_members(iid)
 
             if parents:
@@ -144,19 +144,16 @@ class DialogsMixin:
                 add(FAM_PARENTS)
                 for pid in parents:
                     person(pid, prefix="    ")
-
             if siblings:
                 family_found = True
                 add(FAM_SIBLINGS)
                 for sib_id in siblings:
                     person(sib_id, prefix="    ")
-
             if children:
                 family_found = True
                 add(FAM_CHILDREN)
                 for child_id in children:
                     person(child_id, prefix="    ")
-
             if not family_found:
                 add(FAM_NO_INFO)
             add("")
@@ -175,11 +172,24 @@ class DialogsMixin:
 
         populate(indi_id)
 
-        btn_frame = ttk.Frame(win)
+        btn_frame = ctk.CTkFrame(win, fg_color='transparent')
         btn_frame.pack(fill='x', pady=(4, 8))
-        ttk.Button(btn_frame, text=BTN_CLOSE, command=win.destroy).pack(
-            side='right', padx=8)
-        self._apply_theme_to_window(win)
+        ctk.CTkButton(btn_frame, text=BTN_CLOSE, width=80,
+                      command=win.destroy).pack(side='right', padx=8)
+
+        if self._show_person_geometry:
+            win.minsize(400, 300)
+            win.geometry(self._show_person_geometry)
+        else:
+            self._fit_window_to_content(
+                win,
+                min_w=400,
+                min_h=300,
+                preferred_w=700,
+                preferred_h=520,
+            )
+        win.bind('<Configure>', _on_win_configure)
+        win.focus_force()
 
     def _view_tags(self):
         """Show tag-record definitions and allow choosing the DNA tag keyword."""
@@ -187,16 +197,16 @@ class DialogsMixin:
             messagebox.showinfo(WIN_TAG_DEFINITIONS, MSG_NO_TAGS)
             return
 
-        win = tk.Toplevel(self.root)
+        win = ctk.CTkToplevel(self.root)
         win.title(WIN_TAG_DEFINITIONS)
         win.transient(self.root)
         win.resizable(True, True)
 
         show_ids = self.show_ids.get()
-        rows = sorted(self.tag_records.items())  # [(ref, name), ...]
+        rows = sorted(self.tag_records.items())
 
-        list_frame = ttk.Frame(win, padding=(8, 8, 8, 0))
-        list_frame.pack(fill='both', expand=True)
+        list_frame = ctk.CTkFrame(win, fg_color='transparent')
+        list_frame.pack(fill='both', expand=True, padx=8, pady=(8, 0))
 
         if show_ids:
             tag_tree = ttk.Treeview(list_frame, columns=('id', 'name'),
@@ -213,9 +223,8 @@ class DialogsMixin:
             tag_tree.heading('name', text=COL_TAG_NAME)
             tag_tree.column('name', width=390, anchor='w', stretch=True)
 
-        ysb = ttk.Scrollbar(list_frame, orient='vertical',
-                            command=tag_tree.yview)
-        ysb.configure(takefocus=False)
+        ysb = ctk.CTkScrollbar(list_frame, orientation='vertical',
+                               command=tag_tree.yview)
         tag_tree.configure(yscrollcommand=ysb.set)
         tag_tree.pack(side='left', fill='both', expand=True)
         ysb.pack(side='right', fill='y')
@@ -228,8 +237,8 @@ class DialogsMixin:
             if first_match is None and name.strip().lower() == current_kw:
                 first_match = iid
 
-        btn_frame = ttk.Frame(win, padding=(8, 4, 8, 8))
-        btn_frame.pack(fill='x')
+        btn_frame = ctk.CTkFrame(win, fg_color='transparent')
+        btn_frame.pack(fill='x', padx=8, pady=8)
 
         def on_ok():
             sel = tag_tree.selection()
@@ -241,10 +250,10 @@ class DialogsMixin:
         def on_cancel():
             win.destroy()
 
-        ttk.Button(btn_frame, text=BTN_OK,
-                   command=on_ok).pack(side='right', padx=(4, 0))
-        ttk.Button(btn_frame, text=BTN_CANCEL,
-                   command=on_cancel).pack(side='right')
+        ctk.CTkButton(btn_frame, text=BTN_OK, width=80,
+                      command=on_ok).pack(side='right', padx=(4, 0))
+        ctk.CTkButton(btn_frame, text=BTN_CANCEL, width=80,
+                      command=on_cancel).pack(side='right')
 
         tag_tree.bind('<Return>', lambda _: on_ok())
         tag_tree.bind('<Home>', lambda _: self._tree_jump(
@@ -253,8 +262,7 @@ class DialogsMixin:
             'last',  tag_tree) or 'break')
         win.bind('<Escape>', lambda _: on_cancel())
 
-        # Size window to fit content, then centre over main window
-        self._center_on_root(win)
+        self._fit_window_to_content(win, min_w=350, min_h=220)
         self._apply_theme_to_window(win)
 
         win.focus_force()
@@ -272,26 +280,23 @@ class DialogsMixin:
             messagebox.showwarning(ERR_NO_DATA_TITLE, ERR_NO_DATA_MSG)
             return None
 
-        dialog = tk.Toplevel(self.root)
+        dialog = ctk.CTkToplevel(self.root)
         dialog.title(title)
         dialog.transient(self.root)
         dialog.grab_set()
         dialog.focus_force()
 
-        dw, dh = 600, 500
-        self._center_on_root(dialog, dw, dh)
-
         result = [None]
 
-        search_frame = ttk.Frame(dialog, padding=8)
-        search_frame.pack(fill='x')
-        ttk.Label(search_frame, text=LBL_FIND).pack(side='left', padx=(0, 4))
+        search_frame = ctk.CTkFrame(dialog, fg_color='transparent')
+        search_frame.pack(fill='x', padx=8, pady=8)
+        ctk.CTkLabel(search_frame, text=LBL_FIND).pack(side='left', padx=(0, 4))
         search_var = tk.StringVar()
-        search_entry = ttk.Entry(search_frame, textvariable=search_var)
+        search_entry = ctk.CTkEntry(search_frame, textvariable=search_var)
         search_entry.pack(side='left', fill='x', expand=True)
 
-        list_frame = ttk.Frame(dialog, padding=(8, 0, 8, 0))
-        list_frame.pack(fill='both', expand=True)
+        list_frame = ctk.CTkFrame(dialog, fg_color='transparent')
+        list_frame.pack(fill='both', expand=True, padx=8)
 
         picker_tree = ttk.Treeview(
             list_frame,
@@ -307,10 +312,11 @@ class DialogsMixin:
         picker_tree.column('birth', width=55, anchor='w', stretch=False)
         picker_tree.column('death', width=55, anchor='w', stretch=False)
         picker_tree.column('flagged', width=50, anchor='center', stretch=False)
-        picker_tree.tag_configure('flagged_row', background='#fff4cc')
+        is_dark = ctk.get_appearance_mode() == 'Dark'
+        picker_tree.tag_configure('flagged_row', background=get_flag_bg(is_dark))
 
-        ysb = ttk.Scrollbar(list_frame, orient='vertical',
-                            command=picker_tree.yview)
+        ysb = ctk.CTkScrollbar(list_frame, orientation='vertical',
+                               command=picker_tree.yview)
         picker_tree.configure(yscrollcommand=ysb.set)
         picker_tree.pack(side='left', fill='both', expand=True)
         ysb.pack(side='right', fill='y')
@@ -379,14 +385,21 @@ class DialogsMixin:
             'last',  picker_tree) or 'break')
         dialog.bind('<Escape>', lambda _: dialog.destroy())
 
-        btn_frame = ttk.Frame(dialog, padding=8)
-        btn_frame.pack(fill='x')
-        ttk.Button(btn_frame, text=BTN_SELECT, command=select).pack(
-            side='right', padx=(4, 0))
-        ttk.Button(btn_frame, text=BTN_CANCEL,
-                   command=dialog.destroy).pack(side='right')
+        btn_frame = ctk.CTkFrame(dialog, fg_color='transparent')
+        btn_frame.pack(fill='x', padx=8, pady=8)
+        ctk.CTkButton(btn_frame, text=BTN_SELECT, width=80,
+                      command=select).pack(side='right', padx=(4, 0))
+        ctk.CTkButton(btn_frame, text=BTN_CANCEL, width=80,
+                      command=dialog.destroy).pack(side='right')
 
         self._apply_theme_to_window(dialog)
+        self._fit_window_to_content(
+            dialog,
+            min_w=500,
+            min_h=380,
+            preferred_w=600,
+            preferred_h=500,
+        )
         dialog.wait_window()
         return result[0]
 
@@ -445,10 +458,11 @@ class DialogsMixin:
         w.delete('1.0', 'end')
         self._clear_person_tags(w)
 
-        w.tag_configure('person_link')
-        w.tag_bind('person_link', '<Enter>',
-                   lambda _: w.config(cursor='hand2'))
-        w.tag_bind('person_link', '<Leave>', lambda _: w.config(cursor=''))
+        w._textbox.tag_configure('person_link')
+        w._textbox.tag_bind('person_link', '<Enter>',
+                            lambda _: w._textbox.config(cursor='hand2'))
+        w._textbox.tag_bind('person_link', '<Leave>',
+                            lambda _: w._textbox.config(cursor=''))
 
         def nl(text='', bold=False):
             w.insert('end', text + '\n', ('bold',) if bold else ())
@@ -457,11 +471,12 @@ class DialogsMixin:
             if prefix:
                 w.insert('end', prefix)
             tag = f'pers_{indi_id.strip("@")}'
-            w.insert('end', describe(self.individuals[indi_id], show_id=self.show_ids.get()),
+            w.insert('end', describe(self.individuals[indi_id],
+                                     show_id=self.show_ids.get()),
                      ('person_link', tag))
-            w.tag_configure(tag, foreground=self._link_color)
-            w.tag_bind(tag, '<Button-1>',
-                       lambda _, iid=indi_id: self._navigate_to(iid))
+            w._textbox.tag_configure(tag, foreground=self._link_color)
+            w._textbox.tag_bind(tag, '<Button-1>',
+                                lambda _, iid=indi_id: self._navigate_to(iid))
             if suffix:
                 w.insert('end', suffix)
             w.insert('end', '\n')
@@ -483,7 +498,8 @@ class DialogsMixin:
             for rank, path in enumerate(paths, 1):
                 dist = len(path) - 1
                 rel = describe_relationship(path, self.individuals,
-                                            ancestors=ancestors, descendants=descendants)
+                                            ancestors=ancestors,
+                                            descendants=descendants)
                 nl(PATH_RANK.format(
                     rank=rank, rel=rel, dist=dist,
                     plural='s' if dist != 1 else ''), bold=True)
@@ -501,56 +517,56 @@ class DialogsMixin:
 
     def _show_preferences(self):
         """Open the preferences dialog for display, search, and cache settings."""
-        original_font = self._font_size_pref
-        original_theme = self._theme_pref
-        original_top_n = self.top_n.get()
-        original_max_depth = self.max_depth.get()
-        original_fuzzy_threshold = self.fuzzy_threshold.get()
-
-        win = tk.Toplevel(self.root)
+        win = ctk.CTkToplevel(self.root)
         win.title(WIN_PREFERENCES)
-        win.resizable(False, False)
+        win.resizable(True, True)
         win.transient(self.root)
-        win.grab_set()
-        win.withdraw()  # hide until sized; avoids a flicker at the wrong size
 
-        outer = ttk.Frame(win, padding=16)
-        outer.pack(fill='both', expand=True)
+        outer = ctk.CTkFrame(win, fg_color='transparent')
+        outer.pack(fill='both', expand=True, padx=16, pady=16)
 
-        font_frame = ttk.LabelFrame(
-            outer, text=FRAME_FONT_SIZE, padding=(12, 6))
-        font_frame.pack(fill='x', pady=(0, 8))
+        # Font size section
+        font_section = ctk.CTkFrame(outer)
+        font_section.pack(fill='x', pady=(0, 8))
+        ctk.CTkLabel(font_section, text=FRAME_FONT_SIZE, anchor='w',
+                     font=ctk.CTkFont(weight='bold')).pack(
+            anchor='nw', padx=12, pady=(8, 4))
+        font_frame = ctk.CTkFrame(font_section, fg_color='transparent')
+        font_frame.pack(fill='x', padx=12, pady=(0, 10))
 
         size_var = tk.StringVar(value=self._font_size_pref)
 
-        def on_font_change():
-            self._apply_font_size(size_var.get())
-
         for label, key in ((FONT_SMALL, "small"), (FONT_MEDIUM, "medium"), (FONT_LARGE, "large")):
-            ttk.Radiobutton(
+            ctk.CTkRadioButton(
                 font_frame, text=label, variable=size_var, value=key,
-                command=on_font_change,
             ).pack(side='left', padx=8)
 
-        theme_frame = ttk.LabelFrame(outer, text=FRAME_THEME, padding=(12, 6))
-        theme_frame.pack(fill='x', pady=(0, 8))
+        # Theme section
+        theme_section = ctk.CTkFrame(outer)
+        theme_section.pack(fill='x', pady=(0, 8))
+        ctk.CTkLabel(theme_section, text=FRAME_THEME, anchor='w',
+                     font=ctk.CTkFont(weight='bold')).pack(
+            anchor='nw', padx=12, pady=(8, 4))
+        theme_frame = ctk.CTkFrame(theme_section, fg_color='transparent')
+        theme_frame.pack(fill='x', padx=12, pady=(0, 10))
 
         theme_var = tk.StringVar(value=self._theme_pref)
 
-        def on_theme_change():
-            self._apply_theme(theme_var.get())
-
         for name in self._THEME_NAMES:
-            ttk.Radiobutton(
+            ctk.CTkRadioButton(
                 theme_frame, text=name, variable=theme_var, value=name,
-                command=on_theme_change,
             ).pack(side='left', padx=6)
 
-        search_frame = ttk.LabelFrame(
-            outer, text=FRAME_SEARCH_DEFAULTS, padding=(12, 6))
-        search_frame.pack(fill='x', pady=(0, 8))
+        # Search defaults section
+        search_section = ctk.CTkFrame(outer)
+        search_section.pack(fill='x', pady=(0, 8))
+        ctk.CTkLabel(search_section, text=FRAME_SEARCH_DEFAULTS, anchor='w',
+                     font=ctk.CTkFont(weight='bold')).pack(
+            anchor='nw', padx=12, pady=(8, 4))
+        search_frame = ctk.CTkFrame(search_section, fg_color='transparent')
+        search_frame.pack(fill='x', padx=12, pady=(0, 10))
 
-        _pref_top_n_label = ttk.Label(search_frame, text=LBL_TOP_N_RESULTS)
+        _pref_top_n_label = ctk.CTkLabel(search_frame, text=LBL_TOP_N_RESULTS)
         _pref_top_n_label.grid(row=0, column=0, sticky='w', padx=(0, 8))
         top_n_var = tk.IntVar(value=self.top_n.get())
         _pref_top_n_spin = ttk.Spinbox(
@@ -558,8 +574,7 @@ class DialogsMixin:
         _pref_top_n_spin.grid(row=0, column=1, sticky='w', padx=(0, 24))
         Tooltip(_pref_top_n_label, TIP_TOP_N)
         Tooltip(_pref_top_n_spin, TIP_TOP_N)
-        _pref_max_depth_label = ttk.Label(
-            search_frame, text=LBL_MAX_DEPTH_PREF)
+        _pref_max_depth_label = ctk.CTkLabel(search_frame, text=LBL_MAX_DEPTH_PREF)
         _pref_max_depth_label.grid(row=0, column=2, sticky='w', padx=(0, 8))
         max_depth_var = tk.IntVar(value=self.max_depth.get())
         _pref_max_depth_spin = ttk.Spinbox(
@@ -567,50 +582,64 @@ class DialogsMixin:
         _pref_max_depth_spin.grid(row=0, column=3, sticky='w')
         Tooltip(_pref_max_depth_label, TIP_MAX_DEPTH)
         Tooltip(_pref_max_depth_spin, TIP_MAX_DEPTH)
-        _pref_fuzzy_threshold_label = ttk.Label(
-            search_frame, text=LBL_FUZZY_THRESHOLD)
-        _pref_fuzzy_threshold_label.grid(
-            row=1, column=0, sticky='w', padx=(0, 8), pady=(6, 0))
+        _pref_fuzzy_label = ctk.CTkLabel(search_frame, text=LBL_FUZZY_THRESHOLD)
+        _pref_fuzzy_label.grid(row=1, column=0, sticky='w', padx=(0, 8), pady=(6, 0))
         fuzzy_threshold_var = tk.DoubleVar(
             value=round(float(self.fuzzy_threshold.get()), 2))
-        _pref_fuzzy_threshold_spin = ttk.Spinbox(
+        _pref_fuzzy_spin = ttk.Spinbox(
             search_frame, from_=0.0, to=1.0, increment=0.01,
             textvariable=fuzzy_threshold_var, width=6, format="%.2f")
-        _pref_fuzzy_threshold_spin.grid(
-            row=1, column=1, sticky='w', pady=(6, 0))
-        Tooltip(_pref_fuzzy_threshold_label, TIP_FUZZY_THRESHOLD)
-        Tooltip(_pref_fuzzy_threshold_spin, TIP_FUZZY_THRESHOLD)
+        _pref_fuzzy_spin.grid(row=1, column=1, sticky='w', pady=(6, 0))
+        Tooltip(_pref_fuzzy_label, TIP_FUZZY_THRESHOLD)
+        Tooltip(_pref_fuzzy_spin, TIP_FUZZY_THRESHOLD)
 
-        display_frame = ttk.LabelFrame(
-            outer, text=FRAME_DISPLAY, padding=(12, 6))
-        display_frame.pack(fill='x', pady=(0, 8))
+        # Display section
+        display_section = ctk.CTkFrame(outer)
+        display_section.pack(fill='x', pady=(0, 8))
+        ctk.CTkLabel(display_section, text=FRAME_DISPLAY, anchor='w',
+                     font=ctk.CTkFont(weight='bold')).pack(
+            anchor='nw', padx=12, pady=(8, 4))
+        display_frame = ctk.CTkFrame(display_section, fg_color='transparent')
+        display_frame.pack(fill='x', padx=12, pady=(0, 10))
+
         show_ids_var = tk.BooleanVar(value=self.show_ids.get())
-        ttk.Checkbutton(display_frame, text=CHK_SHOW_IDS,
-                        variable=show_ids_var).pack(anchor='w', padx=8)
+        ctk.CTkCheckBox(display_frame, text=CHK_SHOW_IDS,
+                        variable=show_ids_var).pack(anchor='w')
 
-        name_order_row = ttk.Frame(display_frame)
-        name_order_row.pack(anchor='w', padx=8, pady=(4, 0))
-        ttk.Label(name_order_row, text=LBL_NAME_FORMAT).pack(
+        name_order_row = ctk.CTkFrame(display_frame, fg_color='transparent')
+        name_order_row.pack(anchor='w', pady=(6, 0))
+        ctk.CTkLabel(name_order_row, text=LBL_NAME_FORMAT).pack(
             side='left', padx=(0, 8))
         name_order_var = tk.StringVar(value=self._name_order)
-        ttk.Radiobutton(name_order_row, text=NAME_FIRST_LAST,
-                        variable=name_order_var, value='first_last').pack(side='left', padx=(0, 8))
-        ttk.Radiobutton(name_order_row, text=NAME_LAST_FIRST,
-                        variable=name_order_var, value='last_first').pack(side='left')
+        ctk.CTkRadioButton(name_order_row, text=NAME_FIRST_LAST,
+                           variable=name_order_var,
+                           value='first_last').pack(side='left', padx=(0, 8))
+        ctk.CTkRadioButton(name_order_row, text=NAME_LAST_FIRST,
+                           variable=name_order_var,
+                           value='last_first').pack(side='left')
 
-        cache_frame = ttk.LabelFrame(outer, text=FRAME_CACHE, padding=(12, 6))
-        cache_frame.pack(fill='x', pady=(0, 8))
-        ttk.Button(cache_frame, text=BTN_CLEAR_CACHE,
-                   command=self._clear_cache).pack(side='left')
-        ttk.Label(cache_frame, text=LBL_CACHE_NOTE).pack(
+        # Cache section
+        cache_section = ctk.CTkFrame(outer)
+        cache_section.pack(fill='x', pady=(0, 8))
+        ctk.CTkLabel(cache_section, text=FRAME_CACHE, anchor='w',
+                     font=ctk.CTkFont(weight='bold')).pack(
+            anchor='nw', padx=12, pady=(8, 4))
+        cache_frame = ctk.CTkFrame(cache_section, fg_color='transparent')
+        cache_frame.pack(fill='x', padx=12, pady=(0, 10))
+        ctk.CTkButton(cache_frame, text=BTN_CLEAR_CACHE,
+                      command=self._clear_cache).pack(side='left')
+        ctk.CTkLabel(cache_frame, text=LBL_CACHE_NOTE).pack(
             side='left', padx=(10, 0))
 
-        btn_frame = ttk.Frame(outer)
-        btn_frame.pack(fill='x', pady=(8, 0))
+        # Buttons
+        btn_frame = ctk.CTkFrame(win, fg_color='transparent')
+        btn_frame.pack(fill='x', padx=16, pady=(0, 16))
 
         def on_ok():
             self._font_size_pref = size_var.get()
+            self._apply_font_size(self._font_size_pref)
             self._save_font_preference(self._font_size_pref)
+            self._apply_theme(theme_var.get())
             self._save_theme_preference(theme_var.get())
             try:
                 self.top_n.set(max(1, int(top_n_var.get())))
@@ -638,34 +667,23 @@ class DialogsMixin:
             win.destroy()
 
         def on_cancel():
-            self._apply_font_size(original_font)
-            self._apply_theme(original_theme)
-            self.top_n.set(original_top_n)
-            self.max_depth.set(original_max_depth)
-            self.fuzzy_threshold.set(original_fuzzy_threshold)
             win.destroy()
 
         win.bind('<Escape>', lambda _: on_cancel())
         win.bind('<Return>', lambda _: on_ok())
 
-        ttk.Button(btn_frame, text=BTN_OK, command=on_ok).pack(
-            side='right', padx=(4, 0))
-        ttk.Button(btn_frame, text=BTN_CANCEL,
-                   command=on_cancel).pack(side='right')
+        ctk.CTkButton(btn_frame, text=BTN_OK, width=80,
+                      command=on_ok).pack(side='right', padx=(4, 0))
+        ctk.CTkButton(btn_frame, text=BTN_CANCEL, width=80,
+                      command=on_cancel).pack(side='right')
 
-        # Size and centre after all widgets are built so the window fits
-        # whatever font is currently active (small / medium / large).
-        self._center_on_root(win)
-        self._apply_theme_to_window(win)
-        win.deiconify()
+        self._fit_window_to_content(win, min_w=500, min_h=420)
 
     def _resource_path(self, filename):
         """Locate a bundled resource whether running from source or PyInstaller."""
         if getattr(sys, 'frozen', False):
             base = sys._MEIPASS
         else:
-            # Assume resources are in the parent directory of the script
-            # (e.g. in a 'resources' folder), for source version only
             base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         return os.path.join(base, filename)
 
@@ -706,33 +724,30 @@ class DialogsMixin:
                 ERR_FILE_NOT_FOUND_MSG.format(path=filepath, error=e))
             return
 
-        win = tk.Toplevel(self.root)
+        win = ctk.CTkToplevel(self.root)
         win.title(title)
-        win.minsize(500, 300)
         win.transient(self.root)
         win.grab_set()
         win.bind('<Escape>', lambda _: win.destroy())
-        dw, dh = 820, 640
-        self._center_on_root(win, dw, dh)
 
-        text_frame = ttk.Frame(win)
-        text_frame.pack(fill='both', expand=True)
-        vsb = ttk.Scrollbar(text_frame, orient='vertical')
-        text = tk.Text(text_frame, wrap='word', padx=12, pady=8,
-                       relief='flat', borderwidth=0, font='TkTextFont',
-                       yscrollcommand=vsb.set)
-        vsb.configure(command=text.yview)
-        vsb.pack(side='right', fill='y')
-        text.pack(side='left', fill='both', expand=True)
+        is_dark = ctk.get_appearance_mode() == 'Dark'
+        code_bg = '#3a3a3a' if is_dark else '#f0f0f0'
+
+        ui_size = self._FONT_SIZES[self._font_size_pref]['ui']
+        ui_family = tkfont.nametofont('TkDefaultFont').actual()['family']
+        text = ctk.CTkTextbox(win, wrap='word', activate_scrollbars=True,
+                              font=ctk.CTkFont(family=ui_family, size=ui_size))
+        text._textbox.configure(padx=12, pady=8)
+        text.pack(fill='both', expand=True)
 
         base_dir = os.path.dirname(os.path.abspath(filepath))
 
         def _set_state(enabled):
             if sys.platform == 'darwin':
                 if enabled:
-                    text.unbind('<Key>')
+                    text._textbox.unbind('<Key>')
                 else:
-                    text.bind('<Key>', lambda e: 'break')
+                    text._textbox.bind('<Key>', lambda e: 'break')
             else:
                 text.configure(state='normal' if enabled else 'disabled')
 
@@ -747,35 +762,38 @@ class DialogsMixin:
                     return
                 win.title(os.path.splitext(os.path.basename(target))[0]
                           .replace('_', ' ').title())
-                for tag in list(text.tag_names()):
+                for tag in list(text._textbox.tag_names()):
                     if tag.startswith('_url_'):
-                        text.tag_delete(tag)
+                        text._textbox.tag_delete(tag)
                 text._link_count = 0
                 _set_state(True)
                 text.delete('1.0', 'end')
                 render_markdown(
-                    text, new_content, self._link_color, url_handler=_nav_handler)
+                    text, new_content, self._link_color,
+                    url_handler=_nav_handler, code_bg=code_bg)
                 _set_state(False)
                 text.yview_moveto(0)
             else:
                 webbrowser.open(url)
 
         if markdown:
-            render_markdown(text, content, self._link_color, url_handler=_nav_handler)
+            render_markdown(text, content, self._link_color,
+                            url_handler=_nav_handler, code_bg=code_bg)
         else:
             text.insert('1.0', content)
 
         if sys.platform == 'darwin':
-            # On macOS Aqua, state='disabled' blocks all mouse events including
-            # tag_bind clicks, so keep the widget editable and block key input instead.
-            text.bind('<Key>', lambda e: 'break')
+            text._textbox.bind('<Key>', lambda e: 'break')
         else:
             text.configure(state='disabled')
-        ttk.Separator(win, orient='horizontal').pack(fill='x')
-        btn_frame = ttk.Frame(win)
+
+        # Thin separator
+        ctk.CTkFrame(win, height=1, fg_color=("gray70", "gray30")).pack(fill='x')
+
+        btn_frame = ctk.CTkFrame(win, fg_color='transparent')
         btn_frame.pack(fill='x', padx=12, pady=8)
-        ttk.Button(btn_frame, text=BTN_CLOSE,
-                   command=win.destroy).pack(side='right')
+        ctk.CTkButton(btn_frame, text=BTN_CLOSE, width=80,
+                      command=win.destroy).pack(side='right')
 
         win.bind('<Up>', lambda _: text.yview_scroll(-1, 'units') or 'break')
         win.bind('<Down>', lambda _: text.yview_scroll(1, 'units') or 'break')
@@ -784,6 +802,12 @@ class DialogsMixin:
         win.bind('<Home>', lambda _: text.yview_moveto(0) or 'break')
         win.bind('<End>', lambda _: text.yview_moveto(1) or 'break')
 
-        self._apply_theme_to_window(win)
         win.lift()
+        self._fit_window_to_content(
+            win,
+            min_w=500,
+            min_h=300,
+            preferred_w=820,
+            preferred_h=640,
+        )
         win.focus_set()

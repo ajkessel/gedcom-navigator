@@ -72,9 +72,9 @@ class ConfigManager:
         self.save_value('font_size', size_name)
 
     def get_theme_preference(self, valid_themes):
-        """Return a saved theme preference, falling back to Default if invalid."""
-        pref = self.load_value('theme', 'Default')
-        return pref if pref in valid_themes else 'Default'
+        """Return a saved theme preference, falling back to System if invalid."""
+        pref = self.load_value('theme', 'System')
+        return pref if pref in valid_themes else 'System'
 
     def set_theme_preference(self, theme_name):
         """Save the selected theme preference name."""
