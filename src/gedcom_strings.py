@@ -78,48 +78,59 @@ TIP_BROWSE = (
     "Browse to select a GEDCOM file. You can also select a ZIP file containing a GEDCOM."
 )
 TIP_FIND = (
+    "Find (Ctrl+F)\n"
     "Type to filter the list of people. Search by any name variation. Use the filter box "
     "to search by other information in a person's GEDCOM record, such as geographic location. "
     "Press Enter to jump directly to the first match. "
     "Use the checkboxes to show only DNA-flagged people and to allow fuzzy name matching."
 )
 TIP_FILTER = (
+    "Filter (Ctrl+I)\n"
     "Type to filter the list of people by any information in their GEDCOM record, "
     "such as geographic location. This filter is applied in addition to the Find box above."
 )   
 TIP_TAG_KEYWORD = (
-    "Enter a keyword to filter the list of tags used for finding relationship paths."
+    "Enter a keyword to filter the list of tags used for finding relationship paths. "
+    "Leave this blank to use only the page marker keyword to find relationship paths."
 )
 TIP_PAGE_MARKER = (
-    "Enter a unique keyword to use as a page marker when finding relationship paths."
+    "Enter a unique keyword to use as a page marker when finding relationship paths. "
+    "Leave this blank to use only the tag keyword to find relationship paths."
 )
 TIP_SELECT_TAG = (
+    "Select Tag for Finding Paths (Ctrl+T)\n"
     "Select a new tag for finding the path between the selected person"
     " and the closest people with that tag."
 )
 TIP_FIND_PATH = (
+    "Find Relationship Paths (Ctrl+P)\n"
     "Find multiple paths between the selected person and any other"
     " person in your tree."
 )
 TIP_TOP_N = (
+    "Top N Results\n"
     "Specify how many results to return when finding the closest"
     " people who are DNA matches as well as the number of paths"
     " between the selected person and the home person."
 )
 TIP_MAX_DEPTH = (
+    "Maximum Depth For Finding Relationships\n"
     "Specify how far to search within the tree for closest DNA"
     " matches and for the relationship between two people."
     " Higher values will find more distant connections but will"
     " take longer to find in large trees."
 )
 TIP_FUZZY_THRESHOLD = (
+    "Fuzzy Threshold\n"
     "Similarity cutoff for fuzzy name search, from 0.00 to 1.00."
     " Lower values allow more matches; higher values are stricter."
 )
 TIP_DNA_FLAGGED_ONLY = (
+    "Toggle DNA-flagged Only (Ctrl+D)\n"
     "When checked, only people flagged as DNA matches will be shown in search results."
 )
 TIP_FUZZY = (
+    "Toggle Fuzzy Search (Ctrl+U)\n"
     "Allow fuzzy name matching in search results. "
     "Fuzzy matching uses the Levenshtein distance to find names similar to the search term, "
     "which can help find matches when names are misspelled or have minor variations."
@@ -280,9 +291,37 @@ CACHE_DONE_TITLE = "Cache cleared"
 CACHE_DONE_MSG = "{deleted} file(s) deleted."
 
 # ---------------------------------------------------------------------------
-# Info windows (titles only; content comes from markdown files)
+# Info windows
 # ---------------------------------------------------------------------------
 WIN_HOW_TO_USE = "How to use"
 WIN_KEYBOARD_SHORTCUTS = "Keyboard shortcuts"
 WIN_ABOUT = "About"
 WIN_PRIVACY_POLICY = "Privacy Policy"
+
+COL_SHORTCUT = "Shortcut"
+COL_ACTION = "Action"
+
+KEYBOARD_SHORTCUT_ROWS = [
+    ("Esc",      "Close any dialog or pop-up window"),
+    ("Ctrl+F",   "Jump to the Search box and select all text"),
+    ("Ctrl+I",   "Jump to the Filter box and select all text"),
+    ("Ctrl+D",   "Toggle the DNA-flagged only filter"),
+    ("Ctrl+U",   "Toggle Fuzzy search mode"),
+    ("Ctrl+O",   "Open the file browser (Browse…)"),
+    ("Ctrl+N",   "Find Nearest DNA Matches for the selected person"),
+    ("Ctrl+S",   "Show the raw GEDCOM record for the selected person"),
+    ("Ctrl+H",   "Set Home person to the selected person"),
+    ("Ctrl+P",   "Open the Find Relationship Path dialog"),
+    ("Ctrl+T",   "View tag definitions"),
+    ("Ctrl+C",   "Copy all results to the clipboard"),
+    ("Ctrl+L",   "Clear the results pane"),
+    ("Alt+M",    "Open the Menu"),
+    ("Home",     "Jump to the first item in the search results"),
+    ("End",      "Jump to the last item in the search results"),
+]
+
+NOTE_KEYBOARD_SHORTCUTS = (
+    "Note: Ctrl+C copies the entire results pane. "
+    "When the results text area has keyboard focus, "
+    "Ctrl+C copies only the selected text as usual."
+)

@@ -6,6 +6,7 @@ Theme constants, customtkinter appearance mapping, and the Tooltip widget helper
 
 import sys
 import tkinter as tk
+import tkinter.font as tkfont
 
 
 THEME_NAMES = ('System', 'Light', 'Dark', 'Blue', 'Green')
@@ -112,35 +113,61 @@ class Tooltip:
                     pass
         self._tip.wm_overrideredirect(True)
 
-    def _create_label(self):
-        """Create tooltip content using platform-native colours where available."""
-        label = tk.Label(
-            self._tip,
-            text=self._text,
-            justify='left',
-            wraplength=360,
-            padx=6,
-            pady=3,
-        )
+    def _style_tip_widget(self, widget, *, outer=False):
+        """Apply platform-native tooltip colours to a widget."""
+        is_frame = isinstance(widget, tk.Frame)
         if sys.platform == 'win32':
-            label.configure(
-                background='SystemInfoBackground',
-                foreground='SystemInfoText',
-                relief='solid',
-                borderwidth=1,
-            )
+            kw = {'background': 'SystemInfoBackground'}
+            if not is_frame:
+                kw['foreground'] = 'SystemInfoText'
+            if outer:
+                kw.update(relief='solid', borderwidth=1)
+            widget.configure(**kw)
         elif sys.platform == 'darwin':
             for bg_name in ('systemHelpBackgroundColor', 'systemWindowBackgroundColor'):
                 try:
-                    label.configure(background=bg_name)
+                    widget.configure(background=bg_name)
                     break
                 except tk.TclError:
                     pass
-            try:
-                label.configure(foreground='systemTextColor')
-            except tk.TclError:
-                pass
-        return label
+            if not is_frame:
+                try:
+                    widget.configure(foreground='systemTextColor')
+                except tk.TclError:
+                    pass
+
+    def _create_label(self):
+        """Create tooltip content with the first line bold when a newline is present."""
+        parts = self._text.split('\n', 1)
+
+        if len(parts) == 1:
+            label = tk.Label(self._tip, text=self._text, justify='left',
+                             wraplength=360, padx=6, pady=3)
+            self._style_tip_widget(label, outer=True)
+            return label
+
+        title, body = parts
+        try:
+            base = tkfont.nametofont('TkTooltipFont')
+        except tk.TclError:
+            base = tkfont.nametofont('TkDefaultFont')
+        bold_font = tkfont.Font(family=base.cget('family'),
+                                size=base.cget('size'), weight='bold')
+
+        frame = tk.Frame(self._tip)
+        self._style_tip_widget(frame, outer=True)
+
+        title_lbl = tk.Label(frame, text=title, font=bold_font, justify='left',
+                             wraplength=360, padx=6, anchor='w')
+        self._style_tip_widget(title_lbl)
+        title_lbl.pack(fill='x', pady=(3, 0))
+
+        body_lbl = tk.Label(frame, text=body, justify='left',
+                            wraplength=360, padx=6, anchor='w')
+        self._style_tip_widget(body_lbl)
+        body_lbl.pack(fill='x', pady=(0, 3))
+
+        return frame
 
     def _position_tip(self):
         """Place the tooltip near the widget without running off screen."""

@@ -711,10 +711,53 @@ class DialogsMixin:
             WIN_HOW_TO_USE, self._resource_path('docs/HELP.md'), markdown=True)
 
     def _show_keyboard_shortcuts(self):
-        """Open the keyboard shortcuts documentation window."""
-        self._show_file_window(
-            WIN_KEYBOARD_SHORTCUTS,
-            self._resource_path('docs/KEYBOARD_SHORTCUTS.md'), markdown=True)
+        """Open the keyboard shortcuts reference window."""
+        win = ctk.CTkToplevel(self.root)
+        win.title(WIN_KEYBOARD_SHORTCUTS)
+        win.transient(self.root)
+        win.grab_set()
+        win.resizable(True, True)
+        win.bind('<Escape>', lambda *_: win.destroy())
+
+        outer = ctk.CTkFrame(win, fg_color='transparent')
+        outer.pack(fill='both', expand=True, padx=16, pady=(16, 8))
+
+        tree_frame = ctk.CTkFrame(outer, fg_color='transparent')
+        tree_frame.pack(fill='both', expand=True)
+
+        tree = ttk.Treeview(tree_frame, columns=('key', 'action'),
+                            show='headings', selectmode='browse')
+        tree.heading('key', text=COL_SHORTCUT)
+        tree.heading('action', text=COL_ACTION)
+        tree.column('key', width=90, minwidth=70, stretch=False, anchor='center')
+        tree.column('action', width=420, minwidth=200, stretch=True, anchor='w')
+
+        is_dark = ctk.get_appearance_mode() == 'Dark'
+        odd_bg  = '#2f2f2f' if is_dark else '#f5f5f5'
+        tree.tag_configure('odd', background=odd_bg)
+
+        for idx, (key, action) in enumerate(KEYBOARD_SHORTCUT_ROWS):
+            tree.insert('', 'end', values=(key, action),
+                        tags=('odd',) if idx % 2 else ())
+
+        vsb = ctk.CTkScrollbar(tree_frame, orientation='vertical',
+                               command=tree.yview)
+        tree.configure(yscrollcommand=vsb.set)
+        tree.pack(side='left', fill='both', expand=True)
+        vsb.pack(side='right', fill='y')
+
+        ctk.CTkLabel(outer, text=NOTE_KEYBOARD_SHORTCUTS, justify='left',
+                     wraplength=490, anchor='w').pack(fill='x', pady=(10, 0))
+
+        ctk.CTkFrame(win, height=1,
+                     fg_color=('gray70', 'gray30')).pack(fill='x')
+        btn_frame = ctk.CTkFrame(win, fg_color='transparent')
+        btn_frame.pack(fill='x', padx=16, pady=8)
+        ctk.CTkButton(btn_frame, text=BTN_CLOSE, width=80,
+                      command=win.destroy).pack(side='right')
+
+        self._fit_window_to_content(win, min_w=540, min_h=420)
+        win.after(50, win.focus_force)
 
     def _show_about(self):
         """Open the about window with version and license information."""

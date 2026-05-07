@@ -394,7 +394,7 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
         _max_depth_label = ctk.CTkLabel(action_frame, text=LBL_MAX_DEPTH)
         _max_depth_label.pack(side='left')
         self.max_depth_spin = ttk.Spinbox(
-            action_frame, from_=1, to=200, textvariable=self.max_depth, width=4)
+            action_frame, from_=1, to=200, textvariable=self.max_depth, width=5)
         self.max_depth_spin.pack(side='left', padx=(2, 12))
         Tooltip(_max_depth_label, TIP_MAX_DEPTH)
         Tooltip(self.max_depth_spin, TIP_MAX_DEPTH)
