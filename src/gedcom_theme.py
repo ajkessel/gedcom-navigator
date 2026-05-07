@@ -34,7 +34,7 @@ def get_link_color(is_dark: bool) -> str:
     return _LINK_COL['Dark'] if is_dark else _LINK_COL['Light']
 
 
-def ttk_colors(is_dark: bool) -> dict:
+def ttk_colors(is_dark: bool, theme_name=None) -> dict:
     """Return a colour dict for styling ttk Treeview / Spinbox / PanedWindow."""
     if is_dark:
         return {
@@ -45,6 +45,26 @@ def ttk_colors(is_dark: bool) -> dict:
             'select_fg':  '#DCE4EE',
             'heading_bg': '#3a3a3a',
             'trough':     '#1e1e1e',
+        }
+    if theme_name == 'Blue':
+        return {
+            'bg':         '#EBF0FA',
+            'fg':         '#1a1a1a',
+            'field_bg':   '#F8FAFE',
+            'select_bg':  '#3B8ED0',
+            'select_fg':  '#FFFFFF',
+            'heading_bg': '#D8E1F0',
+            'trough':     '#B9C7DF',
+        }
+    if theme_name == 'Green':
+        return {
+            'bg':         '#EBF5EB',
+            'fg':         '#1a1a1a',
+            'field_bg':   '#F8FCF8',
+            'select_bg':  '#2E8B57',
+            'select_fg':  '#FFFFFF',
+            'heading_bg': '#D5E6D5',
+            'trough':     '#B8D2B8',
         }
     return {
         'bg':         '#EBEBEB',

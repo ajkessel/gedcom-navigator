@@ -23,13 +23,15 @@ _BG_TINTS = {
         'CTk':         ['#EBF0FA', '#1A2535'],
         'CTkToplevel': ['#EBF0FA', '#1A2535'],
         'CTkFrame':    {'fg_color':     ['#E3EAF5', '#1F2D3D'],
-                        'top_fg_color': ['#D8E1F0', '#243447']},
+                        'top_fg_color': ['#D8E1F0', '#243447'],
+                        'border_color': ['#B9C7DF', '#324760']},
     },
     'Green': {
         'CTk':         ['#EBF5EB', '#1D2B1D'],
         'CTkToplevel': ['#EBF5EB', '#1D2B1D'],
         'CTkFrame':    {'fg_color':     ['#E1EDE1', '#223122'],
-                        'top_fg_color': ['#D5E6D5', '#263826']},
+                        'top_fg_color': ['#D5E6D5', '#263826'],
+                        'border_color': ['#B8D2B8', '#344E34']},
     },
 }
 
@@ -192,7 +194,7 @@ class AppearanceMixin:
         """Apply ttk styles for Treeview / Spinbox / PanedWindow to match the CTk theme."""
         style = ttk.Style()
         is_dark = ctk.get_appearance_mode() == 'Dark'
-        t = ttk_colors(is_dark)
+        t = ttk_colors(is_dark, getattr(self, '_theme_pref', None))
 
         try:
             style.theme_use('aqua' if sys.platform == 'darwin' else 'clam')
@@ -245,6 +247,17 @@ class AppearanceMixin:
         style.configure('Treeview', font='TkDefaultFont', rowheight=row_h)
         style.configure('Treeview.Heading', font='TkDefaultFont')
 
+    def _apply_window_background(self, win):
+        """Apply the current CTk root/toplevel background to an existing window."""
+        widget_key = 'CTkToplevel' if isinstance(win, ctk.CTkToplevel) else 'CTk'
+        fg_color = ctk.ThemeManager.theme.get(widget_key, {}).get('fg_color')
+        if fg_color is None:
+            return
+        try:
+            win.configure(fg_color=fg_color)
+        except (tk.TclError, ValueError):
+            pass
+
     def _inject_theme_backgrounds(self, theme_name):
         """Overwrite ThemeManager background colors for Blue/Green named themes."""
         tint = _BG_TINTS.get(theme_name)
@@ -269,6 +282,10 @@ class AppearanceMixin:
         ctk.set_default_color_theme(color_theme)
         self._inject_theme_backgrounds(theme_name)
         ctk.set_appearance_mode(mode)
+        self._apply_window_background(self.root)
+        for win in self.root.winfo_children():
+            if isinstance(win, tk.Toplevel):
+                self._apply_window_background(win)
         self._apply_styles()
         is_dark = ctk.get_appearance_mode() == 'Dark'
         self._link_color = get_link_color(is_dark)
@@ -321,6 +338,7 @@ class AppearanceMixin:
 
     def _apply_theme_to_window(self, win):
         """Update flagged-row tag colours in any Treeview inside a new window."""
+        self._apply_window_background(win)
         is_dark = ctk.get_appearance_mode() == 'Dark'
         flag_bg = get_flag_bg(is_dark)
         self._update_flagged_rows(win, flag_bg)
@@ -381,7 +399,7 @@ class AppearanceMixin:
     def _setup_keybindings(self):
         """Register keyboard shortcuts and focus traversal for the main window."""
         def bind(seq, cmd):
-            self.root.bind(seq, lambda _: cmd() or 'break')
+            self.root.bind(seq, lambda *_: cmd() or 'break')
 
         bind('<Control-f>', self._kb_focus_search)
         bind('<Control-i>', self._kb_focus_filter)
@@ -416,16 +434,16 @@ class AppearanceMixin:
             w.bind('<Tab>', lambda _, nw=nxt: nw.focus_set() or 'break')
             w.bind('<Shift-Tab>', lambda _, pw=prv: pw.focus_set() or 'break')
 
-        self.root.bind('<Alt-m>', lambda _: self._open_app_menu() or 'break')
-        self.root.bind('<Alt-M>', lambda _: self._open_app_menu() or 'break')
+        self.root.bind('<Alt-m>', lambda *_: self._open_app_menu() or 'break')
+        self.root.bind('<Alt-M>', lambda *_: self._open_app_menu() or 'break')
 
         r_inner = self.results._textbox
-        r_inner.bind('<Up>', lambda _: self.results.yview_scroll(-1, 'units') or 'break')
-        r_inner.bind('<Down>', lambda _: self.results.yview_scroll(1, 'units') or 'break')
-        r_inner.bind('<Prior>', lambda _: self.results.yview_scroll(-1, 'pages') or 'break')
-        r_inner.bind('<Next>', lambda _: self.results.yview_scroll(1, 'pages') or 'break')
-        r_inner.bind('<Home>', lambda _: self.results.yview_moveto(0) or 'break')
-        r_inner.bind('<End>', lambda _: self.results.yview_moveto(1) or 'break')
+        r_inner.bind('<Up>', lambda *_: self.results.yview_scroll(-1, 'units') or 'break')
+        r_inner.bind('<Down>', lambda *_: self.results.yview_scroll(1, 'units') or 'break')
+        r_inner.bind('<Prior>', lambda *_: self.results.yview_scroll(-1, 'pages') or 'break')
+        r_inner.bind('<Next>', lambda *_: self.results.yview_scroll(1, 'pages') or 'break')
+        r_inner.bind('<Home>', lambda *_: self.results.yview_moveto(0) or 'break')
+        r_inner.bind('<End>', lambda *_: self.results.yview_moveto(1) or 'break')
 
     def _open_app_menu(self):
         """Post the application menu at the top-left of the root window."""

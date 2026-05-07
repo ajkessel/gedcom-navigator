@@ -52,7 +52,7 @@ class DialogsMixin:
             _geo_after[0] = win.after(
                 400, lambda: self._persist_show_person_geometry(win))
 
-        win.bind('<Escape>', lambda _: win.destroy())
+        win.bind('<Escape>', lambda *_: win.destroy())
 
         text = ctk.CTkTextbox(
             win, font=(self._mono_family, self._mono_size), wrap='none')
@@ -62,16 +62,16 @@ class DialogsMixin:
             'bold', font=(self._mono_family, self._mono_size, 'bold'))
         text._textbox.tag_configure('person_link')
         text._textbox.tag_bind('person_link', '<Enter>',
-                               lambda _: text._textbox.config(cursor='hand2'))
+                               lambda *_: text._textbox.config(cursor='hand2'))
         text._textbox.tag_bind('person_link', '<Leave>',
-                               lambda _: text._textbox.config(cursor=''))
+                               lambda *_: text._textbox.config(cursor=''))
 
-        win.bind('<Up>', lambda _: text.yview_scroll(-1, 'units') or 'break')
-        win.bind('<Down>', lambda _: text.yview_scroll(1, 'units') or 'break')
-        win.bind('<Prior>', lambda _: text.yview_scroll(-1, 'pages') or 'break')
-        win.bind('<Next>', lambda _: text.yview_scroll(1, 'pages') or 'break')
-        win.bind('<Home>', lambda _: text.yview_moveto(0) or 'break')
-        win.bind('<End>', lambda _: text.yview_moveto(1) or 'break')
+        win.bind('<Up>', lambda *_: text.yview_scroll(-1, 'units') or 'break')
+        win.bind('<Down>', lambda *_: text.yview_scroll(1, 'units') or 'break')
+        win.bind('<Prior>', lambda *_: text.yview_scroll(-1, 'pages') or 'break')
+        win.bind('<Next>', lambda *_: text.yview_scroll(1, 'pages') or 'break')
+        win.bind('<Home>', lambda *_: text.yview_moveto(0) or 'break')
+        win.bind('<End>', lambda *_: text.yview_moveto(1) or 'break')
 
         def populate(iid):
             indi = self.individuals[iid]
@@ -255,12 +255,12 @@ class DialogsMixin:
         ctk.CTkButton(btn_frame, text=BTN_CANCEL, width=80,
                       command=on_cancel).pack(side='right')
 
-        tag_tree.bind('<Return>', lambda _: on_ok())
-        tag_tree.bind('<Home>', lambda _: self._tree_jump(
+        tag_tree.bind('<Return>', lambda *_: on_ok())
+        tag_tree.bind('<Home>', lambda *_: self._tree_jump(
             'first', tag_tree) or 'break')
-        tag_tree.bind('<End>', lambda _: self._tree_jump(
+        tag_tree.bind('<End>', lambda *_: self._tree_jump(
             'last',  tag_tree) or 'break')
-        win.bind('<Escape>', lambda _: on_cancel())
+        win.bind('<Escape>', lambda *_: on_cancel())
 
         self._fit_window_to_content(win, min_w=350, min_h=220)
         self._apply_theme_to_window(win)
@@ -365,7 +365,7 @@ class DialogsMixin:
             self._tree_jump('first', picker_tree)
 
         search_var.trace_add('write', on_search_change)
-        search_entry.bind('<Return>', lambda _: picker_flush_and_jump())
+        search_entry.bind('<Return>', lambda *_: picker_flush_and_jump())
         populate()
         search_entry.focus_set()
 
@@ -375,15 +375,15 @@ class DialogsMixin:
                 result[0] = sel[0]
             dialog.destroy()
 
-        picker_tree.bind('<Double-1>', lambda e: select())
-        picker_tree.bind('<Return>', lambda e: select())
+        picker_tree.bind('<Double-1>', lambda *_: select())
+        picker_tree.bind('<Return>', lambda *_: select())
         picker_tree.bind(
             '<Key>', lambda e: self._tree_type_ahead(e, picker_tree))
-        picker_tree.bind('<Home>', lambda _: self._tree_jump(
+        picker_tree.bind('<Home>', lambda *_: self._tree_jump(
             'first', picker_tree) or 'break')
-        picker_tree.bind('<End>', lambda _: self._tree_jump(
+        picker_tree.bind('<End>', lambda *_: self._tree_jump(
             'last',  picker_tree) or 'break')
-        dialog.bind('<Escape>', lambda _: dialog.destroy())
+        dialog.bind('<Escape>', lambda *_: dialog.destroy())
 
         btn_frame = ctk.CTkFrame(dialog, fg_color='transparent')
         btn_frame.pack(fill='x', padx=8, pady=8)
@@ -460,9 +460,9 @@ class DialogsMixin:
 
         w._textbox.tag_configure('person_link')
         w._textbox.tag_bind('person_link', '<Enter>',
-                            lambda _: w._textbox.config(cursor='hand2'))
+                            lambda *_: w._textbox.config(cursor='hand2'))
         w._textbox.tag_bind('person_link', '<Leave>',
-                            lambda _: w._textbox.config(cursor=''))
+                            lambda *_: w._textbox.config(cursor=''))
 
         def nl(text='', bold=False):
             w.insert('end', text + '\n', ('bold',) if bold else ())
@@ -526,7 +526,7 @@ class DialogsMixin:
         outer.pack(fill='both', expand=True, padx=16, pady=16)
 
         # Font size section
-        font_section = ctk.CTkFrame(outer)
+        font_section = ctk.CTkFrame(outer, border_width=1)
         font_section.pack(fill='x', pady=(0, 8))
         ctk.CTkLabel(font_section, text=FRAME_FONT_SIZE, anchor='w',
                      font=ctk.CTkFont(weight='bold')).pack(
@@ -542,7 +542,7 @@ class DialogsMixin:
             ).pack(side='left', padx=8)
 
         # Theme section
-        theme_section = ctk.CTkFrame(outer)
+        theme_section = ctk.CTkFrame(outer, border_width=1)
         theme_section.pack(fill='x', pady=(0, 8))
         ctk.CTkLabel(theme_section, text=FRAME_THEME, anchor='w',
                      font=ctk.CTkFont(weight='bold')).pack(
@@ -558,7 +558,7 @@ class DialogsMixin:
             ).pack(side='left', padx=6)
 
         # Search defaults section
-        search_section = ctk.CTkFrame(outer)
+        search_section = ctk.CTkFrame(outer, border_width=1)
         search_section.pack(fill='x', pady=(0, 8))
         ctk.CTkLabel(search_section, text=FRAME_SEARCH_DEFAULTS, anchor='w',
                      font=ctk.CTkFont(weight='bold')).pack(
@@ -594,7 +594,7 @@ class DialogsMixin:
         Tooltip(_pref_fuzzy_spin, TIP_FUZZY_THRESHOLD)
 
         # Display section
-        display_section = ctk.CTkFrame(outer)
+        display_section = ctk.CTkFrame(outer, border_width=1)
         display_section.pack(fill='x', pady=(0, 8))
         ctk.CTkLabel(display_section, text=FRAME_DISPLAY, anchor='w',
                      font=ctk.CTkFont(weight='bold')).pack(
@@ -619,7 +619,7 @@ class DialogsMixin:
                            value='last_first').pack(side='left')
 
         # Cache section
-        cache_section = ctk.CTkFrame(outer)
+        cache_section = ctk.CTkFrame(outer, border_width=1)
         cache_section.pack(fill='x', pady=(0, 8))
         ctk.CTkLabel(cache_section, text=FRAME_CACHE, anchor='w',
                      font=ctk.CTkFont(weight='bold')).pack(
@@ -669,8 +669,8 @@ class DialogsMixin:
         def on_cancel():
             win.destroy()
 
-        win.bind('<Escape>', lambda _: on_cancel())
-        win.bind('<Return>', lambda _: on_ok())
+        win.bind('<Escape>', lambda *_: on_cancel())
+        win.bind('<Return>', lambda *_: on_ok())
 
         ctk.CTkButton(btn_frame, text=BTN_OK, width=80,
                       command=on_ok).pack(side='right', padx=(4, 0))
@@ -728,7 +728,7 @@ class DialogsMixin:
         win.title(title)
         win.transient(self.root)
         win.grab_set()
-        win.bind('<Escape>', lambda _: win.destroy())
+        win.bind('<Escape>', lambda *_: win.destroy())
 
         is_dark = ctk.get_appearance_mode() == 'Dark'
         code_bg = '#3a3a3a' if is_dark else '#f0f0f0'
@@ -747,7 +747,7 @@ class DialogsMixin:
                 if enabled:
                     text._textbox.unbind('<Key>')
                 else:
-                    text._textbox.bind('<Key>', lambda e: 'break')
+                    text._textbox.bind('<Key>', lambda *_: 'break')
             else:
                 text.configure(state='normal' if enabled else 'disabled')
 
@@ -783,7 +783,7 @@ class DialogsMixin:
             text.insert('1.0', content)
 
         if sys.platform == 'darwin':
-            text._textbox.bind('<Key>', lambda e: 'break')
+            text._textbox.bind('<Key>', lambda *_: 'break')
         else:
             text.configure(state='disabled')
 
@@ -795,12 +795,12 @@ class DialogsMixin:
         ctk.CTkButton(btn_frame, text=BTN_CLOSE, width=80,
                       command=win.destroy).pack(side='right')
 
-        win.bind('<Up>', lambda _: text.yview_scroll(-1, 'units') or 'break')
-        win.bind('<Down>', lambda _: text.yview_scroll(1, 'units') or 'break')
-        win.bind('<Prior>', lambda _: text.yview_scroll(-1, 'pages') or 'break')
-        win.bind('<Next>', lambda _: text.yview_scroll(1, 'pages') or 'break')
-        win.bind('<Home>', lambda _: text.yview_moveto(0) or 'break')
-        win.bind('<End>', lambda _: text.yview_moveto(1) or 'break')
+        win.bind('<Up>', lambda *_: text.yview_scroll(-1, 'units') or 'break')
+        win.bind('<Down>', lambda *_: text.yview_scroll(1, 'units') or 'break')
+        win.bind('<Prior>', lambda *_: text.yview_scroll(-1, 'pages') or 'break')
+        win.bind('<Next>', lambda *_: text.yview_scroll(1, 'pages') or 'break')
+        win.bind('<Home>', lambda *_: text.yview_moveto(0) or 'break')
+        win.bind('<End>', lambda *_: text.yview_moveto(1) or 'break')
 
         win.lift()
         self._fit_window_to_content(

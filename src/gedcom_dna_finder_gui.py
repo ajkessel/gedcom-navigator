@@ -228,7 +228,7 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
     # ---------------------------------------------------------- UI build helpers
     def _section(self, parent, label=None):
         """Return a CTkFrame styled as a labelled section group."""
-        outer = ctk.CTkFrame(parent)
+        outer = ctk.CTkFrame(parent, border_width=1)
         if label:
             ctk.CTkLabel(outer, text=label, anchor='w').pack(
                 anchor='nw', padx=10, pady=(6, 2))
@@ -244,7 +244,7 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
         outer.pack(fill='both', expand=True, padx=8, pady=8)
 
         # File row
-        file_group = ctk.CTkFrame(outer)
+        file_group = ctk.CTkFrame(outer, border_width=1)
         file_group.pack(fill='x')
         ctk.CTkLabel(file_group, text=FRAME_GEDCOM_FILE, anchor='w').pack(
             anchor='nw', padx=10, pady=(6, 2))
@@ -254,7 +254,7 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
         self.path_combo = ctk.CTkComboBox(
             file_frame, variable=self.gedcom_path,
             values=self._recent_files,
-            command=lambda _: self._load_file(),
+            command=lambda *_: self._load_file(),
         )
         self.path_combo.pack(side='left', fill='x', expand=True, padx=(0, 4))
         self.browse_btn = ctk.CTkButton(
@@ -263,7 +263,7 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
         Tooltip(self.browse_btn, TIP_BROWSE)
 
         # Settings row
-        settings_group = ctk.CTkFrame(outer)
+        settings_group = ctk.CTkFrame(outer, border_width=1)
         settings_group.pack(fill='x', pady=(8, 0))
         ctk.CTkLabel(settings_group, text=FRAME_DNA_SETTINGS, anchor='w').pack(
             anchor='nw', padx=10, pady=(6, 2))
@@ -303,7 +303,7 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
             search_frame, textvariable=self.search_text)
         self.search_entry.pack(side='left', fill='x', expand=True)
         self.search_entry.bind(
-            '<Return>', lambda _: self._search_flush_and_jump())
+            '<Return>', lambda *_: self._search_flush_and_jump())
         ctk.CTkCheckBox(
             search_frame, text=CHK_DNA_FLAGGED_ONLY,
             variable=self.show_flagged_only, width=0,
@@ -320,7 +320,7 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
         self.filter_entry = ctk.CTkEntry(
             filter_frame, textvariable=self.filter_text)
         self.filter_entry.pack(side='left', fill='x', expand=True)
-        self.filter_entry.bind('<Return>', lambda _: self._kb_focus_list())
+        self.filter_entry.bind('<Return>', lambda *_: self._kb_focus_list())
 
         list_frame = ctk.CTkFrame(left, fg_color='transparent')
         list_frame.pack(fill='both', expand=True, pady=(4, 0))
@@ -353,11 +353,11 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
         is_dark = ctk.get_appearance_mode() == 'Dark'
         self.tree.tag_configure('flagged_row', background=get_flag_bg(is_dark))
 
-        self.tree.bind('<Double-1>', lambda e: self._find_matches())
-        self.tree.bind('<Return>', lambda e: self._find_matches())
+        self.tree.bind('<Double-1>', lambda *_: self._find_matches())
+        self.tree.bind('<Return>', lambda *_: self._find_matches())
         self.tree.bind('<Key>', self._tree_type_ahead)
-        self.tree.bind('<Home>', lambda e: self._tree_jump('first') or 'break')
-        self.tree.bind('<End>', lambda e: self._tree_jump('last') or 'break')
+        self.tree.bind('<Home>', lambda *_: self._tree_jump('first') or 'break')
+        self.tree.bind('<End>', lambda *_: self._tree_jump('last') or 'break')
 
         # Action controls
         action_frame = ctk.CTkFrame(left, fg_color='transparent')
@@ -408,7 +408,7 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
         self.results.configure(state='disabled')
 
         # Status bar
-        status_bar = ctk.CTkFrame(outer)
+        status_bar = ctk.CTkFrame(outer, border_width=1)
         status_bar.pack(fill='x', pady=(8, 0))
         status_bar.columnconfigure(0, weight=1)
         ctk.CTkLabel(
@@ -779,9 +779,9 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
 
         tw.tag_configure('person_link')
         tw.tag_bind('person_link', '<Enter>',
-                    lambda _: tw.config(cursor='hand2'))
+                    lambda *_: tw.config(cursor='hand2'))
         tw.tag_bind('person_link', '<Leave>',
-                    lambda _: tw.config(cursor=''))
+                    lambda *_: tw.config(cursor=''))
 
         def nl(text='', bold=False):
             w.insert('end', text + '\n', ('bold',) if bold else ())
