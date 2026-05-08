@@ -7,6 +7,11 @@ cd "${SCRIPT_DIR}/.."
 	exit 1
 }
 git pull
+echo 'Running unit tests...'
+pytest -v --tb=short --disable-warnings || {
+	echo 'Unit tests failed. Exiting.'
+	exit 1
+}
 if [[ $(uname) == "Linux" ]]; then
 	echo 'Building for Linux...'
   dev/build-linux.sh "$@"
