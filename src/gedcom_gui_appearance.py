@@ -16,6 +16,9 @@ from gedcom_theme import (
     ttk_colors, get_flag_bg, get_link_color,
 )
 
+# Tkinter modifier key name: Command on macOS, Control on Windows/Linux.
+_MOD_KEY = 'Command' if sys.platform == 'darwin' else 'Control'
+
 # Background tints injected into ThemeManager for the named Blue/Green themes.
 # Each value is [light_color, dark_color]; only the mode-appropriate one shows.
 _BG_TINTS = {
@@ -401,24 +404,24 @@ class AppearanceMixin:
         def bind(seq, cmd):
             self.root.bind(seq, lambda *_: cmd() or 'break')
 
-        bind('<F1>', self._show_how_to_use)
+        bind('<Command-question>' if sys.platform == 'darwin' else '<F1>', self._show_how_to_use)
         bind('<F2>', self._show_keyboard_shortcuts)
-        bind('<Control-f>', self._kb_focus_search)
-        bind('<Control-i>', self._kb_focus_filter)
-        bind('<Control-d>', lambda: self.show_flagged_only.set(
+        bind(f'<{_MOD_KEY}-f>', self._kb_focus_search)
+        bind(f'<{_MOD_KEY}-i>', self._kb_focus_filter)
+        bind(f'<{_MOD_KEY}-d>', lambda: self.show_flagged_only.set(
             not self.show_flagged_only.get()))
-        bind('<Control-u>', lambda: self.fuzzy_search.set(
+        bind(f'<{_MOD_KEY}-u>', lambda: self.fuzzy_search.set(
             not self.fuzzy_search.get()))
-        bind('<Control-p>', self._find_path)
-        bind('<Control-t>', self._view_tags)
-        bind('<Control-o>', self._browse)
-        bind('<Control-h>', self._set_home_person)
-        bind('<Control-s>', self._show_person)
-        bind('<Control-n>', self._find_matches)
-        bind('<Control-l>', self._clear_results)
+        bind(f'<{_MOD_KEY}-p>', self._find_path)
+        bind(f'<{_MOD_KEY}-t>', self._view_tags)
+        bind(f'<{_MOD_KEY}-o>', self._browse)
+        bind(f'<{_MOD_KEY}-h>', self._set_home_person)
+        bind(f'<{_MOD_KEY}-s>', self._show_person)
+        bind(f'<{_MOD_KEY}-n>', self._find_matches)
+        bind(f'<{_MOD_KEY}-l>', self._clear_results)
         bind('<Escape>', self._clear_results)
-        # Ctrl-C: only invoke _copy_results when a Text widget isn't focused
-        self.root.bind('<Control-c>', self._kb_copy)
+        # Only invoke _copy_results when a Text widget isn't focused
+        self.root.bind(f'<{_MOD_KEY}-c>', self._kb_copy)
 
         # Explicit tab chain via the internal tk widgets for CTk widgets:
         # tree → results_text → top_n_spin → max_depth_spin →

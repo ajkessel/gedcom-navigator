@@ -10,6 +10,11 @@ Strings that include runtime values use str.format() placeholders, e.g.
     STATUS_LOADED.format(count=42)
 """
 
+import sys
+
+# Modifier key label for display: ⌘ on macOS, Ctrl on Windows/Linux.
+_MOD = '⌘' if sys.platform == 'darwin' else 'Ctrl'
+
 # ---------------------------------------------------------------------------
 # Application
 # ---------------------------------------------------------------------------
@@ -22,7 +27,7 @@ STATUS_NO_FILE = "No file loaded."
 MENU_MENU = "Menu"
 MENU_PREFERENCES = "Preferences…"
 MENU_CLEAR_CACHE = "Clear cache…"
-MENU_HOW_TO_USE = "How to use (F1)"
+MENU_HOW_TO_USE = f"How to use ({_MOD}?)" if sys.platform == 'darwin' else "How to use (F1)"
 MENU_KEYBOARD_SHORTCUTS = "Keyboard shortcuts (F2)"
 MENU_PRIVACY_POLICY = "Privacy Policy"
 MENU_ABOUT = "About"
@@ -78,14 +83,14 @@ TIP_BROWSE = (
     "Browse to select a GEDCOM file. You can also select a ZIP file containing a GEDCOM."
 )
 TIP_FIND = (
-    "Find (Ctrl+F)\n"
+    f"Find ({_MOD}+F)\n"
     "Type to filter the list of people. Search by any name variation. Use the filter box "
     "to search by other information in a person's GEDCOM record, such as geographic location. "
     "Press Enter to jump directly to the first match. "
     "Use the checkboxes to show only DNA-flagged people and to allow fuzzy name matching."
 )
 TIP_FIND_MATCHES = (
-    "Find Nearest DNA Matches (Ctrl+N)\n"
+    f"Find Nearest DNA Matches ({_MOD}+N)\n"
     "Find the closest DNA matches to the selected person. "
     "The results are ranked by proximity to the selected person, with ties broken by "
     "the number of DNA markers (if any) associated with the match. "
@@ -93,7 +98,7 @@ TIP_FIND_MATCHES = (
     "Can also be triggered by pressing Enter when selecting a person."
 )
 TIP_FILTER = (
-    "Filter (Ctrl+I)\n"
+    f"Filter ({_MOD}+I)\n"
     "Type to filter the list of people by any information in their GEDCOM record, "
     "such as geographic location. This filter is applied in addition to the Find box above."
 )   
@@ -106,21 +111,21 @@ TIP_PAGE_MARKER = (
     "Leave this blank to use only the tag keyword to find relationship paths."
 )
 TIP_SET_HOME = (
-    "Set Home Person (Ctrl+H)\n"
+    f"Set Home Person ({_MOD}+H)\n"
     "Set the selected person as the home person for finding relationship paths."
 )
 TIP_SHOW_PERSON = (
-    "Show Person (Ctrl+S)\n"
+    f"Show Person ({_MOD}+S)\n"
     "View the full GEDCOM record for the selected person, along with a summary "
     "of biographical and family information."
 )
 TIP_SELECT_TAG = (
-    "Select Tag for Finding Paths (Ctrl+T)\n"
+    f"Select Tag for Finding Paths ({_MOD}+T)\n"
     "Select a new tag for finding the path between the selected person"
     " and the closest people with that tag."
 )
 TIP_FIND_PATH = (
-    "Find Relationship Paths (Ctrl+P)\n"
+    f"Find Relationship Paths ({_MOD}+P)\n"
     "Find multiple paths between the selected person and any other"
     " person in your tree."
 )
@@ -143,11 +148,11 @@ TIP_FUZZY_THRESHOLD = (
     " Lower values allow more matches; higher values are stricter."
 )
 TIP_DNA_FLAGGED_ONLY = (
-    "Toggle DNA-flagged Only (Ctrl+D)\n"
+    f"Toggle DNA-flagged Only ({_MOD}+D)\n"
     "When checked, only people flagged as DNA matches will be shown in search results."
 )
 TIP_FUZZY = (
-    "Toggle Fuzzy Search (Ctrl+U)\n"
+    f"Toggle Fuzzy Search ({_MOD}+U)\n"
     "Allow fuzzy name matching in search results. "
     "Fuzzy matching uses the Levenshtein distance to find names similar to the search term, "
     "which can help find matches when names are misspelled or have minor variations."
@@ -322,26 +327,26 @@ COL_SHORTCUT = "Shortcut"
 COL_ACTION = "Action"
 
 KEYBOARD_SHORTCUT_ROWS = [
-    ("Esc",      "Close any dialog or pop-up window"),
-    ("F1",       "Help"),
-    ("F2",       "Keyboard shortcuts"),
-    ("Ctrl+F",   "Find Person"),
-    ("Ctrl+I",   "Filter Results"),
-    ("Ctrl+D",   "Toggle the DNA-flagged only filter"),
-    ("Ctrl+U",   "Toggle Fuzzy search mode"),
-    ("Ctrl+O",   "Open a new GEDCOM file"),
-    ("Ctrl+N",   "Find Nearest DNA Matches for the selected person"),
-    ("Ctrl+S",   "Show the full GEDCOM record for the selected person"),
-    ("Ctrl+H",   "Set Home person to the selected person"),
-    ("Ctrl+P",   "Open the Find Relationship Paths dialog"),
-    ("Ctrl+T",   "Select new tag for finding relationship paths"),
-    ("Ctrl+C",   "Copy result to clipboard"),
-    ("Ctrl+L",   "Clear the results"),
-    ("Alt+M",    "Open the Menu"),
+    ("Esc",            "Close any dialog or pop-up window"),
+    (f"{_MOD}+?" if sys.platform == 'darwin' else "F1", "Help"),
+    ("F2",             "Keyboard shortcuts"),
+    (f"{_MOD}+F",     "Find Person"),
+    (f"{_MOD}+I",     "Filter Results"),
+    (f"{_MOD}+D",     "Toggle the DNA-flagged only filter"),
+    (f"{_MOD}+U",     "Toggle Fuzzy search mode"),
+    (f"{_MOD}+O",     "Open a new GEDCOM file"),
+    (f"{_MOD}+N",     "Find Nearest DNA Matches for the selected person"),
+    (f"{_MOD}+S",     "Show the full GEDCOM record for the selected person"),
+    (f"{_MOD}+H",     "Set Home person to the selected person"),
+    (f"{_MOD}+P",     "Open the Find Relationship Paths dialog"),
+    (f"{_MOD}+T",     "Select new tag for finding relationship paths"),
+    (f"{_MOD}+C",     "Copy result to clipboard"),
+    (f"{_MOD}+L",     "Clear the results"),
+    ("Alt+M",          "Open the Menu"),
 ]
 
 NOTE_KEYBOARD_SHORTCUTS = (
-    "Note: Ctrl+C copies the entire results pane. "
-    "When the results text area has keyboard focus, "
-    "Ctrl+C copies only the selected text as usual."
+    f"Note: {_MOD}+C copies the entire results pane. "
+    f"When the results text area has keyboard focus, "
+    f"{_MOD}+C copies only the selected text as usual."
 )
