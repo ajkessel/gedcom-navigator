@@ -1,5 +1,5 @@
 #!/bin/bash
-
+echo "Generating MacOS ICNS file from input image..."
 input="${1}"
 if [[ ! -f "$input" ]]; then
 	echo "❌ Input file does not exist: $input"
@@ -14,8 +14,7 @@ fi
 ICON_NAME="${input%.*}.icns"
 ICONS_DIR="tempicon.iconset"
 mkdir -p $ICONS_DIR
-sips -s format png -z 1024 1024 "$input" --out "$ICONS_DIR/icon_512x512@2x.png"
-if [[ $? -ne 0 ]]; then
+if ! sips -s format png -z 1024 1024 "$input" --out "$ICONS_DIR/icon_512x512@2x.png"; then
 	echo "❌ Failed to create icon_512x512@2x.png"
 	exit 1
 fi
@@ -28,8 +27,7 @@ sips -s format png -z 64 64 "$ICONS_DIR/icon_512x512@2x.png" --out "$ICONS_DIR/i
 sips -s format png -z 32 32 "$ICONS_DIR/icon_512x512@2x.png" --out "$ICONS_DIR/icon_32x32.png"
 sips -s format png -z 32 32 "$ICONS_DIR/icon_512x512@2x.png" --out "$ICONS_DIR/icon_16x16@2x.png"
 sips -s format png -z 16 16 "$ICONS_DIR/icon_512x512@2x.png" --out "$ICONS_DIR/icon_16x16.png"
-iconutil -c icns $ICONS_DIR
-if [[ $? -ne 0 ]]; then
+if ! iconutil -c icns $ICONS_DIR; then
 	echo "❌ Failed to create ICNS file"
 	exit 1
 fi

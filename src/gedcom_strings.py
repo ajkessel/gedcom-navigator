@@ -94,7 +94,8 @@ TIP_FIND_MATCHES = (
     "Find the closest DNA matches to the selected person. "
     "The results are ranked by proximity to the selected person, with ties broken by "
     "the number of DNA markers (if any) associated with the match. "
-    "Use the Top N and Max depth settings to adjust how many results are returned and how far to search within the tree.\n\n"
+    "Use the Top N and Max depth settings to adjust how many results are returned and " +
+    "how far to search within the tree.\n\n"
     "Can also be triggered by pressing Enter when selecting a person."
 )
 TIP_FILTER = (
@@ -191,7 +192,7 @@ RESULT_EDGE = "       --[{edge}]--> "
 RESULT_PATH_SECTION = "Path to Home Person"
 RESULT_HOME = "Home: "
 RESULT_NO_HOME_PATH = "No path found to home person within the current max depth."
-# TODO remove all edge{plural} placeholders if we decide we don't need "edges" in the relationship descriptions
+# TODO consider removing all edge{plural} placeholders
 # RESULT_HOME_REL = "Relationship: {rel} ({dist} edge{plural})"
 RESULT_HOME_REL = "Relationship: {rel}"
 RESULT_HOME_PATH = "Path:"

@@ -21,7 +21,7 @@ from gedcom_relationship import (
 )
 from gedcom_markdown import render_markdown
 from gedcom_strings import *  # noqa: F401,F403
-from gedcom_theme import Tooltip, get_flag_bg, get_link_color
+from gedcom_theme import Tooltip, get_flag_bg
 
 
 class DialogsMixin:

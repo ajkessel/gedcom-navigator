@@ -17,7 +17,7 @@ python src/gedcom_dna_finder_cli.py tree.ged --list-tags _
 python src/gedcom_dna_finder_cli.py tree.ged --list-flagged _
 ```
 
-No third-party dependencies; pure Python stdlib only. Tkinter is required for the GUI (ships with official Python installers on Windows/macOS; on Linux use `python3-tk`).
+Only third part-party library dependency is customtkinter. 
 
 ## Building executables
 

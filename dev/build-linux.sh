@@ -26,6 +26,7 @@ done
 		exit 1
 	}
 }
+# shellcheck disable=SC1091
 source .venv/bin/activate || {
 	echo 'Failed to activate virtual environment.'
 	exit 1
@@ -55,7 +56,7 @@ pyinstaller --noconfirm ./dev/gedcom_dna_finder_gui.spec || {
 	echo 'Cannot find dist build folder.'
 	exit 1
 }
-pushd dist
+pushd dist || exit
 zip -r "../${output_file}" .
 mv "../${output_file}" .
-popd
+popd || exit

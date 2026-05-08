@@ -149,15 +149,15 @@ class ConfigManager:
     def default_path():
         """Return the platform-specific default settings.json path."""
         if sys.platform == 'win32':
-            import os # pylint: disable=import-outside-toplevel
-            import ctypes # pylint: disable=import-outside-toplevel
+            import os
+            import ctypes
             ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(
                 "com.ajkessel.gedcom-dna-finder")
             base = Path(os.environ.get('APPDATA', Path.home()))
         elif sys.platform == 'darwin':
             base = Path.home() / 'Library' / 'Application Support'
         else:
-            import os # pylint: disable=import-outside-toplevel
+            import os
             base = Path(os.environ.get(
                 'XDG_CONFIG_HOME', Path.home() / '.config'))
         return base / 'gedcom-dna-finder' / 'settings.json'

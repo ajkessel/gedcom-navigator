@@ -49,7 +49,7 @@ from gedcom_relationship import (
     get_descendant_depths,
     describe_relationship,
 )
-from gedcom_theme import Tooltip, THEME_NAMES, get_flag_bg, get_link_color
+from gedcom_theme import Tooltip, THEME_NAMES, get_flag_bg
 from gedcom_gui_appearance import AppearanceMixin
 from gedcom_gui_dialogs import DialogsMixin
 

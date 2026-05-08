@@ -8,6 +8,10 @@ while getopts "hnco:" opt; do
 	case $opt in
 	h)
 		echo "Usage: $0 [-h] [-n] [-c] [-o]"
+		echo "  -h  Show this help message and exit"
+		echo "  -n  Dry run: build the app but skip notarization and stapling"
+		echo "  -c  Clean build: remove virtual environment and pyenv versions before building"
+		echo "  -o  Specify output file name (default: gedcom-dna-finder-mac.zip)"
 		exit 0
 		;;
 	n) DRY=true ;;
@@ -23,25 +27,29 @@ echo 'Building for macOS...'
 [[ "$CLEAN" ]] && rm -r ./.venv "${HOME}/.pyenv"
 if [[ -e "${HOME}/.config/p" ]]; then
 	echo 'Unlocking keychain...'
-	security unlock-keychain -p "$(cat ${HOME}/.config/p)" "${HOME}/Library/Keychains/login.keychain-db"
+	security unlock-keychain -p "$(cat "${HOME}"/.config/p)" "${HOME}/Library/Keychains/login.keychain-db"
 else
 	echo 'Password file not found at ~/.config/p, skipping automatic keychain unlock.'
 	security unlock-keychain "${HOME}/Library/Keychains/login.keychain-db"
 fi
 export PATH="/usr/local/bin:$PATH"
-command -v brew && export PATH="$(brew --prefix python)/libexec/bin:$PATH" || {
+if command -v brew >/dev/null 2>&1; then
+	brew_prefix=$(brew --prefix python)
+	export PATH="$brew_prefix/libexec/bin:$PATH"
+else
 	echo 'homebrew not found, we will still try to build but this script has not been tested on MacOS without brew.'
-}
+fi
 
-command -v pyenv || {
-	echo 'pyenv missing, attempting to install from homebrew...'
-	brew install pyenv
-}
 # preference is for universal2 python from python.org
 # alternatively, set up pyenv environment
-[[ -e "/Library/Frameworks/Python.framework/Versions/3.14/bin/python3" ]] && {
-	export PATH="/Library/Frameworks/Python.framework/Versions/3.14/bin/:${PATH}"
-} || {
+if [ -e "/Library/Frameworks/Python.framework/Versions/current/bin/python3" ]; then
+	export PATH="/Library/Frameworks/Python.framework/Versions/current/bin/:${PATH}"
+else
+	echo 'Python from python.org not found, attempting to set up pyenv...'
+	command -v pyenv || {
+		echo 'pyenv missing, attempting to install from homebrew...'
+		brew install pyenv
+	}
 	export PYENV_ROOT="$HOME/.pyenv"
 	[[ -e "${PYENV_ROOT}/shims/python3.14" ]] || {
 		echo 'Installing pyenv for python 3.14'
@@ -51,7 +59,7 @@ command -v pyenv || {
 		pyenv global 3.14
 	}
 	eval "$(pyenv init -)"
-}
+fi
 ./dev/generate-icns.sh ./icons/family_tree.png || {
 	echo 'Failed to generate ICNS file.'
 	exit 1
@@ -63,11 +71,12 @@ command -v pyenv || {
 		exit 1
 	}
 }
+# shellcheck disable=SC1091
 source .venv/bin/activate || {
 	echo 'Failed to activate virtual environment.'
 	exit 1
 }
-pip install -r ./dev/requirements.txt || {
+pip3 install -r ./dev/requirements.txt || {
 	echo 'Failed to install dependencies.'
 	exit 1
 }
