@@ -145,6 +145,8 @@ if sys.platform == 'darwin':
                  icon='../icons/family_tree.icns',
                  bundle_identifier='com.ajkessel.gedcom-dna-finder',
                  info_plist={
+                     'CFBundleName': 'GEDCOM DNA Finder',
+                     'CFBundleDisplayName': 'GEDCOM DNA Finder',
                      'CFBundleSupportedPlatforms': ['MacOSX'],
                      'LSMinimumSystemVersion': '10.13.0',
                      'CFBundleIdentifier': 'com.ajkessel.gedcom-dna-finder',
