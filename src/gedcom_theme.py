@@ -90,8 +90,9 @@ class Tooltip:
         self._widget = widget
         self._text = text
         self._tip = None
+        self._hide_after = None  # pending after() id for debounced hide (macOS)
         widget.bind('<Enter>', self._show)
-        widget.bind('<Leave>', self._hide)
+        widget.bind('<Leave>', self._on_leave)
         widget.bind('<ButtonPress>', self._hide)
 
     def _apply_window_style(self):
@@ -188,8 +189,17 @@ class Tooltip:
         y = max(0, min(y, screen_h - req_h - 4))
         self._tip.wm_geometry(f'+{x}+{y}')
 
-    def _poll_mouse(self):
-        """macOS only: hide tooltip if the cursor has left the widget bounds."""
+    def _on_leave(self, _event=None):
+        """Handle <Leave>: debounce on macOS to ignore spurious events."""
+        if sys.platform == 'darwin' and self._tip is not None:
+            if self._hide_after is None:
+                self._hide_after = self._widget.after(150, self._hide_if_outside)
+        else:
+            self._hide()
+
+    def _hide_if_outside(self):
+        """Debounced hide: only destroy the tooltip if the pointer is truly gone."""
+        self._hide_after = None
         if self._tip is None:
             return
         px = self._widget.winfo_pointerx()
@@ -200,13 +210,32 @@ class Tooltip:
         wh = self._widget.winfo_height()
         if not (wx <= px <= wx + ww and wy <= py <= wy + wh):
             self._hide()
+
+    def _poll_mouse(self):
+        """macOS only: catch missed <Leave> events via periodic position check."""
+        if self._tip is None:
             return
+        px = self._widget.winfo_pointerx()
+        py = self._widget.winfo_pointery()
+        wx = self._widget.winfo_rootx()
+        wy = self._widget.winfo_rooty()
+        ww = self._widget.winfo_width()
+        wh = self._widget.winfo_height()
+        inside = wx <= px <= wx + ww and wy <= py <= wy + wh
+        if not inside and self._hide_after is None:
+            self._hide_after = self._widget.after(150, self._hide_if_outside)
+        elif inside and self._hide_after is not None:
+            self._widget.after_cancel(self._hide_after)
+            self._hide_after = None
         self._widget.after(100, self._poll_mouse)
 
     def _show(self, _event=None):
         """Create and position the tooltip window."""
-        # Dismiss any other tooltip that was left visible (e.g. due to missed
-        # <Leave> events on macOS when moving quickly between widgets).
+        # Cancel any pending debounced hide (spurious <Leave>/<Enter> pair).
+        if self._hide_after is not None:
+            self._widget.after_cancel(self._hide_after)
+            self._hide_after = None
+        # Dismiss any other tooltip left visible due to a missed <Leave>.
         if Tooltip._active is not None and Tooltip._active is not self:
             Tooltip._active._hide()
         if self._tip is not None:
@@ -224,6 +253,9 @@ class Tooltip:
 
     def _hide(self, _event=None):
         """Destroy the tooltip window if it is visible."""
+        if self._hide_after is not None:
+            self._widget.after_cancel(self._hide_after)
+            self._hide_after = None
         if self._tip:
             self._tip.destroy()
             self._tip = None
