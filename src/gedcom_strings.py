@@ -101,7 +101,7 @@ TIP_FILTER = (
     f"Filter ({_MOD}+I)\n"
     "Type to filter the list of people by any information in their GEDCOM record, "
     "such as geographic location. This filter is applied in addition to the Find box above."
-)   
+)
 TIP_TAG_KEYWORD = (
     "Enter a keyword to filter the list of tags used for finding relationship paths. "
     "Leave this blank to use only the page marker keyword to find relationship paths."
@@ -192,7 +192,7 @@ RESULT_PATH_SECTION = "Path to Home Person"
 RESULT_HOME = "Home: "
 RESULT_NO_HOME_PATH = "No path found to home person within the current max depth."
 # TODO remove all edge{plural} placeholders if we decide we don't need "edges" in the relationship descriptions
-#RESULT_HOME_REL = "Relationship: {rel} ({dist} edge{plural})"
+# RESULT_HOME_REL = "Relationship: {rel} ({dist} edge{plural})"
 RESULT_HOME_REL = "Relationship: {rel}"
 RESULT_HOME_PATH = "Path:"
 RESULT_HOME_EDGE = "    --[{edge}]--> "
@@ -205,7 +205,7 @@ PATH_FROM = "  From: "
 PATH_TO = "  To:   "
 PATH_SAME_PERSON = "(Same person selected for both.)"
 PATH_NOT_FOUND = "No relationship path found within max depth {depth}."
-#PATH_RANK = "Path #{rank} — {rel} ({dist} edge{plural}):"
+# PATH_RANK = "Path #{rank} — {rel} ({dist} edge{plural}):"
 PATH_RANK = "Path #{rank} — {rel}:"
 PATH_EDGE = "    --[{edge}]--> "
 PATH_SEARCH_CAP = (
@@ -329,7 +329,7 @@ COL_ACTION = "Action"
 KEYBOARD_SHORTCUT_ROWS = [
     ("Esc",            "Close any dialog or pop-up window"),
     (f"{_MOD}+?" if sys.platform == 'darwin' else "F1", "Help"),
-    ("F2",             "Keyboard shortcuts"),
+    (f"{_MOD}+K" if sys.platform == 'darwin' else "F2", "Keyboard shortcuts"),
     (f"{_MOD}+F",     "Find Person"),
     (f"{_MOD}+I",     "Filter Results"),
     (f"{_MOD}+D",     "Toggle the DNA-flagged only filter"),
@@ -342,8 +342,10 @@ KEYBOARD_SHORTCUT_ROWS = [
     (f"{_MOD}+T",     "Select new tag for finding relationship paths"),
     (f"{_MOD}+C",     "Copy result to clipboard"),
     (f"{_MOD}+L",     "Clear the results"),
-    ("Alt+M",          "Open the Menu"),
 ]
+
+if sys.platform != 'darwin':
+    KEYBOARD_SHORTCUT_ROWS.append(("Alt-M", "Menu"))
 
 NOTE_KEYBOARD_SHORTCUTS = (
     f"Note: {_MOD}+C copies the entire results pane. "

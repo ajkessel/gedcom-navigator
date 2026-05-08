@@ -405,7 +405,7 @@ class AppearanceMixin:
             self.root.bind(seq, lambda *_: cmd() or 'break')
 
         bind('<Command-question>' if sys.platform == 'darwin' else '<F1>', self._show_how_to_use)
-        bind('<F2>', self._show_keyboard_shortcuts)
+        bind(f'{_MOD_KEY}-k' if sys.platform == 'darwin' else '<F2>', self._show_keyboard_shortcuts)
         bind(f'<{_MOD_KEY}-f>', self._kb_focus_search)
         bind(f'<{_MOD_KEY}-i>', self._kb_focus_filter)
         bind(f'<{_MOD_KEY}-d>', lambda: self.show_flagged_only.set(
