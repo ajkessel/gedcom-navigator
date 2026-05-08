@@ -540,17 +540,16 @@ class AppearanceMixin:
                               accelerator=_accel, command=self._browse)
         if sys.platform != 'darwin':
             file_menu.add_separator()
+            file_menu.add_command(label=MENU_PREFERENCES, underline=0,
+                                  command=self._show_preferences)
+            file_menu.add_separator()
             file_menu.add_command(label=MENU_QUIT, underline=0,
                                   command=self.root.quit)
 
         app_menu = tk.Menu(menubar, tearoff=0)
         self._app_menu = app_menu
         menubar.add_cascade(label=MENU_MENU, underline=0, menu=app_menu)
-        if sys.platform != 'darwin':
-            app_menu.add_command(label=MENU_PREFERENCES, underline=0,
-                                 command=self._show_preferences)
-            app_menu.add_separator()
-        else:
+        if sys.platform == 'darwin':
             self.root.createcommand(
                 '::tk::mac::ShowPreferences', self._show_preferences)
         app_menu.add_command(label=MENU_HOW_TO_USE, underline=0,

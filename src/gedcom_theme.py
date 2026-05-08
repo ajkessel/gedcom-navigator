@@ -189,12 +189,16 @@ class Tooltip:
         self._tip.wm_geometry(f'+{x}+{y}')
 
     def _poll_mouse(self):
-        """macOS only: hide tooltip if the cursor has left the widget."""
+        """macOS only: hide tooltip if the cursor has left the widget bounds."""
         if self._tip is None:
             return
-        x = self._widget.winfo_pointerx()
-        y = self._widget.winfo_pointery()
-        if self._widget.winfo_containing(x, y) is not self._widget:
+        px = self._widget.winfo_pointerx()
+        py = self._widget.winfo_pointery()
+        wx = self._widget.winfo_rootx()
+        wy = self._widget.winfo_rooty()
+        ww = self._widget.winfo_width()
+        wh = self._widget.winfo_height()
+        if not (wx <= px <= wx + ww and wy <= py <= wy + wh):
             self._hide()
             return
         self._widget.after(100, self._poll_mouse)
