@@ -26,9 +26,9 @@ source .venv/bin/activate
 echo 'Building for Linux platform...'
 ./dev/build.sh
 echo 'Building for Windows platform...'
-pwsh -command 'set-location c:/apps/src/gedcom-dna-finder ; ./dev/build.ps1'
+pwsh -command 'c:/apps/src/gedcom-dna-finder/dev/build.ps1'
 echo 'Building for Mac platform...'
-ssh mac 'cd src/gedcom-dna-finder/ ; ./dev/build.sh'
+ssh mac 'src/gedcom-dna-finder/dev/build.sh'
 echo 'Copying built ZIP files locally...'
 scp mac:src/gedcom-dna-finder/dist/*zip ./dist
 cp /mnt/c/apps/src/gedcom-dna-finder/dist/*zip ./dist

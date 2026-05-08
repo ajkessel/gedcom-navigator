@@ -273,6 +273,7 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
 
         # Main paned area
         paned = ttk.PanedWindow(outer, orient='horizontal')
+        self._paned = paned
         paned.pack(fill='both', expand=True, pady=(8, 0))
 
         # --- Left pane ---
@@ -353,6 +354,7 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
         # Action controls — single row grid.  Column 4 is a flexible spacer
         # that absorbs surplus space; every other column sizes to its content.
         action_frame = ctk.CTkFrame(left, fg_color='transparent')
+        self._action_frame = action_frame
         action_frame.pack(fill='x', pady=(6, 0))
         action_frame.grid_columnconfigure(4, weight=1)
 
@@ -388,6 +390,20 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
         # --- Right pane ---
         right = ctk.CTkFrame(paned, fg_color='transparent')
         paned.add(right, weight=3)
+
+        # Enforce a minimum left-pane width equal to the action row's natural
+        # content width so the five bottom controls are never clipped.
+        # ttk.PanedWindow has no built-in minsize option, so we clamp the sash
+        # position on initial layout and whenever the user drags it.
+        def _clamp_left_pane(event=None):
+            try:
+                min_w = self._action_frame.winfo_reqwidth()
+                if min_w > 0 and paned.sashpos(0) < min_w:
+                    paned.sashpos(0, min_w)
+            except Exception:
+                pass
+        self.root.after(50, _clamp_left_pane)
+        paned.bind('<B1-Motion>', lambda e: _clamp_left_pane())
 
         results_header = ctk.CTkFrame(right, fg_color='transparent')
         results_header.pack(fill='x')
