@@ -83,6 +83,8 @@ def ttk_colors(is_dark: bool, theme_name=None) -> dict:
 class Tooltip:
     """Small hover tooltip attached to a Tkinter widget."""
 
+    _active: 'Tooltip | None' = None  # class-level: currently visible tooltip
+
     def __init__(self, widget, text):
         """Bind tooltip display behaviour to widget hover events."""
         self._widget = widget
@@ -100,7 +102,6 @@ class Tooltip:
                     'tk::unsupported::MacWindowStyle', 'style',
                     self._tip._w, 'help', 'noActivates',
                 )
-                return
             except tk.TclError:
                 pass
         else:
@@ -113,6 +114,9 @@ class Tooltip:
                     self._tip.wm_attributes('-toolwindow', True)
                 except tk.TclError:
                     pass
+        # Always set overrideredirect so the tooltip window never intercepts
+        # mouse events — on macOS omitting this caused <Leave> events to be
+        # missed, leaving multiple stale tooltips on screen simultaneously.
         self._tip.wm_overrideredirect(True)
 
     def _style_tip_widget(self, widget, *, outer=False):
@@ -186,8 +190,13 @@ class Tooltip:
 
     def _show(self, _event=None):
         """Create and position the tooltip window."""
+        # Dismiss any other tooltip that was left visible (e.g. due to missed
+        # <Leave> events on macOS when moving quickly between widgets).
+        if Tooltip._active is not None and Tooltip._active is not self:
+            Tooltip._active._hide()
         if self._tip is not None:
             return
+        Tooltip._active = self
         self._tip = tk.Toplevel(self._widget)
         self._tip.withdraw()
         self._apply_window_style()
@@ -201,3 +210,5 @@ class Tooltip:
         if self._tip:
             self._tip.destroy()
             self._tip = None
+        if Tooltip._active is self:
+            Tooltip._active = None
