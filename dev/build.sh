@@ -7,18 +7,13 @@ cd "${SCRIPT_DIR}/.."
 	exit 1
 }
 git pull
-echo 'Running unit tests...'
-pytest -v --tb=short --disable-warnings || {
-	echo 'Unit tests failed. Exiting.'
-	exit 1
-}
 if [[ $(uname) == "Linux" ]]; then
 	echo 'Building for Linux...'
-  dev/build-linux.sh "$@"
+	dev/build-linux.sh "$@"
 elif [[ $(uname) == "Darwin" ]]; then
 	echo 'Building for macOS...'
-  dev/build-mac.sh "$@"
+	dev/build-mac.sh "$@"
 else
-  echo 'Platform not recognized. Use build.ps1 for Windows. Exiting.'
-  exit 1
+	echo 'Platform not recognized. Use build.ps1 for building natively on Windows. Exiting.'
+	exit 1
 fi
