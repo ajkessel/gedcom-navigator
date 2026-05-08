@@ -28,7 +28,7 @@ MENU_MENU = "Menu"
 MENU_PREFERENCES = "Preferences…"
 MENU_CLEAR_CACHE = "Clear cache…"
 MENU_HOW_TO_USE = f"How to use ({_MOD}?)" if sys.platform == 'darwin' else "How to use (F1)"
-MENU_KEYBOARD_SHORTCUTS = "Keyboard shortcuts (F2)"
+MENU_KEYBOARD_SHORTCUTS = f"Keyboard shortcuts ({_MOD}K)" if sys.platform == 'darwin' else "Keyboard Shortcuts (F2)"
 MENU_PRIVACY_POLICY = "Privacy Policy"
 MENU_ABOUT = "About"
 MENU_QUIT = "Quit"
@@ -319,8 +319,8 @@ CACHE_DONE_MSG = "{deleted} file(s) deleted."
 # ---------------------------------------------------------------------------
 # Info windows
 # ---------------------------------------------------------------------------
-WIN_HOW_TO_USE = "How to use"
-WIN_KEYBOARD_SHORTCUTS = "Keyboard shortcuts"
+WIN_HOW_TO_USE = "How to Use"
+WIN_KEYBOARD_SHORTCUTS = "Keyboard Shortcuts"
 WIN_ABOUT = "About"
 WIN_PRIVACY_POLICY = "Privacy Policy"
 
@@ -330,7 +330,7 @@ COL_ACTION = "Action"
 KEYBOARD_SHORTCUT_ROWS = [
     ("Esc",            "Close any dialog or pop-up window"),
     (f"{_MOD}?" if sys.platform == 'darwin' else "F1", "Help"),
-    (f"{_MOD}K" if sys.platform == 'darwin' else "F2", "Keyboard shortcuts"),
+    (f"{_MOD}K" if sys.platform == 'darwin' else "F2", "Keyboard Shortcuts"),
     (f"{_MOD}F",     "Find Person"),
     (f"{_MOD}I",     "Filter Results"),
     (f"{_MOD}D",     "Toggle the DNA-flagged only filter"),
