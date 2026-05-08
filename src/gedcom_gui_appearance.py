@@ -55,11 +55,27 @@ class AppearanceMixin:
         self._config.set_recent_files(history)
 
     def _add_to_history(self, filepath):
-        """Add filepath to the recent-file list."""
+        """Add filepath to the recent-file list and refresh the Open Recent menu."""
         history = [filepath] + [p for p in self._recent_files if p != filepath]
         history = history[:self.MAX_RECENT]
         self._recent_files = history
         self._config.set_recent_files(history)
+        self._rebuild_recent_menu()
+
+    def _rebuild_recent_menu(self):
+        """Repopulate the Open Recent submenu from the five most recent files."""
+        menu = self._recent_menu
+        menu.delete(0, 'end')
+        recents = self._recent_files[:5]
+        if not recents:
+            menu.add_command(label=MENU_NO_RECENT_FILES, state='disabled')
+            return
+        for path in recents:
+            label = path if len(path) <= 60 else '…' + path[-57:]
+            menu.add_command(
+                label=label,
+                command=lambda p=path: (self.gedcom_path.set(p), self._load_file()),
+            )
 
     def _clear_cache(self):
         """Confirm and remove cached GEDCOM parse files."""
@@ -538,6 +554,10 @@ class AppearanceMixin:
         _accel = 'Cmd+O' if sys.platform == 'darwin' else 'Ctrl+O'
         file_menu.add_command(label=MENU_OPEN_GEDCOM, underline=0,
                               accelerator=_accel, command=self._browse)
+        self._recent_menu = tk.Menu(file_menu, tearoff=0)
+        file_menu.add_cascade(label=MENU_OPEN_RECENT, underline=5,
+                              menu=self._recent_menu)
+        self._rebuild_recent_menu()
         if sys.platform != 'darwin':
             file_menu.add_separator()
             file_menu.add_command(label=MENU_PREFERENCES, underline=0,

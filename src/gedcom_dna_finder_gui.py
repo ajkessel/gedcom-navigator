@@ -391,13 +391,27 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
         right = ctk.CTkFrame(paned, fg_color='transparent')
         paned.add(right, weight=3)
 
-        # Enforce a minimum left-pane width equal to the action row's natural
-        # content width so the five bottom controls are never clipped.
-        # ttk.PanedWindow has no built-in minsize option, so we clamp the sash
-        # position on initial layout and whenever the user drags it.
+        # Enforce a minimum left-pane width so the five action-row controls are
+        # never clipped.  ttk.PanedWindow has no built-in minsize option, so we
+        # clamp the sash position on initial layout and on every drag.
+        #
+        # We sum the reqwidths of the fixed-column widgets directly rather than
+        # reading the action frame's reqwidth: the frame is packed with fill='x'
+        # and its grid has a weight-1 spacer column, so after layout its
+        # reqwidth reflects the full expanded width, not the minimum content.
         def _clamp_left_pane(event=None):
             try:
-                min_w = self._action_frame.winfo_reqwidth()
+                # padx totals per grid() call: spinbox1=14, spinbox2=2,
+                # set_home=6, show_person=6, find_matches=0
+                min_w = (
+                    _top_n_label.winfo_reqwidth()
+                    + self.top_n_spin.winfo_reqwidth() + 14
+                    + _max_depth_label.winfo_reqwidth()
+                    + self.max_depth_spin.winfo_reqwidth() + 2
+                    + self.set_home_btn.winfo_reqwidth() + 6
+                    + self.show_person_btn.winfo_reqwidth() + 6
+                    + self.find_matches_btn.winfo_reqwidth()
+                )
                 if min_w > 0 and paned.sashpos(0) < min_w:
                     paned.sashpos(0, min_w)
             except Exception:
@@ -410,6 +424,7 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
         ctk.CTkLabel(results_header, text=LBL_RESULTS).pack(side='left')
         ctk.CTkButton(results_header, text=BTN_COPY, width=60,
                       command=self._copy_results).pack(side='right')
+        Tooltip(results_header.winfo_children()[-1], TIP_COPY)
 
         self.results = ctk.CTkTextbox(
             right,

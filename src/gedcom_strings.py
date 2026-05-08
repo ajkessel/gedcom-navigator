@@ -26,6 +26,8 @@ STATUS_NO_FILE = "No file loaded."
 # ---------------------------------------------------------------------------
 MENU_FILE = "File"
 MENU_OPEN_GEDCOM = "Open GEDCOM File…"
+MENU_OPEN_RECENT = "Open Recent"
+MENU_NO_RECENT_FILES = "No Recent Files"
 MENU_MENU = "Help"
 MENU_PREFERENCES = "Preferences…"
 MENU_CLEAR_CACHE = "Clear cache…"
@@ -84,13 +86,13 @@ BTN_SET_HOME = "Set Home"
 # Results panel
 # ---------------------------------------------------------------------------
 LBL_RESULTS = "Results:"
-BTN_COPY = "Copy"
+BTN_COPY = "Copy Results"
 
 # ---------------------------------------------------------------------------
 # Tooltips
 # ---------------------------------------------------------------------------
-TIP_BROWSE = (
-    "Browse to select a GEDCOM file. You can also select a ZIP file containing a GEDCOM."
+TIP_COPY = (
+    f"Copy results below into clipboard ({_MOD}C)\n"
 )
 TIP_FIND = (
     f"Find ({_MOD}F)\n"
