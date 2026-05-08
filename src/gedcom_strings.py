@@ -24,11 +24,21 @@ STATUS_NO_FILE = "No file loaded."
 # ---------------------------------------------------------------------------
 # Menu
 # ---------------------------------------------------------------------------
-MENU_MENU = "Menu"
+MENU_FILE = "File"
+MENU_OPEN_GEDCOM = "Open GEDCOM File…"
+MENU_MENU = "Help"
 MENU_PREFERENCES = "Preferences…"
 MENU_CLEAR_CACHE = "Clear cache…"
-MENU_HOW_TO_USE = f"How to use ({_MOD}?)" if sys.platform == 'darwin' else "How to use (F1)"
-MENU_KEYBOARD_SHORTCUTS = f"Keyboard shortcuts ({_MOD}K)" if sys.platform == 'darwin' else "Keyboard Shortcuts (F2)"
+MENU_HOW_TO_USE = (
+    f"How to use ({_MOD}?)"
+    if sys.platform == 'darwin'
+    else "How to use (F1)"
+)
+MENU_KEYBOARD_SHORTCUTS = (
+    f"Keyboard shortcuts ({_MOD}K)"
+    if sys.platform == 'darwin'
+    else "Keyboard Shortcuts (F2)"
+)
 MENU_PRIVACY_POLICY = "Privacy Policy"
 MENU_ABOUT = "About"
 MENU_QUIT = "Quit"
@@ -334,7 +344,7 @@ KEYBOARD_SHORTCUT_ROWS = [
     (f"{_MOD}F",     "Find Person"),
     (f"{_MOD}I",     "Filter Results"),
     (f"{_MOD}D",     "Toggle the DNA-flagged only filter"),
-    (f"{_MOD}U",     "Toggle Fuzzy search mode"),
+    (f"{_MOD}U",     "Toggle fuzzy search mode"),
     (f"{_MOD}O",     "Open a new GEDCOM file"),
     (f"{_MOD}N",     "Find Nearest DNA Matches for the selected person"),
     (f"{_MOD}S",     "Show the full GEDCOM record for the selected person"),

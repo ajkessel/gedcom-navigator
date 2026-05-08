@@ -243,25 +243,6 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
         outer = ctk.CTkFrame(self.root, fg_color='transparent')
         outer.pack(fill='both', expand=True, padx=8, pady=8)
 
-        # File row
-        file_group = ctk.CTkFrame(outer, border_width=1)
-        file_group.pack(fill='x')
-        ctk.CTkLabel(file_group, text=FRAME_GEDCOM_FILE, anchor='w').pack(
-            anchor='nw', padx=10, pady=(6, 2))
-        file_frame = ctk.CTkFrame(file_group, fg_color='transparent')
-        file_frame.pack(fill='x', padx=8, pady=(0, 8))
-
-        self.path_combo = ctk.CTkComboBox(
-            file_frame, variable=self.gedcom_path,
-            values=self._recent_files,
-            command=lambda *_: self._load_file(),
-        )
-        self.path_combo.pack(side='left', fill='x', expand=True, padx=(0, 4))
-        self.browse_btn = ctk.CTkButton(
-            file_frame, text=BTN_BROWSE, width=80, command=self._browse)
-        self.browse_btn.pack(side='left', padx=2)
-        Tooltip(self.browse_btn, TIP_BROWSE)
-
         # Settings row
         settings_group = ctk.CTkFrame(outer, border_width=1)
         settings_group.pack(fill='x', pady=(8, 0))
@@ -478,8 +459,8 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
         """Disable or re-enable the controls that trigger long operations."""
         self._busy = busy
         state = 'disabled' if busy else 'normal'
-        for widget in (self.browse_btn, self.path_combo, self.find_matches_btn):
-            widget.configure(state=state)
+        self.find_matches_btn.configure(state=state)
+        self._file_menu.entryconfigure(MENU_OPEN_GEDCOM, state=state)
 
     # ---------------------------------------------------------- Handlers
     def _browse(self):
@@ -1061,6 +1042,9 @@ def main():
                     ERR_GEDCOM_NOT_FOUND_MSG.format(path=p),
                 ),
             )
+    else:
+        if not (app._recent_files and os.path.isfile(app._recent_files[0])):
+            root.after(100, app._browse)
 
     root.mainloop()
 

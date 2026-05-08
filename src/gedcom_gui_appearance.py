@@ -10,10 +10,9 @@ import tkinter.font as tkfont
 from tkinter import ttk, messagebox
 import sys
 import customtkinter as ctk
-from gedcom_strings import *  # noqa: F401,F403
+from gedcom_strings import *  # noqa: F401,F403 # pylint: disable=unused-wildcard-import
 from gedcom_theme import (
-    Tooltip, THEME_NAMES, CTK_THEME_MAP,
-    ttk_colors, get_flag_bg, get_link_color,
+    CTK_THEME_MAP, ttk_colors, get_flag_bg, get_link_color,
 )
 
 # Tkinter modifier key name: Command on macOS, Control on Windows/Linux.
@@ -56,11 +55,10 @@ class AppearanceMixin:
         self._config.set_recent_files(history)
 
     def _add_to_history(self, filepath):
-        """Add filepath to the recent-file list and update the combo box."""
+        """Add filepath to the recent-file list."""
         history = [filepath] + [p for p in self._recent_files if p != filepath]
         history = history[:self.MAX_RECENT]
         self._recent_files = history
-        self.path_combo.configure(values=history)
         self._config.set_recent_files(history)
 
     def _clear_cache(self):
@@ -142,8 +140,10 @@ class AppearanceMixin:
         screen_w = win.winfo_screenwidth()
         screen_h = win.winfo_screenheight()
         margin = 32
-        max_w = max(min_w, min(int(screen_w * max_screen_ratio), screen_w - margin))
-        max_h = max(min_h, min(int(screen_h * max_screen_ratio), screen_h - margin))
+        max_w = max(min_w, min(
+            int(screen_w * max_screen_ratio), screen_w - margin))
+        max_h = max(min_h, min(
+            int(screen_h * max_screen_ratio), screen_h - margin))
         w = min(target_w, max_w)
         h = min(target_h, max_h)
 
@@ -252,7 +252,8 @@ class AppearanceMixin:
 
     def _apply_window_background(self, win):
         """Apply the current CTk root/toplevel background to an existing window."""
-        widget_key = 'CTkToplevel' if isinstance(win, ctk.CTkToplevel) else 'CTk'
+        widget_key = 'CTkToplevel' if isinstance(
+            win, ctk.CTkToplevel) else 'CTk'
         fg_color = ctk.ThemeManager.theme.get(widget_key, {}).get('fg_color')
         if fg_color is None:
             return
@@ -278,7 +279,8 @@ class AppearanceMixin:
 
     def _apply_theme(self, theme_name):
         """Apply a named colour theme to the application."""
-        old_color_theme = CTK_THEME_MAP.get(self._theme_pref, ('system', 'blue'))[1]
+        old_color_theme = CTK_THEME_MAP.get(
+            self._theme_pref, ('system', 'blue'))[1]
         old_tinted = self._theme_pref in _BG_TINTS
         self._theme_pref = theme_name
         mode, color_theme = CTK_THEME_MAP.get(theme_name, ('system', 'blue'))
@@ -297,7 +299,8 @@ class AppearanceMixin:
                 'flagged_row', background=get_flag_bg(is_dark))
         if not hasattr(self, 'results'):
             return
-        needs_rebuild = color_theme != old_color_theme or old_tinted != (theme_name in _BG_TINTS)
+        needs_rebuild = color_theme != old_color_theme or old_tinted != (
+            theme_name in _BG_TINTS)
         if needs_rebuild:
             self.root.after(0, self._rebuild_ui_for_theme)
         else:
@@ -404,8 +407,10 @@ class AppearanceMixin:
         def bind(seq, cmd):
             self.root.bind(seq, lambda *_: cmd() or 'break')
 
-        bind('<Command-question>' if sys.platform == 'darwin' else '<F1>', self._show_how_to_use)
-        bind(f'<{_MOD_KEY}-k>' if sys.platform == 'darwin' else '<F2>', self._show_keyboard_shortcuts)
+        bind('<Command-question>' if sys.platform ==
+             'darwin' else '<F1>', self._show_how_to_use)
+        bind(f'<{_MOD_KEY}-k>' if sys.platform ==
+             'darwin' else '<F2>', self._show_keyboard_shortcuts)
         bind(f'<{_MOD_KEY}-f>', self._kb_focus_search)
         bind(f'<{_MOD_KEY}-i>', self._kb_focus_filter)
         bind(f'<{_MOD_KEY}-d>', lambda: self.show_flagged_only.set(
@@ -443,12 +448,18 @@ class AppearanceMixin:
         self.root.bind('<Alt-M>', lambda *_: self._open_app_menu() or 'break')
 
         r_inner = self.results._textbox
-        r_inner.bind('<Up>', lambda *_: self.results.yview_scroll(-1, 'units') or 'break')
-        r_inner.bind('<Down>', lambda *_: self.results.yview_scroll(1, 'units') or 'break')
-        r_inner.bind('<Prior>', lambda *_: self.results.yview_scroll(-1, 'pages') or 'break')
-        r_inner.bind('<Next>', lambda *_: self.results.yview_scroll(1, 'pages') or 'break')
-        r_inner.bind('<Home>', lambda *_: self.results.yview_moveto(0) or 'break')
-        r_inner.bind('<End>', lambda *_: self.results.yview_moveto(1) or 'break')
+        r_inner.bind(
+            '<Up>', lambda *_: self.results.yview_scroll(-1, 'units') or 'break')
+        r_inner.bind(
+            '<Down>', lambda *_: self.results.yview_scroll(1, 'units') or 'break')
+        r_inner.bind(
+            '<Prior>', lambda *_: self.results.yview_scroll(-1, 'pages') or 'break')
+        r_inner.bind(
+            '<Next>', lambda *_: self.results.yview_scroll(1, 'pages') or 'break')
+        r_inner.bind(
+            '<Home>', lambda *_: self.results.yview_moveto(0) or 'break')
+        r_inner.bind(
+            '<End>', lambda *_: self.results.yview_moveto(1) or 'break')
 
     def _open_app_menu(self):
         """Post the application menu at the top-left of the root window."""
@@ -521,14 +532,27 @@ class AppearanceMixin:
         self.root.config(menu=menubar)
         self._menubar = menubar
 
+        file_menu = tk.Menu(menubar, tearoff=0)
+        self._file_menu = file_menu
+        menubar.add_cascade(label=MENU_FILE, underline=0, menu=file_menu)
+        _accel = 'Cmd+O' if sys.platform == 'darwin' else 'Ctrl+O'
+        file_menu.add_command(label=MENU_OPEN_GEDCOM, underline=0,
+                              accelerator=_accel, command=self._browse)
+        if sys.platform != 'darwin':
+            file_menu.add_separator()
+            file_menu.add_command(label=MENU_QUIT, underline=0,
+                                  command=self.root.quit)
+
         app_menu = tk.Menu(menubar, tearoff=0)
         self._app_menu = app_menu
         menubar.add_cascade(label=MENU_MENU, underline=0, menu=app_menu)
-        app_menu.add_command(label=MENU_PREFERENCES, underline=0,
-                             command=self._show_preferences)
-        app_menu.add_command(label=MENU_CLEAR_CACHE, underline=0,
-                             command=self._clear_cache)
-        app_menu.add_separator()
+        if sys.platform != 'darwin':
+            app_menu.add_command(label=MENU_PREFERENCES, underline=0,
+                                 command=self._show_preferences)
+            app_menu.add_separator()
+        else:
+            self.root.createcommand(
+                '::tk::mac::ShowPreferences', self._show_preferences)
         app_menu.add_command(label=MENU_HOW_TO_USE, underline=0,
                              command=self._show_how_to_use)
         app_menu.add_command(label=MENU_KEYBOARD_SHORTCUTS, underline=0,
@@ -538,12 +562,7 @@ class AppearanceMixin:
         app_menu.add_command(label=MENU_ABOUT, underline=0,
                              command=self._show_about)
 
-        if sys.platform != 'darwin':
-            app_menu.add_separator()
-            app_menu.add_command(label=MENU_QUIT, underline=0,
-                                 command=self.root.quit)
-        else:
-            self.root.createcommand('::tk::mac::Quit', self.root.quit)
+        self.root.createcommand('::tk::mac::Quit', self.root.quit)
 
     # ---------------------------------------------------------- Window centering helper
     def _center_on_root(self, win, w=None, h=None):
