@@ -188,6 +188,17 @@ class Tooltip:
         y = max(0, min(y, screen_h - req_h - 4))
         self._tip.wm_geometry(f'+{x}+{y}')
 
+    def _poll_mouse(self):
+        """macOS only: hide tooltip if the cursor has left the widget."""
+        if self._tip is None:
+            return
+        x = self._widget.winfo_pointerx()
+        y = self._widget.winfo_pointery()
+        if self._widget.winfo_containing(x, y) is not self._widget:
+            self._hide()
+            return
+        self._widget.after(100, self._poll_mouse)
+
     def _show(self, _event=None):
         """Create and position the tooltip window."""
         # Dismiss any other tooltip that was left visible (e.g. due to missed
@@ -204,6 +215,8 @@ class Tooltip:
         label.pack()
         self._position_tip()
         self._tip.deiconify()
+        if sys.platform == 'darwin':
+            self._widget.after(100, self._poll_mouse)
 
     def _hide(self, _event=None):
         """Destroy the tooltip window if it is visible."""
