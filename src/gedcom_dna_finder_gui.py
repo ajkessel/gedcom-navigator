@@ -413,6 +413,7 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
             '<Configure>',
             lambda e: self.find_matches_btn.configure(width=e.width) if e.width > 1 else None,
         )
+        Tooltip(self.find_matches_btn, TIP_FIND_MATCHES)
 
         # --- Right pane ---
         right = ctk.CTkFrame(paned, fg_color='transparent')

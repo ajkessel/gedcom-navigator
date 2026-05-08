@@ -84,6 +84,14 @@ TIP_FIND = (
     "Press Enter to jump directly to the first match. "
     "Use the checkboxes to show only DNA-flagged people and to allow fuzzy name matching."
 )
+TIP_FIND_MATCHES = (
+    "Find Nearest DNA Matches (Ctrl+N)\n"
+    "Find the closest DNA matches to the selected person. "
+    "The results are ranked by proximity to the selected person, with ties broken by "
+    "the number of DNA markers (if any) associated with the match. "
+    "Use the Top N and Max depth settings to adjust how many results are returned and how far to search within the tree.\n\n"
+    "Can also be triggered by pressing Enter when selecting a person."
+)
 TIP_FILTER = (
     "Filter (Ctrl+I)\n"
     "Type to filter the list of people by any information in their GEDCOM record, "
