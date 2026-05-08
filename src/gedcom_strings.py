@@ -22,8 +22,8 @@ STATUS_NO_FILE = "No file loaded."
 MENU_MENU = "Menu"
 MENU_PREFERENCES = "Preferences…"
 MENU_CLEAR_CACHE = "Clear cache…"
-MENU_HOW_TO_USE = "How to use"
-MENU_KEYBOARD_SHORTCUTS = "Keyboard shortcuts"
+MENU_HOW_TO_USE = "How to use (F1)"
+MENU_KEYBOARD_SHORTCUTS = "Keyboard shortcuts (F2)"
 MENU_PRIVACY_POLICY = "Privacy Policy"
 MENU_ABOUT = "About"
 MENU_QUIT = "Quit"
@@ -186,7 +186,9 @@ RESULT_EDGE = "       --[{edge}]--> "
 RESULT_PATH_SECTION = "Path to Home Person"
 RESULT_HOME = "Home: "
 RESULT_NO_HOME_PATH = "No path found to home person within the current max depth."
-RESULT_HOME_REL = "Relationship: {rel} ({dist} edge{plural})"
+# TODO remove all edge{plural} placeholders if we decide we don't need "edges" in the relationship descriptions
+#RESULT_HOME_REL = "Relationship: {rel} ({dist} edge{plural})"
+RESULT_HOME_REL = "Relationship: {rel}"
 RESULT_HOME_PATH = "Path:"
 RESULT_HOME_EDGE = "    --[{edge}]--> "
 
@@ -198,7 +200,8 @@ PATH_FROM = "  From: "
 PATH_TO = "  To:   "
 PATH_SAME_PERSON = "(Same person selected for both.)"
 PATH_NOT_FOUND = "No relationship path found within max depth {depth}."
-PATH_RANK = "Path #{rank} — {rel} ({dist} edge{plural}):"
+#PATH_RANK = "Path #{rank} — {rel} ({dist} edge{plural}):"
+PATH_RANK = "Path #{rank} — {rel}:"
 PATH_EDGE = "    --[{edge}]--> "
 PATH_SEARCH_CAP = (
     "(Search cap reached — there may be additional paths. "
@@ -320,21 +323,21 @@ COL_ACTION = "Action"
 
 KEYBOARD_SHORTCUT_ROWS = [
     ("Esc",      "Close any dialog or pop-up window"),
-    ("Ctrl+F",   "Jump to the Search box and select all text"),
-    ("Ctrl+I",   "Jump to the Filter box and select all text"),
+    ("F1",       "Help"),
+    ("F2",       "Keyboard shortcuts"),
+    ("Ctrl+F",   "Find Person"),
+    ("Ctrl+I",   "Filter Results"),
     ("Ctrl+D",   "Toggle the DNA-flagged only filter"),
     ("Ctrl+U",   "Toggle Fuzzy search mode"),
-    ("Ctrl+O",   "Open the file browser (Browse…)"),
+    ("Ctrl+O",   "Open a new GEDCOM file"),
     ("Ctrl+N",   "Find Nearest DNA Matches for the selected person"),
-    ("Ctrl+S",   "Show the raw GEDCOM record for the selected person"),
+    ("Ctrl+S",   "Show the full GEDCOM record for the selected person"),
     ("Ctrl+H",   "Set Home person to the selected person"),
-    ("Ctrl+P",   "Open the Find Relationship Path dialog"),
-    ("Ctrl+T",   "View tag definitions"),
-    ("Ctrl+C",   "Copy all results to the clipboard"),
-    ("Ctrl+L",   "Clear the results pane"),
+    ("Ctrl+P",   "Open the Find Relationship Paths dialog"),
+    ("Ctrl+T",   "Select new tag for finding relationship paths"),
+    ("Ctrl+C",   "Copy result to clipboard"),
+    ("Ctrl+L",   "Clear the results"),
     ("Alt+M",    "Open the Menu"),
-    ("Home",     "Jump to the first item in the search results"),
-    ("End",      "Jump to the last item in the search results"),
 ]
 
 NOTE_KEYBOARD_SHORTCUTS = (

@@ -666,8 +666,14 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
                 return (not bool(indi['dna_markers']), name)
             return (name, indi_id)
 
-        display_ids = sorted(self.sorted_ids, key=_sort_key,
-                             reverse=self._sort_rev)
+        # Re-sort only when sort settings or underlying data change.
+        # id(self.sorted_ids) changes whenever a new file is loaded.
+        cache_key = (self._sort_col, self._sort_rev, id(self.sorted_ids))
+        if getattr(self, '_pop_sort_key', None) != cache_key:
+            self._pop_sorted = sorted(self.sorted_ids, key=_sort_key,
+                                      reverse=self._sort_rev)
+            self._pop_sort_key = cache_key
+        display_ids = self._pop_sorted
 
         shown = 0
         truncated = False
@@ -836,8 +842,9 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
             tw.tag_configure(tag, foreground=self._link_color)
             tw.tag_bind(tag, '<Button-1>',
                         lambda _, iid=indi_id: self._navigate_to(iid))
-            if suffix:
-                w.insert('end', suffix, base)
+            #if suffix:
+            #    w.insert('end', suffix, base)
+            # TODO consider permanently removing code that shows "edges"
             w.insert('end', '\n')
 
         start = self.individuals[start_id]

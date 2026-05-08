@@ -1,7 +1,7 @@
 # Changelog
 
-## [0.3.2] - 2026-05-06
-- Detect system dark/light mode and set theme accordingly
+## [0.4.0] - 2026-05-06
+- Major rewrite
 - Refactor code into smaller modules
 - Removed vestigial "load" button
 

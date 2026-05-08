@@ -401,6 +401,8 @@ class AppearanceMixin:
         def bind(seq, cmd):
             self.root.bind(seq, lambda *_: cmd() or 'break')
 
+        bind('<F1>', self._show_how_to_use)
+        bind('<F2>', self._show_keyboard_shortcuts)
         bind('<Control-f>', self._kb_focus_search)
         bind('<Control-i>', self._kb_focus_filter)
         bind('<Control-d>', lambda: self.show_flagged_only.set(

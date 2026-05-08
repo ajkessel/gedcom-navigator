@@ -41,6 +41,8 @@ class DialogsMixin:
     def _show_person_for(self, indi_id):
         """Open a detail window for a specific individual ID."""
         win = ctk.CTkToplevel(self.root)
+        win.transient(self.root)
+        win.grab_set()
 
         _geo_after = [None]
 
@@ -736,7 +738,8 @@ class DialogsMixin:
         tree_frame.pack(fill='both', expand=True)
 
         tree = ttk.Treeview(tree_frame, columns=('key', 'action'),
-                            show='headings', selectmode='browse')
+                            show='headings', selectmode='browse',
+                            height=len(KEYBOARD_SHORTCUT_ROWS))
         tree.heading('key', text=COL_SHORTCUT)
         tree.heading('action', text=COL_ACTION)
         tree.column('key', width=90, minwidth=70, stretch=False, anchor='center')
