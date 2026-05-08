@@ -350,9 +350,8 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
         self.tree.bind('<Home>', lambda *_: self._tree_jump('first') or 'break')
         self.tree.bind('<End>', lambda *_: self._tree_jump('last') or 'break')
 
-        # Action controls — grid layout so spinboxes and buttons never compete
-        # for space.  Column 4 is a weightless spacer that absorbs any surplus;
-        # every other column is sized to its widget's natural width.
+        # Action controls — single row grid.  Column 4 is a flexible spacer
+        # that absorbs surplus space; every other column sizes to its content.
         action_frame = ctk.CTkFrame(left, fg_color='transparent')
         action_frame.pack(fill='x', pady=(6, 0))
         action_frame.grid_columnconfigure(4, weight=1)
@@ -379,21 +378,11 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
         Tooltip(self.set_home_btn, TIP_SET_HOME)
         self.show_person_btn = ctk.CTkButton(
             action_frame, text=BTN_SHOW_PERSON, command=self._show_person)
-        self.show_person_btn.grid(row=0, column=6)
+        self.show_person_btn.grid(row=0, column=6, padx=(0, 6))
         Tooltip(self.show_person_btn, TIP_SHOW_PERSON)
-
-        # Primary action on its own row — spans full width so it never competes
-        # for horizontal space with the spinboxes/buttons in row 0.
-        # The <Configure> binding keeps CTkButton's internal label width in sync
-        # with the allocated cell width (CTkButton doesn't do this automatically).
         self.find_matches_btn = ctk.CTkButton(
             action_frame, text=BTN_FIND_MATCHES, command=self._find_matches)
-        self.find_matches_btn.grid(
-            row=1, column=0, columnspan=7, sticky='ew', pady=(4, 0))
-        self.find_matches_btn.bind(
-            '<Configure>',
-            lambda e: self.find_matches_btn.configure(width=e.width) if e.width > 1 else None,
-        )
+        self.find_matches_btn.grid(row=0, column=7)
         Tooltip(self.find_matches_btn, TIP_FIND_MATCHES)
 
         # --- Right pane ---

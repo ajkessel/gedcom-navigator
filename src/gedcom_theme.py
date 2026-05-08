@@ -177,16 +177,27 @@ class Tooltip:
         return frame
 
     def _position_tip(self):
-        """Place the tooltip near the widget without running off screen."""
+        """Place the tooltip near the widget without running off screen.
+
+        Prefer below the widget; flip above when below would overflow.  Never
+        clamp vertically into the widget's own bounds — that causes a Leave
+        event on Windows which triggers a flicker loop.
+        """
         self._tip.update_idletasks()
-        x = self._widget.winfo_rootx() + 20
-        y = self._widget.winfo_rooty() + self._widget.winfo_height() + 4
         req_w = self._tip.winfo_reqwidth()
         req_h = self._tip.winfo_reqheight()
         screen_w = self._tip.winfo_screenwidth()
         screen_h = self._tip.winfo_screenheight()
-        x = max(0, min(x, screen_w - req_w - 4))
-        y = max(0, min(y, screen_h - req_h - 4))
+        wx = self._widget.winfo_rootx()
+        wy = self._widget.winfo_rooty()
+        wh = self._widget.winfo_height()
+        x = max(0, min(wx + 20, screen_w - req_w - 4))
+        y_below = wy + wh + 4
+        y_above = wy - req_h - 4
+        if y_below + req_h <= screen_h - 4:
+            y = y_below
+        else:
+            y = max(0, y_above)
         self._tip.wm_geometry(f'+{x}+{y}')
 
     def _on_leave(self, _event=None):

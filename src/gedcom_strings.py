@@ -76,7 +76,7 @@ COL_DNA = "DNA?"
 # ---------------------------------------------------------------------------
 LBL_TOP_N = "Top N:"
 LBL_MAX_DEPTH = "Max depth:"
-BTN_FIND_MATCHES = "Find Nearest DNA Matches"
+BTN_FIND_MATCHES = "Find Matches"
 BTN_SHOW_PERSON = "Show Person"
 BTN_SET_HOME = "Set Home"
 

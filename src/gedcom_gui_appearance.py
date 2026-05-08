@@ -172,7 +172,7 @@ class AppearanceMixin:
         """Grow open windows as needed to fit the current font metrics."""
         self._fit_window_to_content(
             self.root,
-            min_w=800,
+            min_w=1000,
             min_h=500,
             preferred_w=self.root.winfo_width(),
             preferred_h=self.root.winfo_height(),
