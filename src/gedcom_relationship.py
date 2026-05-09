@@ -55,6 +55,8 @@ _ORDINALS = ['', 'first', 'second', 'third', 'fourth', 'fifth',
 _REMOVALS = {1: 'once', 2: 'twice', 3: 'three times',
              4: 'four times', 5: 'five times'}
 
+_UP_SET = {'father', 'mother'}
+
 
 def _nth_great(n):
     """Return 'great-' for n==1, '2nd-great-' for n==2, etc.  n==0 returns ''."""
@@ -67,6 +69,196 @@ def _nth_great(n):
     else:
         suffix = {1: 'st', 2: 'nd', 3: 'rd'}.get(n % 10, 'th')
     return f'{n}{suffix}-great-'
+
+
+def _ancestor_term(n, sex):
+    if n == 1:
+        return 'father' if sex == 'M' else ('mother' if sex == 'F' else 'parent')
+    gp = 'grandfather' if sex == 'M' else (
+        'grandmother' if sex == 'F' else 'grandparent')
+    return _nth_great(n - 2) + gp
+
+
+def _descendant_term(n, sex):
+    if n == 1:
+        return 'son' if sex == 'M' else ('daughter' if sex == 'F' else 'child')
+    gc = 'grandson' if sex == 'M' else (
+        'granddaughter' if sex == 'F' else 'grandchild')
+    return _nth_great(n - 2) + gc
+
+
+def _classify(seq):
+    """Classify an edge sequence as up/lateral/down.  Returns (u, d, s, valid)."""
+    st = 'up'
+    uu = dd = ss = 0
+    ok = True
+    for e in seq:
+        if st == 'up':
+            if e in _UP_SET:
+                uu += 1
+            elif e == 'sibling':
+                ss += 1
+                st = 'down'
+            elif e == 'child':
+                dd += 1
+                st = 'down'
+            else:
+                ok = False
+                break
+        elif st == 'down':
+            if e == 'child':
+                dd += 1
+            else:
+                ok = False
+                break
+    return uu, dd, ss, ok
+
+
+def _describe_sub_path(sub_path, individuals):
+    """Try to describe sub_path compactly.
+
+    Returns a plain-English string if the edge sequence matches a recognized
+    pattern (ancestor, descendant, sibling, cousin, in-law, step-, or the
+    spouse→sibling→spouse "brother/sister-in-law" idiom).  Returns None when
+    no compact pattern matches, signalling _smart_chain to try a shorter slice.
+    """
+    if len(sub_path) <= 1:
+        return 'same person'
+
+    edges = [e for _, e in sub_path[1:]]
+    sexes = [individuals.get(nid, {}).get('sex', '') for nid, _ in sub_path]
+    target_sex = sexes[-1]
+
+    # Pure ancestor (all parent edges)
+    if all(e in _UP_SET for e in edges):
+        return _ancestor_term(len(edges), target_sex)
+
+    # Pure descendant (all child edges)
+    if all(e == 'child' for e in edges):
+        return _descendant_term(len(edges), target_sex)
+
+    # Single edge
+    if len(edges) == 1:
+        return _edge_to_term(edges[0], target_sex)
+
+    # Strip leading/trailing spouse edges
+    inner = list(edges)
+    lead_sp = trail_sp = 0
+    while inner and inner[0] == 'spouse':
+        lead_sp += 1
+        inner.pop(0)
+    while inner and inner[-1] == 'spouse':
+        trail_sp += 1
+        inner.pop()
+
+    # spouse → sibling → spouse → "brother/sister-in-law"
+    if lead_sp == 1 and trail_sp == 1 and inner == ['sibling']:
+        core = 'brother' if target_sex == 'M' else (
+            'sister' if target_sex == 'F' else 'sibling')
+        return core + '-in-law'
+
+    # spouse → child(ren) → spouse → "step-son/daughter-in-law" etc.
+    if lead_sp == 1 and trail_sp == 1 and inner and all(e == 'child' for e in inner):
+        core = _descendant_term(len(inner), target_sex)
+        return 'step-' + core + '-in-law'
+
+    if not inner or lead_sp > 1 or trail_sp > 1 or (lead_sp and trail_sp):
+        return None
+
+    u, d, s, valid = _classify(inner)
+    if not valid:
+        no_sp = [e for e in inner if e != 'spouse']
+        if no_sp != inner:
+            u, d, s, valid = _classify(no_sp)
+        else:
+            no_sp = inner
+        if not valid and no_sp and no_sp[-1] == 'sibling':
+            trimmed = no_sp[:-1]
+            if trimmed:
+                u, d, s, valid = _classify(trimmed)
+
+    if not valid:
+        return None
+
+    u_eff = u + s
+    d_eff = d + s
+
+    if d_eff == 0:
+        core = _ancestor_term(u, target_sex)
+        return core + '-in-law' if lead_sp else 'step-' + core
+
+    if u_eff == 0:
+        core = _descendant_term(d, target_sex)
+        return core + '-in-law' if trail_sp else 'step-' + core
+
+    cn = min(u_eff, d_eff) - 1
+    rem = abs(u_eff - d_eff)
+    more_desc = d_eff > u_eff
+
+    if cn == 0 and rem == 0:
+        core = 'brother' if target_sex == 'M' else (
+            'sister' if target_sex == 'F' else 'sibling')
+    elif cn == 0:
+        if more_desc:
+            core = 'nephew' if target_sex == 'M' else (
+                'niece' if target_sex == 'F' else 'niece/nephew')
+        else:
+            core = 'uncle' if target_sex == 'M' else (
+                'aunt' if target_sex == 'F' else 'uncle/aunt')
+        if rem > 1:
+            core = _nth_great(rem - 1) + core
+    else:
+        n_str = _ORDINALS[cn] if cn < len(_ORDINALS) else f'{cn}th'
+        r_str = _REMOVALS.get(rem, f'{rem} times')
+        core = f'{n_str} cousin' + (f' {r_str} removed' if rem else '')
+
+    return core + '-in-law' if (lead_sp or trail_sp) else core
+
+
+def _smart_chain(path, individuals):
+    """Build a compact possessive chain by greedily matching the longest
+    recognized sub-path at each position, then joining with "'s ".
+
+    This replaces the naive per-edge chain() fallback and enables compression
+    of patterns like 'son's son's son' → 'great-grandson' and
+    'husband's sister's husband' → 'brother-in-law'.
+    """
+    if len(path) <= 1:
+        return 'same person'
+
+    terms = []
+    i = 0
+    while i < len(path) - 1:
+        best_end = None
+        best_desc = None
+        # Longest match first: try from the full remaining path down to 2 nodes
+        for j in range(len(path), i + 1, -1):
+            desc = _describe_sub_path(path[i:j], individuals)
+            if desc is not None and desc != 'same person':
+                best_end = j
+                best_desc = desc
+                break
+
+        if best_desc is None:
+            # Single-edge fallback
+            edge = path[i + 1][1]
+            sex = individuals.get(path[i + 1][0], {}).get('sex', '')
+            best_desc = _edge_to_term(edge, sex)
+            best_end = i + 2
+
+        # Absorb a trailing 'spouse' edge when doing so yields a more compact
+        # term (e.g. "first cousin" + "wife" → "first cousin-in-law",
+        # "step-son" + "wife" → "step-son-in-law").
+        if best_end < len(path) and path[best_end][1] == 'spouse':
+            ext_desc = _describe_sub_path(path[i:best_end + 1], individuals)
+            if ext_desc is not None and ext_desc != 'same person':
+                best_desc = ext_desc
+                best_end += 1
+
+        terms.append(best_desc)
+        i = best_end - 1
+
+    return "'s ".join(terms)
 
 
 def get_ancestor_depths(start_id, individuals, families):
@@ -118,8 +310,9 @@ def describe_relationship(path, individuals, ancestors=None, descendants=None):
 
     Recognizes ancestors, descendants, siblings, spouses, cousins (all degrees
     and removals), aunts/uncles, nieces/nephews, in-laws, and step-relations.
-    Falls back to a possessive chain (e.g. "father's brother's son") for paths
-    that don't fit a standard pattern.
+    Falls back to a compact possessive chain that compresses recognizable
+    sub-sequences (e.g. 'son's son's son' → 'great-grandson',
+    'husband's sister's husband' → 'brother-in-law').
 
     ancestors  — optional dict {indi_id: depth} of biological ancestors of
                  path[0], computed by get_ancestor_depths().  When provided,
@@ -134,60 +327,26 @@ def describe_relationship(path, individuals, ancestors=None, descendants=None):
     edges = [e for _, e in path[1:]]
     sexes = [individuals.get(nid, {}).get('sex', '') for nid, _ in path]
     target_sex = sexes[-1]
-    up_set = {'father', 'mother'}
-
-    def chain():
-        return "'s ".join(_edge_to_term(edges[i], sexes[i + 1]) for i in range(len(edges)))
-
-    def segmented():
-        """Split at first *internal* spouse crossing and describe each part."""
-        sp_idx = next((i for i, e in enumerate(edges) if e == 'spouse'), None)
-        if sp_idx is None or sp_idx == 0:
-            return None
-        seg1 = path[:sp_idx + 1]
-        spouse_id = path[sp_idx + 1][0]
-        spouse_sex = individuals.get(spouse_id, {}).get('sex', '')
-        sp_term = ('wife' if spouse_sex == 'F'
-                   else 'husband' if spouse_sex == 'M' else 'spouse')
-        seg2 = [(spouse_id, None)] + list(path[sp_idx + 2:])
-        rel1 = describe_relationship(seg1, individuals)
-        rel2 = describe_relationship(
-            seg2, individuals) if len(seg2) > 1 else ''
-        return f"{rel1}'s {sp_term}'s {rel2}" if rel2 else f"{rel1}'s {sp_term}"
-
-    def ancestor_term(n, sex):
-        if n == 1:
-            return 'father' if sex == 'M' else ('mother' if sex == 'F' else 'parent')
-        gp = 'grandfather' if sex == 'M' else (
-            'grandmother' if sex == 'F' else 'grandparent')
-        return _nth_great(n - 2) + gp
-
-    def descendant_term(n, sex):
-        if n == 1:
-            return 'son' if sex == 'M' else ('daughter' if sex == 'F' else 'child')
-        gc = 'grandson' if sex == 'M' else (
-            'granddaughter' if sex == 'F' else 'grandchild')
-        return _nth_great(n - 2) + gc
 
     target_id = path[-1][0]
     if ancestors and target_id in ancestors:
-        return ancestor_term(ancestors[target_id], target_sex)
+        return _ancestor_term(ancestors[target_id], target_sex)
     if descendants and target_id in descendants:
-        return descendant_term(descendants[target_id], target_sex)
+        return _descendant_term(descendants[target_id], target_sex)
 
     # Pure ancestor (all father/mother edges)
-    if all(e in up_set for e in edges):
-        return ancestor_term(len(edges), target_sex)
+    if all(e in _UP_SET for e in edges):
+        return _ancestor_term(len(edges), target_sex)
 
     # Pure descendant (all child edges)
     if all(e == 'child' for e in edges):
-        return descendant_term(len(edges), target_sex)
+        return _descendant_term(len(edges), target_sex)
 
     # Single edge (sibling, spouse, etc.)
     if len(edges) == 1:
         return _edge_to_term(edges[0], target_sex)
 
-    # Strip exactly one leading or one trailing spouse; anything else → chain
+    # Strip exactly one leading or one trailing spouse; anything else → smart chain
     inner = list(edges)
     lead_sp = trail_sp = 0
     while inner and inner[0] == 'spouse':
@@ -196,33 +355,15 @@ def describe_relationship(path, individuals, ancestors=None, descendants=None):
     while inner and inner[-1] == 'spouse':
         trail_sp += 1
         inner.pop()
-    if not inner or lead_sp > 1 or trail_sp > 1 or (lead_sp and trail_sp):
-        return segmented() or chain()
 
-    def _classify(seq):
-        st = 'up'
-        uu = dd = ss = 0
-        ok = True
-        for e in seq:
-            if st == 'up':
-                if e in up_set:
-                    uu += 1
-                elif e == 'sibling':
-                    ss += 1
-                    st = 'down'
-                elif e == 'child':
-                    dd += 1
-                    st = 'down'
-                else:
-                    ok = False
-                    break
-            elif st == 'down':
-                if e == 'child':
-                    dd += 1
-                else:
-                    ok = False
-                    break
-        return uu, dd, ss, ok
+    # spouse → sibling → spouse = "brother/sister-in-law"
+    if lead_sp == 1 and trail_sp == 1 and inner == ['sibling']:
+        core = 'brother' if target_sex == 'M' else (
+            'sister' if target_sex == 'F' else 'sibling')
+        return core + '-in-law'
+
+    if not inner or lead_sp > 1 or trail_sp > 1 or (lead_sp and trail_sp):
+        return _smart_chain(path, individuals)
 
     u, d, s, valid = _classify(inner)
     if not valid:
@@ -236,18 +377,18 @@ def describe_relationship(path, individuals, ancestors=None, descendants=None):
             if trimmed:
                 u, d, s, valid = _classify(trimmed)
     if not valid:
-        return segmented() or chain()
+        return _smart_chain(path, individuals)
 
     u_eff = u + s
     d_eff = d + s
 
     if d_eff == 0:
-        return (ancestor_term(u, target_sex) + '-in-law' if lead_sp
-                else 'step-' + ancestor_term(u, target_sex))
+        return (_ancestor_term(u, target_sex) + '-in-law' if lead_sp
+                else 'step-' + _ancestor_term(u, target_sex))
 
     if u_eff == 0:
-        return (descendant_term(d, target_sex) + '-in-law' if trail_sp
-                else 'step-' + descendant_term(d, target_sex))
+        return (_descendant_term(d, target_sex) + '-in-law' if trail_sp
+                else 'step-' + _descendant_term(d, target_sex))
 
     cn = min(u_eff, d_eff) - 1
     rem = abs(u_eff - d_eff)

@@ -9,7 +9,7 @@ If ($foundFile) {
   write-output("Activating base environment.")
   (& $foundFile "shell.powershell" "hook") | Out-String | ?{$_} | Invoke-Expression
 } else {
-  write-output("Conda not found. Will attempt to use locally installed Python."
+  write-output("Conda not found. Will attempt to use locally installed Python.")
 }
 $signTool = 'C:\Program Files (x86)\Windows Kits\10\App Certification Kit\SignTool.exe'
 $certName = 'gedcom-dna-finder'
