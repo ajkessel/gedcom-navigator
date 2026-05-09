@@ -108,6 +108,21 @@ class AppearanceMixin:
         """Persist the UI font-size preference."""
         self._config.set_font_preference(size_name)
 
+    def _update_header_label_style(self):
+        """Apply or clear accent styling on the results header label."""
+        if not (hasattr(self, '_results_header_label') and
+                hasattr(self, '_results_header_var')):
+            return
+        if self._results_header_var.get():
+            is_dark = ctk.get_appearance_mode() == 'Dark'
+            tc = ttk_colors(is_dark, self._theme_pref)
+            self._results_header_label.configure(
+                fg_color=tc['select_bg'],
+                text_color=tc['select_fg'],
+            )
+        else:
+            self._results_header_label.configure(fg_color='transparent')
+
     def _apply_font_size(self, size_name):
         """Apply a named font-size preset to CTk, monospace, and ttk fonts."""
         sizes = self._FONT_SIZES[size_name]
@@ -130,6 +145,9 @@ class AppearanceMixin:
             self.results.configure(font=(self._mono_family, mono_sz))
             self.results._textbox.tag_configure(
                 'bold', font=(self._mono_family, mono_sz, 'bold'))
+            if hasattr(self, '_results_header_label'):
+                self._results_header_label.configure(
+                    font=ctk.CTkFont(size=mono_sz, weight='bold'))
             self.root.after(0, self._refit_windows)
 
     def _fit_window_to_content(
@@ -313,6 +331,7 @@ class AppearanceMixin:
         if hasattr(self, 'tree'):
             self.tree.tag_configure(
                 'flagged_row', background=get_flag_bg(is_dark))
+        self._update_header_label_style()
         if not hasattr(self, 'results'):
             return
         needs_rebuild = color_theme != old_color_theme or old_tinted != (
@@ -427,6 +446,8 @@ class AppearanceMixin:
              'darwin' else '<F1>', self._show_how_to_use)
         bind(f'<{_MOD_KEY}-k>' if sys.platform ==
              'darwin' else '<F2>', self._show_keyboard_shortcuts)
+        if sys.platform == 'win32':
+            bind('<F3>', self._show_preferences)
         bind(f'<{_MOD_KEY}-f>', self._kb_focus_search)
         bind(f'<{_MOD_KEY}-i>', self._kb_focus_filter)
         bind(f'<{_MOD_KEY}-d>', lambda: self.show_flagged_only.set(
@@ -457,8 +478,8 @@ class AppearanceMixin:
         for i, w in enumerate(tab_chain):
             nxt = tab_chain[(i + 1) % len(tab_chain)]
             prv = tab_chain[(i - 1) % len(tab_chain)]
-            w.bind('<Tab>', lambda _, nw=nxt: nw.focus_set() or 'break')
-            w.bind('<Shift-Tab>', lambda _, pw=prv: pw.focus_set() or 'break')
+            w.bind('<Tab>', lambda *_, nw=nxt: nw.focus_set() or 'break')
+            w.bind('<Shift-Tab>', lambda *_, pw=prv: pw.focus_set() or 'break')
 
         self.root.bind('<Alt-m>', lambda *_: self._open_app_menu() or 'break')
         self.root.bind('<Alt-M>', lambda *_: self._open_app_menu() or 'break')

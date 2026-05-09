@@ -255,6 +255,18 @@ def _smart_chain(path, individuals):
                 best_desc = ext_desc
                 best_end += 1
 
+        # When an uncle/aunt-type term is an intermediate step (not the final
+        # target) and arose from a trailing spouse edge, drop the '-in-law'
+        # suffix.  Colloquially, a parent's sibling's spouse is called
+        # 'uncle'/'aunt', so "uncle-in-law's father" → "uncle's father".
+        if (best_end < len(path)
+                and best_desc.endswith('-in-law')
+                and path[best_end - 1][1] == 'spouse'):
+            base = best_desc[:-len('-in-law')]
+            if base == 'uncle' or base.endswith('uncle') \
+                    or base == 'aunt' or base.endswith('aunt'):
+                best_desc = base
+
         terms.append(best_desc)
         i = best_end - 1
 

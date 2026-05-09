@@ -401,34 +401,64 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
         # reading the action frame's reqwidth: the frame is packed with fill='x'
         # and its grid has a weight-1 spacer column, so after layout its
         # reqwidth reflects the full expanded width, not the minimum content.
+        #
+        # On Windows the paned window has no real size until the event loop
+        # processes the geometry request, so _init_sash retries until
+        # winfo_width() returns a non-trivial value before placing the sash.
+        _sash_initialized = [False]
+
+        def _action_min_w():
+            # padx totals per grid() call: spinbox1=14, spinbox2=2,
+            # set_home=6, show_person=6, find_matches=0
+            return (
+                _top_n_label.winfo_reqwidth()
+                + self.top_n_spin.winfo_reqwidth() + 14
+                + _max_depth_label.winfo_reqwidth()
+                + self.max_depth_spin.winfo_reqwidth() + 2
+                + self.set_home_btn.winfo_reqwidth() + 6
+                + self.show_person_btn.winfo_reqwidth() + 6
+                + self.find_matches_btn.winfo_reqwidth()
+            )
+
         def _clamp_left_pane(event=None):
+            _sash_initialized[0] = True
             try:
-                # padx totals per grid() call: spinbox1=14, spinbox2=2,
-                # set_home=6, show_person=6, find_matches=0
-                min_w = (
-                    _top_n_label.winfo_reqwidth()
-                    + self.top_n_spin.winfo_reqwidth() + 14
-                    + _max_depth_label.winfo_reqwidth()
-                    + self.max_depth_spin.winfo_reqwidth() + 2
-                    + self.set_home_btn.winfo_reqwidth() + 6
-                    + self.show_person_btn.winfo_reqwidth() + 6
-                    + self.find_matches_btn.winfo_reqwidth()
-                )
+                min_w = _action_min_w()
                 if min_w > 0 and paned.sashpos(0) < min_w:
                     paned.sashpos(0, min_w)
             except Exception:
                 pass
-        self.root.after(50, _clamp_left_pane)
+
+        def _init_sash():
+            if _sash_initialized[0]:
+                return
+            try:
+                pane_w = paned.winfo_width()
+                if pane_w <= 1:
+                    self.root.after(100, _init_sash)
+                    return
+                min_w = _action_min_w()
+                target = max(min_w, pane_w - self.RESULTS_PREFERRED_WIDTH)
+                paned.sashpos(0, target)
+                _sash_initialized[0] = True
+            except Exception:
+                pass
+
+        self.root.after(50, _init_sash)
         paned.bind('<B1-Motion>', lambda e: _clamp_left_pane())
 
         results_header = ctk.CTkFrame(right, fg_color='transparent')
         results_header.pack(fill='x')
         self._results_header_var = tk.StringVar()
-        ctk.CTkButton(results_header, text=BTN_COPY, width=60,
-                      command=self._copy_results).pack(side='right')
-        Tooltip(results_header.winfo_children()[-1], TIP_COPY)
-        ctk.CTkLabel(results_header, textvariable=self._results_header_var,
-                     anchor='center').pack(side='left', fill='x', expand=True)
+        self._results_header_label = ctk.CTkLabel(
+            results_header,
+            textvariable=self._results_header_var,
+            anchor='center',
+            font=ctk.CTkFont(size=self._mono_size, weight='bold'),
+            fg_color='transparent',
+            corner_radius=6,
+        )
+        self._results_header_label.pack(side='left', fill='x', expand=True, ipady=4)
 
         self.results = ctk.CTkTextbox(
             right,
@@ -448,6 +478,10 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
         ctk.CTkLabel(
             status_bar, textvariable=self.status_text, anchor='w',
         ).grid(row=0, column=0, sticky='ew', padx=(8, 0), pady=4)
+        self._copy_btn = ctk.CTkButton(status_bar, text=BTN_COPY, width=80,
+                                       command=self._copy_results)
+        self._copy_btn.grid(row=0, column=1, padx=(4, 8), pady=4)
+        Tooltip(self._copy_btn, TIP_COPY)
         self._progress_bar = ctk.CTkProgressBar(status_bar, width=130)
         self._progress_bar.set(0)
         self._progress_bar.grid(row=0, column=1, padx=(4, 8), pady=4)
@@ -460,6 +494,7 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
         """Reveal the animated progress bar and optionally set status text."""
         if msg:
             self.status_text.set(msg)
+        self._copy_btn.grid_remove()
         self._progress_bar.grid()
         self._progress_anim_val = 0.0
         if self._progress_anim_id is None:
@@ -478,6 +513,7 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
             self.root.after_cancel(self._progress_anim_id)
             self._progress_anim_id = None
         self._progress_bar.grid_remove()
+        self._copy_btn.grid()
 
     def _set_busy(self, busy):
         """Disable or re-enable the controls that trigger long operations."""
@@ -896,6 +932,7 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
         else:
             lifespan = ""
         self._results_header_var.set(name + lifespan)
+        self._update_header_label_style()
 
         nl(RESULT_CLOSEST_MATCHES, bold=True)
         if start['dna_markers']:
@@ -1000,6 +1037,7 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
         self.results.delete('1.0', 'end')
         self.results.configure(state='disabled')
         self._results_header_var.set('')
+        self._update_header_label_style()
         self.search_text.set('')
         self._last_result = None
         self._kb_focus_search()
@@ -1103,11 +1141,15 @@ def main():
     args = parser.parse_args()
 
     root = ctk.CTk()
-    # Withdraw before building so the window doesn't flash at the default
-    # top-left position before _fit_window_to_content centres it.
-    root.withdraw()
+    # On macOS the window briefly appears at the default top-left position
+    # before _fit_window_to_content centres it, so withdraw it first.
+    # On Windows withdraw()/deiconify() causes the window to vanish; the
+    # flash doesn't occur there, so skip it.
+    if sys.platform == 'darwin':
+        root.withdraw()
     app = DNAMatchFinderApp(root)
-    root.deiconify()
+    if sys.platform == 'darwin':
+        root.deiconify()
 
     if args.gedcom:
         path = os.path.abspath(os.path.expanduser(args.gedcom))

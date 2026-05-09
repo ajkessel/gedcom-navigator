@@ -374,7 +374,6 @@ class DialogsMixin:
         search_var.trace_add('write', on_search_change)
         search_entry.bind('<Return>', lambda *_: picker_flush_and_jump())
         populate()
-        search_entry.focus_set()
 
         def select():
             sel = picker_tree.selection()
@@ -408,6 +407,7 @@ class DialogsMixin:
             preferred_h=500,
         )
         dialog.deiconify()
+        search_entry.focus_set()
         dialog.wait_window()
         return result[0]
 

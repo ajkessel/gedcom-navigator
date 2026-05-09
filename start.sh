@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
-[ -d .venv ] && source .venv/bin/activate
-[ -d venv ] && source venv/bin/activate
+[ -f .venv/bin/activate ] && source .venv/bin/activate
+[ -f venv/bin/activate ] && source venv/bin/activate
+[ -f .venv/scripts/activate ] && source venv/scripts/activate
+[ -f venv/scripts/activate ] && source venv/scripts/activate
 python src/gedcom_dna_finder_gui.py

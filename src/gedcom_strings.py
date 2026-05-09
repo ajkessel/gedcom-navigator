@@ -29,7 +29,7 @@ MENU_OPEN_GEDCOM = "Open GEDCOM File…"
 MENU_OPEN_RECENT = "Open Recent"
 MENU_NO_RECENT_FILES = "No Recent Files"
 MENU_MENU = "Help"
-MENU_PREFERENCES = "Settings…" if sys.platform == 'darwin' else "Preferences…"
+MENU_PREFERENCES = "Settings…" if sys.platform == 'darwin' else "Preferences… (F3)"
 MENU_CLEAR_CACHE = "Clear cache…"
 MENU_HOW_TO_USE = (
     f"How to use ({_MOD}?)"
@@ -365,5 +365,7 @@ KEYBOARD_SHORTCUT_ROWS = [
     (f"{_MOD}L",     "Clear the results"),
 ]
 
+if sys.platform == 'win32':
+    KEYBOARD_SHORTCUT_ROWS.append(("F3", "Open Preferences"))
 if sys.platform != 'darwin':
     KEYBOARD_SHORTCUT_ROWS.append(("Alt-M", "Menu"))
