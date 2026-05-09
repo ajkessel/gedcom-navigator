@@ -124,6 +124,18 @@ class ConfigManager:
         """Save the fuzzy match threshold as a floating-point value."""
         self.save_value('fuzzy_threshold', float(value))
 
+    def get_max_display(self, default=2000):
+        """Return the maximum number of people shown in the search results list."""
+        val = self.load_value('max_display', default)
+        try:
+            return max(1, int(val))
+        except (TypeError, ValueError):
+            return default
+
+    def set_max_display(self, value):
+        """Save the maximum number of people shown in the search results list."""
+        self.save_value('max_display', int(value))
+
     def get_show_ids(self):
         """Return whether individual IDs should be shown in the UI."""
         return bool(self.load_value('show_ids', False))

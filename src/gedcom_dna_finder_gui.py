@@ -153,6 +153,8 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
         self.show_flagged_only = tk.BooleanVar(value=False)
         self.top_n = tk.IntVar(value=self._config.get_top_n())
         self.max_depth = tk.IntVar(value=self._config.get_max_depth())
+        self.max_display = tk.IntVar(
+            value=self._config.get_max_display(self.MAX_LIST_DISPLAY))
         self.fuzzy_threshold = tk.DoubleVar(
             value=self._config.get_fuzzy_threshold(self.FUZZY_THRESHOLD))
         self.status_text = tk.StringVar(value=STATUS_NO_FILE)
@@ -421,10 +423,12 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
 
         results_header = ctk.CTkFrame(right, fg_color='transparent')
         results_header.pack(fill='x')
-        ctk.CTkLabel(results_header, text=LBL_RESULTS).pack(side='left')
+        self._results_header_var = tk.StringVar()
         ctk.CTkButton(results_header, text=BTN_COPY, width=60,
                       command=self._copy_results).pack(side='right')
         Tooltip(results_header.winfo_children()[-1], TIP_COPY)
+        ctk.CTkLabel(results_header, textvariable=self._results_header_var,
+                     anchor='center').pack(side='left', fill='x', expand=True)
 
         self.results = ctk.CTkTextbox(
             right,
@@ -607,8 +611,21 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
         kind = self._last_result['type']
         start_id = self._last_result['start_id']
         if kind == 'dna_matches':
-            results = self._model.find_dna_matches(start_id, top_n, max_depth)
-            self._render_results(start_id, results)
+            def _do_refresh():
+                try:
+                    results = self._model.find_dna_matches(start_id, top_n, max_depth)
+                    home_paths = None
+                    home_id = self._home_person_id
+                    if home_id and home_id != start_id and home_id in self.individuals:
+                        home_paths, _ = bfs_find_all_paths(
+                            start_id, home_id, self.individuals, self.families,
+                            top_n=1, max_depth=max_depth,
+                        )
+                    self.root.after(0, lambda: self._render_results(
+                        start_id, results, home_paths=home_paths))
+                except Exception:  # pylint: disable=broad-exception-caught
+                    pass
+            threading.Thread(target=_do_refresh, daemon=True).start()
         elif kind == 'path':
             end_id = self._last_result['end_id']
             paths, truncated = self._model.find_all_paths(
@@ -677,6 +694,7 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
         display_ids = self._pop_sorted
 
         shown = 0
+        total_matches = 0
         truncated = False
         for indi_id in display_ids:
             indi = self.individuals[indi_id]
@@ -708,9 +726,10 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
                 raw_text = ' '.join(v.lower() for _, _, _, v in indi['_raw'])
                 if filter_query not in raw_text:
                     continue
-            if shown >= self.MAX_LIST_DISPLAY:
+            total_matches += 1
+            if shown >= self.max_display.get():
                 truncated = True
-                break
+                continue
             tags = ('flagged_row',) if indi['dna_markers'] else ()
             flagged_mark = '✓' if indi['dna_markers'] else ''
             self.tree.insert(
@@ -732,9 +751,10 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
             self.tree.see(only)
 
         total = len(self.individuals)
-        if truncated:
+        if truncated and (query or flagged_only):
             self.status_text.set(STATUS_SHOWING_FIRST.format(
-                max_display=self.MAX_LIST_DISPLAY, total=total, flagged=flagged_count))
+                max_display=self.max_display.get(), total_matches=total_matches,
+                total=total, flagged=flagged_count))
         elif query or flagged_only:
             self.status_text.set(STATUS_MATCHES.format(
                 shown=shown, plural='es' if shown != 1 else '',
@@ -790,22 +810,29 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
             try:
                 results = self._model.find_dna_matches(
                     start_id, top_n, max_depth)
-                self.root.after(0, lambda: _on_done(results, None))
+                home_paths = None
+                home_id = self._home_person_id
+                if home_id and home_id != start_id and home_id in self.individuals:
+                    home_paths, _ = bfs_find_all_paths(
+                        start_id, home_id, self.individuals, self.families,
+                        top_n=1, max_depth=max_depth,
+                    )
+                self.root.after(0, lambda: _on_done(results, home_paths, None))
             except Exception as e:  # pylint: disable=broad-exception-caught
-                self.root.after(0, lambda: _on_done(None, e))
+                self.root.after(0, lambda: _on_done(None, None, e))
 
-        def _on_done(results, error):
+        def _on_done(results, home_paths, error):
             self._hide_progress()
             self._set_busy(False)
             if error:
                 messagebox.showerror(ERR_PARSE_TITLE, str(error))
                 return
             self._last_result = {'type': 'dna_matches', 'start_id': start_id}
-            self._render_results(start_id, results)
+            self._render_results(start_id, results, home_paths=home_paths)
 
         threading.Thread(target=_do_search, daemon=True).start()
 
-    def _render_results(self, start_id, results):
+    def _render_results(self, start_id, results, home_paths=None):
         """Render DNA match search results and family context."""
         w = self.results
         tw = w._textbox
@@ -813,22 +840,33 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
         w.delete('1.0', 'end')
         self._clear_person_tags(w)
 
-        tw.tag_configure('person_link')
+        tw.update_idletasks()
+        sep_width = max(tw.winfo_width() - 4, 100)
+        is_dark = ctk.get_appearance_mode() == 'Dark'
+        sep_color = '#DCE4EE' if is_dark else '#1a1a1a'
+
+        tag_to_id = {}
+        tw.tag_configure('person_link', foreground=self._link_color)
         tw.tag_bind('person_link', '<Enter>',
                     lambda *_: tw.config(cursor='hand2'))
         tw.tag_bind('person_link', '<Leave>',
                     lambda *_: tw.config(cursor=''))
 
+        def _on_person_click(event):
+            idx = tw.index(f'@{event.x},{event.y}')
+            for t in tw.tag_names(idx):
+                if t.startswith('pers_'):
+                    iid = tag_to_id.get(t)
+                    if iid:
+                        self._navigate_to(iid)
+                    break
+        tw.tag_bind('person_link', '<Button-1>', _on_person_click)
+
         def nl(text='', bold=False):
             w.insert('end', text + '\n', ('bold',) if bold else ())
 
         def hr():
-            w.update_idletasks()
-            tw = w._textbox
-            pix_width = max(tw.winfo_width() - 4, 100)
-            is_dark = ctk.get_appearance_mode() == 'Dark'
-            sep_color = '#DCE4EE' if is_dark else '#1a1a1a'
-            sep = tk.Frame(tw, height=2, width=pix_width,
+            sep = tk.Frame(tw, height=2, width=sep_width,
                            bg=sep_color, bd=0, relief='flat')
             tw.window_create('end', window=sep)
             tw.insert('end', '\n')
@@ -838,18 +876,28 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
             if prefix:
                 w.insert('end', prefix, base)
             tag = f'pers_{indi_id.strip("@")}'
+            tag_to_id[tag] = indi_id
             w.insert('end', describe(self.individuals[indi_id], show_id=self.show_ids.get()),
                      base + ('person_link', tag))
-            tw.tag_configure(tag, foreground=self._link_color)
-            tw.tag_bind(tag, '<Button-1>',
-                        lambda _, iid=indi_id: self._navigate_to(iid))
             #if suffix:
             #    w.insert('end', suffix, base)
             # TODO consider permanently removing code that shows "edges"
             w.insert('end', '\n')
 
         start = self.individuals[start_id]
-        person(start_id, prefix=RESULT_STARTING_FROM)
+        name = self._display_name(start)
+        b, d = start.get('birth_year'), start.get('death_year')
+        if b and d:
+            lifespan = f" ({b}–{d})"
+        elif b:
+            lifespan = f" (b. {b})"
+        elif d:
+            lifespan = f" (d. {d})"
+        else:
+            lifespan = ""
+        self._results_header_var.set(name + lifespan)
+
+        nl(RESULT_CLOSEST_MATCHES, bold=True)
         if start['dna_markers']:
             nl(RESULT_DNA_FLAGGED_NOTE)
             for m in start['dna_markers']:
@@ -914,14 +962,6 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
             hr()
             nl(RESULT_PATH_SECTION, bold=True)
             person(home_id, prefix=RESULT_HOME)
-            try:
-                max_depth = int(self.max_depth.get())
-            except (tk.TclError, ValueError):
-                max_depth = 50
-            home_paths, _ = bfs_find_all_paths(
-                start_id, home_id, self.individuals, self.families,
-                top_n=1, max_depth=max_depth,
-            )
             if not home_paths:
                 nl(RESULT_NO_HOME_PATH)
             else:
@@ -959,6 +999,7 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
         self.results.configure(state='normal')
         self.results.delete('1.0', 'end')
         self.results.configure(state='disabled')
+        self._results_header_var.set('')
         self.search_text.set('')
         self._last_result = None
         self._kb_focus_search()
@@ -992,12 +1033,27 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
             max_depth = int(self.max_depth.get())
         except (tk.TclError, ValueError):
             return
-        results = bfs_find_dna_matches(
-            indi_id, self.individuals, self.families,
-            top_n=top_n, max_depth=max_depth,
-        )
         self._last_result = {'type': 'dna_matches', 'start_id': indi_id}
-        self._render_results(indi_id, results)
+
+        def _do():
+            try:
+                results = bfs_find_dna_matches(
+                    indi_id, self.individuals, self.families,
+                    top_n=top_n, max_depth=max_depth,
+                )
+                home_paths = None
+                home_id = self._home_person_id
+                if home_id and home_id != indi_id and home_id in self.individuals:
+                    home_paths, _ = bfs_find_all_paths(
+                        indi_id, home_id, self.individuals, self.families,
+                        top_n=1, max_depth=max_depth,
+                    )
+                self.root.after(0, lambda: self._render_results(
+                    indi_id, results, home_paths=home_paths))
+            except Exception:  # pylint: disable=broad-exception-caught
+                pass
+
+        threading.Thread(target=_do, daemon=True).start()
 
     def _display_name(self, indi):
         """Return an individual's display name using the configured name order."""
@@ -1047,7 +1103,11 @@ def main():
     args = parser.parse_args()
 
     root = ctk.CTk()
+    # Withdraw before building so the window doesn't flash at the default
+    # top-left position before _fit_window_to_content centres it.
+    root.withdraw()
     app = DNAMatchFinderApp(root)
+    root.deiconify()
 
     if args.gedcom:
         path = os.path.abspath(os.path.expanduser(args.gedcom))

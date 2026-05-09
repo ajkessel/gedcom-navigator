@@ -91,9 +91,12 @@ class Tooltip:
         self._text = text
         self._tip = None
         self._hide_after = None  # pending after() id for debounced hide (macOS)
+        self._cursor_x = None   # cursor position captured at Enter time (macOS)
+        self._cursor_y = None
         widget.bind('<Enter>', self._show)
         widget.bind('<Leave>', self._on_leave)
         widget.bind('<ButtonPress>', self._hide)
+        widget.bind('<KeyPress>', self._hide)
 
     def _apply_window_style(self):
         """Make the tooltip popup behave like a native transient helper."""
@@ -179,9 +182,14 @@ class Tooltip:
     def _position_tip(self):
         """Place the tooltip near the widget without running off screen.
 
-        Prefer below the widget; flip above when below would overflow.  Never
-        clamp vertically into the widget's own bounds — that causes a Leave
-        event on Windows which triggers a flicker loop.
+        On macOS: prefer above the cursor so the popup doesn't land on widgets
+        in the row directly below (e.g. filter entry below the search row),
+        which causes spurious Enter events and flicker.  Fall back to below
+        the cursor only when above would clip the menu bar.
+
+        On other platforms: prefer below the widget; flip above when below
+        would overflow the screen.  Never clamp vertically into the widget's
+        own bounds — that causes a Leave event on Windows (flicker loop).
         """
         self._tip.update_idletasks()
         req_w = self._tip.winfo_reqwidth()
@@ -192,12 +200,19 @@ class Tooltip:
         wy = self._widget.winfo_rooty()
         wh = self._widget.winfo_height()
         x = max(0, min(wx + 20, screen_w - req_w - 4))
-        y_below = wy + wh + 4
-        y_above = wy - req_h - 4
-        if y_below + req_h <= screen_h - 4:
-            y = y_below
+        if sys.platform == 'darwin' and self._cursor_y is not None:
+            # Position above the cursor so the popup stays in the same UI row.
+            _MENU_BAR_H = 28
+            y_above = self._cursor_y - req_h - 8
+            y_below = self._cursor_y + 20
+            y = y_above if y_above >= _MENU_BAR_H else min(y_below, screen_h - req_h - 4)
         else:
-            y = max(0, y_above)
+            y_below = wy + wh + 4
+            y_above = wy - req_h - 4
+            if y_below + req_h <= screen_h - 4:
+                y = y_below
+            else:
+                y = max(0, y_above)
         self._tip.wm_geometry(f'+{x}+{y}')
 
     def _on_leave(self, _event=None):
@@ -240,7 +255,7 @@ class Tooltip:
             self._hide_after = None
         self._widget.after(100, self._poll_mouse)
 
-    def _show(self, _event=None):
+    def _show(self, event=None):
         """Create and position the tooltip window."""
         # Cancel any pending debounced hide (spurious <Leave>/<Enter> pair).
         if self._hide_after is not None:
@@ -251,6 +266,9 @@ class Tooltip:
             Tooltip._active._hide()
         if self._tip is not None:
             return
+        # Capture cursor position for macOS above-cursor placement.
+        self._cursor_x = getattr(event, 'x_root', None)
+        self._cursor_y = getattr(event, 'y_root', None)
         Tooltip._active = self
         self._tip = tk.Toplevel(self._widget)
         self._tip.withdraw()

@@ -29,7 +29,7 @@ MENU_OPEN_GEDCOM = "Open GEDCOM File…"
 MENU_OPEN_RECENT = "Open Recent"
 MENU_NO_RECENT_FILES = "No Recent Files"
 MENU_MENU = "Help"
-MENU_PREFERENCES = "Preferences…"
+MENU_PREFERENCES = "Settings…" if sys.platform == 'darwin' else "Preferences…"
 MENU_CLEAR_CACHE = "Clear cache…"
 MENU_HOW_TO_USE = (
     f"How to use ({_MOD}?)"
@@ -85,14 +85,16 @@ BTN_SET_HOME = "Set Home"
 # ---------------------------------------------------------------------------
 # Results panel
 # ---------------------------------------------------------------------------
-LBL_RESULTS = "Results:"
 BTN_COPY = "Copy Results"
 
 # ---------------------------------------------------------------------------
 # Tooltips
 # ---------------------------------------------------------------------------
 TIP_COPY = (
-    f"Copy results below into clipboard ({_MOD}C)\n"
+    f"Copy results({_MOD}C)\n"
+    "Copy the entire contents of the results pane to the clipboard. "
+    "When the results text area has keyboard focus, "
+    f"{_MOD}C copies only the selected text as usual."
 )
 TIP_FIND = (
     f"Find ({_MOD}F)\n"
@@ -160,6 +162,11 @@ TIP_FUZZY_THRESHOLD = (
     "Similarity cutoff for fuzzy name search, from 0.00 to 1.00."
     " Lower values allow more matches; higher values are stricter."
 )
+TIP_MAX_DISPLAY = (
+    "Maximum Search Results\n"
+    "Maximum number of people shown in the search results list."
+    " Higher values may slow down filtering in very large trees."
+)
 TIP_DNA_FLAGGED_ONLY = (
     f"Toggle DNA-flagged Only ({_MOD}D)\n"
     "When checked, only people flagged as DNA matches will be shown in search results."
@@ -192,7 +199,7 @@ BTN_CLOSE = "Close"
 # ---------------------------------------------------------------------------
 # DNA match results display
 # ---------------------------------------------------------------------------
-RESULT_STARTING_FROM = "Closest tag matches starting from "
+RESULT_CLOSEST_MATCHES = "Closest Tag and Page Marker Matches"
 RESULT_DNA_FLAGGED_NOTE = "  Note: this person is themselves DNA-flagged."
 RESULT_NO_DNA_FOUND = "No DNA-flagged relatives found within the search depth."
 RESULT_RANK_PREFIX = "#{rank}: "
@@ -249,7 +256,7 @@ BTN_SELECT = "Select"
 # ---------------------------------------------------------------------------
 # Preferences dialog
 # ---------------------------------------------------------------------------
-WIN_PREFERENCES = "Preferences"
+WIN_PREFERENCES = "Settings" if sys.platform == 'darwin' else "Preferences"
 FRAME_FONT_SIZE = "Font size"
 FONT_SMALL = "Small"
 FONT_MEDIUM = "Medium"
@@ -259,6 +266,7 @@ FRAME_SEARCH_DEFAULTS = "Search defaults"
 LBL_TOP_N_RESULTS = "Top N results:"
 LBL_MAX_DEPTH_PREF = "Max depth:"
 LBL_FUZZY_THRESHOLD = "Fuzzy threshold:"
+LBL_MAX_DISPLAY = "Max search results:"
 FRAME_DISPLAY = "Display"
 CHK_SHOW_IDS = "Show IDs (person and tag ID codes from GEDCOM)"
 LBL_NAME_FORMAT = "Name format:"
@@ -277,7 +285,7 @@ STATUS_LOAD_FAILED = "Load failed."
 STATUS_LOADED_CACHED = "Loaded {count:,} individuals (from cache)."
 STATUS_LOADED = "Loaded {count:,} individuals."
 STATUS_SHOWING_FIRST = (
-    "Showing first {max_display:,} of more matches. "
+    "Showing first {max_display:,} of {total_matches:,} matches. "
     "Refine your search.  ({total:,} total, {flagged} DNA-flagged)"
 )
 STATUS_MATCHES = "{shown:,} match{plural} shown.  ({total:,} total, {flagged} DNA-flagged)"
@@ -359,9 +367,3 @@ KEYBOARD_SHORTCUT_ROWS = [
 
 if sys.platform != 'darwin':
     KEYBOARD_SHORTCUT_ROWS.append(("Alt-M", "Menu"))
-
-NOTE_KEYBOARD_SHORTCUTS = (
-    f"Note: {_MOD}C copies the entire results pane. "
-    f"When the results text area has keyboard focus, "
-    f"{_MOD}C copies only the selected text as usual."
-)

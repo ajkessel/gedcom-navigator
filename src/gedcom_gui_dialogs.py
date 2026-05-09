@@ -41,6 +41,7 @@ class DialogsMixin:
     def _show_person_for(self, indi_id):
         """Open a detail window for a specific individual ID."""
         win = ctk.CTkToplevel(self.root)
+        win.withdraw()
         win.transient(self.root)
         win.grab_set()
 
@@ -191,6 +192,7 @@ class DialogsMixin:
                 preferred_h=520,
             )
         win.bind('<Configure>', _on_win_configure)
+        win.deiconify()
         win.focus_force()
 
     def _view_tags(self):
@@ -200,6 +202,7 @@ class DialogsMixin:
             return
 
         win = ctk.CTkToplevel(self.root)
+        win.withdraw()
         win.title(WIN_TAG_DEFINITIONS)
         win.transient(self.root)
         win.resizable(True, True)
@@ -267,6 +270,7 @@ class DialogsMixin:
         self._fit_window_to_content(win, min_w=350, min_h=220)
         self._apply_theme_to_window(win)
 
+        win.deiconify()
         win.focus_force()
         tag_tree.focus_set()
         target = first_match or (tag_tree.get_children()[
@@ -283,6 +287,7 @@ class DialogsMixin:
             return None
 
         dialog = ctk.CTkToplevel(self.root)
+        dialog.withdraw()
         dialog.title(title)
         dialog.transient(self.root)
         dialog.grab_set()
@@ -402,6 +407,7 @@ class DialogsMixin:
             preferred_w=600,
             preferred_h=500,
         )
+        dialog.deiconify()
         dialog.wait_window()
         return result[0]
 
@@ -520,6 +526,7 @@ class DialogsMixin:
     def _show_preferences(self):
         """Open the preferences dialog for display, search, and cache settings."""
         win = ctk.CTkToplevel(self.root)
+        win.withdraw()
         win.title(WIN_PREFERENCES)
         win.resizable(True, True)
         win.transient(self.root)
@@ -624,6 +631,16 @@ class DialogsMixin:
         Tooltip(_pref_fuzzy_label, TIP_FUZZY_THRESHOLD)
         Tooltip(_pref_fuzzy_spin, TIP_FUZZY_THRESHOLD)
 
+        _pref_max_display_label = ctk.CTkLabel(search_frame, text=LBL_MAX_DISPLAY)
+        _pref_max_display_label.grid(row=1, column=2, sticky='w', padx=(0, 8), pady=(6, 0))
+        max_display_var = tk.IntVar(value=self.max_display.get())
+        _pref_max_display_spin = ttk.Spinbox(
+            search_frame, from_=100, to=100000, increment=500,
+            textvariable=max_display_var, width=8)
+        _pref_max_display_spin.grid(row=1, column=3, sticky='w', pady=(6, 0))
+        Tooltip(_pref_max_display_label, TIP_MAX_DISPLAY)
+        Tooltip(_pref_max_display_spin, TIP_MAX_DISPLAY)
+
         # Display section
         display_section = ctk.CTkFrame(outer, border_width=1)
         display_section.pack(fill='x', pady=(0, 8))
@@ -687,6 +704,11 @@ class DialogsMixin:
                 self._config.set_fuzzy_threshold(threshold)
             except (tk.TclError, ValueError):
                 pass
+            try:
+                self.max_display.set(max(100, int(max_display_var.get())))
+                self._config.set_max_display(self.max_display.get())
+            except (tk.TclError, ValueError):
+                pass
             self.show_ids.set(show_ids_var.get())
             self._config.set_show_ids(show_ids_var.get())
             self._name_order = name_order_var.get()
@@ -707,6 +729,7 @@ class DialogsMixin:
                       command=on_cancel).pack(side='right')
 
         self._fit_window_to_content(win, min_w=500, min_h=420)
+        win.deiconify()
         win.after(50, win.focus_force)
 
     def _resource_path(self, filename):
@@ -725,6 +748,7 @@ class DialogsMixin:
     def _show_keyboard_shortcuts(self):
         """Open the keyboard shortcuts reference window."""
         win = ctk.CTkToplevel(self.root)
+        win.withdraw()
         win.title(WIN_KEYBOARD_SHORTCUTS)
         win.transient(self.root)
         win.grab_set()
@@ -758,10 +782,6 @@ class DialogsMixin:
         tree.configure(yscrollcommand=vsb.set)
         tree.pack(side='left', fill='both', expand=True)
         vsb.pack(side='right', fill='y')
-
-        ctk.CTkLabel(outer, text=NOTE_KEYBOARD_SHORTCUTS, justify='left',
-                     wraplength=490, anchor='w').pack(fill='x', pady=(10, 0))
-
         ctk.CTkFrame(win, height=1,
                      fg_color=('gray70', 'gray30')).pack(fill='x')
         btn_frame = ctk.CTkFrame(win, fg_color='transparent')
@@ -770,6 +790,7 @@ class DialogsMixin:
                       command=win.destroy).pack(side='right')
 
         self._fit_window_to_content(win, min_w=540, min_h=420)
+        win.deiconify()
         win.after(50, win.focus_force)
 
     def _show_about(self):
@@ -799,6 +820,7 @@ class DialogsMixin:
             return
 
         win = ctk.CTkToplevel(self.root)
+        win.withdraw()
         win.title(title)
         win.transient(self.root)
         win.grab_set()
@@ -876,7 +898,6 @@ class DialogsMixin:
         win.bind('<Home>', lambda *_: text.yview_moveto(0) or 'break')
         win.bind('<End>', lambda *_: text.yview_moveto(1) or 'break')
 
-        win.lift()
         self._fit_window_to_content(
             win,
             min_w=500,
@@ -884,4 +905,5 @@ class DialogsMixin:
             preferred_w=820,
             preferred_h=640,
         )
+        win.deiconify()
         win.focus_set()
