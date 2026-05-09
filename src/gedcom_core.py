@@ -18,26 +18,69 @@ LINE_RE = re.compile(r'^\s*(\d+)\s+(?:(@[^@]+@)\s+)?(\S+)(?:\s+(.*?))?\s*$')
 
 ZIP_MAX_BYTES = 500_000_000  # 500 MB
 
+# Maps GEDCOM CHAR values to Python codec names.
+_GEDCOM_ENCODINGS = {
+    'UTF-8': 'utf-8-sig',
+    'UNICODE': 'utf-16',
+    'ANSI': 'cp1252',
+    'WINDOWS-1252': 'cp1252',
+    'CP1252': 'cp1252',
+    'ANSEL': 'latin-1',   # ANSEL is a superset of Latin-1; best approximation
+    'ASCII': 'latin-1',   # ASCII files sometimes contain Latin-1 bytes in practice
+    'LATIN1': 'latin-1',
+    'ISO-8859-1': 'latin-1',
+    'MACINTOSH': 'mac_roman',
+}
+
+
+def _detect_encoding(path):
+    """Peek at the GEDCOM HEAD record to find the CHAR tag encoding.
+
+    Returns a Python codec name. Falls back to 'utf-8-sig' if unrecognised or absent.
+    """
+    try:
+        with open(path, 'rb') as f:
+            raw = f.read(4096)
+        # Handle BOM-marked UTF-16
+        if raw[:2] in (b'\xff\xfe', b'\xfe\xff'):
+            return 'utf-16'
+        # Decode enough of the header as Latin-1 (safe for any single-byte file)
+        snippet = raw.decode('latin-1', errors='replace')
+        for line in snippet.splitlines():
+            m = re.match(r'^\s*1\s+CHAR\s+(\S+)', line, re.IGNORECASE)
+            if m:
+                key = m.group(1).upper()
+                return _GEDCOM_ENCODINGS.get(key, 'utf-8-sig')
+    except OSError:
+        pass
+    return 'utf-8-sig'
+
+
+def _iter_lines(path, encoding):
+    """Open *path* with *encoding* (strict), yielding rstripped lines."""
+    with open(path, 'r', encoding=encoding, errors='replace') as f:
+        for raw in f:
+            yield raw.rstrip('\r\n')
+
 
 def iter_records(path):
     """Yield each top-level GEDCOM record as a list of (level, xref, tag, value)."""
+    encoding = _detect_encoding(path)
     record = []
-    with open(path, 'r', encoding='utf-8-sig', errors='replace') as f:
-        for raw in f:
-            line = raw.rstrip('\r\n')
-            if not line.strip():
-                continue
-            m = LINE_RE.match(line)
-            if not m:
-                continue
-            level = int(m.group(1))
-            xref = m.group(2)
-            tag = m.group(3)
-            value = m.group(4) or ''
-            if level == 0 and record:
-                yield record
-                record = []
-            record.append((level, xref, tag, value))
+    for line in _iter_lines(path, encoding):
+        if not line.strip():
+            continue
+        m = LINE_RE.match(line)
+        if not m:
+            continue
+        level = int(m.group(1))
+        xref = m.group(2)
+        tag = m.group(3)
+        value = m.group(4) or ''
+        if level == 0 and record:
+            yield record
+            record = []
+        record.append((level, xref, tag, value))
     if record:
         yield record
 
@@ -45,30 +88,30 @@ def iter_records(path):
 def iter_records_checked(path):
     """Parse GEDCOM, returning (records, warning_or_none).
 
-    Warning is non-None when encoding substitutions occurred (U+FFFD present),
-    which indicates the file may be Latin-1 or another non-UTF-8 encoding.
+    Detects the encoding from the GEDCOM CHAR header tag and re-reads with
+    that codec.  Warning is non-None only when replacement characters still
+    appear after applying the declared encoding.
     """
+    encoding = _detect_encoding(path)
     records = []
     record = []
     replacement_lines = 0
-    with open(path, 'r', encoding='utf-8-sig', errors='replace') as f:
-        for raw in f:
-            line = raw.rstrip('\r\n')
-            if '�' in line:
-                replacement_lines += 1
-            if not line.strip():
-                continue
-            m = LINE_RE.match(line)
-            if not m:
-                continue
-            level = int(m.group(1))
-            xref = m.group(2)
-            tag = m.group(3)
-            value = m.group(4) or ''
-            if level == 0 and record:
-                records.append(record)
-                record = []
-            record.append((level, xref, tag, value))
+    for line in _iter_lines(path, encoding):
+        if '�' in line:
+            replacement_lines += 1
+        if not line.strip():
+            continue
+        m = LINE_RE.match(line)
+        if not m:
+            continue
+        level = int(m.group(1))
+        xref = m.group(2)
+        tag = m.group(3)
+        value = m.group(4) or ''
+        if level == 0 and record:
+            records.append(record)
+            record = []
+        record.append((level, xref, tag, value))
     if record:
         records.append(record)
 
@@ -76,8 +119,7 @@ def iter_records_checked(path):
     if replacement_lines:
         warning = (
             f"Warning: {replacement_lines} line(s) contained characters that "
-            f"could not be decoded as UTF-8 and were replaced with •. "
-            f"The file may be Latin-1 or another encoding. "
+            f"could not be decoded as {encoding} and were replaced with •. "
             f"Some names or dates may be incorrect."
         )
     return records, warning
