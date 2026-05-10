@@ -90,7 +90,7 @@ class Tooltip:
         self._widget = widget
         self._text = text
         self._tip = None
-        self._hide_after = None  # pending after() id for debounced hide (macOS)
+        self._hide_after = None  # pending after() id for debounced hide (macOS/Linux)
         self._cursor_x = None   # cursor position captured at Enter time (macOS)
         self._cursor_y = None
         widget.bind('<Enter>', self._show)
@@ -118,9 +118,8 @@ class Tooltip:
                     self._tip.wm_attributes('-toolwindow', True)
                 except tk.TclError:
                     pass
-        # Always set overrideredirect so the tooltip window never intercepts
-        # mouse events — on macOS omitting this caused <Leave> events to be
-        # missed, leaving multiple stale tooltips on screen simultaneously.
+        # overrideredirect removes WM decorations on all platforms.
+        # On macOS, omitting this caused missed <Leave> events and stale tooltips.
         self._tip.wm_overrideredirect(True)
 
     def _style_tip_widget(self, widget, *, outer=False):
@@ -238,7 +237,7 @@ class Tooltip:
             self._hide()
 
     def _poll_mouse(self):
-        """macOS/Linux: catch missed <Leave> events via periodic position check."""
+        """macOS/Linux: catch missed <Leave> events by querying X server directly."""
         if self._tip is None:
             return
         px = self._widget.winfo_pointerx()
@@ -286,6 +285,7 @@ class Tooltip:
             self._widget.after_cancel(self._hide_after)
             self._hide_after = None
         if self._tip:
+            self._tip.withdraw()  # unmap before destroy to bypass compositor close animation
             self._tip.destroy()
             self._tip = None
         if Tooltip._active is self:
