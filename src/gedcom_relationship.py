@@ -176,6 +176,10 @@ def _describe_sub_path(sub_path, individuals):
             trimmed = no_sp[:-1]
             if trimmed:
                 u, d, s, valid = _classify(trimmed)
+                # Reject trim that yields a pure-sibling result (u==0, d==0):
+                # two sibling hops don't collapse to one.
+                if valid and u == 0 and d == 0:
+                    valid = False
 
     if not valid:
         return None
@@ -388,6 +392,8 @@ def describe_relationship(path, individuals, ancestors=None, descendants=None):
             trimmed = no_sp[:-1]
             if trimmed:
                 u, d, s, valid = _classify(trimmed)
+                if valid and u == 0 and d == 0:
+                    valid = False
     if not valid:
         return _smart_chain(path, individuals)
 
