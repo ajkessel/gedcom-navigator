@@ -178,6 +178,7 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
         self._dna_settings_after_id = None
         self._last_result = None
         self._results_reversed = False
+        self._active_id = None
         self._busy = False
         self._sort_col = 'name'
         self._sort_rev = False
@@ -833,10 +834,10 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
             messagebox.showwarning(ERR_NO_DATA_TITLE, ERR_NO_DATA_MSG)
             return
         sel = self.tree.selection()
-        if not sel:
+        start_id = sel[0] if sel else self._active_id
+        if not start_id:
             messagebox.showwarning(ERR_NO_SEL_TITLE, ERR_NO_SEL_MSG)
             return
-        start_id = sel[0]
         try:
             top_n = int(self.top_n.get())
             max_depth = int(self.max_depth.get())
@@ -1047,7 +1048,7 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
         # Family section
         nl(FAM_SECTION, bold=True)
         family_found = False
-        parents, siblings, children = self._get_family_members(start_id)
+        parents, siblings, spouses, children = self._get_family_members(start_id)
 
         if parents:
             family_found = True
@@ -1059,6 +1060,11 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
             nl(FAM_SIBLINGS)
             for sib_id in siblings:
                 person(sib_id, prefix="    ")
+        if spouses:
+            family_found = True
+            nl(FAM_SPOUSES if len(spouses) > 1 else FAM_SPOUSE)
+            for sid in spouses:
+                person(sid, prefix="    ")
         if children:
             family_found = True
             nl(FAM_CHILDREN)
@@ -1143,7 +1149,13 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
                 tw.tag_delete(tag)
 
     def _navigate_to(self, indi_id):
-        """Select a person in the tree so they become the active subject for all actions."""
+        """Select a person in the tree and refresh the results pane for them.
+
+        If the right pane currently shows DNA matches, shows DNA matches for the
+        new person.  If it shows a relationship path, finds the path from the new
+        person to the same destination.
+        """
+        self._active_id = indi_id
         if not self.tree.exists(indi_id):
             self.search_text.set('')
             self.filter_text.set('')
@@ -1153,10 +1165,56 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
             self.tree.selection_set(indi_id)
             self.tree.see(indi_id)
             self.tree.focus(indi_id)
-        if indi_id in self.individuals:
-            indi = self.individuals[indi_id]
-            name = self._display_name(indi)
-            self.status_text.set(STATUS_SELECTED.format(name=name))
+        else:
+            # Person exceeds max_display even with no filters; clear the stale
+            # tree selection so action buttons fall back to _active_id.
+            self.tree.selection_remove(*self.tree.selection())
+        try:
+            top_n = int(self.top_n.get())
+            max_depth = int(self.max_depth.get())
+        except (tk.TclError, ValueError):
+            return
+        self._results_reversed = False
+        self._reverse_btn.configure(text=BTN_REVERSE)
+
+        kind = self._last_result.get('type') if self._last_result else None
+
+        if kind == 'path':
+            end_id = self._last_result.get('end_id', indi_id)
+            self._last_result = {'type': 'path', 'start_id': indi_id, 'end_id': end_id}
+
+            def _do_path():
+                try:
+                    paths, truncated = self._model.find_all_paths(
+                        indi_id, end_id, top_n, max_depth)
+                    self.root.after(0, lambda: self._render_path_results(
+                        indi_id, end_id, paths, truncated))
+                except Exception:  # pylint: disable=broad-exception-caught
+                    pass
+
+            threading.Thread(target=_do_path, daemon=True).start()
+        else:
+            self._last_result = {'type': 'dna_matches', 'start_id': indi_id}
+
+            def _do_dna():
+                try:
+                    results = bfs_find_dna_matches(
+                        indi_id, self.individuals, self.families,
+                        top_n=top_n, max_depth=max_depth,
+                    )
+                    home_paths = None
+                    home_id = self._home_person_id
+                    if home_id and home_id != indi_id and home_id in self.individuals:
+                        home_paths, _ = bfs_find_all_paths(
+                            indi_id, home_id, self.individuals, self.families,
+                            top_n=1, max_depth=max_depth,
+                        )
+                    self.root.after(0, lambda: self._render_results(
+                        indi_id, results, home_paths=home_paths))
+                except Exception:  # pylint: disable=broad-exception-caught
+                    pass
+
+            threading.Thread(target=_do_dna, daemon=True).start()
 
     def _display_name(self, indi):
         """Return an individual's display name using the configured name order."""
@@ -1170,9 +1228,9 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
         return indi['name'] or '(unknown)'
 
     def _get_family_members(self, indi_id):
-        """Return (parents, siblings, children) lists for an individual."""
+        """Return (parents, siblings, spouses, children) lists for an individual."""
         indi = self.individuals[indi_id]
-        parents, siblings, children = [], [], []
+        parents, siblings, spouses, children = [], [], [], []
         for fam_id in indi['famc']:
             fam = self.families.get(fam_id)
             if not fam:
@@ -1187,10 +1245,13 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
             fam = self.families.get(fam_id)
             if not fam:
                 continue
+            spouse_id = fam['wife'] if fam['husb'] == indi_id else fam['husb']
+            if spouse_id and spouse_id in self.individuals:
+                spouses.append(spouse_id)
             for child_id in fam['chil']:
                 if child_id in self.individuals:
                     children.append(child_id)
-        return parents, siblings, children
+        return parents, siblings, spouses, children
 
 
 def main():

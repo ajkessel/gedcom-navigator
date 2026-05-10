@@ -33,10 +33,11 @@ class DialogsMixin:
             messagebox.showwarning(ERR_NO_DATA_TITLE, ERR_NO_DATA_MSG)
             return
         sel = self.tree.selection()
-        if not sel:
+        indi_id = sel[0] if sel else self._active_id
+        if not indi_id:
             messagebox.showwarning(ERR_NO_SEL_TITLE, ERR_NO_SEL_MSG)
             return
-        self._show_person_for(sel[0])
+        self._show_person_for(indi_id)
 
     def _show_person_for(self, indi_id):
         """Open a detail window for a specific individual ID."""
@@ -140,7 +141,7 @@ class DialogsMixin:
 
             add(FAM_SECTION, bold=True)
             family_found = False
-            parents, siblings, children = self._get_family_members(iid)
+            parents, siblings, spouses, children = self._get_family_members(iid)
 
             if parents:
                 family_found = True
@@ -152,6 +153,11 @@ class DialogsMixin:
                 add(FAM_SIBLINGS)
                 for sib_id in siblings:
                     person(sib_id, prefix="    ")
+            if spouses:
+                family_found = True
+                add(FAM_SPOUSES if len(spouses) > 1 else FAM_SPOUSE)
+                for sid in spouses:
+                    person(sid, prefix="    ")
             if children:
                 family_found = True
                 add(FAM_CHILDREN)
@@ -416,10 +422,10 @@ class DialogsMixin:
         if self._busy:
             return
         sel = self.tree.selection()
-        if not sel:
+        start_id = sel[0] if sel else self._active_id
+        if not start_id:
             messagebox.showwarning(ERR_NO_SEL_TITLE, ERR_NO_PATH_SEL_MSG)
             return
-        start_id = sel[0]
 
         target_id = self._pick_person(WIN_SELECT_TARGET)
         if not target_id:

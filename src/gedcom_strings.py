@@ -199,6 +199,8 @@ BIO_NO_INFO = "  (no biographical information found)"
 FAM_SECTION = "Family"
 FAM_PARENTS = "  Parents:"
 FAM_SIBLINGS = "  Siblings:"
+FAM_SPOUSE = "  Spouse:"
+FAM_SPOUSES = "  Spouses:"
 FAM_CHILDREN = "  Children:"
 FAM_NO_INFO = "  (no family information found)"
 GEDCOM_SECTION = "Full GEDCOM Record"
@@ -302,7 +304,6 @@ STATUS_OVERVIEW = (
     "{flagged} DNA-flagged.  Type to search."
 )
 STATUS_HOME_SET = "Home person set: {name}"
-STATUS_SELECTED = "Selected: {name}"
 
 # ---------------------------------------------------------------------------
 # Error / warning dialogs  (title, message pairs)

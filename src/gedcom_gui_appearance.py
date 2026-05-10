@@ -424,10 +424,10 @@ class AppearanceMixin:
             messagebox.showwarning(ERR_NO_DATA_TITLE, ERR_NO_DATA_MSG)
             return
         sel = self.tree.selection()
-        if not sel:
+        indi_id = sel[0] if sel else self._active_id
+        if not indi_id:
             messagebox.showwarning(ERR_NO_SEL_TITLE, ERR_NO_SEL_MSG)
             return
-        indi_id = sel[0]
         gedcom_path = self.gedcom_path.get().strip()
         if not gedcom_path:
             return
