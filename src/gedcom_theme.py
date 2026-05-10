@@ -216,8 +216,8 @@ class Tooltip:
         self._tip.wm_geometry(f'+{x}+{y}')
 
     def _on_leave(self, _event=None):
-        """Handle <Leave>: debounce on macOS to ignore spurious events."""
-        if sys.platform == 'darwin' and self._tip is not None:
+        """Handle <Leave>: debounce on macOS/Linux to ignore spurious events."""
+        if sys.platform != 'win32' and self._tip is not None:
             if self._hide_after is None:
                 self._hide_after = self._widget.after(150, self._hide_if_outside)
         else:
@@ -238,7 +238,7 @@ class Tooltip:
             self._hide()
 
     def _poll_mouse(self):
-        """macOS only: catch missed <Leave> events via periodic position check."""
+        """macOS/Linux: catch missed <Leave> events via periodic position check."""
         if self._tip is None:
             return
         px = self._widget.winfo_pointerx()
@@ -266,7 +266,7 @@ class Tooltip:
             Tooltip._active._hide()
         if self._tip is not None:
             return
-        # Capture cursor position for macOS above-cursor placement.
+        # Capture cursor position for above-cursor placement (macOS).
         self._cursor_x = getattr(event, 'x_root', None)
         self._cursor_y = getattr(event, 'y_root', None)
         Tooltip._active = self
@@ -277,7 +277,7 @@ class Tooltip:
         label.pack()
         self._position_tip()
         self._tip.deiconify()
-        if sys.platform == 'darwin':
+        if sys.platform != 'win32':
             self._widget.after(100, self._poll_mouse)
 
     def _hide(self, _event=None):
