@@ -177,6 +177,7 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
         self.page_marker.trace_add('write', self._on_dna_settings_change)
         self._dna_settings_after_id = None
         self._last_result = None
+        self._results_reversed = False
         self._busy = False
         self._sort_col = 'name'
         self._sort_rev = False
@@ -478,13 +479,17 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
         ctk.CTkLabel(
             status_bar, textvariable=self.status_text, anchor='w',
         ).grid(row=0, column=0, sticky='ew', padx=(8, 0), pady=4)
+        self._reverse_btn = ctk.CTkButton(status_bar, text=BTN_REVERSE, width=110,
+                                          command=self._reverse_results, state='disabled')
+        self._reverse_btn.grid(row=0, column=1, padx=(4, 4), pady=4)
+        Tooltip(self._reverse_btn, TIP_REVERSE)
         self._copy_btn = ctk.CTkButton(status_bar, text=BTN_COPY, width=80,
                                        command=self._copy_results)
-        self._copy_btn.grid(row=0, column=1, padx=(4, 8), pady=4)
+        self._copy_btn.grid(row=0, column=2, padx=(4, 8), pady=4)
         Tooltip(self._copy_btn, TIP_COPY)
         self._progress_bar = ctk.CTkProgressBar(status_bar, width=130)
         self._progress_bar.set(0)
-        self._progress_bar.grid(row=0, column=1, padx=(4, 8), pady=4)
+        self._progress_bar.grid(row=0, column=2, padx=(4, 8), pady=4)
         self._progress_bar.grid_remove()
 
         self._setup_keybindings()
@@ -863,13 +868,60 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
             if error:
                 messagebox.showerror(ERR_PARSE_TITLE, str(error))
                 return
+            self._results_reversed = False
+            self._reverse_btn.configure(text=BTN_REVERSE)
             self._last_result = {'type': 'dna_matches', 'start_id': start_id}
             self._render_results(start_id, results, home_paths=home_paths)
 
         threading.Thread(target=_do_search, daemon=True).start()
 
+    @staticmethod
+    def _reverse_path(path, individuals):
+        """Return path reversed with edge labels recalculated for the new direction."""
+        if len(path) <= 1:
+            return list(path)
+        n = len(path)
+        result = [(path[n - 1][0], None)]
+        for i in range(n - 2, -1, -1):
+            orig_edge = path[i + 1][1]
+            src_id = path[i][0]
+            if orig_edge in ('father', 'mother'):
+                rev_edge = 'child'
+            elif orig_edge == 'child':
+                sex = individuals.get(src_id, {}).get('sex', '')
+                rev_edge = 'father' if sex == 'M' else ('mother' if sex == 'F' else 'father')
+            else:
+                rev_edge = orig_edge
+            result.append((src_id, rev_edge))
+        return result
+
+    def _reverse_results(self):
+        """Toggle reversed display of the current results."""
+        if not self._last_result:
+            return
+        self._results_reversed = not self._results_reversed
+        self._reverse_btn.configure(
+            text=BTN_REVERSE_RESTORE if self._results_reversed else BTN_REVERSE)
+        kind = self._last_result['type']
+        if kind == 'dna_matches':
+            self._render_results(
+                self._last_result['start_id'],
+                self._last_result.get('results', []),
+                home_paths=self._last_result.get('home_paths'),
+            )
+        elif kind == 'path':
+            self._render_path_results(
+                self._last_result['start_id'],
+                self._last_result['end_id'],
+                self._last_result.get('paths', []),
+                self._last_result.get('truncated', False),
+            )
+
     def _render_results(self, start_id, results, home_paths=None):
         """Render DNA match search results and family context."""
+        if self._last_result and self._last_result.get('type') == 'dna_matches':
+            self._last_result['results'] = results
+            self._last_result['home_paths'] = home_paths
         w = self.results
         tw = w._textbox
         w.configure(state='normal')
@@ -944,30 +996,53 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
         if not results:
             nl(RESULT_NO_DNA_FOUND)
         else:
-            ancestors = get_ancestor_depths(
-                start_id, self.individuals, self.families)
-            descendants = get_descendant_depths(
-                start_id, self.individuals, self.families)
             hr()
-            for rank, (dist, path) in enumerate(results, 1):
-                end_id = path[-1][0]
-                person(end_id,
-                       prefix=RESULT_RANK_PREFIX.format(rank=rank),
-                       suffix=RESULT_DISTANCE.format(dist=dist), bold=True)
-                rel = describe_relationship(
-                    path, self.individuals,
-                    ancestors=ancestors, descendants=descendants)
-                nl(RESULT_RELATIONSHIP.format(rel=rel))
-                nl(RESULT_PATH)
-                for i, (node_id, edge) in enumerate(path):
-                    if i == 0:
-                        person(node_id, prefix="     ")
-                    else:
-                        person(node_id, prefix=RESULT_EDGE.format(edge=edge))
-                nl(RESULT_DNA_MARKERS)
-                for m in self.individuals[end_id]['dna_markers']:
-                    nl(f"     - {self._format_marker(m)}")
-                hr()
+            if self._results_reversed:
+                for rank, (dist, path) in enumerate(results, 1):
+                    match_id = path[-1][0]
+                    rev_path = self._reverse_path(path, self.individuals)
+                    m_anc = get_ancestor_depths(match_id, self.individuals, self.families)
+                    m_desc = get_descendant_depths(match_id, self.individuals, self.families)
+                    rel = describe_relationship(
+                        rev_path, self.individuals,
+                        ancestors=m_anc, descendants=m_desc)
+                    person(match_id,
+                           prefix=RESULT_RANK_PREFIX.format(rank=rank), bold=True)
+                    nl(RESULT_RELATIONSHIP.format(rel=rel))
+                    nl(RESULT_PATH)
+                    for i, (node_id, edge) in enumerate(rev_path):
+                        if i == 0:
+                            person(node_id, prefix="     ")
+                        else:
+                            person(node_id, prefix=RESULT_EDGE.format(edge=edge))
+                    nl(RESULT_DNA_MARKERS)
+                    for m in self.individuals[match_id]['dna_markers']:
+                        nl(f"     - {self._format_marker(m)}")
+                    hr()
+            else:
+                ancestors = get_ancestor_depths(
+                    start_id, self.individuals, self.families)
+                descendants = get_descendant_depths(
+                    start_id, self.individuals, self.families)
+                for rank, (dist, path) in enumerate(results, 1):
+                    end_id = path[-1][0]
+                    person(end_id,
+                           prefix=RESULT_RANK_PREFIX.format(rank=rank),
+                           suffix=RESULT_DISTANCE.format(dist=dist), bold=True)
+                    rel = describe_relationship(
+                        path, self.individuals,
+                        ancestors=ancestors, descendants=descendants)
+                    nl(RESULT_RELATIONSHIP.format(rel=rel))
+                    nl(RESULT_PATH)
+                    for i, (node_id, edge) in enumerate(path):
+                        if i == 0:
+                            person(node_id, prefix="     ")
+                        else:
+                            person(node_id, prefix=RESULT_EDGE.format(edge=edge))
+                    nl(RESULT_DNA_MARKERS)
+                    for m in self.individuals[end_id]['dna_markers']:
+                        nl(f"     - {self._format_marker(m)}")
+                    hr()
 
         # Family section
         nl(FAM_SECTION, bold=True)
@@ -1002,25 +1077,35 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
             if not home_paths:
                 nl(RESULT_NO_HOME_PATH)
             else:
-                path = home_paths[0]
-                ancestors = get_ancestor_depths(
-                    start_id, self.individuals, self.families)
-                descendants = get_descendant_depths(
-                    start_id, self.individuals, self.families)
-                rel = describe_relationship(
-                    path, self.individuals,
-                    ancestors=ancestors, descendants=descendants)
-                dist = len(path) - 1
+                raw_path = home_paths[0]
+                if self._results_reversed:
+                    disp_path = self._reverse_path(raw_path, self.individuals)
+                    h_anc = get_ancestor_depths(home_id, self.individuals, self.families)
+                    h_desc = get_descendant_depths(home_id, self.individuals, self.families)
+                    rel = describe_relationship(
+                        disp_path, self.individuals,
+                        ancestors=h_anc, descendants=h_desc)
+                else:
+                    disp_path = raw_path
+                    ancestors = get_ancestor_depths(
+                        start_id, self.individuals, self.families)
+                    descendants = get_descendant_depths(
+                        start_id, self.individuals, self.families)
+                    rel = describe_relationship(
+                        disp_path, self.individuals,
+                        ancestors=ancestors, descendants=descendants)
+                dist = len(disp_path) - 1
                 nl(RESULT_HOME_REL.format(
                     rel=rel, dist=dist, plural='s' if dist != 1 else ''))
                 nl(RESULT_HOME_PATH)
-                for i, (node_id, edge) in enumerate(path):
+                for i, (node_id, edge) in enumerate(disp_path):
                     if i == 0:
                         person(node_id, prefix="  ")
                     else:
                         person(node_id, prefix=RESULT_HOME_EDGE.format(edge=edge))
             nl()
 
+        self._reverse_btn.configure(state='normal')
         w.configure(state='disabled')
 
     def _copy_results(self):
@@ -1040,6 +1125,8 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
         self._update_header_label_style()
         self.search_text.set('')
         self._last_result = None
+        self._results_reversed = False
+        self._reverse_btn.configure(state='disabled', text=BTN_REVERSE)
         self._kb_focus_search()
 
     def _format_marker(self, marker):
@@ -1071,6 +1158,8 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
             max_depth = int(self.max_depth.get())
         except (tk.TclError, ValueError):
             return
+        self._results_reversed = False
+        self._reverse_btn.configure(text=BTN_REVERSE)
         self._last_result = {'type': 'dna_matches', 'start_id': indi_id}
 
         def _do():

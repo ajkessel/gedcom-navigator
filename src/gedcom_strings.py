@@ -86,6 +86,14 @@ BTN_SET_HOME = "Set Home"
 # Results panel
 # ---------------------------------------------------------------------------
 BTN_COPY = "Copy Results"
+BTN_REVERSE = "Reverse Path"
+BTN_REVERSE_RESTORE = "Normal Path"
+TIP_REVERSE = (
+    f"Reverse Path ({_MOD}R)\n"
+    "Reverse the direction of all relationship paths shown, computing "
+    "the relationship from the other person's perspective. "
+    "Click again to restore the original path."
+)
 
 # ---------------------------------------------------------------------------
 # Tooltips
@@ -361,6 +369,7 @@ KEYBOARD_SHORTCUT_ROWS = [
     (f"{_MOD}H",     "Set Home person to the selected person"),
     (f"{_MOD}P",     "Open the Find Relationship Paths dialog"),
     (f"{_MOD}T",     "Select new tag for finding relationship paths"),
+    (f"{_MOD}R",     "Reverse/restore the direction of all relationship paths"),
     (f"{_MOD}C",     "Copy result to clipboard"),
     (f"{_MOD}L",     "Clear the results"),
 ]

@@ -453,6 +453,8 @@ class DialogsMixin:
             if error:
                 messagebox.showerror(ERR_PARSE_TITLE, str(error))
                 return
+            self._results_reversed = False
+            self._reverse_btn.configure(text=BTN_REVERSE)
             self._last_result = {'type': 'path',
                                  'start_id': start_id, 'end_id': target_id}
             self._render_path_results(start_id, target_id, paths, truncated)
@@ -461,6 +463,10 @@ class DialogsMixin:
 
     def _render_path_results(self, start_id, end_id, paths, truncated=False):
         """Render relationship paths between two selected individuals."""
+        if self._last_result and self._last_result.get('type') == 'path':
+            self._last_result['paths'] = paths
+            self._last_result['truncated'] = truncated
+
         w = self.results
         w.configure(state='normal')
         w.delete('1.0', 'end')
@@ -489,21 +495,28 @@ class DialogsMixin:
                 w.insert('end', suffix)
             w.insert('end', '\n')
 
+        if self._results_reversed:
+            disp_start, disp_end = end_id, start_id
+            disp_paths = [self._reverse_path(p, self.individuals) for p in paths]
+        else:
+            disp_start, disp_end = start_id, end_id
+            disp_paths = paths
+
         nl(PATH_SECTION, bold=True)
-        person(start_id, prefix=PATH_FROM)
-        person(end_id,   prefix=PATH_TO)
+        person(disp_start, prefix=PATH_FROM)
+        person(disp_end,   prefix=PATH_TO)
         nl()
 
         if start_id == end_id:
             nl(PATH_SAME_PERSON)
-        elif not paths:
+        elif not disp_paths:
             nl(PATH_NOT_FOUND.format(depth=self.max_depth.get()))
         else:
             ancestors = get_ancestor_depths(
-                start_id, self.individuals, self.families)
+                disp_start, self.individuals, self.families)
             descendants = get_descendant_depths(
-                start_id, self.individuals, self.families)
-            for rank, path in enumerate(paths, 1):
+                disp_start, self.individuals, self.families)
+            for rank, path in enumerate(disp_paths, 1):
                 dist = len(path) - 1
                 rel = describe_relationship(path, self.individuals,
                                             ancestors=ancestors,
@@ -521,6 +534,7 @@ class DialogsMixin:
                 nl(PATH_SEARCH_CAP)
         nl()
 
+        self._reverse_btn.configure(state='normal')
         w.configure(state='disabled')
 
     def _show_preferences(self):
