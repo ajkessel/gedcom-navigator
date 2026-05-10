@@ -302,6 +302,7 @@ STATUS_OVERVIEW = (
     "{flagged} DNA-flagged.  Type to search."
 )
 STATUS_HOME_SET = "Home person set: {name}"
+STATUS_SELECTED = "Selected: {name}"
 
 # ---------------------------------------------------------------------------
 # Error / warning dialogs  (title, message pairs)

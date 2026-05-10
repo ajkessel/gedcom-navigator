@@ -1143,7 +1143,7 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
                 tw.tag_delete(tag)
 
     def _navigate_to(self, indi_id):
-        """Select a person in the list and render their DNA match results."""
+        """Select a person in the tree so they become the active subject for all actions."""
         if not self.tree.exists(indi_id):
             self.search_text.set('')
             self.filter_text.set('')
@@ -1153,34 +1153,10 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
             self.tree.selection_set(indi_id)
             self.tree.see(indi_id)
             self.tree.focus(indi_id)
-        try:
-            top_n = int(self.top_n.get())
-            max_depth = int(self.max_depth.get())
-        except (tk.TclError, ValueError):
-            return
-        self._results_reversed = False
-        self._reverse_btn.configure(text=BTN_REVERSE)
-        self._last_result = {'type': 'dna_matches', 'start_id': indi_id}
-
-        def _do():
-            try:
-                results = bfs_find_dna_matches(
-                    indi_id, self.individuals, self.families,
-                    top_n=top_n, max_depth=max_depth,
-                )
-                home_paths = None
-                home_id = self._home_person_id
-                if home_id and home_id != indi_id and home_id in self.individuals:
-                    home_paths, _ = bfs_find_all_paths(
-                        indi_id, home_id, self.individuals, self.families,
-                        top_n=1, max_depth=max_depth,
-                    )
-                self.root.after(0, lambda: self._render_results(
-                    indi_id, results, home_paths=home_paths))
-            except Exception:  # pylint: disable=broad-exception-caught
-                pass
-
-        threading.Thread(target=_do, daemon=True).start()
+        if indi_id in self.individuals:
+            indi = self.individuals[indi_id]
+            name = self._display_name(indi)
+            self.status_text.set(STATUS_SELECTED.format(name=name))
 
     def _display_name(self, indi):
         """Return an individual's display name using the configured name order."""
