@@ -28,7 +28,7 @@ dev/build-linux.sh    # Linux: PyInstaller → zip
 dev/build-pypi.sh     # PyPI wheel via hatchling
 ```
 
-Windows builds use `dev/build.ps1`. Build scripts create `.venv` and install deps from `dev/requirements.txt` automatically. The Mac build prefers the Python.org universal2 build at `/Library/Frameworks/Python.framework/Versions/3.14/`, falling back to pyenv.
+Windows builds use `dev/build.ps1`. Build scripts create `.venv` and install deps from `dev/requirements-dev.txt` automatically. The Mac build prefers the Python.org universal2 build at `/Library/Frameworks/Python.framework/Versions/3.14/`, falling back to pyenv.
 
 ## Architecture
 

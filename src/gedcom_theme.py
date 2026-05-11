@@ -8,6 +8,15 @@ import sys
 import tkinter as tk
 import tkinter.font as tkfont
 
+if sys.platform == 'darwin':
+    try:
+        from objc import objc_object as _objc_object
+        _MACOS_OBJC = True
+    except ImportError:
+        _MACOS_OBJC = False
+else:
+    _MACOS_OBJC = False
+
 
 THEME_NAMES = ('System', 'Light', 'Dark', 'Blue', 'Green')
 
@@ -93,10 +102,25 @@ class Tooltip:
         self._hide_after = None  # pending after() id for debounced hide (macOS/Linux)
         self._cursor_x = None   # cursor position captured at Enter time (macOS)
         self._cursor_y = None
+        if _MACOS_OBJC:
+            if widget.winfo_ismapped():
+                widget.after_idle(self._set_native_tooltip)
+            else:
+                widget.bind('<Map>', self._set_native_tooltip, add='+')
+            return
         widget.bind('<Enter>', self._show)
         widget.bind('<Leave>', self._on_leave)
         widget.bind('<ButtonPress>', self._hide)
         widget.bind('<KeyPress>', self._hide)
+
+    def _set_native_tooltip(self, _event=None):
+        """Set the macOS native tooltip via ObjC instead of a custom Toplevel."""
+        try:
+            window_id = self._widget.winfo_id()
+            view = _objc_object(c_void_p=window_id)
+            view.setToolTip_(self._text)
+        except Exception:
+            pass
 
     def _apply_window_style(self):
         """Make the tooltip popup behave like a native transient helper."""

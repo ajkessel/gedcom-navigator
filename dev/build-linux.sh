@@ -31,7 +31,7 @@ source .venv/bin/activate || {
 	echo 'Failed to activate virtual environment.'
 	exit 1
 }
-pip install -r ./dev/requirements.txt || {
+pip install -r ./dev/requirements-dev.txt || {
 	echo 'Failed to install dependencies.'
 	exit 1
 }

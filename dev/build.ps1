@@ -24,7 +24,7 @@ if ( -not ( Test-Path .\venv\scripts\activate.ps1)) {
     python -m venv .\venv --prompt "gedcom-dna-finder" 
     python .\dev\find_ffi_dll.py
     .\venv\Scripts\activate.ps1
-    pip install -r .\dev\requirements-windows.txt
+    pip install -r .\dev\requirements-dev.txt
 }
 if ( -not ( Test-Path .\venv\scripts\activate.ps1)) {
     Write-Output "Virtual environment activation script not found. Please ensure the virtual environment is set up correctly." 

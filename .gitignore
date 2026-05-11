@@ -1,5 +1,6 @@
 .codex/
 .claude/
+.claudesync/
 .venv/
 .vscode/
 venv/
