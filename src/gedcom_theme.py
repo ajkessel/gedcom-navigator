@@ -79,19 +79,32 @@ def ttk_colors(is_dark: bool, theme_name=None) -> dict:
 
 
 class _SizedToolTip(_CTkToolTip):
-    """CTkToolTip with two macOS/Tk 9.0 fixes applied.
+    """CTkToolTip with three fixes for macOS / Tk 9.0 / CTK appearance changes.
 
-    Fix 1 — stale geometry after theme change:
-      update_idletasks() while withdrawn forces the pack engine to recompute
-      the required window size from content before deiconify().
+    Fix 1 — stale geometry after theme/font change:
+      update_idletasks() recomputes the required window size from content.
+      For overrideredirect windows on macOS the WM does not auto-resize on
+      deiconify(), so we also write an explicit WxH+x+y geometry string.
 
-    Fix 2 — SIGSEGV in TkpWmSetState (Tk 9.0 / macOS):
-      CTkToolTip binds `lambda _: self.hide()` on the widget's <Destroy> event.
-      hide() calls self.withdraw() synchronously, which calls TkpWmSetState
-      while Tk is mid-destruction — a use-after-free.  We override hide() to
-      set self.disable immediately but defer the actual withdraw() via
-      after_idle so it never runs inside Tk_DestroyWindow.
+    Fix 2 — tooltip text replaced with "None" after appearance change:
+      CTkToolTip.configure() always calls messageVar.set(message) even when
+      message is the default None, which writes the string "None" into the
+      label.  CTK calls configure() with only appearance kwargs (bg color,
+      font, etc.) during theme/font updates.  We preserve the stored message
+      when the caller passes no explicit message argument.
+
+    Fix 3 — SIGSEGV in TkpWmSetState (Tk 9.0 / macOS):
+      CTkToolTip binds `lambda _: self.hide()` on the widget's <Destroy>
+      event.  hide() calls self.withdraw() synchronously, which calls
+      TkpWmSetState while Tk is mid-destruction — a use-after-free.
+      We set self.disable immediately but defer the actual withdraw() via
+      after_idle so it never executes inside Tk_DestroyWindow.
     """
+
+    def configure(self, message=None, **kwargs):
+        if message is None:
+            message = self.message
+        super().configure(message=message, **kwargs)
 
     def hide(self) -> None:
         if not self.winfo_exists():
@@ -112,6 +125,13 @@ class _SizedToolTip(_CTkToolTip):
     def _show(self):
         if self.winfo_exists():
             self.update_idletasks()
+            w = self.winfo_reqwidth()
+            h = self.winfo_reqheight()
+            if w > 10 and h > 10:
+                geom = self.geometry()
+                pos = geom[geom.index('+'):] if '+' in geom else ''
+                if pos:
+                    self.geometry(f"{w}x{h}{pos}")
         super()._show()
 
 
