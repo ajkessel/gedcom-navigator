@@ -84,6 +84,7 @@ class Tooltip:
     """Small hover tooltip attached to a Tkinter widget."""
 
     _active: 'Tooltip | None' = None  # class-level: currently visible tooltip
+    enabled: bool = True               # set False to suppress all tooltips
 
     def __init__(self, widget, text):
         """Bind tooltip display behaviour to widget hover events."""
@@ -256,6 +257,8 @@ class Tooltip:
 
     def _show(self, event=None):
         """Create and position the tooltip window."""
+        if not Tooltip.enabled:
+            return
         # Cancel any pending debounced hide (spurious <Leave>/<Enter> pair).
         if self._hide_after is not None:
             self._widget.after_cancel(self._hide_after)

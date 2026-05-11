@@ -284,6 +284,24 @@ class AppearanceMixin:
         style.configure('Treeview', font='TkDefaultFont', rowheight=row_h)
         style.configure('Treeview.Heading', font='TkDefaultFont')
 
+        if sys.platform == 'darwin':
+            # The aqua theme's Treeview.Heading.cell is a native macOS element
+            # that ignores padding. Override the layout to drop that element so
+            # the standard border/padding elements (which respect padding) are
+            # used instead, giving the heading more breathing room on macOS.
+            try:
+                style.layout('Treeview.Heading', [
+                    ('Treeview.Heading.border', {'sticky': 'nswe', 'children': [
+                        ('Treeview.Heading.padding', {'sticky': 'nswe', 'children': [
+                            ('Treeview.Heading.image', {'side': 'right', 'sticky': ''}),
+                            ('Treeview.Heading.text', {'sticky': 'we'}),
+                        ]}),
+                    ]}),
+                ])
+                style.configure('Treeview.Heading', padding=(8, 8), relief='raised')
+            except tk.TclError:
+                pass
+
     def _apply_window_background(self, win):
         """Apply the current CTk root/toplevel background to an existing window."""
         widget_key = 'CTkToplevel' if isinstance(
@@ -404,6 +422,14 @@ class AppearanceMixin:
     def _save_theme_preference(self, theme_name):
         """Persist the selected colour theme preference."""
         self._config.set_theme_preference(theme_name)
+
+    def _load_hide_tooltips_preference(self):
+        """Load the saved hide-tooltips preference."""
+        return self._config.get_hide_tooltips()
+
+    def _save_hide_tooltips_preference(self, value):
+        """Persist the hide-tooltips preference."""
+        self._config.set_hide_tooltips(value)
 
     def _load_show_person_geometry(self):
         """Load the saved geometry for the person detail window."""
