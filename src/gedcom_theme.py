@@ -78,6 +78,43 @@ def ttk_colors(is_dark: bool, theme_name=None) -> dict:
     }
 
 
+class _SizedToolTip(_CTkToolTip):
+    """CTkToolTip with two macOS/Tk 9.0 fixes applied.
+
+    Fix 1 — stale geometry after theme change:
+      update_idletasks() while withdrawn forces the pack engine to recompute
+      the required window size from content before deiconify().
+
+    Fix 2 — SIGSEGV in TkpWmSetState (Tk 9.0 / macOS):
+      CTkToolTip binds `lambda _: self.hide()` on the widget's <Destroy> event.
+      hide() calls self.withdraw() synchronously, which calls TkpWmSetState
+      while Tk is mid-destruction — a use-after-free.  We override hide() to
+      set self.disable immediately but defer the actual withdraw() via
+      after_idle so it never runs inside Tk_DestroyWindow.
+    """
+
+    def hide(self) -> None:
+        if not self.winfo_exists():
+            return
+        self.disable = True
+        try:
+            self.after_idle(self._deferred_withdraw)
+        except Exception:
+            pass
+
+    def _deferred_withdraw(self):
+        try:
+            if self.winfo_exists():
+                self.withdraw()
+        except Exception:
+            pass
+
+    def _show(self):
+        if self.winfo_exists():
+            self.update_idletasks()
+        super()._show()
+
+
 class _TooltipMeta(type):
     """Metaclass so `Tooltip.enabled = value` propagates to all live instances."""
 
@@ -99,7 +136,7 @@ class Tooltip(metaclass=_TooltipMeta):
     _instances: list = []
 
     def __init__(self, widget, text: str):
-        self._impl = _CTkToolTip(
+        self._impl = _SizedToolTip(
             widget, message=text, wraplength=360, justify='left', follow=False,
         )
         if not Tooltip._enabled:
