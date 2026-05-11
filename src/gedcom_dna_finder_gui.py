@@ -36,8 +36,7 @@ import customtkinter as ctk
 
 from gedcom_data_model import GedcomDataModel
 from gedcom_config import ConfigManager
-# user-facing strings noqa: F401,F403 # pylint: disable=unused-wildcard-import,wildcard-import
-from gedcom_strings import *
+from gedcom_strings import * # pylint: disable=unused-wildcard-import
 from gedcom_core import (
     bfs_find_dna_matches,
     bfs_find_all_paths,
@@ -431,7 +430,7 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
                 min_w = _action_min_w()
                 if min_w > 0 and paned.sashpos(0) < min_w:
                     paned.sashpos(0, min_w)
-            except Exception:
+            except Exception: # pylint: disable=broad-exception-caught
                 pass
 
         def _init_sash():
@@ -446,7 +445,7 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
                 target = max(min_w, pane_w - self.RESULTS_PREFERRED_WIDTH)
                 paned.sashpos(0, target)
                 _sash_initialized[0] = True
-            except Exception:
+            except Exception: # pylint: disable=broad-exception-caught
                 pass
 
         self.root.after(50, _init_sash)

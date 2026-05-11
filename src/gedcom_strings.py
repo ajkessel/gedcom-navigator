@@ -5,6 +5,8 @@ All English-language strings displayed to the user by gedcom_dna_finder_gui.py.
 
 To translate the application, copy this file (e.g. gedcom_strings_fr.py),
 replace the string values, and import that module instead of this one.
+Eventually, I plan to add translations and a language selection option within the app,
+but for now you can just swap out the imported strings module.
 
 Strings that include runtime values use str.format() placeholders, e.g.
     STATUS_LOADED.format(count=42)
@@ -221,7 +223,7 @@ RESULT_EDGE = "       --[{edge}]--> "
 RESULT_PATH_SECTION = "Path to Home Person"
 RESULT_HOME = "Home: "
 RESULT_NO_HOME_PATH = "No path found to home person within the current max depth."
-# TODO consider removing all edge{plural} placeholders
+# TODO consider permanently removing all edge{plural} placeholders
 # RESULT_HOME_REL = "Relationship: {rel} ({dist} edge{plural})"
 RESULT_HOME_REL = "Relationship: {rel}"
 RESULT_HOME_PATH = "Path:"
