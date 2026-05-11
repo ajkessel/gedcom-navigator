@@ -1,0 +1,9 @@
+-r requirements.txt
+altgraph
+customtkinter>=5.2.0
+packaging
+pillow
+pyinstaller
+pyinstaller-hooks-contrib
+pytest
+setuptools
