@@ -554,14 +554,12 @@ class DialogsMixin:
         outer = ctk.CTkFrame(win, fg_color='transparent')
         outer.pack(fill='both', expand=True, padx=16, pady=16)
 
-        # Font size section
-        font_section = ctk.CTkFrame(outer, border_width=1)
-        font_section.pack(fill='x', pady=(0, 8))
-        ctk.CTkLabel(font_section, text=FRAME_FONT_SIZE, anchor='w',
+        # Appearance section (font size + theme + tooltips)
+        appearance_section = ctk.CTkFrame(outer, border_width=1)
+        appearance_section.pack(fill='x', pady=(0, 8))
+        ctk.CTkLabel(appearance_section, text=FRAME_APPEARANCE, anchor='w',
                      font=ctk.CTkFont(weight='bold')).pack(
             anchor='nw', padx=12, pady=(8, 4))
-        font_frame = ctk.CTkFrame(font_section, fg_color='transparent')
-        font_frame.pack(fill='x', padx=12, pady=(0, 10))
 
         # Resolve the CTkFrame background so ttk.Radiobutton blends in.
         # Walk up _fg_color chain past any transparent frames.
@@ -580,8 +578,6 @@ class DialogsMixin:
         # background style option; tk.Radiobutton (same native indicator, but
         # classic widget) does respect it, so we use that instead.
         _rb_style = ttk.Style()
-        if sys.platform != 'darwin':
-            _rb_style.configure('Pref.TRadiobutton', background=_section_bg(font_frame))
 
         def _radiobutton(parent, *, text, variable, value):
             if sys.platform == 'darwin':
@@ -589,31 +585,39 @@ class DialogsMixin:
                 return tk.Radiobutton(parent, text=text, variable=variable,
                                       value=value, background=bg,
                                       activebackground=bg, highlightthickness=0)
+            if sys.platform != 'darwin':
+                _rb_style.configure('Pref.TRadiobutton', background=_section_bg(parent))
             return ttk.Radiobutton(parent, text=text, variable=variable,
                                    value=value, style='Pref.TRadiobutton')
 
+        # Font size row
+        font_row = ctk.CTkFrame(appearance_section, fg_color='transparent')
+        font_row.pack(fill='x', padx=12, pady=(0, 4))
+        ctk.CTkLabel(font_row, text=FRAME_FONT_SIZE + ':').pack(side='left', padx=(0, 8))
         size_var = tk.StringVar(value=self._font_size_pref)
-
         for label, key in ((FONT_SMALL, "small"), (FONT_MEDIUM, "medium"), (FONT_LARGE, "large")):
             _radiobutton(
-                font_frame, text=label, variable=size_var, value=key,
+                font_row, text=label, variable=size_var, value=key,
             ).pack(side='left', padx=8)
 
-        # Theme section
-        theme_section = ctk.CTkFrame(outer, border_width=1)
-        theme_section.pack(fill='x', pady=(0, 8))
-        ctk.CTkLabel(theme_section, text=FRAME_THEME, anchor='w',
-                     font=ctk.CTkFont(weight='bold')).pack(
-            anchor='nw', padx=12, pady=(8, 4))
-        theme_frame = ctk.CTkFrame(theme_section, fg_color='transparent')
-        theme_frame.pack(fill='x', padx=12, pady=(0, 10))
-
+        # Theme row
+        theme_row = ctk.CTkFrame(appearance_section, fg_color='transparent')
+        theme_row.pack(fill='x', padx=12, pady=(0, 4))
+        ctk.CTkLabel(theme_row, text=FRAME_THEME + ':').pack(side='left', padx=(0, 8))
         theme_var = tk.StringVar(value=self._theme_pref)
-
         for name in self._THEME_NAMES:
             _radiobutton(
-                theme_frame, text=name, variable=theme_var, value=name,
+                theme_row, text=name, variable=theme_var, value=name,
             ).pack(side='left', padx=6)
+
+        # Hide Tooltips checkbox
+        tooltip_row = ctk.CTkFrame(appearance_section, fg_color='transparent')
+        tooltip_row.pack(fill='x', padx=12, pady=(0, 10))
+        hide_tooltips_var = tk.BooleanVar(value=self._hide_tooltips_pref)
+        hide_tooltips_chk = ctk.CTkCheckBox(
+            tooltip_row, text=CHK_HIDE_TOOLTIPS, variable=hide_tooltips_var)
+        hide_tooltips_chk.pack(anchor='w')
+        Tooltip(hide_tooltips_chk, TIP_HIDE_TOOLTIPS)
 
         # Search defaults section
         search_section = ctk.CTkFrame(outer, border_width=1)
@@ -707,6 +711,9 @@ class DialogsMixin:
             self._save_font_preference(self._font_size_pref)
             self._apply_theme(theme_var.get())
             self._save_theme_preference(theme_var.get())
+            self._hide_tooltips_pref = hide_tooltips_var.get()
+            Tooltip.enabled = not self._hide_tooltips_pref
+            self._save_hide_tooltips_preference(self._hide_tooltips_pref)
             try:
                 self.top_n.set(max(1, int(top_n_var.get())))
                 self._config.set_top_n(self.top_n.get())

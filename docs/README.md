@@ -1,14 +1,19 @@
 # GEDCOM DNA Finder
 
+## Who is this for?
+
+This application is for genealogists to explore large GEDCOM files, particularly with tags for DNA matches.
+
+## What does it do exactly?
+
 This tool provides useful ways to explore a GEDCOM file exported from services like Ancestry, MyHeritage, Geni, and Family Tree Maker:
 
 * Find the closest DNA-flagged person to any other person in a family tree
-* Show multiple relationship paths between any two people in your tree
-* Search your tree for variations on names and filter on other information like
-  geographical locations
-* Rapidly explore names and connections, even in a very large tree
+* Show multiple relationship paths between any two people in your tree, for example when two people are related through multiple common ancestors
+* Search your tree for variations on names and filter on other information like geographical locations, for example "Smith" and "Chicago"
+* Rapidly explore names and connections, even in a very large tree with tens of thousands of records
 
-Available as a graphical tool as well as a command-line version.
+Available as a graphical tool for normal users, as well as a command-line version for power users.
 
 Downloads:
 * [Windows](https://github.com/ajkessel/gedcom-dna-finder/releases/latest/download/gedcom-dna-finder-windows.zip)

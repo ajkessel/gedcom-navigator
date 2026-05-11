@@ -36,8 +36,7 @@ import customtkinter as ctk
 
 from gedcom_data_model import GedcomDataModel
 from gedcom_config import ConfigManager
-# user-facing strings noqa: F401,F403 # pylint: disable=unused-wildcard-import,wildcard-import
-from gedcom_strings import *
+from gedcom_strings import * # pylint: disable=unused-wildcard-import
 from gedcom_core import (
     bfs_find_dna_matches,
     bfs_find_all_paths,
@@ -202,8 +201,10 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
 
         self._font_size_pref = self._load_font_preference()
         self._theme_pref = self._load_theme_preference()
+        self._hide_tooltips_pref = self._load_hide_tooltips_preference()
         self._apply_font_size(self._font_size_pref)
         self._apply_theme(self._theme_pref)
+        Tooltip.enabled = not self._hide_tooltips_pref
 
         self._version = __version__
         self._release_date = __release_date__
@@ -335,10 +336,11 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
                           command=lambda: self._sort_by('death'))
         self.tree.heading('flagged', text=COL_DNA,
                           command=lambda: self._sort_by('flagged'))
+        _mac = sys.platform == 'darwin'
         self.tree.column('name', width=240, anchor='w', stretch=True)
-        self.tree.column('birth', width=55, anchor='w', stretch=False)
-        self.tree.column('death', width=55, anchor='w', stretch=False)
-        self.tree.column('flagged', width=50, anchor='center', stretch=False)
+        self.tree.column('birth', width=72 if _mac else 55, anchor='w', stretch=False)
+        self.tree.column('death', width=72 if _mac else 55, anchor='w', stretch=False)
+        self.tree.column('flagged', width=65 if _mac else 50, anchor='center', stretch=False)
 
         ysb = ctk.CTkScrollbar(list_frame, orientation='vertical',
                                command=self.tree.yview)
@@ -428,7 +430,7 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
                 min_w = _action_min_w()
                 if min_w > 0 and paned.sashpos(0) < min_w:
                     paned.sashpos(0, min_w)
-            except Exception:
+            except Exception: # pylint: disable=broad-exception-caught
                 pass
 
         def _init_sash():
@@ -443,7 +445,7 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
                 target = max(min_w, pane_w - self.RESULTS_PREFERRED_WIDTH)
                 paned.sashpos(0, target)
                 _sash_initialized[0] = True
-            except Exception:
+            except Exception: # pylint: disable=broad-exception-caught
                 pass
 
         self.root.after(50, _init_sash)

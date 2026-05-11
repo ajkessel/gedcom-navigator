@@ -153,6 +153,14 @@ class ConfigManager:
         """Save the display name order preference."""
         self.save_value('name_order', value)
 
+    def get_hide_tooltips(self):
+        """Return whether tooltips should be suppressed."""
+        return bool(self.load_value('hide_tooltips', False))
+
+    def set_hide_tooltips(self, value):
+        """Save whether tooltips should be suppressed."""
+        self.save_value('hide_tooltips', bool(value))
+
     # ------------------------------------------------------------------
     # Platform default path
     # ------------------------------------------------------------------
