@@ -5,7 +5,7 @@ Theme constants, customtkinter appearance mapping, and the Tooltip widget helper
 """
 
 from CTkToolTip import CTkToolTip as _CTkToolTip
-
+from customtkinter import ThemeManager, CTkFont, CTkLabel
 
 THEME_NAMES = ('System', 'Light', 'Dark', 'Blue', 'Green')
 
@@ -19,7 +19,7 @@ CTK_THEME_MAP = {
 }
 
 # Accent-aware colors for flagged rows and hyperlinks per mode/theme
-_FLAG_BG  = {'Light': '#fff4cc', 'Dark': '#3d3000'}
+_FLAG_BG = {'Light': '#fff4cc', 'Dark': '#3d3000'}
 _LINK_COL = {'Light': '#1155bb', 'Dark': '#6bbfff', 'Green': '#2e8b57'}
 
 
@@ -79,32 +79,27 @@ def ttk_colors(is_dark: bool, theme_name=None) -> dict:
 
 
 class _SizedToolTip(_CTkToolTip):
-    """CTkToolTip with three fixes for macOS / Tk 9.0 / CTK appearance changes.
-
-    Fix 1 — stale geometry after theme/font change:
-      update_idletasks() recomputes the required window size from content.
-      For overrideredirect windows on macOS the WM does not auto-resize on
-      deiconify(), so we also write an explicit WxH+x+y geometry string.
-
-    Fix 2 — tooltip text replaced with "None" after appearance change:
-      CTkToolTip.configure() always calls messageVar.set(message) even when
-      message is the default None, which writes the string "None" into the
-      label.  CTK calls configure() with only appearance kwargs (bg color,
-      font, etc.) during theme/font updates.  We preserve the stored message
-      when the caller passes no explicit message argument.
-
-    Fix 3 — SIGSEGV in TkpWmSetState (Tk 9.0 / macOS):
-      CTkToolTip binds `lambda _: self.hide()` on the widget's <Destroy>
-      event.  hide() calls self.withdraw() synchronously, which calls
-      TkpWmSetState while Tk is mid-destruction — a use-after-free.
-      We set self.disable immediately but defer the actual withdraw() via
-      after_idle so it never executes inside Tk_DestroyWindow.
+    """
+    CTkToolTip with some customizations.
     """
 
-    def configure(self, message=None, **kwargs):
-        if message is None:
-            message = self.message
-        super().configure(message=message, **kwargs)
+    def __init__(self, widget, message="", *args, **kwargs):
+        self._base_font = CTkFont(**ThemeManager.theme["CTkFont"])
+        self._bold_font = CTkFont(
+            family=self._base_font.cget("family"),
+            size=self._base_font.cget("size")+2,
+            weight="bold",
+        )
+        super().__init__(widget, message="", font=self._base_font, *args, **kwargs)
+        self._full_message = message
+        self.bg_color = ThemeManager.theme.get(
+            'CTkToplevel', {}).get('tooltip_bg_color', "#EEEEEE")
+        self.text_color = ThemeManager.theme.get(
+            'CTkToplevel', {}).get('tooltip_text_color', "#000000")
+        self.frame.configure(border_width=2)
+
+    def configure(self, **kwargs):
+        super().configure(**kwargs)
 
     def hide(self) -> None:
         if not self.winfo_exists():
@@ -124,6 +119,7 @@ class _SizedToolTip(_CTkToolTip):
 
     def _show(self):
         if self.winfo_exists():
+            self.minsize(0, 0)
             self.update_idletasks()
             w = self.winfo_reqwidth()
             h = self.winfo_reqheight()
@@ -132,7 +128,58 @@ class _SizedToolTip(_CTkToolTip):
                 pos = geom[geom.index('+'):] if '+' in geom else ''
                 if pos:
                     self.geometry(f"{w}x{h}{pos}")
+                self._sync_frame_size(w, h)
+        if self.winfo_exists():
+            self.after_idle(self._redraw_frame)
         super()._show()
+        self.configure(bg_color=self.bg_color,
+                       text_color=self.text_color, padx=4, pady=8)
+        if "\n" not in self._full_message:
+            self.configure(message=self._full_message, font=self._base_font)
+            return
+        first, rest = self._full_message.split("\n", 1)
+        self.configure(message=first, font=self._bold_font,anchor="w")
+        if not hasattr(self, "_rest_label"):
+            self._rest_label = CTkLabel(
+                self.message_label.master,   # same parent frame
+                text=rest,
+                font=self._base_font,
+                text_color=self.text_color,
+                justify="left",
+                anchor="w",
+                wraplength=self.message_label.cget("wraplength"),
+            )
+            self._rest_label.pack(padx=8,pady=(8,8),anchor="w")
+        else:
+            self._rest_label.configure(text=rest)
+
+    def _sync_frame_size(self, w, h):
+        # Directly update CTkFrame's internal dimension tracking and force a
+        # full redraw before deiconify.  On Windows, withdraw() can reset
+        # _current_width to ~0 via a Configure event, so a later
+        # _set_appearance_mode() draws a 0×0 rounded rect (transparent).
+        # Setting _current_width = w/scale here ensures _draw() uses the
+        # correct size regardless of the stale tracked value.
+        try:
+            if not (self.winfo_exists() and hasattr(self, 'frame')):
+                return
+            scale = self.frame._get_widget_scaling()
+            self.frame._current_width = w / scale
+            self.frame._current_height = h / scale
+            self.frame._draw()
+        except Exception:
+            pass
+
+    def _redraw_frame(self):
+        # Second draw after deiconify: the real Configure event has now
+        # updated _current_width to the actual rendered size.  Drop the
+        # winfo_ismapped() guard so this also runs if the mouse left before
+        # the idle callback fired (keeping the canvas correct for next show).
+        try:
+            if self.winfo_exists() and hasattr(self, 'frame'):
+                self.frame._draw()
+        except Exception:
+            pass
 
 
 class _TooltipMeta(type):
@@ -157,7 +204,7 @@ class Tooltip(metaclass=_TooltipMeta):
 
     def __init__(self, widget, text: str):
         self._impl = _SizedToolTip(
-            widget, message=text, wraplength=360, justify='left', follow=False,
+            widget, message=text, wraplength=360, justify='left', follow=False
         )
         if not Tooltip._enabled:
             self._impl.hide()

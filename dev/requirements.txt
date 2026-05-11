@@ -1,3 +1,4 @@
+# cspell:disable
 customtkinter>=5.2.0
 CTkToolTip>=0.1.0
 pyobjc; sys_platform == 'darwin'

@@ -22,6 +22,8 @@ _MOD_KEY = 'Command' if sys.platform == 'darwin' else 'Control'
 # Each value is [light_color, dark_color]; only the mode-appropriate one shows.
 _BG_TINTS = {
     'Blue': {
+        'tooltip_bg_color':     ['#4444AA', '#4444AA'],
+        'tooltip_text_color':     ['#EEEEEE', '#EEEEEE'],
         'CTk':         ['#EBF0FA', '#1A2535'],
         'CTkToplevel': ['#EBF0FA', '#1A2535'],
         'CTkFrame':    {'fg_color':     ['#E3EAF5', '#1F2D3D'],
@@ -29,6 +31,8 @@ _BG_TINTS = {
                         'border_color': ['#B9C7DF', '#324760']},
     },
     'Green': {
+        'tooltip_bg_color':     ['#aaeeaa', '#aaeeaa'],
+        'tooltip_text_color':     ['#333333', '#333333'],
         'CTk':         ['#EBF5EB', '#1D2B1D'],
         'CTkToplevel': ['#EBF5EB', '#1D2B1D'],
         'CTkFrame':    {'fg_color':     ['#E1EDE1', '#223122'],
@@ -74,7 +78,8 @@ class AppearanceMixin:
             label = path if len(path) <= 60 else '…' + path[-57:]
             menu.add_command(
                 label=label,
-                command=lambda p=path: (self.gedcom_path.set(p), self._load_file()),
+                command=lambda p=path: (
+                    self.gedcom_path.set(p), self._load_file()),
             )
 
     def _clear_cache(self):
@@ -218,6 +223,11 @@ class AppearanceMixin:
             if not isinstance(win, tk.Toplevel):
                 continue
             try:
+                if win.overrideredirect():
+                    continue
+            except tk.TclError:
+                pass
+            try:
                 self._fit_window_to_content(
                     win,
                     preferred_w=win.winfo_width(),
@@ -293,12 +303,14 @@ class AppearanceMixin:
                 style.layout('Treeview.Heading', [
                     ('Treeview.Heading.border', {'sticky': 'nswe', 'children': [
                         ('Treeview.Heading.padding', {'sticky': 'nswe', 'children': [
-                            ('Treeview.Heading.image', {'side': 'right', 'sticky': ''}),
+                            ('Treeview.Heading.image', {
+                             'side': 'right', 'sticky': ''}),
                             ('Treeview.Heading.text', {'sticky': 'we'}),
                         ]}),
                     ]}),
                 ])
-                style.configure('Treeview.Heading', padding=(8, 8), relief='raised')
+                style.configure('Treeview.Heading',
+                                padding=(8, 8), relief='raised')
             except tk.TclError:
                 pass
 
@@ -320,6 +332,8 @@ class AppearanceMixin:
         if tint is None:
             return
         theme = ctk.ThemeManager.theme
+        theme['CTkToplevel']['tooltip_bg_color'] = tint.get('tooltip_bg_color', "#EEEEEE")
+        theme['CTkToplevel']['tooltip_text_color'] = tint.get('tooltip_text_color', "#222222")
         for widget, value in tint.items():
             if widget not in theme:
                 continue
@@ -330,7 +344,7 @@ class AppearanceMixin:
                 theme[widget]['fg_color'] = value
 
     def _apply_theme(self, theme_name):
-        """Apply a named colour theme to the application."""
+        """Apply a named color theme to the application."""
         old_color_theme = CTK_THEME_MAP.get(
             self._theme_pref, ('system', 'blue'))[1]
         old_tinted = self._theme_pref in _BG_TINTS
@@ -341,8 +355,14 @@ class AppearanceMixin:
         ctk.set_appearance_mode(mode)
         self._apply_window_background(self.root)
         for win in self.root.winfo_children():
-            if isinstance(win, tk.Toplevel):
-                self._apply_window_background(win)
+            if not isinstance(win, tk.Toplevel):
+                continue
+            try:
+                if win.overrideredirect():
+                    continue
+            except tk.TclError:
+                pass
+            self._apply_window_background(win)
         self._apply_styles()
         is_dark = ctk.get_appearance_mode() == 'Dark'
         self._link_color = get_link_color(is_dark, theme_name)
@@ -352,12 +372,12 @@ class AppearanceMixin:
         self._update_header_label_style()
         if not hasattr(self, 'results'):
             return
-        needs_rebuild = color_theme != old_color_theme or old_tinted != (
-            theme_name in _BG_TINTS)
-        if needs_rebuild:
-            self.root.after(0, self._rebuild_ui_for_theme)
-        else:
-            self.root.after(0, self._refit_windows)
+        #needs_rebuild = color_theme != old_color_theme or old_tinted != (
+            #theme_name in _BG_TINTS)
+        #if needs_rebuild:
+        self.root.after(0, self._rebuild_ui_for_theme)
+        #else:
+            #self.root.after(0, self._refit_windows)
 
     def _rebuild_ui_for_theme(self):
         """Destroy and rebuild main-window widgets to apply a new colour theme."""
