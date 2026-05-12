@@ -97,7 +97,7 @@ class _SizedToolTip(_CTkToolTip):
             'CTkToplevel', {}).get('tooltip_bg_color', "#EEEEEE")
         self.text_color = ThemeManager.theme.get(
             'CTkToplevel', {}).get('tooltip_text_color', "#000000")
-        self.frame.configure(border_width=2, corner_radius=0 if platform=="darwin" else 10)
+        self.frame.configure(border_width=2, corner_radius=10)
 
     def configure(self, **kwargs):
         super().configure(**kwargs)
@@ -117,24 +117,43 @@ class _SizedToolTip(_CTkToolTip):
                 self.withdraw()
         except Exception:
             pass
-
+        
+    # def on_enter(self, event=None):
+    #     """Overrides the standard entry event to adjust offsets based on screen space."""
+    #     mouse_x = self.widget.winfo_pointerx()
+    #     mouse_y = self.widget.winfo_pointery()
+    #     screen_h = self.widget.winfo_screenheight()
+    #     screen_w = self.widget.winfo_screenwidth()
+    #     if mouse_y + 150 > screen_h:
+    #         self.y_offset = -self.widget.winfo_height()-150
+    #         print(f'Adjusting tooltip y_offset to {self.y_offset} to fit on screen')            
+    #     else:
+    #         self.y_offset = 10
+    #     if mouse_x + 200 > screen_w:
+    #         self.x_offset = -self.widget.winfo_width()-200
+    #         print(f'Adjusting tooltip x_offset to {self.x_offset} to fit on screen')
+    #     else:
+    #         self.x_offset = 20
+    #     super().on_enter(event)
+        
     def _show(self):
-        if self.winfo_exists():
-            self.minsize(0, 0)
-            self.update_idletasks()
-            w = self.winfo_reqwidth()
-            h = self.winfo_reqheight()
-            if w > 10 and h > 10:
-                geom = self.geometry()
-                pos = geom[geom.index('+'):] if '+' in geom else ''
-                if pos:
-                    self.geometry(f"{w}x{h}{pos}")
-                self._sync_frame_size(w, h)
-        if self.winfo_exists():
-            self.after_idle(self._redraw_frame)
-        super()._show()
+        # if self.winfo_exists():
+        #     self.minsize(0, 0)
+        #     self.update_idletasks()
+        #     w = self.winfo_reqwidth()
+        #     h = self.winfo_reqheight()
+        #     if w > 10 and h > 10:
+        #         geom = self.geometry()
+        #         pos = geom[geom.index('+'):] if '+' in geom else ''
+        #         if pos:
+        #             self.geometry(f"{w}x{h}{pos}")
+        #         self._sync_frame_size(w, h)
+        # if self.winfo_exists():
+        #     self.after_idle(self._redraw_frame)
         self.configure(bg_color=self.bg_color,
-                       text_color=self.text_color, padx=4, pady=8)
+                       text_color=self.text_color,
+                       padx=4, pady=8)
+        super()._show()
         if "\n" not in self._full_message:
             self.configure(message=self._full_message, font=self._base_font)
             return

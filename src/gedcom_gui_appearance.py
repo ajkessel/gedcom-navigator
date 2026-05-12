@@ -22,7 +22,7 @@ _MOD_KEY = 'Command' if sys.platform == 'darwin' else 'Control'
 # Each value is [light_color, dark_color]; only the mode-appropriate one shows.
 _BG_TINTS = {
     'Blue': {
-        'tooltip_bg_color':     ['#4444AA', '#4444AA'],
+        'tooltip_bg_color':     ['#3C9FD0', '#3C9FD0'],
         'tooltip_text_color':     ['#EEEEEE', '#EEEEEE'],
         'CTk':         ['#EBF0FA', '#1A2535'],
         'CTkToplevel': ['#EBF0FA', '#1A2535'],
