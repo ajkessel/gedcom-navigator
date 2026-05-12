@@ -6,7 +6,7 @@ if [[ "$STDBUF_ACTIVE" != "1" ]]; then
 	export STDBUF_ACTIVE=1
 	exec stdbuf -oL "$0" "$@"
 fi
-while getopts "hnci:" opt; do # spell:disable-line
+while getopts "hnci" opt; do # spell:disable-line
 	case $opt in
 	h)
 		echo "Usage: $0 [-h] [-n] [-c] [-i]"
