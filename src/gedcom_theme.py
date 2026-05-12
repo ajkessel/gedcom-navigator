@@ -6,6 +6,7 @@ Theme constants, customtkinter appearance mapping, and the Tooltip widget helper
 
 from CTkToolTip import CTkToolTip as _CTkToolTip
 from customtkinter import ThemeManager, CTkFont, CTkLabel
+from sys import platform
 
 THEME_NAMES = ('System', 'Light', 'Dark', 'Blue', 'Green')
 
@@ -96,7 +97,7 @@ class _SizedToolTip(_CTkToolTip):
             'CTkToplevel', {}).get('tooltip_bg_color', "#EEEEEE")
         self.text_color = ThemeManager.theme.get(
             'CTkToplevel', {}).get('tooltip_text_color', "#000000")
-        self.frame.configure(border_width=2)
+        self.frame.configure(border_width=2, corner_radius=0 if platform=="darwin" else 10)
 
     def configure(self, **kwargs):
         super().configure(**kwargs)
