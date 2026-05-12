@@ -30,7 +30,9 @@ SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
 cd "${SCRIPT_DIR}/.." || exit 1
 exec > >(sed 's/\x1b\[[0-9;]*m//g' | tee -a build-and-release.log) 2>&1
 printf -- "---------------------------------\ngedcom-dna-finder build log\n%s\n---------------------------------\n" "$(date)"
-[ -n "$UPDATE_GH" ] && gh release create
+[ -n "$UPDATE_GH" ] && {
+  GH_FORCE_TTY=true gh release create || exit 1
+}
 current=$(gh release list --json tagName,isLatest --jq '.[] | select(.isLatest) | .tagName')
 [ "$current" ] || {
 	echo 'Error finding current release number.'
