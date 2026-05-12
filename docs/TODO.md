@@ -1,0 +1,1 @@
+* FIX: Windows app sometimes opens with left pane taking up whole window
