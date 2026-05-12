@@ -14,8 +14,7 @@ from pathlib import Path
 from gedcom_core import (
     build_model,
     bfs_find_dna_matches,
-    bfs_find_all_paths,
-    extract_ged_from_zip,
+    bfs_find_all_paths
 )
 
 
@@ -41,7 +40,8 @@ class GedcomDataModel:
         Returns (from_cache, encoding_warning).
         encoding_warning is a string or None; always None when loaded from cache.
         """
-        cached = self._load_from_cache(gedcom_path, dna_keyword, page_marker, cache_dir)
+        cached = self._load_from_cache(
+            gedcom_path, dna_keyword, page_marker, cache_dir)
         if cached is not None:
             self.individuals, self.families, self.tag_records = cached
             return True, None
@@ -55,12 +55,14 @@ class GedcomDataModel:
         return False, warning
 
     def find_dna_matches(self, start_id, top_n, max_depth):
+        """Find the nearest DNA-flagged people to a given individual."""
         return bfs_find_dna_matches(
             start_id, self.individuals, self.families,
             top_n=top_n, max_depth=max_depth,
         )
 
     def find_all_paths(self, start_id, end_id, top_n, max_depth):
+        """Find up to top_n relationship paths between two individuals."""
         return bfs_find_all_paths(
             start_id, end_id, self.individuals, self.families,
             top_n=top_n, max_depth=max_depth,
@@ -76,7 +78,7 @@ class GedcomDataModel:
                     deleted += 1
                 except OSError:
                     pass
-        except Exception:
+        except Exception: # pylint: disable=broad-exception-caught
             pass
         return deleted
 
@@ -103,7 +105,7 @@ class GedcomDataModel:
                     or data.get('page_marker') != page_marker):
                 return None
             return data['individuals'], data['families'], data['tag_records']
-        except Exception:
+        except Exception: # pylint: disable=broad-exception-caught
             return None
 
     def _save_to_cache(self, gedcom_path, dna_keyword, page_marker, cache_dir):
@@ -124,5 +126,5 @@ class GedcomDataModel:
             with tmp.open('w', encoding='utf-8') as f:
                 json.dump(payload, f)
             tmp.replace(cache_file)
-        except Exception:
+        except Exception: # pylint: disable=broad-exception-caught
             pass

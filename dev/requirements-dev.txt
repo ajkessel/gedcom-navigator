@@ -1,0 +1,8 @@
+-r requirements.txt
+altgraph
+packaging
+pillow
+pyinstaller
+pyinstaller-hooks-contrib
+pytest
+setuptools

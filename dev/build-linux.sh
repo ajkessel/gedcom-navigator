@@ -26,12 +26,18 @@ done
 		exit 1
 	}
 }
+# shellcheck disable=SC1091
 source .venv/bin/activate || {
 	echo 'Failed to activate virtual environment.'
 	exit 1
 }
-pip install -r ./dev/requirements.txt || {
+pip install -r ./dev/requirements-dev.txt || {
 	echo 'Failed to install dependencies.'
+	exit 1
+}
+echo 'Running unit tests...'
+pytest -v --tb=short --disable-warnings || {
+	echo 'Unit tests failed. Exiting.'
 	exit 1
 }
 python3 ./dev/generate_icon.py ./icons/family_tree.png || {
@@ -50,7 +56,7 @@ pyinstaller --noconfirm ./dev/gedcom_dna_finder_gui.spec || {
 	echo 'Cannot find dist build folder.'
 	exit 1
 }
-pushd dist
+pushd dist || exit
 zip -r "../${output_file}" .
 mv "../${output_file}" .
-popd
+popd || exit

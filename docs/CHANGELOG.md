@@ -1,5 +1,31 @@
 # Changelog
 
+## [1.0.0] - 2026-05-10
+
+### Architecture
+
+- **Modular GUI refactor** — the monolithic `gedcom_dna_finder_gui.py` has been split into focused modules: `gedcom_gui_appearance.py` (theming, fonts, menus, keybindings), `gedcom_gui_dialogs.py` (pop-up windows), `gedcom_markdown.py` (markdown renderer), `gedcom_relationship.py` (BFS ancestor/descendant helpers and plain-English labels), and `gedcom_theme.py` (theme constants, OS dark-mode detection, Tooltip widget).
+- **Comprehensive test suite** — a new `tests/` directory contains four test modules (`test_core.py`, `test_data_model.py`, `test_config.py`, `test_relationship.py`) with over 1,600 lines of pytest coverage for parsing, caching, configuration, and relationship labelling. Run via `pytest` or the included `run_tests.sh` / `run_tests.ps1` helpers.
+
+### Added
+
+- **OS dark/light mode detection** — the application now automatically detects the operating system's dark or light mode preference at startup and selects the appropriate default theme, eliminating the need for manual theme selection on first launch.
+- **Multiple color themes** — the Preferences dialog now offers several built-in color themes. The chosen theme persists across sessions.
+- **"Reverse Path" button** — a new "Reverse Path" button in the results pane recomputes all displayed relationship paths from the other person's perspective (e.g., switching from "your second cousin" to "their second cousin"). Clicking again restores the original direction. Available via keyboard shortcut as well.
+- **Configurable max search results** — a "Max search results" spinbox controls how many DNA matches are displayed, independent of the BFS depth limit. The setting is exposed in both the action bar and Preferences and is persisted to `settings.json`.
+- **Comprehensive tooltips** — every interactive control in the main window (Find, Filter, Top N, Max Depth, Max search results, all buttons, checkboxes, and text fields) now shows a descriptive tooltip on hover, including the relevant keyboard shortcut where one exists.
+- **"File" and "Help" menus** — the single "Menu" button has been replaced with a proper platform-standard menu bar containing a "File" menu (Open, Open Recent, Preferences/Settings, Quit) and a "Help" menu (How to use, Keyboard Shortcuts, Privacy Policy, About). Keyboard shortcut labels appear next to each item, using ⌘ notation on macOS and Ctrl on Windows/Linux.
+- **"Open Recent" submenu** — recent GEDCOM files are now accessible directly from File → Open Recent, mirroring standard application conventions.
+- **Character encoding auto-detection** — the GEDCOM parser now probes common encodings (UTF-8, UTF-16, Latin-1, CP1252, and the encoding declared in the `CHAR` tag) before falling back to a permissive mode, eliminating parse errors on files produced by legacy genealogy software.
+
+### Changed
+
+- **"Load" button removed** — the file selection field now auto-loads the chosen GEDCOM file immediately, eliminating an extra click. The field still shows the path and can be edited or browsed.
+- **Button labels shortened** — "Find Nearest DNA Matches" is now "Find Matches" and "Copy" is now "Copy Results" to better fit the action bar at all font sizes.
+- **Relationship algorithm improvements** — several edge cases in `describe_relationship` are handled more accurately, including paths that cross multiple spouse edges and unusual ancestor/descendant combinations.
+- **macOS polish** — tooltip rendering, window chrome, and menu behavior have been refined for macOS, including correct corner radii on tooltip windows and platform-appropriate keyboard shortcut notation throughout the UI.
+- **Build system** — Windows PyInstaller build (`dev/build.ps1`) updated; all build scripts harmonized. `start.sh` and `start.ps1` convenience launchers added for running from source.
+
 ## [0.3.1] - 2026-05-05
 
 - Various fixes to improve "look" on MacOS

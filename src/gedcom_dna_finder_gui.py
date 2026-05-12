@@ -2,7 +2,7 @@
 """
 gedcom_dna_finder_gui.py
 
-Tkinter GUI for finding the nearest DNA-flagged relative(s) to a target
+customtkinter GUI for finding the nearest DNA-flagged relative(s) to a target
 person in a GEDCOM tree.
 
 Workflow:
@@ -18,22 +18,10 @@ Two DNA-flag signals are detected (either is sufficient):
   - An _MTTAG pointer to a tag-record whose NAME contains "DNA"
     (configurable from the UI)
 
-Pure stdlib. Requires Python 3 with tkinter (standard on Windows / macOS;
-on Linux you may need a python3-tk package).
+Pure stdlib + customtkinter. Requires Python 3.8+.
 """
 
 import tkinter.font as tkfont
-from tkinter import ttk, filedialog, messagebox, scrolledtext
-import tkinter as tk
-from gedcom_data_model import GedcomDataModel
-from gedcom_config import ConfigManager
-from gedcom_strings import *  # noqa: F401,F403  (all user-facing strings)
-from gedcom_core import (
-    bfs_find_dna_matches,
-    bfs_find_all_paths,
-    describe,
-    extract_ged_from_zip,
-)
 import argparse
 import difflib
 import os
@@ -42,48 +30,35 @@ import subprocess
 import sys
 import threading
 import webbrowser
-from collections import deque
+import tkinter as tk
+from tkinter import ttk, filedialog, messagebox
+import customtkinter as ctk
+
+from gedcom_data_model import GedcomDataModel
+from gedcom_config import ConfigManager
+from gedcom_strings import * # pylint: disable=unused-wildcard-import
+from gedcom_core import (
+    bfs_find_dna_matches,
+    bfs_find_all_paths,
+    describe,
+    extract_ged_from_zip,
+)
+from gedcom_relationship import (
+    get_ancestor_depths,
+    get_descendant_depths,
+    describe_relationship,
+)
+from gedcom_theme import Tooltip, THEME_NAMES, get_flag_bg
+from gedcom_gui_appearance import AppearanceMixin
+from gedcom_gui_dialogs import DialogsMixin
 
 
 def _open_url(url):
     # webbrowser.open() silently fails in PyInstaller .app bundles on macOS
-    # because Python routes through osascript, which can break in frozen apps.
-    # /usr/bin/open is always available and handles URLs reliably.
     if sys.platform == 'darwin':
         subprocess.run(['/usr/bin/open', url], check=False)
     else:
         webbrowser.open(url)
-
-
-class Tooltip:
-    """Small hover tooltip attached to a Tkinter widget."""
-
-    def __init__(self, widget, text):
-        """Bind tooltip display behavior to widget hover events."""
-        self._widget = widget
-        self._text = text
-        self._tip = None
-        widget.bind('<Enter>', self._show)
-        widget.bind('<Leave>', self._hide)
-
-    def _show(self, _event=None):
-        """Create and position the tooltip window."""
-        x = self._widget.winfo_rootx() + 20
-        y = self._widget.winfo_rooty() + self._widget.winfo_height() + 4
-        self._tip = tk.Toplevel(self._widget)
-        self._tip.wm_overrideredirect(True)
-        self._tip.wm_geometry(f'+{x}+{y}')
-        tk.Label(
-            self._tip, text=self._text, justify='left',
-            background='#ffffe0', relief='solid', borderwidth=1,
-            wraplength=360, padx=4, pady=2,
-        ).pack()
-
-    def _hide(self, _event=None):
-        """Destroy the tooltip window if it is visible."""
-        if self._tip:
-            self._tip.destroy()
-            self._tip = None
 
 
 def _read_version():
@@ -107,371 +82,37 @@ def _read_version():
 __version__, __release_date__ = _read_version()
 
 
-# Inline markdown: image (skip), link, bold, italic, code
-_INLINE_RE = re.compile(
-    r'!\[[^\]]*\]\([^)]*\)'      # image – discard, no capture groups
-    r'|\[([^\]]+)\]\(([^)]+)\)'  # link: g1 = display text, g2 = URL
-    r'|\*\*(.+?)\*\*'            # bold: g3
-    r'|\*(.+?)\*'                # italic: g4
-    r'|`(.+?)`'                  # inline code: g5
-)
-
-
-def _visual_len(text):
-    """Return rendered length of markdown text after stripping markup markers."""
-    t = re.sub(r'\*\*(.+?)\*\*', r'\1', text)
-    t = re.sub(r'\*(.+?)\*', r'\1', t)
-    t = re.sub(r'`(.+?)`', r'\1', t)
-    t = re.sub(r'\[([^\]]+)\]\([^)]+\)', r'\1', t)
-    t = re.sub(r'!\[[^\]]*\]\([^)]*\)', '', t)
-    return len(t)
-
-
-# ---------------------------------------------------------------------------
-# GEDCOM event helpers
-# ---------------------------------------------------------------------------
-
-def _extract_event(raw, event_tag):
-    """Return (date_str, place_str) for the first occurrence of event_tag in raw."""
-    date, place = '', ''
-    in_event = False
-    for level, _xref, tag, value in raw:
-        if level == 1:
-            if tag == event_tag:
-                in_event = True
-                date, place = '', ''
-            elif in_event:
-                break  # left the event's sub-records
-            else:
-                in_event = False
-        elif in_event and level == 2:
-            if tag == 'DATE' and not date:
-                date = value.strip()
-            elif tag == 'PLAC' and not place:
-                place = value.strip()
-    return date, place
-
-
-# ---------------------------------------------------------------------------
-# Relationship narrative helpers
-# ---------------------------------------------------------------------------
-
-def _edge_to_term(edge, sex):
-    """Single edge + target sex → plain-English word."""
-    if edge in ('father', 'mother'):
-        return edge
-    if edge == 'sibling':
-        return 'brother' if sex == 'M' else ('sister' if sex == 'F' else 'sibling')
-    if edge == 'child':
-        return 'son' if sex == 'M' else ('daughter' if sex == 'F' else 'child')
-    if edge == 'spouse':
-        return 'husband' if sex == 'M' else ('wife' if sex == 'F' else 'spouse')
-    return edge
-
-
-_ORDINALS = ['', 'first', 'second', 'third', 'fourth', 'fifth',
-             'sixth', 'seventh', 'eighth', 'ninth', 'tenth']
-_REMOVALS = {1: 'once', 2: 'twice', 3: 'three times',
-             4: 'four times', 5: 'five times'}
-
-
-def _nth_great(n):
-    """Return 'great-' for n==1, '2nd-great-' for n==2, '3rd-great-' for n==3, etc.
-
-    n==0 returns ''. Used to build compact ancestor/descendant labels.
-    """
-    if n == 0:
-        return ''
-    if n == 1:
-        return 'great-'
-    if 11 <= n % 100 <= 13:
-        suffix = 'th'
-    else:
-        suffix = {1: 'st', 2: 'nd', 3: 'rd'}.get(n % 10, 'th')
-    return f'{n}{suffix}-great-'
-
-
-def get_ancestor_depths(start_id, individuals, families):
-    """BFS over father/mother edges only → {ancestor_id: depth from start}."""
-    depths = {}
-    queue = deque([(start_id, 0)])
-    visited = {start_id}
-    while queue:
-        current_id, depth = queue.popleft()
-        indi = individuals.get(current_id)
-        if not indi:
-            continue
-        for fam_id in indi['famc']:
-            fam = families.get(fam_id)
-            if not fam:
-                continue
-            for parent_id in (fam['husb'], fam['wife']):
-                if parent_id and parent_id not in visited:
-                    visited.add(parent_id)
-                    depths[parent_id] = depth + 1
-                    queue.append((parent_id, depth + 1))
-    return depths
-
-
-def get_descendant_depths(start_id, individuals, families):
-    """BFS over child edges only → {descendant_id: depth from start}."""
-    depths = {}
-    queue = deque([(start_id, 0)])
-    visited = {start_id}
-    while queue:
-        current_id, depth = queue.popleft()
-        indi = individuals.get(current_id)
-        if not indi:
-            continue
-        for fam_id in indi['fams']:
-            fam = families.get(fam_id)
-            if not fam:
-                continue
-            for child_id in fam['chil']:
-                if child_id and child_id not in visited:
-                    visited.add(child_id)
-                    depths[child_id] = depth + 1
-                    queue.append((child_id, depth + 1))
-    return depths
-
-
-def describe_relationship(path, individuals, ancestors=None, descendants=None):
-    """Return a plain-English relationship from path[0] to path[-1].
-
-    Recognizes ancestors, descendants, siblings, spouses, cousins (all degrees
-    and removals), aunts/uncles, nieces/nephews, in-laws, and step-relations.
-    Falls back to a possessive chain (e.g. "father's brother's son") for paths
-    that don't fit a standard pattern.
-
-    ancestors  — optional dict {indi_id: depth} of biological ancestors of
-                 path[0], computed by get_ancestor_depths().  When provided,
-                 a target who is a known ancestor is always labelled by the
-                 direct ancestor term, even if the current path reaches them
-                 via a spouse edge (which would otherwise produce "step-X").
-    descendants — same idea for biological descendants.
-    """
-    if len(path) <= 1:
-        return 'same person'
-
-    edges = [e for _, e in path[1:]]
-    sexes = [individuals.get(nid, {}).get('sex', '') for nid, _ in path]
-    target_sex = sexes[-1]
-    up_set = {'father', 'mother'}
-
-    def chain():
-        return "'s ".join(_edge_to_term(edges[i], sexes[i + 1]) for i in range(len(edges)))
-
-    def segmented():
-        """Split at first *internal* spouse crossing and describe each part.
-
-        e.g. [father, sibling, child, child, spouse, father, father, father]
-        → "first cousin once removed's wife's great-grandfather"
-        Returns None when no useful split is possible.
-        """
-        sp_idx = next((i for i, e in enumerate(edges) if e == 'spouse'), None)
-        if sp_idx is None or sp_idx == 0:
-            return None
-        seg1 = path[:sp_idx + 1]
-        spouse_id = path[sp_idx + 1][0]
-        spouse_sex = individuals.get(spouse_id, {}).get('sex', '')
-        sp_term = ('wife' if spouse_sex == 'F'
-                   else 'husband' if spouse_sex == 'M' else 'spouse')
-        seg2 = [(spouse_id, None)] + list(path[sp_idx + 2:])
-        rel1 = describe_relationship(seg1, individuals)
-        rel2 = describe_relationship(
-            seg2, individuals) if len(seg2) > 1 else ''
-        return f"{rel1}'s {sp_term}'s {rel2}" if rel2 else f"{rel1}'s {sp_term}"
-
-    def ancestor_term(n, sex):
-        if n == 1:
-            return 'father' if sex == 'M' else ('mother' if sex == 'F' else 'parent')
-        gp = 'grandfather' if sex == 'M' else (
-            'grandmother' if sex == 'F' else 'grandparent')
-        return _nth_great(n - 2) + gp
-
-    def descendant_term(n, sex):
-        if n == 1:
-            return 'son' if sex == 'M' else ('daughter' if sex == 'F' else 'child')
-        gc = 'grandson' if sex == 'M' else (
-            'granddaughter' if sex == 'F' else 'grandchild')
-        return _nth_great(n - 2) + gc
-
-    # If the target is a known biological ancestor/descendant, use the direct
-    # label regardless of the (possibly indirect) path being examined.  This
-    # prevents an alternate route through a spouse edge from producing a
-    # spurious "step-" prefix (e.g. me→mother→grandmother→grandfather should
-    # still read "grandfather", not "step-grandfather").
-    target_id = path[-1][0]
-    if ancestors and target_id in ancestors:
-        return ancestor_term(ancestors[target_id], target_sex)
-    if descendants and target_id in descendants:
-        return descendant_term(descendants[target_id], target_sex)
-
-    # Pure ancestor (all father/mother edges)
-    if all(e in up_set for e in edges):
-        return ancestor_term(len(edges), target_sex)
-
-    # Pure descendant (all child edges)
-    if all(e == 'child' for e in edges):
-        return descendant_term(len(edges), target_sex)
-
-    # Single edge (sibling, spouse, etc.)
-    if len(edges) == 1:
-        return _edge_to_term(edges[0], target_sex)
-
-    # Strip exactly one leading or one trailing spouse; anything else → chain
-    inner = list(edges)
-    lead_sp = trail_sp = 0
-    while inner and inner[0] == 'spouse':
-        lead_sp += 1
-        inner.pop(0)
-    while inner and inner[-1] == 'spouse':
-        trail_sp += 1
-        inner.pop()
-    if not inner or lead_sp > 1 or trail_sp > 1 or (lead_sp and trail_sp):
-        return segmented() or chain()
-
-    # Validate inner: all-up → optional single sibling → all-down.
-    # If the sequence fails because of interior spouse edges (path navigated
-    # through a family unit rather than directly), strip those spouse edges
-    # and retry — they don't change the fundamental relationship.
-    def _classify(seq):
-        st = 'up'
-        uu = dd = ss = 0
-        ok = True
-        for e in seq:
-            if st == 'up':
-                if e in up_set:
-                    uu += 1
-                elif e == 'sibling':
-                    ss += 1
-                    st = 'down'
-                elif e == 'child':
-                    dd += 1
-                    st = 'down'
-                else:
-                    ok = False
-                    break
-            elif st == 'down':
-                if e == 'child':
-                    dd += 1
-                else:
-                    ok = False
-                    break
-        return uu, dd, ss, ok
-
-    u, d, s, valid = _classify(inner)
-    if not valid:
-        # Retry 1: strip interior spouse edges (family-unit crossings that
-        # don't change the relationship degree).
-        no_sp = [e for e in inner if e != 'spouse']
-        if no_sp != inner:
-            u, d, s, valid = _classify(no_sp)
-        else:
-            no_sp = inner
-        # Retry 2: strip a trailing sibling edge.  The sibling of an Nth
-        # cousin / niece / uncle at a given degree is still at that same
-        # degree, so the relationship label is unchanged.  (Retry 1 must run
-        # first so no_sp is already spouse-free before we trim the tail.)
-        if not valid and no_sp and no_sp[-1] == 'sibling':
-            trimmed = no_sp[:-1]
-            if trimmed:
-                u, d, s, valid = _classify(trimmed)
-    if not valid:
-        return segmented() or chain()
-
-    u_eff = u + s
-    d_eff = d + s
-
-    # Inner is all-up: spouse + ancestors → in-law; ancestors + spouse → step-
-    if d_eff == 0:
-        return (ancestor_term(u, target_sex) + '-in-law' if lead_sp
-                else 'step-' + ancestor_term(u, target_sex))
-
-    # Inner is all-down: descendants + spouse → in-law; spouse + descendants → step-
-    if u_eff == 0:
-        return (descendant_term(d, target_sex) + '-in-law' if trail_sp
-                else 'step-' + descendant_term(d, target_sex))
-
-    # Cousin-type: compute degree and number of removals
-    cn = min(u_eff, d_eff) - 1
-    rem = abs(u_eff - d_eff)
-    more_desc = d_eff > u_eff   # target is further from the common ancestor
-
-    if cn == 0 and rem == 0:
-        core = 'brother' if target_sex == 'M' else (
-            'sister' if target_sex == 'F' else 'sibling')
-    elif cn == 0:
-        if more_desc:
-            core = 'nephew' if target_sex == 'M' else (
-                'niece' if target_sex == 'F' else 'niece/nephew')
-        else:
-            core = 'uncle' if target_sex == 'M' else (
-                'aunt' if target_sex == 'F' else 'uncle/aunt')
-        if rem > 1:
-            core = _nth_great(rem - 1) + core
-    else:
-        n_str = _ORDINALS[cn] if cn < len(_ORDINALS) else f'{cn}th'
-        r_str = _REMOVALS.get(rem, f'{rem} times')
-        core = f'{n_str} cousin' + (f' {r_str} removed' if rem else '')
-
-    return core + '-in-law' if (lead_sp or trail_sp) else core
-
-
 # ===========================================================================
 # GUI
 # ===========================================================================
 
-class DNAMatchFinderApp:
-    """Tkinter application for browsing GEDCOM people and finding DNA matches."""
+class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
+    """customtkinter application for browsing GEDCOM people and finding DNA matches."""
 
-    MAX_LIST_DISPLAY = 2000  # cap visible rows in the people list
-    FUZZY_THRESHOLD = 0.72   # minimum SequenceMatcher ratio to count as a match
-    MAX_RECENT = 10          # number of recent files to remember
+    MAX_LIST_DISPLAY = 2000
+    FUZZY_THRESHOLD = 0.72
+    MAX_RECENT = 10
+    MAIN_PREFERRED_WIDTH = 1500
+    MAIN_PREFERRED_HEIGHT = 760
+    RESULTS_PREFERRED_WIDTH = 850
     _FONT_SIZES = {
-        'small':  {'ui': 9,  'mono': 9},
-        'medium': {'ui': 10, 'mono': 10},
-        'large':  {'ui': 13, 'mono': 12},
+        'small':  {'ui': 9,  'mono': 11},
+        'medium': {'ui': 11, 'mono': 14},
+        'large':  {'ui': 15, 'mono': 18},
     }
-    _THEME_NAMES = ('Default', 'Light', 'Dark', 'Blue', 'Green')
-    _THEMES = {
-        'Light': {
-            'ttk': 'clam',
-            'bg': '#f0f2f5', 'fg': '#1a1a1a',
-            'button_bg': '#dde1e7', 'field_bg': '#ffffff',
-            'text_bg': '#ffffff', 'text_fg': '#1a1a1a',
-            'select_bg': '#3d7ec7', 'select_fg': '#ffffff',
-            'heading_bg': '#d0d4db', 'trough': '#c5c9d0',
-            'flag_bg': '#fff4cc', 'link': '#1155bb', 'insert': '#1a1a1a',
-        },
-        'Dark': {
-            'ttk': 'clam',
-            'bg': '#2b2b2b', 'fg': '#d4d4d4',
-            'button_bg': '#404040', 'field_bg': '#3c3c3c',
-            'text_bg': '#1e1e1e', 'text_fg': '#d4d4d4',
-            'select_bg': '#264f78', 'select_fg': '#ffffff',
-            'heading_bg': '#404040', 'trough': '#1e1e1e',
-            'flag_bg': '#3d3000', 'link': '#6bbfff', 'insert': '#d4d4d4',
-        },
-        'Blue': {
-            'ttk': 'clam',
-            'bg': '#d4e4f5', 'fg': '#0a2040',
-            'button_bg': '#b8d0e8', 'field_bg': '#eaf2fb',
-            'text_bg': '#eaf2fb', 'text_fg': '#0a2040',
-            'select_bg': '#1a5c9a', 'select_fg': '#ffffff',
-            'heading_bg': '#b0c8e0', 'trough': '#a8c0d8',
-            'flag_bg': '#fffacc', 'link': '#004499', 'insert': '#0a2040',
-        },
-        'Green': {
-            'ttk': 'clam',
-            'bg': '#d0ebd0', 'fg': '#0a2a0a',
-            'button_bg': '#b8d8b8', 'field_bg': '#e8f5e8',
-            'text_bg': '#e8f5e8', 'text_fg': '#0a2a0a',
-            'select_bg': '#2a6a2a', 'select_fg': '#ffffff',
-            'heading_bg': '#a8c8a8', 'trough': '#a0c0a0',
-            'flag_bg': '#fffacc', 'link': '#005500', 'insert': '#0a2a0a',
-        },
-    }
+    _THEME_NAMES = THEME_NAMES
+
+    @staticmethod
+    def _pick_mono_family():
+        if sys.platform == 'darwin':
+            return 'Menlo'
+        if sys.platform == 'win32':
+            return 'Consolas'
+        available = set(tkfont.families())
+        for name in ('DejaVu Sans Mono', 'Liberation Mono', 'Courier New'):
+            if name in available:
+                return name
+        return 'Courier'
 
     def __init__(self, root):
         """Initialize application state, preferences, data model, and widgets."""
@@ -480,25 +121,29 @@ class DNAMatchFinderApp:
 
         self.root = root
         self.root.title(APP_TITLE)
-        self.root.geometry("1100x720")
-        self.root.minsize(800, 500)
+
         if sys.platform == 'win32':
-            self.root.iconbitmap(self._resource_path('icons/family_tree.ico'))
+            try:
+                self.root.iconbitmap(
+                    self._resource_path('icons/family_tree.ico'))
+            except Exception:  # pylint: disable=broad-exception-caught
+                pass
         elif sys.platform != 'darwin':
-            icon = tk.PhotoImage(
-                file=self._resource_path('icons/family_tree.png'))
-            self.root.iconphoto(True, icon)
-        # macOS: icon is handled by the .app bundle's .icns file
+            try:
+                icon = tk.PhotoImage(
+                    file=self._resource_path('icons/family_tree.png'))
+                self.root.iconphoto(True, icon)
+            except Exception:  # pylint: disable=broad-exception-caught
+                pass
 
         # Data state
         self.individuals = {}
         self.families = {}
         self.tag_records = {}
-        # all IDs sorted by name (computed once after load)
         self.sorted_ids = []
-        self._home_person_id = None   # persisted per GEDCOM file
+        self._home_person_id = None
 
-        # UI state
+        # UI state variables
         self.gedcom_path = tk.StringVar()
         self.tag_keyword = tk.StringVar(value="DNA")
         self.page_marker = tk.StringVar(value="AncestryDNA Match")
@@ -507,10 +152,11 @@ class DNAMatchFinderApp:
         self.show_flagged_only = tk.BooleanVar(value=False)
         self.top_n = tk.IntVar(value=self._config.get_top_n())
         self.max_depth = tk.IntVar(value=self._config.get_max_depth())
+        self.max_display = tk.IntVar(
+            value=self._config.get_max_display(self.MAX_LIST_DISPLAY))
         self.fuzzy_threshold = tk.DoubleVar(
             value=self._config.get_fuzzy_threshold(self.FUZZY_THRESHOLD))
         self.status_text = tk.StringVar(value=STATUS_NO_FILE)
-
         self.fuzzy_search = tk.BooleanVar(value=False)
         self.show_ids = tk.BooleanVar(value=self._config.get_show_ids())
         self._name_order = self._config.get_name_order()
@@ -529,8 +175,9 @@ class DNAMatchFinderApp:
         self.tag_keyword.trace_add('write', self._on_dna_settings_change)
         self.page_marker.trace_add('write', self._on_dna_settings_change)
         self._dna_settings_after_id = None
-        # {'type': 'dna_matches'|'path', 'start_id': ..., 'end_id': ...}
         self._last_result = None
+        self._results_reversed = False
+        self._active_id = None
         self._busy = False
         self._sort_col = 'name'
         self._sort_rev = False
@@ -538,17 +185,30 @@ class DNAMatchFinderApp:
         self._recent_files = self._load_history()
         self._show_person_geometry = self._load_show_person_geometry()
 
-        self._default_ttk_theme = ttk.Style().theme_use()
-        self._mono_font = tkfont.Font(family='Courier', size=10)
+        self._mono_family = self._pick_mono_family()
+        self._mono_size = self._FONT_SIZES['medium']['mono']
+        # tkfont.Font objects are used by render_markdown and tag introspection;
+        # CTkTextbox requires tuple/CTkFont at creation time (see _build_ui).
+        self._mono_font = tkfont.Font(
+            family=self._mono_family, size=self._mono_size)
         self._mono_font_bold = tkfont.Font(
-            family='Courier', size=10, weight='bold')
+            family=self._mono_family, size=self._mono_size, weight='bold')
         self._link_color = '#0066cc'
+
+        # Progress animation state
+        self._progress_anim_id = None
+        self._progress_anim_val = 0.0
+
         self._font_size_pref = self._load_font_preference()
         self._theme_pref = self._load_theme_preference()
+        self._hide_tooltips_pref = self._load_hide_tooltips_preference()
         self._apply_font_size(self._font_size_pref)
         self._apply_theme(self._theme_pref)
+        Tooltip.enabled = not self._hide_tooltips_pref
 
-        # Remove any leftover .pkl files from the old pickle-based cache
+        self._version = __version__
+        self._release_date = __release_date__
+
         try:
             for _pkl in self._cache_dir().glob('*.pkl'):
                 _pkl.unlink(missing_ok=True)
@@ -556,105 +216,110 @@ class DNAMatchFinderApp:
             pass
 
         self._build_ui()
+        self._fit_window_to_content(
+            self.root,
+            min_w=800,
+            min_h=500,
+            preferred_w=self.MAIN_PREFERRED_WIDTH,
+            preferred_h=self.MAIN_PREFERRED_HEIGHT,
+            max_screen_ratio=0.92,
+            center_on_root=False,
+        )
 
-        # Snap the initial window width up to what Tk actually needs so that
-        # all action-bar buttons are fully visible on first launch.
-        # update_idletasks() is a best-effort pass; geometry propagation in Tk
-        # can require multiple idle rounds, so we also schedule a deferred
-        # refit that runs after the event loop starts and layout has settled.
-        # This is necessary when a non-default font (e.g. "large") is configured
-        # at startup, because a single update_idletasks() call may return a
-        # stale winfo_reqwidth() before all geometry passes have completed.
-        self.root.update_idletasks()
-        min_w = self.root.winfo_reqwidth()
-        if min_w > self.root.winfo_width():
-            self.root.geometry(f"{min_w}x{self.root.winfo_height()}")
-        self.root.minsize(max(min_w, 800), 500)
-        self.root.after(0, self._refit_windows)
-
-        # Re-open the most-recently-used file automatically on startup
         if self._recent_files and os.path.isfile(self._recent_files[0]):
             self.gedcom_path.set(self._recent_files[0])
             self.root.after(0, self._load_file)
+
+    # ---------------------------------------------------------- UI build helpers
+    def _section(self, parent, label=None):
+        """Return a CTkFrame styled as a labelled section group."""
+        outer = ctk.CTkFrame(parent, border_width=1)
+        if label:
+            ctk.CTkLabel(outer, text=label, anchor='w').pack(
+                anchor='nw', padx=10, pady=(6, 2))
+        inner = ctk.CTkFrame(outer, fg_color='transparent')
+        inner.pack(fill='x', padx=8, pady=(0, 8))
+        return inner
 
     # ---------------------------------------------------------- UI build
     def _build_ui(self):
         """Build the main application window and connect primary controls."""
         self._setup_menu()
-        outer = ttk.Frame(self.root, padding=8)
-        outer.pack(fill='both', expand=True)
-
-        # File row
-        file_frame = ttk.LabelFrame(outer, text=FRAME_GEDCOM_FILE, padding=8)
-        file_frame.pack(fill='x')
-        self.path_combo = ttk.Combobox(
-            file_frame, textvariable=self.gedcom_path, values=self._recent_files
-        )
-        self.path_combo.pack(side='left', fill='x', expand=True, padx=(0, 4))
-        self.path_combo.bind('<<ComboboxSelected>>',
-                             lambda _: self._load_file())
-        self.browse_btn = ttk.Button(file_frame, text=BTN_BROWSE,
-                                     command=self._browse)
-        self.browse_btn.pack(side='left', padx=2)
-        self.load_btn = ttk.Button(file_frame, text=BTN_LOAD,
-                                   command=self._load_file)
-        self.load_btn.pack(side='left', padx=2)
+        outer = ctk.CTkFrame(self.root, fg_color='transparent')
+        outer.pack(fill='both', expand=True, padx=8, pady=8)
 
         # Settings row
-        settings_frame = ttk.LabelFrame(
-            outer, text=FRAME_DNA_SETTINGS, padding=8)
-        settings_frame.pack(fill='x', pady=(8, 0))
-        ttk.Label(settings_frame, text=LBL_TAG_KEYWORD).grid(
+        settings_group = ctk.CTkFrame(outer, border_width=1)
+        settings_group.pack(fill='x', pady=(8, 0))
+        ctk.CTkLabel(settings_group, text=FRAME_DNA_SETTINGS, anchor='w').pack(
+            anchor='nw', padx=10, pady=(6, 2))
+        settings_frame = ctk.CTkFrame(settings_group, fg_color='transparent')
+        settings_frame.pack(fill='x', padx=8, pady=(0, 8))
+
+        # Tag Keyword and Page Marker settings
+        ctk.CTkLabel(settings_frame, text=LBL_TAG_KEYWORD).grid(
             row=0, column=0, sticky='w', padx=(0, 4))
-        ttk.Entry(settings_frame, textvariable=self.tag_keyword,
-                  width=20).grid(row=0, column=1, padx=(0, 16))
-        ttk.Label(settings_frame, text=LBL_PAGE_MARKER).grid(
+        ctk.CTkEntry(settings_frame, textvariable=self.tag_keyword,
+                     width=150).grid(row=0, column=1, padx=(0, 16))
+        Tooltip(settings_frame.grid_slaves(row=0, column=1)[0], TIP_TAG_KEYWORD)
+        ctk.CTkLabel(settings_frame, text=LBL_PAGE_MARKER).grid(
             row=0, column=2, sticky='w', padx=(0, 4))
-        ttk.Entry(settings_frame, textvariable=self.page_marker,
-                  width=30).grid(row=0, column=3, padx=(0, 16))
-        _select_tag_btn = ttk.Button(settings_frame, text=BTN_SELECT_TAG,
-                                     underline=7, command=self._view_tags)
+        ctk.CTkEntry(settings_frame, textvariable=self.page_marker,
+                     width=240).grid(row=0, column=3, padx=(0, 16))
+        Tooltip(settings_frame.grid_slaves(row=0, column=3)[0], TIP_PAGE_MARKER)
+        _select_tag_btn = ctk.CTkButton(
+            settings_frame, text=BTN_SELECT_TAG, width=100, command=self._view_tags)
         _select_tag_btn.grid(row=0, column=4, padx=4)
         Tooltip(_select_tag_btn, TIP_SELECT_TAG)
-        _find_path_btn = ttk.Button(settings_frame, text=BTN_FIND_PATH,
-                                    underline=18, command=self._find_path)
+        _find_path_btn = ctk.CTkButton(
+            settings_frame, text=BTN_FIND_PATH, width=120, command=self._find_path)
         _find_path_btn.grid(row=0, column=5, padx=(12, 4))
         Tooltip(_find_path_btn, TIP_FIND_PATH)
 
         # Main paned area
         paned = ttk.PanedWindow(outer, orient='horizontal')
+        self._paned = paned
         paned.pack(fill='both', expand=True, pady=(8, 0))
 
-        # --- Left pane: search + list + action controls ---
-        left = ttk.Frame(paned)
+        # --- Left pane ---
+        left = ctk.CTkFrame(paned, fg_color='transparent')
         paned.add(left, weight=1)
 
-        search_frame = ttk.Frame(left)
+        search_frame = ctk.CTkFrame(left, fg_color='transparent')
         search_frame.pack(fill='x')
-        ttk.Label(search_frame, text=LBL_FIND, underline=0).pack(
+        # Find: box
+        ctk.CTkLabel(search_frame, text=LBL_FIND).pack(
             side='left', padx=(0, 4))
-        self.search_entry = ttk.Entry(
+        self.search_entry = ctk.CTkEntry(
             search_frame, textvariable=self.search_text)
         self.search_entry.pack(side='left', fill='x', expand=True)
         self.search_entry.bind(
-            '<Return>', lambda _: self._search_flush_and_jump())
-        ttk.Checkbutton(
-            search_frame, text=CHK_DNA_FLAGGED_ONLY, underline=0, variable=self.show_flagged_only
+            '<Return>', lambda *_: self._search_flush_and_jump())
+        Tooltip(self.search_entry, TIP_FIND)
+        # DNA-flagged only and fuzzy search checkboxes
+        ctk.CTkCheckBox(
+            search_frame, text=CHK_DNA_FLAGGED_ONLY,
+            variable=self.show_flagged_only, width=0,
         ).pack(side='left', padx=(8, 0))
-        ttk.Checkbutton(
-            search_frame, text=CHK_FUZZY, variable=self.fuzzy_search, underline=1
+        Tooltip(search_frame.winfo_children()[-1], TIP_DNA_FLAGGED_ONLY)
+        ctk.CTkCheckBox(
+            search_frame, text=CHK_FUZZY,
+            variable=self.fuzzy_search, width=0,
         ).pack(side='left', padx=(8, 0))
+        Tooltip(search_frame.winfo_children()[-1], TIP_FUZZY)
 
-        filter_frame = ttk.Frame(left)
+        # Filter: box
+        filter_frame = ctk.CTkFrame(left, fg_color='transparent')
         filter_frame.pack(fill='x', pady=(2, 0))
-        ttk.Label(filter_frame, text=LBL_FILTER, underline=1).pack(
+        ctk.CTkLabel(filter_frame, text=LBL_FILTER).pack(
             side='left', padx=(0, 4))
-        self.filter_entry = ttk.Entry(
+        self.filter_entry = ctk.CTkEntry(
             filter_frame, textvariable=self.filter_text)
         self.filter_entry.pack(side='left', fill='x', expand=True)
-        self.filter_entry.bind('<Return>', lambda _: self._kb_focus_list())
+        self.filter_entry.bind('<Return>', lambda *_: self._kb_focus_list())
+        Tooltip(self.filter_entry, TIP_FILTER)
 
-        list_frame = ttk.Frame(left)
+        list_frame = ctk.CTkFrame(left, fg_color='transparent')
         list_frame.pack(fill='both', expand=True, pady=(4, 0))
 
         self.tree = ttk.Treeview(
@@ -671,113 +336,199 @@ class DNAMatchFinderApp:
                           command=lambda: self._sort_by('death'))
         self.tree.heading('flagged', text=COL_DNA,
                           command=lambda: self._sort_by('flagged'))
+        _mac = sys.platform == 'darwin'
         self.tree.column('name', width=240, anchor='w', stretch=True)
-        self.tree.column('birth', width=55, anchor='w', stretch=False)
-        self.tree.column('death', width=55, anchor='w', stretch=False)
-        self.tree.column('flagged', width=50, anchor='center', stretch=False)
+        self.tree.column('birth', width=72 if _mac else 55, anchor='w', stretch=False)
+        self.tree.column('death', width=72 if _mac else 55, anchor='w', stretch=False)
+        self.tree.column('flagged', width=65 if _mac else 50, anchor='center', stretch=False)
 
-        ysb = ttk.Scrollbar(list_frame, orient='vertical',
-                            command=self.tree.yview)
-        ysb.configure(takefocus=False)
+        ysb = ctk.CTkScrollbar(list_frame, orientation='vertical',
+                               command=self.tree.yview)
         self.tree.configure(yscrollcommand=ysb.set)
         self.tree.pack(side='left', fill='both', expand=True)
         ysb.pack(side='right', fill='y')
 
-        # Highlight flagged rows
-        self.tree.tag_configure('flagged_row', background='#fff4cc')
+        is_dark = ctk.get_appearance_mode() == 'Dark'
+        self.tree.tag_configure('flagged_row', background=get_flag_bg(is_dark))
 
-        self.tree.bind('<Double-1>', lambda e: self._find_matches())
-        self.tree.bind('<Return>', lambda e: self._find_matches())
+        self.tree.bind('<Double-1>', lambda *_: self._find_matches())
+        self.tree.bind('<Return>', lambda *_: self._find_matches())
         self.tree.bind('<Key>', self._tree_type_ahead)
-        self.tree.bind('<Home>', lambda e: self._tree_jump('first') or 'break')
-        self.tree.bind('<End>', lambda e: self._tree_jump('last') or 'break')
+        self.tree.bind('<Home>', lambda *_: self._tree_jump('first') or 'break')
+        self.tree.bind('<End>', lambda *_: self._tree_jump('last') or 'break')
 
-        # Action controls
-        action_frame = ttk.Frame(left)
+        # Action controls — single row grid.  Column 4 is a flexible spacer
+        # that absorbs surplus space; every other column sizes to its content.
+        action_frame = ctk.CTkFrame(left, fg_color='transparent')
+        self._action_frame = action_frame
         action_frame.pack(fill='x', pady=(6, 0))
-        _top_n_label = ttk.Label(action_frame, text=LBL_TOP_N)
-        _top_n_label.pack(side='left')
+        action_frame.grid_columnconfigure(4, weight=1)
+
+        _top_n_label = ctk.CTkLabel(action_frame, text=LBL_TOP_N)
+        _top_n_label.grid(row=0, column=0, sticky='w')
         self.top_n_spin = ttk.Spinbox(
             action_frame, from_=1, to=20, textvariable=self.top_n, width=4)
-        self.top_n_spin.pack(side='left', padx=(2, 12))
+        self.top_n_spin.grid(row=0, column=1, padx=(2, 12))
         Tooltip(_top_n_label, TIP_TOP_N)
         Tooltip(self.top_n_spin, TIP_TOP_N)
-        _max_depth_label = ttk.Label(action_frame, text=LBL_MAX_DEPTH)
-        _max_depth_label.pack(side='left')
+
+        _max_depth_label = ctk.CTkLabel(action_frame, text=LBL_MAX_DEPTH)
+        _max_depth_label.grid(row=0, column=2, sticky='w')
         self.max_depth_spin = ttk.Spinbox(
-            action_frame, from_=1, to=200, textvariable=self.max_depth, width=4)
-        self.max_depth_spin.pack(side='left', padx=(2, 12))
+            action_frame, from_=1, to=200, textvariable=self.max_depth, width=5)
+        self.max_depth_spin.grid(row=0, column=3, padx=(2, 0))
         Tooltip(_max_depth_label, TIP_MAX_DEPTH)
         Tooltip(self.max_depth_spin, TIP_MAX_DEPTH)
-        self.find_matches_btn = ttk.Button(
-            action_frame, text=BTN_FIND_MATCHES, underline=5,
-            command=self._find_matches
-        )
-        self.find_matches_btn.pack(side='right')
-        self.show_person_btn = ttk.Button(
-            action_frame, text=BTN_SHOW_PERSON, underline=0,
-            command=self._show_person
-        )
-        self.show_person_btn.pack(side='right', padx=(0, 6))
-        self.set_home_btn = ttk.Button(
-            action_frame, text=BTN_SET_HOME, underline=4,
-            command=self._set_home_person
-        )
-        self.set_home_btn.pack(side='right', padx=(0, 4))
 
-        # --- Right pane: results ---
-        right = ttk.Frame(paned)
-        paned.add(right, weight=2)
+        self.set_home_btn = ctk.CTkButton(
+            action_frame, text=BTN_SET_HOME, command=self._set_home_person)
+        self.set_home_btn.grid(row=0, column=5, padx=(0, 6))
+        Tooltip(self.set_home_btn, TIP_SET_HOME)
+        self.show_person_btn = ctk.CTkButton(
+            action_frame, text=BTN_SHOW_PERSON, command=self._show_person)
+        self.show_person_btn.grid(row=0, column=6, padx=(0, 6))
+        Tooltip(self.show_person_btn, TIP_SHOW_PERSON)
+        self.find_matches_btn = ctk.CTkButton(
+            action_frame, text=BTN_FIND_MATCHES, command=self._find_matches)
+        self.find_matches_btn.grid(row=0, column=7)
+        Tooltip(self.find_matches_btn, TIP_FIND_MATCHES)
 
-        results_header = ttk.Frame(right)
+        # --- Right pane ---
+        right = ctk.CTkFrame(paned, fg_color='transparent')
+        paned.add(right, weight=3)
+
+        # Enforce a minimum left-pane width so the five action-row controls are
+        # never clipped.  ttk.PanedWindow has no built-in minsize option, so we
+        # clamp the sash position on initial layout and on every drag.
+        #
+        # We sum the reqwidths of the fixed-column widgets directly rather than
+        # reading the action frame's reqwidth: the frame is packed with fill='x'
+        # and its grid has a weight-1 spacer column, so after layout its
+        # reqwidth reflects the full expanded width, not the minimum content.
+        #
+        # On Windows the paned window has no real size until the event loop
+        # processes the geometry request, so _init_sash retries until
+        # winfo_width() returns a non-trivial value before placing the sash.
+        _sash_initialized = [False]
+
+        def _action_min_w():
+            # padx totals per grid() call: spinbox1=14, spinbox2=2,
+            # set_home=6, show_person=6, find_matches=0
+            return (
+                _top_n_label.winfo_reqwidth()
+                + self.top_n_spin.winfo_reqwidth() + 14
+                + _max_depth_label.winfo_reqwidth()
+                + self.max_depth_spin.winfo_reqwidth() + 2
+                + self.set_home_btn.winfo_reqwidth() + 6
+                + self.show_person_btn.winfo_reqwidth() + 6
+                + self.find_matches_btn.winfo_reqwidth()
+            )
+
+        def _clamp_left_pane(event=None):
+            _sash_initialized[0] = True
+            try:
+                min_w = _action_min_w()
+                if min_w > 0 and paned.sashpos(0) < min_w:
+                    paned.sashpos(0, min_w)
+            except Exception: # pylint: disable=broad-exception-caught
+                pass
+
+        def _init_sash():
+            if _sash_initialized[0]:
+                return
+            try:
+                pane_w = paned.winfo_width()
+                if pane_w <= 1:
+                    self.root.after(100, _init_sash)
+                    return
+                min_w = _action_min_w()
+                target = max(min_w, pane_w - self.RESULTS_PREFERRED_WIDTH)
+                paned.sashpos(0, target)
+                _sash_initialized[0] = True
+            except Exception: # pylint: disable=broad-exception-caught
+                pass
+
+        self.root.after(50, _init_sash)
+        paned.bind('<B1-Motion>', lambda e: _clamp_left_pane())
+
+        results_header = ctk.CTkFrame(right, fg_color='transparent')
         results_header.pack(fill='x')
-        ttk.Label(results_header, text=LBL_RESULTS).pack(side='left')
-        ttk.Button(results_header, text=BTN_COPY, underline=0,
-                   command=self._copy_results).pack(side='right')
-        ttk.Button(results_header, text=BTN_CLEAR, underline=1,
-                   command=self._clear_results).pack(side='right', padx=(0, 4))
+        self._results_header_var = tk.StringVar()
+        self._results_header_label = ctk.CTkLabel(
+            results_header,
+            textvariable=self._results_header_var,
+            anchor='center',
+            font=ctk.CTkFont(size=self._mono_size, weight='bold'),
+            fg_color='transparent',
+            corner_radius=6,
+        )
+        self._results_header_label.pack(side='left', fill='x', expand=True, ipady=4)
 
-        self.results = scrolledtext.ScrolledText(
-            right, font=self._mono_font, wrap='word', height=10
+        self.results = ctk.CTkTextbox(
+            right,
+            font=(self._mono_family, self._mono_size),
+            wrap='word', height=10, width=self.RESULTS_PREFERRED_WIDTH,
+            activate_scrollbars=True,
         )
         self.results.pack(fill='both', expand=True, pady=(4, 0))
-        self.results.tag_configure('bold', font=self._mono_font_bold)
+        self.results._textbox.tag_configure(
+            'bold', font=(self._mono_family, self._mono_size, 'bold'))
         self.results.configure(state='disabled')
 
         # Status bar
-        status_bar = ttk.Frame(outer, relief='sunken')
+        status_bar = ctk.CTkFrame(outer, border_width=1)
         status_bar.pack(fill='x', pady=(8, 0))
         status_bar.columnconfigure(0, weight=1)
-        ttk.Label(status_bar, textvariable=self.status_text, anchor='w').grid(
-            row=0, column=0, sticky='ew', padx=(4, 0), pady=1)
-        self._progress_bar = ttk.Progressbar(
-            status_bar, mode='indeterminate', length=130)
-        self._progress_bar.grid(row=0, column=1, padx=(4, 2), pady=2)
-        self._progress_bar.grid_remove()  # hidden until a long operation starts
+        ctk.CTkLabel(
+            status_bar, textvariable=self.status_text, anchor='w',
+        ).grid(row=0, column=0, sticky='ew', padx=(8, 0), pady=4)
+        self._reverse_btn = ctk.CTkButton(status_bar, text=BTN_REVERSE, width=110,
+                                          command=self._reverse_results, state='disabled')
+        self._reverse_btn.grid(row=0, column=1, padx=(4, 4), pady=4)
+        Tooltip(self._reverse_btn, TIP_REVERSE)
+        self._copy_btn = ctk.CTkButton(status_bar, text=BTN_COPY, width=80,
+                                       command=self._copy_results)
+        self._copy_btn.grid(row=0, column=2, padx=(4, 8), pady=4)
+        Tooltip(self._copy_btn, TIP_COPY)
+        self._progress_bar = ctk.CTkProgressBar(status_bar, width=130)
+        self._progress_bar.set(0)
+        self._progress_bar.grid(row=0, column=2, padx=(4, 8), pady=4)
+        self._progress_bar.grid_remove()
 
         self._setup_keybindings()
 
     # ---------------------------------------------------------- Busy / progress
     def _show_progress(self, msg=None):
-        """Reveal the indeterminate progress bar and optionally set status text."""
+        """Reveal the animated progress bar and optionally set status text."""
         if msg:
             self.status_text.set(msg)
+        self._copy_btn.grid_remove()
         self._progress_bar.grid()
-        self._progress_bar.start(12)
+        self._progress_anim_val = 0.0
+        if self._progress_anim_id is None:
+            self._tick_progress()
         self.root.update_idletasks()
+
+    def _tick_progress(self):
+        """Advance the progress bar animation one step."""
+        self._progress_anim_val = (self._progress_anim_val + 0.03) % 1.0
+        self._progress_bar.set(self._progress_anim_val)
+        self._progress_anim_id = self.root.after(50, self._tick_progress)
 
     def _hide_progress(self):
         """Stop and hide the progress bar."""
-        self._progress_bar.stop()
+        if self._progress_anim_id is not None:
+            self.root.after_cancel(self._progress_anim_id)
+            self._progress_anim_id = None
         self._progress_bar.grid_remove()
+        self._copy_btn.grid()
 
     def _set_busy(self, busy):
         """Disable or re-enable the controls that trigger long operations."""
         self._busy = busy
         state = 'disabled' if busy else 'normal'
-        for widget in (self.load_btn, self.browse_btn,
-                       self.path_combo, self.find_matches_btn):
-            widget.configure(state=state)
+        self.find_matches_btn.configure(state=state)
+        self._file_menu.entryconfigure(MENU_OPEN_GEDCOM, state=state)
 
     # ---------------------------------------------------------- Handlers
     def _browse(self):
@@ -904,8 +655,21 @@ class DNAMatchFinderApp:
         kind = self._last_result['type']
         start_id = self._last_result['start_id']
         if kind == 'dna_matches':
-            results = self._model.find_dna_matches(start_id, top_n, max_depth)
-            self._render_results(start_id, results)
+            def _do_refresh():
+                try:
+                    results = self._model.find_dna_matches(start_id, top_n, max_depth)
+                    home_paths = None
+                    home_id = self._home_person_id
+                    if home_id and home_id != start_id and home_id in self.individuals:
+                        home_paths, _ = bfs_find_all_paths(
+                            start_id, home_id, self.individuals, self.families,
+                            top_n=1, max_depth=max_depth,
+                        )
+                    self.root.after(0, lambda: self._render_results(
+                        start_id, results, home_paths=home_paths))
+                except Exception:  # pylint: disable=broad-exception-caught
+                    pass
+            threading.Thread(target=_do_refresh, daemon=True).start()
         elif kind == 'path':
             end_id = self._last_result['end_id']
             paths, truncated = self._model.find_all_paths(
@@ -914,7 +678,6 @@ class DNAMatchFinderApp:
 
     def _on_search_change(self, *_):
         """Debounce person-list filtering while the user types."""
-        # Debounce so typing doesn't refilter on every keystroke
         if self._search_after_id is not None:
             self.root.after_cancel(self._search_after_id)
         self._search_after_id = self.root.after(150, self._populate_tree)
@@ -930,7 +693,6 @@ class DNAMatchFinderApp:
     def _populate_tree(self):
         """Populate the people list using current search, filter, and sort settings."""
         self._search_after_id = None
-        # Save current selection so we can restore it if still visible
         prev_sel = self.tree.selection()
         prev_id = prev_sel[0] if prev_sel else None
 
@@ -946,7 +708,6 @@ class DNAMatchFinderApp:
         flagged_count = sum(
             1 for i in self.individuals.values() if i['dna_markers'])
 
-        # Update column heading sort indicators
         _col_labels = {'name': COL_NAME, 'birth': COL_BIRTH,
                        'death': COL_DEATH, 'flagged': COL_DNA}
         for _col, _label in _col_labels.items():
@@ -954,7 +715,6 @@ class DNAMatchFinderApp:
                 ' ▼' if self._sort_rev else ' ▲') if _col == self._sort_col else ''
             self.tree.heading(_col, text=_label + suffix)
 
-        # Sort ids according to current sort column/direction
         def _sort_key(indi_id):
             indi = self.individuals[indi_id]
             name = self._display_name(indi).lower()
@@ -968,10 +728,17 @@ class DNAMatchFinderApp:
                 return (not bool(indi['dna_markers']), name)
             return (name, indi_id)
 
-        display_ids = sorted(self.sorted_ids, key=_sort_key,
-                             reverse=self._sort_rev)
+        # Re-sort only when sort settings or underlying data change.
+        # id(self.sorted_ids) changes whenever a new file is loaded.
+        cache_key = (self._sort_col, self._sort_rev, id(self.sorted_ids))
+        if getattr(self, '_pop_sort_key', None) != cache_key:
+            self._pop_sorted = sorted(self.sorted_ids, key=_sort_key,
+                                      reverse=self._sort_rev)
+            self._pop_sort_key = cache_key
+        display_ids = self._pop_sorted
 
         shown = 0
+        total_matches = 0
         truncated = False
         for indi_id in display_ids:
             indi = self.individuals[indi_id]
@@ -1003,9 +770,10 @@ class DNAMatchFinderApp:
                 raw_text = ' '.join(v.lower() for _, _, _, v in indi['_raw'])
                 if filter_query not in raw_text:
                     continue
-            if shown >= self.MAX_LIST_DISPLAY:
+            total_matches += 1
+            if shown >= self.max_display.get():
                 truncated = True
-                break
+                continue
             tags = ('flagged_row',) if indi['dna_markers'] else ()
             flagged_mark = '✓' if indi['dna_markers'] else ''
             self.tree.insert(
@@ -1018,7 +786,6 @@ class DNAMatchFinderApp:
             )
             shown += 1
 
-        # Restore selection if still present; auto-select if exactly one result
         if prev_id and self.tree.exists(prev_id):
             self.tree.selection_set(prev_id)
             self.tree.see(prev_id)
@@ -1027,11 +794,11 @@ class DNAMatchFinderApp:
             self.tree.selection_set(only)
             self.tree.see(only)
 
-        # Status
         total = len(self.individuals)
-        if truncated:
+        if truncated and (query or flagged_only):
             self.status_text.set(STATUS_SHOWING_FIRST.format(
-                max_display=self.MAX_LIST_DISPLAY, total=total, flagged=flagged_count))
+                max_display=self.max_display.get(), total_matches=total_matches,
+                total=total, flagged=flagged_count))
         elif query or flagged_only:
             self.status_text.set(STATUS_MATCHES.format(
                 shown=shown, plural='es' if shown != 1 else '',
@@ -1069,10 +836,10 @@ class DNAMatchFinderApp:
             messagebox.showwarning(ERR_NO_DATA_TITLE, ERR_NO_DATA_MSG)
             return
         sel = self.tree.selection()
-        if not sel:
+        start_id = sel[0] if sel else self._active_id
+        if not start_id:
             messagebox.showwarning(ERR_NO_SEL_TITLE, ERR_NO_SEL_MSG)
             return
-        start_id = sel[0]
         try:
             top_n = int(self.top_n.get())
             max_depth = int(self.max_depth.get())
@@ -1085,230 +852,144 @@ class DNAMatchFinderApp:
 
         def _do_search():
             try:
-                results = self._model.find_dna_matches(start_id, top_n, max_depth)
-                self.root.after(0, lambda: _on_done(results, None))
+                results = self._model.find_dna_matches(
+                    start_id, top_n, max_depth)
+                home_paths = None
+                home_id = self._home_person_id
+                if home_id and home_id != start_id and home_id in self.individuals:
+                    home_paths, _ = bfs_find_all_paths(
+                        start_id, home_id, self.individuals, self.families,
+                        top_n=1, max_depth=max_depth,
+                    )
+                self.root.after(0, lambda: _on_done(results, home_paths, None))
             except Exception as e:  # pylint: disable=broad-exception-caught
-                self.root.after(0, lambda: _on_done(None, e))
+                self.root.after(0, lambda: _on_done(None, None, e))
 
-        def _on_done(results, error):
+        def _on_done(results, home_paths, error):
             self._hide_progress()
             self._set_busy(False)
             if error:
                 messagebox.showerror(ERR_PARSE_TITLE, str(error))
                 return
+            self._results_reversed = False
+            self._reverse_btn.configure(text=BTN_REVERSE)
             self._last_result = {'type': 'dna_matches', 'start_id': start_id}
-            self._render_results(start_id, results)
+            self._render_results(start_id, results, home_paths=home_paths)
 
         threading.Thread(target=_do_search, daemon=True).start()
 
-    def _show_person(self):
-        """Open the GEDCOM record viewer for the selected person."""
-        if not self.individuals:
-            messagebox.showwarning(ERR_NO_DATA_TITLE, ERR_NO_DATA_MSG)
+    @staticmethod
+    def _reverse_path(path, individuals):
+        """Return path reversed with edge labels recalculated for the new direction."""
+        if len(path) <= 1:
+            return list(path)
+        n = len(path)
+        result = [(path[n - 1][0], None)]
+        for i in range(n - 2, -1, -1):
+            orig_edge = path[i + 1][1]
+            src_id = path[i][0]
+            if orig_edge in ('father', 'mother'):
+                rev_edge = 'child'
+            elif orig_edge == 'child':
+                sex = individuals.get(src_id, {}).get('sex', '')
+                rev_edge = 'father' if sex == 'M' else ('mother' if sex == 'F' else 'father')
+            else:
+                rev_edge = orig_edge
+            result.append((src_id, rev_edge))
+        return result
+
+    def _reverse_results(self):
+        """Toggle reversed display of the current results."""
+        if not self._last_result:
             return
-        sel = self.tree.selection()
-        if not sel:
-            messagebox.showwarning(ERR_NO_SEL_TITLE, ERR_NO_SEL_MSG)
-            return
-        self._show_person_for(sel[0])
+        self._results_reversed = not self._results_reversed
+        self._reverse_btn.configure(
+            text=BTN_REVERSE_RESTORE if self._results_reversed else BTN_REVERSE)
+        kind = self._last_result['type']
+        if kind == 'dna_matches':
+            self._render_results(
+                self._last_result['start_id'],
+                self._last_result.get('results', []),
+                home_paths=self._last_result.get('home_paths'),
+            )
+        elif kind == 'path':
+            self._render_path_results(
+                self._last_result['start_id'],
+                self._last_result['end_id'],
+                self._last_result.get('paths', []),
+                self._last_result.get('truncated', False),
+            )
 
-    def _show_person_for(self, indi_id):
-        """Open a detail window for a specific individual ID."""
-        win = tk.Toplevel(self.root)
-        win.geometry(self._show_person_geometry or "700x520")
-        win.minsize(400, 300)
-        win.focus_force()
-
-        _geo_after = [None]
-
-        def _on_win_configure(event):
-            if event.widget is not win:
-                return
-            if _geo_after[0]:
-                win.after_cancel(_geo_after[0])
-            _geo_after[0] = win.after(
-                400, lambda: self._persist_show_person_geometry(win))
-
-        win.bind('<Configure>', _on_win_configure)
-        win.bind('<Escape>', lambda _: win.destroy())
-        win.bind('<Up>', lambda _: text.yview_scroll(-1, 'units') or 'break')
-        win.bind('<Down>', lambda _: text.yview_scroll(1, 'units') or 'break')
-        win.bind('<Prior>', lambda _: text.yview_scroll(-1, 'pages') or 'break')
-        win.bind('<Next>', lambda _: text.yview_scroll(1, 'pages') or 'break')
-        win.bind('<Home>', lambda _: text.yview_moveto(0) or 'break')
-        win.bind('<End>', lambda _: text.yview_moveto(1) or 'break')
-
-        text = scrolledtext.ScrolledText(
-            win, font=self._mono_font, wrap='none', padx=8, pady=8)
-        text.pack(fill='both', expand=True)
-        text.tag_configure('bold', font=self._mono_font_bold)
-        text.tag_configure('person_link')
-        text.tag_bind('person_link', '<Enter>',
-                      lambda _: text.config(cursor='hand2'))
-        text.tag_bind('person_link', '<Leave>',
-                      lambda _: text.config(cursor=''))
-
-        def populate(iid):
-            indi = self.individuals[iid]
-            win.title(WIN_GEDCOM_RECORD.format(name=indi['name'] or iid))
-            text.configure(state='normal')
-            text.delete('1.0', 'end')
-            self._clear_person_tags(text)
-
-            def add(line, bold=False):
-                text.insert('end', line + '\n', ('bold',) if bold else ())
-
-            def person(pid, prefix=''):
-                if prefix:
-                    text.insert('end', prefix)
-                tag = f'pers_{pid.strip("@")}'
-                text.insert('end', describe(self.individuals[pid], show_id=self.show_ids.get()),
-                            ('person_link', tag))
-                text.tag_configure(
-                    tag, foreground=self._link_color, underline=True)
-                text.tag_bind(tag, '<Button-1>',
-                              lambda _, p=pid: populate(p))
-                text.insert('end', '\n')
-
-            add(BIO_SECTION, bold=True)
-            bio_found = False
-
-            def fmt_event(date, place):
-                parts = [p for p in (date, place) if p]
-                return ', '.join(parts)
-
-            b_date, b_place = _extract_event(indi['_raw'], 'BIRT')
-            if b_date or b_place:
-                bio_found = True
-                add(BIO_BORN.format(event=fmt_event(b_date, b_place)))
-
-            for fam_id in indi['fams']:
-                fam = self.families.get(fam_id)
-                if not fam:
-                    continue
-                m_date = fam.get('marr_date', '')
-                m_place = fam.get('marr_place', '')
-                spouse_id = fam['wife'] if fam['husb'] == iid else fam['husb']
-                spouse_name = (self._display_name(self.individuals[spouse_id])
-                               if spouse_id and spouse_id in self.individuals else '')
-                if spouse_name or m_date or m_place:
-                    bio_found = True
-                    parts = [p for p in (spouse_name, m_date, m_place) if p]
-                    add(BIO_MARRIED.format(spouses=', '.join(parts)))
-
-            d_date, d_place = _extract_event(indi['_raw'], 'DEAT')
-            if d_date or d_place:
-                bio_found = True
-                add(BIO_DIED.format(event=fmt_event(d_date, d_place)))
-
-            bu_date, bu_place = _extract_event(indi['_raw'], 'BURI')
-            if bu_date or bu_place:
-                bio_found = True
-                add(BIO_BURIED.format(event=fmt_event(bu_date, bu_place)))
-
-            if not bio_found:
-                add(BIO_NO_INFO)
-            add("")
-
-            add(FAM_SECTION, bold=True)
-            family_found = False
-
-            parents = []
-            for fam_id in indi['famc']:
-                fam = self.families.get(fam_id)
-                if not fam:
-                    continue
-                for pid in (fam['husb'], fam['wife']):
-                    if pid and pid in self.individuals:
-                        parents.append(pid)
-            if parents:
-                family_found = True
-                add(FAM_PARENTS)
-                for pid in parents:
-                    person(pid, prefix="    ")
-
-            siblings = []
-            for fam_id in indi['famc']:
-                fam = self.families.get(fam_id)
-                if not fam:
-                    continue
-                for sib_id in fam['chil']:
-                    if sib_id != iid and sib_id in self.individuals:
-                        siblings.append(sib_id)
-            if siblings:
-                family_found = True
-                add(FAM_SIBLINGS)
-                for sib_id in siblings:
-                    person(sib_id, prefix="    ")
-
-            children = []
-            for fam_id in indi['fams']:
-                fam = self.families.get(fam_id)
-                if not fam:
-                    continue
-                for child_id in fam['chil']:
-                    if child_id in self.individuals:
-                        children.append(child_id)
-            if children:
-                family_found = True
-                add(FAM_CHILDREN)
-                for child_id in children:
-                    person(child_id, prefix="    ")
-
-            if not family_found:
-                add(FAM_NO_INFO)
-            add("")
-            add(GEDCOM_SECTION, bold=True)
-
-            for level, xref, tag, value in indi.get('_raw', []):
-                parts = [str(level)]
-                if xref and self.show_ids.get():
-                    parts.append(xref)
-                parts.append(tag)
-                if value:
-                    parts.append(value)
-                add(' '.join(parts))
-
-            text.configure(state='disabled')
-
-        populate(indi_id)
-
-        btn_frame = ttk.Frame(win)
-        btn_frame.pack(fill='x', pady=(4, 8))
-        ttk.Button(btn_frame, text=BTN_CLOSE, command=win.destroy).pack(
-            side='right', padx=8)
-
-    def _render_results(self, start_id, results):
+    def _render_results(self, start_id, results, home_paths=None):
         """Render DNA match search results and family context."""
+        if self._last_result and self._last_result.get('type') == 'dna_matches':
+            self._last_result['results'] = results
+            self._last_result['home_paths'] = home_paths
         w = self.results
+        tw = w._textbox
         w.configure(state='normal')
         w.delete('1.0', 'end')
         self._clear_person_tags(w)
 
-        w.tag_configure('person_link')
-        w.tag_bind('person_link', '<Enter>',
-                   lambda _: w.config(cursor='hand2'))
-        w.tag_bind('person_link', '<Leave>', lambda _: w.config(cursor=''))
+        tw.update_idletasks()
+        sep_width = max(tw.winfo_width() - 4, 100)
+        is_dark = ctk.get_appearance_mode() == 'Dark'
+        sep_color = '#DCE4EE' if is_dark else '#1a1a1a'
+
+        tag_to_id = {}
+        tw.tag_configure('person_link', foreground=self._link_color)
+        tw.tag_bind('person_link', '<Enter>',
+                    lambda *_: tw.config(cursor='hand2'))
+        tw.tag_bind('person_link', '<Leave>',
+                    lambda *_: tw.config(cursor=''))
+
+        def _on_person_click(event):
+            idx = tw.index(f'@{event.x},{event.y}')
+            for t in tw.tag_names(idx):
+                if t.startswith('pers_'):
+                    iid = tag_to_id.get(t)
+                    if iid:
+                        self._navigate_to(iid)
+                    break
+        tw.tag_bind('person_link', '<Button-1>', _on_person_click)
 
         def nl(text='', bold=False):
             w.insert('end', text + '\n', ('bold',) if bold else ())
+
+        def hr():
+            sep = tk.Frame(tw, height=2, width=sep_width,
+                           bg=sep_color, bd=0, relief='flat')
+            tw.window_create('end', window=sep)
+            tw.insert('end', '\n')
 
         def person(indi_id, prefix='', suffix='', bold=False):
             base = ('bold',) if bold else ()
             if prefix:
                 w.insert('end', prefix, base)
             tag = f'pers_{indi_id.strip("@")}'
+            tag_to_id[tag] = indi_id
             w.insert('end', describe(self.individuals[indi_id], show_id=self.show_ids.get()),
                      base + ('person_link', tag))
-            w.tag_configure(tag, foreground=self._link_color, underline=True)
-            w.tag_bind(tag, '<Button-1>',
-                       lambda _, iid=indi_id: self._navigate_to(iid))
-            if suffix:
-                w.insert('end', suffix, base)
+            #if suffix:
+            #    w.insert('end', suffix, base)
+            # TODO consider permanently removing code that shows "edges"
             w.insert('end', '\n')
 
         start = self.individuals[start_id]
-        person(start_id, prefix=RESULT_STARTING_FROM)
+        name = self._display_name(start)
+        b, d = start.get('birth_year'), start.get('death_year')
+        if b and d:
+            lifespan = f" ({b}–{d})"
+        elif b:
+            lifespan = f" (b. {b})"
+        elif d:
+            lifespan = f" (d. {d})"
+        else:
+            lifespan = ""
+        self._results_header_var.set(name + lifespan)
+        self._update_header_label_style()
+
+        nl(RESULT_CLOSEST_MATCHES, bold=True)
         if start['dna_markers']:
             nl(RESULT_DNA_FLAGGED_NOTE)
             for m in start['dna_markers']:
@@ -1318,76 +999,79 @@ class DNAMatchFinderApp:
         if not results:
             nl(RESULT_NO_DNA_FOUND)
         else:
-            ancestors = get_ancestor_depths(
-                start_id, self.individuals, self.families)
-            descendants = get_descendant_depths(
-                start_id, self.individuals, self.families)
-            for rank, (dist, path) in enumerate(results, 1):
-                end_id = path[-1][0]
-                person(end_id,
-                       prefix=RESULT_RANK_PREFIX.format(rank=rank),
-                       suffix=RESULT_DISTANCE.format(dist=dist), bold=True)
-                nl(RESULT_DNA_MARKERS)
-                for m in self.individuals[end_id]['dna_markers']:
-                    nl(f"     - {self._format_marker(m)}")
-                rel = describe_relationship(
-                    path, self.individuals,
-                    ancestors=ancestors, descendants=descendants)
-                nl(RESULT_RELATIONSHIP.format(rel=rel))
-                nl(RESULT_PATH)
-                for i, (node_id, edge) in enumerate(path):
-                    if i == 0:
-                        person(node_id, prefix="     ")
-                    else:
-                        person(node_id, prefix=RESULT_EDGE.format(edge=edge))
-                nl()
+            hr()
+            if self._results_reversed:
+                for rank, (dist, path) in enumerate(results, 1):
+                    match_id = path[-1][0]
+                    rev_path = self._reverse_path(path, self.individuals)
+                    m_anc = get_ancestor_depths(match_id, self.individuals, self.families)
+                    m_desc = get_descendant_depths(match_id, self.individuals, self.families)
+                    rel = describe_relationship(
+                        rev_path, self.individuals,
+                        ancestors=m_anc, descendants=m_desc)
+                    person(match_id,
+                           prefix=RESULT_RANK_PREFIX.format(rank=rank), bold=True)
+                    nl(RESULT_RELATIONSHIP.format(rel=rel))
+                    nl(RESULT_PATH)
+                    for i, (node_id, edge) in enumerate(rev_path):
+                        if i == 0:
+                            person(node_id, prefix="     ")
+                        else:
+                            person(node_id, prefix=RESULT_EDGE.format(edge=edge))
+                    nl(RESULT_DNA_MARKERS)
+                    for m in self.individuals[match_id]['dna_markers']:
+                        nl(f"     - {self._format_marker(m)}")
+                    hr()
+            else:
+                ancestors = get_ancestor_depths(
+                    start_id, self.individuals, self.families)
+                descendants = get_descendant_depths(
+                    start_id, self.individuals, self.families)
+                for rank, (dist, path) in enumerate(results, 1):
+                    end_id = path[-1][0]
+                    person(end_id,
+                           prefix=RESULT_RANK_PREFIX.format(rank=rank),
+                           suffix=RESULT_DISTANCE.format(dist=dist), bold=True)
+                    rel = describe_relationship(
+                        path, self.individuals,
+                        ancestors=ancestors, descendants=descendants)
+                    nl(RESULT_RELATIONSHIP.format(rel=rel))
+                    nl(RESULT_PATH)
+                    for i, (node_id, edge) in enumerate(path):
+                        if i == 0:
+                            person(node_id, prefix="     ")
+                        else:
+                            person(node_id, prefix=RESULT_EDGE.format(edge=edge))
+                    nl(RESULT_DNA_MARKERS)
+                    for m in self.individuals[end_id]['dna_markers']:
+                        nl(f"     - {self._format_marker(m)}")
+                    hr()
 
         # Family section
         nl(FAM_SECTION, bold=True)
         family_found = False
+        parents, siblings, spouses, children = self._get_family_members(start_id)
 
-        parents = []
-        for fam_id in start['famc']:
-            fam = self.families.get(fam_id)
-            if not fam:
-                continue
-            for pid in (fam['husb'], fam['wife']):
-                if pid and pid in self.individuals:
-                    parents.append(pid)
         if parents:
             family_found = True
             nl(FAM_PARENTS)
             for pid in parents:
                 person(pid, prefix="    ")
-
-        siblings = []
-        for fam_id in start['famc']:
-            fam = self.families.get(fam_id)
-            if not fam:
-                continue
-            for sib_id in fam['chil']:
-                if sib_id != start_id and sib_id in self.individuals:
-                    siblings.append(sib_id)
         if siblings:
             family_found = True
             nl(FAM_SIBLINGS)
             for sib_id in siblings:
                 person(sib_id, prefix="    ")
-
-        children = []
-        for fam_id in start['fams']:
-            fam = self.families.get(fam_id)
-            if not fam:
-                continue
-            for child_id in fam['chil']:
-                if child_id in self.individuals:
-                    children.append(child_id)
+        if spouses:
+            family_found = True
+            nl(FAM_SPOUSES if len(spouses) > 1 else FAM_SPOUSE)
+            for sid in spouses:
+                person(sid, prefix="    ")
         if children:
             family_found = True
             nl(FAM_CHILDREN)
             for child_id in children:
                 person(child_id, prefix="    ")
-
         if not family_found:
             nl(FAM_NO_INFO)
         nl()
@@ -1395,38 +1079,41 @@ class DNAMatchFinderApp:
         # Home person relationship
         home_id = self._home_person_id
         if home_id and home_id != start_id and home_id in self.individuals:
+            hr()
             nl(RESULT_PATH_SECTION, bold=True)
             person(home_id, prefix=RESULT_HOME)
-            try:
-                max_depth = int(self.max_depth.get())
-            except (tk.TclError, ValueError):
-                max_depth = 50
-            home_paths, _ = bfs_find_all_paths(
-                start_id, home_id, self.individuals, self.families,
-                top_n=1, max_depth=max_depth,
-            )
             if not home_paths:
                 nl(RESULT_NO_HOME_PATH)
             else:
-                path = home_paths[0]
-                ancestors = get_ancestor_depths(
-                    start_id, self.individuals, self.families)
-                descendants = get_descendant_depths(
-                    start_id, self.individuals, self.families)
-                rel = describe_relationship(
-                    path, self.individuals,
-                    ancestors=ancestors, descendants=descendants)
-                dist = len(path) - 1
+                raw_path = home_paths[0]
+                if self._results_reversed:
+                    disp_path = self._reverse_path(raw_path, self.individuals)
+                    h_anc = get_ancestor_depths(home_id, self.individuals, self.families)
+                    h_desc = get_descendant_depths(home_id, self.individuals, self.families)
+                    rel = describe_relationship(
+                        disp_path, self.individuals,
+                        ancestors=h_anc, descendants=h_desc)
+                else:
+                    disp_path = raw_path
+                    ancestors = get_ancestor_depths(
+                        start_id, self.individuals, self.families)
+                    descendants = get_descendant_depths(
+                        start_id, self.individuals, self.families)
+                    rel = describe_relationship(
+                        disp_path, self.individuals,
+                        ancestors=ancestors, descendants=descendants)
+                dist = len(disp_path) - 1
                 nl(RESULT_HOME_REL.format(
                     rel=rel, dist=dist, plural='s' if dist != 1 else ''))
                 nl(RESULT_HOME_PATH)
-                for i, (node_id, edge) in enumerate(path):
+                for i, (node_id, edge) in enumerate(disp_path):
                     if i == 0:
                         person(node_id, prefix="  ")
                     else:
                         person(node_id, prefix=RESULT_HOME_EDGE.format(edge=edge))
             nl()
 
+        self._reverse_btn.configure(state='normal')
         w.configure(state='disabled')
 
     def _copy_results(self):
@@ -1442,8 +1129,12 @@ class DNAMatchFinderApp:
         self.results.configure(state='normal')
         self.results.delete('1.0', 'end')
         self.results.configure(state='disabled')
+        self._results_header_var.set('')
+        self._update_header_label_style()
         self.search_text.set('')
         self._last_result = None
+        self._results_reversed = False
+        self._reverse_btn.configure(state='disabled', text=BTN_REVERSE)
         self._kb_focus_search()
 
     def _format_marker(self, marker):
@@ -1453,13 +1144,20 @@ class DNAMatchFinderApp:
         return re.sub(r'\s*\(@[^@]+@\)\s*$', '', marker)
 
     def _clear_person_tags(self, widget):
-        """Remove generated person-link tags from a Text widget."""
-        for tag in widget.tag_names():
+        """Remove generated person-link tags from a Text-like widget."""
+        tw = getattr(widget, '_textbox', widget)
+        for tag in tw.tag_names():
             if tag.startswith('pers_'):
-                widget.tag_delete(tag)
+                tw.tag_delete(tag)
 
     def _navigate_to(self, indi_id):
-        """Select a person in the list and render their DNA match results."""
+        """Select a person in the tree and refresh the results pane for them.
+
+        If the right pane currently shows DNA matches, shows DNA matches for the
+        new person.  If it shows a relationship path, finds the path from the new
+        person to the same destination.
+        """
+        self._active_id = indi_id
         if not self.tree.exists(indi_id):
             self.search_text.set('')
             self.filter_text.set('')
@@ -1469,832 +1167,56 @@ class DNAMatchFinderApp:
             self.tree.selection_set(indi_id)
             self.tree.see(indi_id)
             self.tree.focus(indi_id)
+        else:
+            # Person exceeds max_display even with no filters; clear the stale
+            # tree selection so action buttons fall back to _active_id.
+            self.tree.selection_remove(*self.tree.selection())
         try:
             top_n = int(self.top_n.get())
             max_depth = int(self.max_depth.get())
         except (tk.TclError, ValueError):
             return
-        results = bfs_find_dna_matches(
-            indi_id, self.individuals, self.families,
-            top_n=top_n, max_depth=max_depth,
-        )
-        self._last_result = {'type': 'dna_matches', 'start_id': indi_id}
-        self._render_results(indi_id, results)
+        self._results_reversed = False
+        self._reverse_btn.configure(text=BTN_REVERSE)
 
-    def _view_tags(self):
-        """Show tag-record definitions and allow choosing the DNA tag keyword."""
-        if not self.tag_records:
-            messagebox.showinfo(WIN_TAG_DEFINITIONS, MSG_NO_TAGS)
-            return
+        kind = self._last_result.get('type') if self._last_result else None
 
-        win = tk.Toplevel(self.root)
-        win.title(WIN_TAG_DEFINITIONS)
-        win.transient(self.root)
-        win.resizable(True, True)
+        if kind == 'path':
+            end_id = self._last_result.get('end_id', indi_id)
+            self._last_result = {'type': 'path', 'start_id': indi_id, 'end_id': end_id}
 
-        show_ids = self.show_ids.get()
-        rows = sorted(self.tag_records.items())  # [(ref, name), ...]
+            def _do_path():
+                try:
+                    paths, truncated = self._model.find_all_paths(
+                        indi_id, end_id, top_n, max_depth)
+                    self.root.after(0, lambda: self._render_path_results(
+                        indi_id, end_id, paths, truncated))
+                except Exception:  # pylint: disable=broad-exception-caught
+                    pass
 
-        list_frame = ttk.Frame(win, padding=(8, 8, 8, 0))
-        list_frame.pack(fill='both', expand=True)
-
-        if show_ids:
-            tag_tree = ttk.Treeview(list_frame, columns=('id', 'name'),
-                                    show='headings', selectmode='browse',
-                                    height=min(len(rows), 20))
-            tag_tree.heading('id', text=COL_TAG_ID)
-            tag_tree.heading('name', text=COL_TAG_NAME)
-            tag_tree.column('id', width=90, anchor='w', stretch=False)
-            tag_tree.column('name', width=300, anchor='w', stretch=True)
+            threading.Thread(target=_do_path, daemon=True).start()
         else:
-            tag_tree = ttk.Treeview(list_frame, columns=('name',),
-                                    show='headings', selectmode='browse',
-                                    height=min(len(rows), 20))
-            tag_tree.heading('name', text=COL_TAG_NAME)
-            tag_tree.column('name', width=390, anchor='w', stretch=True)
-
-        ysb = ttk.Scrollbar(list_frame, orient='vertical',
-                            command=tag_tree.yview)
-        ysb.configure(takefocus=False)
-        tag_tree.configure(yscrollcommand=ysb.set)
-        tag_tree.pack(side='left', fill='both', expand=True)
-        ysb.pack(side='right', fill='y')
-
-        current_kw = self.tag_keyword.get().strip().lower()
-        first_match = None
-        for ref, name in rows:
-            iid = tag_tree.insert('', 'end',
-                                  values=(ref, name) if show_ids else (name,))
-            if first_match is None and name.strip().lower() == current_kw:
-                first_match = iid
-
-        btn_frame = ttk.Frame(win, padding=(8, 4, 8, 8))
-        btn_frame.pack(fill='x')
-
-        def on_ok():
-            sel = tag_tree.selection()
-            if sel:
-                name_val = tag_tree.set(sel[0], 'name')
-                self.tag_keyword.set(name_val)
-            win.destroy()
-
-        def on_cancel():
-            win.destroy()
-
-        ttk.Button(btn_frame, text=BTN_OK,
-                   command=on_ok).pack(side='right', padx=(4, 0))
-        ttk.Button(btn_frame, text=BTN_CANCEL,
-                   command=on_cancel).pack(side='right')
-
-        tag_tree.bind('<Return>', lambda _: on_ok())
-        tag_tree.bind('<Home>', lambda _: self._tree_jump(
-            'first', tag_tree) or 'break')
-        tag_tree.bind('<End>', lambda _: self._tree_jump(
-            'last',  tag_tree) or 'break')
-        win.bind('<Escape>', lambda _: on_cancel())
-
-        # Size window to fit content, then centre over main window
-        win.update_idletasks()
-        self.root.update_idletasks()
-        req_w = win.winfo_reqwidth()
-        req_h = win.winfo_reqheight()
-        px = self.root.winfo_x() + (self.root.winfo_width() - req_w) // 2
-        py = self.root.winfo_y() + (self.root.winfo_height() - req_h) // 2
-        win.geometry(f"{req_w}x{req_h}+{px}+{py}")
-
-        win.focus_force()
-        tag_tree.focus_set()
-        target = first_match or (tag_tree.get_children()[
-                                 0] if tag_tree.get_children() else None)
-        if target:
-            tag_tree.focus(target)
-            tag_tree.selection_set(target)
-            tag_tree.see(target)
-
-    def _pick_person(self, title=WIN_SELECT_PERSON):
-        """Modal dialog to pick one person from the loaded GEDCOM. Returns indi_id or None."""
-        if not self.individuals:
-            messagebox.showwarning(ERR_NO_DATA_TITLE, ERR_NO_DATA_MSG)
-            return None
-
-        dialog = tk.Toplevel(self.root)
-        dialog.title(title)
-        dialog.transient(self.root)
-        dialog.grab_set()
-        dialog.focus_force()
-
-        dw, dh = 600, 500
-        self.root.update_idletasks()
-        px, py = self.root.winfo_x(), self.root.winfo_y()
-        pw, ph = self.root.winfo_width(), self.root.winfo_height()
-        x = px + (pw - dw) // 2
-        y = py + (ph - dh) // 2
-        dialog.geometry(f"{dw}x{dh}+{x}+{y}")
-
-        result = [None]
-
-        search_frame = ttk.Frame(dialog, padding=8)
-        search_frame.pack(fill='x')
-        ttk.Label(search_frame, text=LBL_FIND).pack(side='left', padx=(0, 4))
-        search_var = tk.StringVar()
-        search_entry = ttk.Entry(search_frame, textvariable=search_var)
-        search_entry.pack(side='left', fill='x', expand=True)
-
-        list_frame = ttk.Frame(dialog, padding=(8, 0, 8, 0))
-        list_frame.pack(fill='both', expand=True)
-
-        picker_tree = ttk.Treeview(
-            list_frame,
-            columns=('name', 'birth', 'death', 'flagged'),
-            show='headings',
-            selectmode='browse',
-        )
-        picker_tree.heading('name', text=COL_NAME)
-        picker_tree.heading('birth', text=COL_BIRTH)
-        picker_tree.heading('death', text=COL_DEATH)
-        picker_tree.heading('flagged', text=COL_DNA)
-        picker_tree.column('name', width=240, anchor='w', stretch=True)
-        picker_tree.column('birth', width=55, anchor='w', stretch=False)
-        picker_tree.column('death', width=55, anchor='w', stretch=False)
-        picker_tree.column('flagged', width=50, anchor='center', stretch=False)
-        picker_tree.tag_configure('flagged_row', background='#fff4cc')
-
-        ysb = ttk.Scrollbar(list_frame, orient='vertical',
-                            command=picker_tree.yview)
-        picker_tree.configure(yscrollcommand=ysb.set)
-        picker_tree.pack(side='left', fill='both', expand=True)
-        ysb.pack(side='right', fill='y')
-
-        after_id = [None]
-
-        def populate(query=''):
-            picker_tree.delete(*picker_tree.get_children())
-            query_l = query.strip().lower()
-            query_tokens = query_l.split()
-            shown = 0
-            for indi_id in self.sorted_ids:
-                indi = self.individuals[indi_id]
-                if query_tokens:
-                    all_names = indi['alt_names'] or [indi['name']]
-                    if not (
-                        any(all(tok in name.lower() for tok in query_tokens)
-                            for name in all_names)
-                        or query_l in indi_id.lower()
-                    ):
-                        continue
-                tags = ('flagged_row',) if indi['dna_markers'] else ()
-                flagged_mark = '✓' if indi['dna_markers'] else ''
-                picker_tree.insert(
-                    '', 'end', iid=indi_id,
-                    values=(self._display_name(indi),
-                            indi['birth_year'] or '',
-                            indi['death_year'] or '',
-                            flagged_mark),
-                    tags=tags,
-                )
-                shown += 1
-                if shown >= self.MAX_LIST_DISPLAY:
-                    break
-
-        def on_search_change(*_):
-            if after_id[0]:
-                dialog.after_cancel(after_id[0])
-            after_id[0] = dialog.after(150, lambda: populate(search_var.get()))
-
-        def picker_flush_and_jump():
-            if after_id[0]:
-                dialog.after_cancel(after_id[0])
-                after_id[0] = None
-                populate(search_var.get())
-            self._tree_jump('first', picker_tree)
-
-        search_var.trace_add('write', on_search_change)
-        search_entry.bind('<Return>', lambda _: picker_flush_and_jump())
-        populate()
-        search_entry.focus_set()
-
-        def select():
-            sel = picker_tree.selection()
-            if sel:
-                result[0] = sel[0]
-            dialog.destroy()
-
-        picker_tree.bind('<Double-1>', lambda e: select())
-        picker_tree.bind('<Return>', lambda e: select())
-        picker_tree.bind(
-            '<Key>', lambda e: self._tree_type_ahead(e, picker_tree))
-        picker_tree.bind('<Home>', lambda _: self._tree_jump(
-            'first', picker_tree) or 'break')
-        picker_tree.bind('<End>', lambda _: self._tree_jump(
-            'last',  picker_tree) or 'break')
-        dialog.bind('<Escape>', lambda _: dialog.destroy())
-
-        btn_frame = ttk.Frame(dialog, padding=8)
-        btn_frame.pack(fill='x')
-        ttk.Button(btn_frame, text=BTN_SELECT, command=select).pack(
-            side='right', padx=(4, 0))
-        ttk.Button(btn_frame, text=BTN_CANCEL,
-                   command=dialog.destroy).pack(side='right')
-
-        dialog.wait_window()
-        return result[0]
-
-    def _find_path(self):
-        """Prompt for a target person and render paths from the current selection."""
-        if self._busy:
-            return
-        sel = self.tree.selection()
-        if not sel:
-            messagebox.showwarning(ERR_NO_SEL_TITLE, ERR_NO_PATH_SEL_MSG)
-            return
-        start_id = sel[0]
-
-        target_id = self._pick_person(WIN_SELECT_TARGET)
-        if not target_id:
-            return
-
-        try:
-            max_depth = int(self.max_depth.get())
-        except (tk.TclError, ValueError):
-            messagebox.showerror(ERR_BAD_VAL_TITLE, ERR_BAD_VAL_DEPTH)
-            return
-
-        try:
-            top_n = int(self.top_n.get())
-        except (tk.TclError, ValueError):
-            top_n = 5
-
-        self._show_progress()
-        self._set_busy(True)
-
-        def _do_search():
-            try:
-                paths, truncated = self._model.find_all_paths(
-                    start_id, target_id, top_n, max_depth)
-                self.root.after(0, lambda: _on_done(paths, truncated, None))
-            except Exception as e:  # pylint: disable=broad-exception-caught
-                self.root.after(0, lambda: _on_done(None, None, e))
-
-        def _on_done(paths, truncated, error):
-            self._hide_progress()
-            self._set_busy(False)
-            if error:
-                messagebox.showerror(ERR_PARSE_TITLE, str(error))
-                return
-            self._last_result = {'type': 'path',
-                                 'start_id': start_id, 'end_id': target_id}
-            self._render_path_results(start_id, target_id, paths, truncated)
-
-        threading.Thread(target=_do_search, daemon=True).start()
-
-    def _render_path_results(self, start_id, end_id, paths, truncated=False):
-        """Render relationship paths between two selected individuals."""
-        w = self.results
-        w.configure(state='normal')
-        w.delete('1.0', 'end')
-        self._clear_person_tags(w)
-
-        w.tag_configure('person_link')
-        w.tag_bind('person_link', '<Enter>',
-                   lambda _: w.config(cursor='hand2'))
-        w.tag_bind('person_link', '<Leave>', lambda _: w.config(cursor=''))
-
-        def nl(text='', bold=False):
-            w.insert('end', text + '\n', ('bold',) if bold else ())
-
-        def person(indi_id, prefix='', suffix=''):
-            if prefix:
-                w.insert('end', prefix)
-            tag = f'pers_{indi_id.strip("@")}'
-            w.insert('end', describe(self.individuals[indi_id], show_id=self.show_ids.get()),
-                     ('person_link', tag))
-            w.tag_configure(tag, foreground=self._link_color, underline=True)
-            w.tag_bind(tag, '<Button-1>',
-                       lambda _, iid=indi_id: self._navigate_to(iid))
-            if suffix:
-                w.insert('end', suffix)
-            w.insert('end', '\n')
-
-        nl(PATH_SECTION, bold=True)
-        person(start_id, prefix=PATH_FROM)
-        person(end_id,   prefix=PATH_TO)
-        nl()
-
-        if start_id == end_id:
-            nl(PATH_SAME_PERSON)
-        elif not paths:
-            nl(PATH_NOT_FOUND.format(depth=self.max_depth.get()))
-        else:
-            ancestors = get_ancestor_depths(
-                start_id, self.individuals, self.families)
-            descendants = get_descendant_depths(
-                start_id, self.individuals, self.families)
-            for rank, path in enumerate(paths, 1):
-                dist = len(path) - 1
-                rel = describe_relationship(path, self.individuals,
-                                            ancestors=ancestors, descendants=descendants)
-                nl(PATH_RANK.format(
-                    rank=rank, rel=rel, dist=dist,
-                    plural='s' if dist != 1 else ''), bold=True)
-                for i, (node_id, edge) in enumerate(path):
-                    if i == 0:
-                        person(node_id, prefix="  ")
-                    else:
-                        person(node_id, prefix=PATH_EDGE.format(edge=edge))
-                nl()
-            if truncated:
-                nl(PATH_SEARCH_CAP)
-        nl()
-
-        w.configure(state='disabled')
-
-    # ---------------------------------------------------------- History / config
-    def _cache_dir(self):
-        """Return the directory used for GEDCOM parse caches."""
-        return self._config._path.parent / 'cache'
-
-    def _load_history(self):
-        """Load the recently opened GEDCOM file list."""
-        return self._config.get_recent_files()
-
-    def _save_history(self, history):
-        """Persist the recently opened GEDCOM file list."""
-        self._config.set_recent_files(history)
-
-    def _add_to_history(self, filepath):
-        """Add filepath to the recent-file list and update the combo box."""
-        history = [filepath] + [p for p in self._recent_files if p != filepath]
-        history = history[:self.MAX_RECENT]
-        self._recent_files = history
-        self.path_combo['values'] = history
-        self._config.set_recent_files(history)
-
-    def _clear_cache(self):
-        """Confirm and remove cached GEDCOM parse files."""
-        cache_dir = self._cache_dir()
-        files = list(cache_dir.glob('*.json')) if cache_dir.exists() else []
-        if not files:
-            messagebox.showinfo(CACHE_EMPTY_TITLE, CACHE_EMPTY_MSG)
-            return
-        if messagebox.askyesno(
-            CACHE_CLEAR_TITLE,
-            CACHE_CLEAR_MSG.format(count=len(files)),
-        ):
-            deleted = self._model.clear_cache(cache_dir)
-            messagebox.showinfo(
-                CACHE_DONE_TITLE, CACHE_DONE_MSG.format(deleted=deleted))
-
-    def _load_home_person(self, gedcom_path):
-        """Load the saved home person ID for gedcom_path."""
-        return self._config.get_home_person(gedcom_path)
-
-    def _save_home_person(self, gedcom_path, indi_id):
-        """Persist the home person ID for gedcom_path."""
-        self._config.set_home_person(gedcom_path, indi_id)
-
-    def _load_font_preference(self):
-        """Load the saved UI font-size preference."""
-        return self._config.get_font_preference(self._FONT_SIZES)
-
-    def _save_font_preference(self, size_name):
-        """Persist the UI font-size preference."""
-        self._config.set_font_preference(size_name)
-
-    def _apply_font_size(self, size_name):
-        """Apply a named font-size preset to UI and monospace fonts."""
-        sizes = self._FONT_SIZES[size_name]
-        mono_sz = sizes['mono']
-        ui_sz = sizes['ui']
-
-        self._mono_font.configure(size=mono_sz)
-        self._mono_font_bold.configure(size=mono_sz)
-
-        for fname in ('TkDefaultFont', 'TkTextFont', 'TkMenuFont', 'TkSmallCaptionFont'):
-            try:
-                tkfont.nametofont(fname).configure(size=ui_sz)
-            except tk.TclError:
-                pass
-
-        self._apply_styles()
-
-        if hasattr(self, 'results'):
-            self.root.after(0, self._refit_windows)
-
-    def _refit_windows(self):
-        """Grow open windows as needed to fit the current font metrics."""
-        self.root.update_idletasks()
-        req_w = self.root.winfo_reqwidth()
-        cur_w = self.root.winfo_width()
-        cur_h = self.root.winfo_height()
-        self.root.minsize(max(req_w, 800), 500)
-        if cur_w < req_w:
-            self.root.geometry(f"{req_w}x{cur_h}")
-        for win in self.root.winfo_children():
-            if not isinstance(win, tk.Toplevel):
-                continue
-            try:
-                rw = win.winfo_reqwidth()
-                rh = win.winfo_reqheight()
-                cw = win.winfo_width()
-                ch = win.winfo_height()
-                new_w = max(cw, rw)
-                new_h = max(ch, rh)
-                if new_w != cw or new_h != ch:
-                    win.geometry(f"{new_w}x{new_h}")
-            except tk.TclError:
-                pass
-
-    def _apply_styles(self):
-        """Apply the current theme colours + font metrics to the ttk Style engine."""
-        style = ttk.Style()
-        t = self._THEMES.get(getattr(self, '_theme_pref', 'Default'))
-
-        if t is None:
-            try:
-                style.theme_use(self._default_ttk_theme)
-            except tk.TclError:
-                pass
-        else:
-            try:
-                style.theme_use(t['ttk'])
-            except tk.TclError:
-                pass
-            bg, fg = t['bg'], t['fg']
-            bbg, fbg = t['button_bg'], t['field_bg']
-            sel_bg, sel_fg = t['select_bg'], t['select_fg']
-            hbg, tr = t['heading_bg'], t['trough']
-
-            style.configure('.', background=bg, foreground=fg)
-            style.configure('TFrame', background=bg)
-            style.configure('TLabelframe', background=bg, foreground=fg)
-            style.configure('TLabelframe.Label', background=bg, foreground=fg)
-            style.configure('TLabel', background=bg, foreground=fg)
-            style.configure('TButton', background=bbg, foreground=fg)
-            style.map('TButton',
-                      background=[('active', sel_bg), ('pressed', sel_bg)],
-                      foreground=[('active', sel_fg), ('pressed', sel_fg)])
-            style.configure('TEntry', fieldbackground=fbg, foreground=fg,
-                            selectbackground=sel_bg, selectforeground=sel_fg)
-            style.configure('TCombobox', fieldbackground=fbg, foreground=fg,
-                            selectbackground=sel_bg, selectforeground=sel_fg,
-                            background=bbg, arrowcolor=fg)
-            style.map('TCombobox',
-                      fieldbackground=[('readonly', fbg)],
-                      selectbackground=[('readonly', sel_bg)],
-                      foreground=[('readonly', fg)])
-            style.configure('TSpinbox', fieldbackground=fbg, foreground=fg,
-                            background=bbg, arrowcolor=fg)
-            style.configure('TCheckbutton', background=bg, foreground=fg)
-            style.map('TCheckbutton', background=[('active', bg)])
-            style.configure('TRadiobutton', background=bg, foreground=fg)
-            style.map('TRadiobutton', background=[('active', bg)])
-            style.configure('TScrollbar', background=bbg, troughcolor=tr,
-                            arrowcolor=fg, bordercolor=bg,
-                            darkcolor=bbg, lightcolor=bbg)
-            style.configure('TPanedwindow', background=bg)
-            style.configure('Treeview', background=fbg, foreground=fg,
-                            fieldbackground=fbg)
-            style.configure('Treeview.Heading', background=hbg, foreground=fg)
-            style.map('Treeview',
-                      background=[('selected', sel_bg)],
-                      foreground=[('selected', sel_fg)])
-
-        row_h = tkfont.nametofont('TkDefaultFont').metrics('linespace') + 6
-        style.configure('Treeview', font='TkDefaultFont', rowheight=row_h)
-        style.configure('Treeview.Heading', font='TkDefaultFont')
-
-    def _apply_theme(self, theme_name):
-        """Apply a named color theme to the application."""
-        self._theme_pref = theme_name
-        t = self._THEMES.get(theme_name)
-        self._apply_styles()
-        self._recolor_all(t)
-        if hasattr(self, 'tree'):
-            self.tree.tag_configure(
-                'flagged_row',
-                background=t['flag_bg'] if t else '#fff4cc',
-            )
-        if hasattr(self, 'results'):
-            self.root.after(0, self._refit_windows)
-
-    def _recolor_all(self, theme):
-        """Recolor every tk.Text widget and window background to match theme."""
-        if theme is None:
-            text_bg, text_fg = 'white', 'black'
-            insert_col = 'black'
-            sel_bg, sel_fg = '#0078d4', 'white'
-            link_col = '#0066cc'
-            root_bg = None
-        else:
-            text_bg, text_fg = theme['text_bg'], theme['text_fg']
-            insert_col = theme['insert']
-            sel_bg, sel_fg = theme['select_bg'], theme['select_fg']
-            link_col = theme['link']
-            root_bg = theme['bg']
-
-        self._link_color = link_col
-
-        def recolor(widget):
-            try:
-                if isinstance(widget, tk.Text):
-                    widget.configure(
-                        bg=text_bg, fg=text_fg,
-                        insertbackground=insert_col,
-                        selectbackground=sel_bg,
-                        selectforeground=sel_fg,
+            self._last_result = {'type': 'dna_matches', 'start_id': indi_id}
+
+            def _do_dna():
+                try:
+                    results = bfs_find_dna_matches(
+                        indi_id, self.individuals, self.families,
+                        top_n=top_n, max_depth=max_depth,
                     )
-                    if hasattr(widget, 'frame'):
-                        widget.frame.configure(bg=text_bg)
-                    for tag in widget.tag_names():
-                        if tag.startswith('pers_'):
-                            widget.tag_configure(tag, foreground=link_col)
-                elif isinstance(widget, (tk.Tk, tk.Toplevel)) and root_bg:
-                    widget.configure(bg=root_bg)
-            except tk.TclError:
-                pass
-            for child in widget.winfo_children():
-                recolor(child)
+                    home_paths = None
+                    home_id = self._home_person_id
+                    if home_id and home_id != indi_id and home_id in self.individuals:
+                        home_paths, _ = bfs_find_all_paths(
+                            indi_id, home_id, self.individuals, self.families,
+                            top_n=1, max_depth=max_depth,
+                        )
+                    self.root.after(0, lambda: self._render_results(
+                        indi_id, results, home_paths=home_paths))
+                except Exception:  # pylint: disable=broad-exception-caught
+                    pass
 
-        recolor(self.root)
-
-    def _load_theme_preference(self):
-        """Load the saved color theme preference."""
-        return self._config.get_theme_preference(self._THEME_NAMES)
-
-    def _save_theme_preference(self, theme_name):
-        """Persist the selected color theme preference."""
-        self._config.set_theme_preference(theme_name)
-
-    def _show_preferences(self):
-        """Open the preferences dialog for display, search, and cache settings."""
-        original_font = self._font_size_pref
-        original_theme = self._theme_pref
-        original_top_n = self.top_n.get()
-        original_max_depth = self.max_depth.get()
-        original_fuzzy_threshold = self.fuzzy_threshold.get()
-
-        win = tk.Toplevel(self.root)
-        win.title(WIN_PREFERENCES)
-        win.resizable(False, False)
-        win.transient(self.root)
-        win.grab_set()
-        win.withdraw()  # hide until sized; avoids a flicker at the wrong size
-
-        outer = ttk.Frame(win, padding=16)
-        outer.pack(fill='both', expand=True)
-
-        font_frame = ttk.LabelFrame(
-            outer, text=FRAME_FONT_SIZE, padding=(12, 6))
-        font_frame.pack(fill='x', pady=(0, 8))
-
-        size_var = tk.StringVar(value=self._font_size_pref)
-
-        def on_font_change():
-            self._apply_font_size(size_var.get())
-
-        for label, key in ((FONT_SMALL, "small"), (FONT_MEDIUM, "medium"), (FONT_LARGE, "large")):
-            ttk.Radiobutton(
-                font_frame, text=label, variable=size_var, value=key,
-                command=on_font_change,
-            ).pack(side='left', padx=8)
-
-        theme_frame = ttk.LabelFrame(outer, text=FRAME_THEME, padding=(12, 6))
-        theme_frame.pack(fill='x', pady=(0, 8))
-
-        theme_var = tk.StringVar(value=self._theme_pref)
-
-        def on_theme_change():
-            self._apply_theme(theme_var.get())
-
-        for name in self._THEME_NAMES:
-            ttk.Radiobutton(
-                theme_frame, text=name, variable=theme_var, value=name,
-                command=on_theme_change,
-            ).pack(side='left', padx=6)
-
-        search_frame = ttk.LabelFrame(
-            outer, text=FRAME_SEARCH_DEFAULTS, padding=(12, 6))
-        search_frame.pack(fill='x', pady=(0, 8))
-
-        _pref_top_n_label = ttk.Label(search_frame, text=LBL_TOP_N_RESULTS)
-        _pref_top_n_label.grid(row=0, column=0, sticky='w', padx=(0, 8))
-        top_n_var = tk.IntVar(value=self.top_n.get())
-        _pref_top_n_spin = ttk.Spinbox(
-            search_frame, from_=1, to=20, textvariable=top_n_var, width=6)
-        _pref_top_n_spin.grid(row=0, column=1, sticky='w', padx=(0, 24))
-        Tooltip(_pref_top_n_label, TIP_TOP_N)
-        Tooltip(_pref_top_n_spin, TIP_TOP_N)
-        _pref_max_depth_label = ttk.Label(
-            search_frame, text=LBL_MAX_DEPTH_PREF)
-        _pref_max_depth_label.grid(row=0, column=2, sticky='w', padx=(0, 8))
-        max_depth_var = tk.IntVar(value=self.max_depth.get())
-        _pref_max_depth_spin = ttk.Spinbox(
-            search_frame, from_=1, to=200, textvariable=max_depth_var, width=6)
-        _pref_max_depth_spin.grid(row=0, column=3, sticky='w')
-        Tooltip(_pref_max_depth_label, TIP_MAX_DEPTH)
-        Tooltip(_pref_max_depth_spin, TIP_MAX_DEPTH)
-        _pref_fuzzy_threshold_label = ttk.Label(
-            search_frame, text=LBL_FUZZY_THRESHOLD)
-        _pref_fuzzy_threshold_label.grid(
-            row=1, column=0, sticky='w', padx=(0, 8), pady=(6, 0))
-        fuzzy_threshold_var = tk.DoubleVar(
-            value=round(float(self.fuzzy_threshold.get()), 2))
-        _pref_fuzzy_threshold_spin = ttk.Spinbox(
-            search_frame, from_=0.0, to=1.0, increment=0.01,
-            textvariable=fuzzy_threshold_var, width=6, format="%.2f")
-        _pref_fuzzy_threshold_spin.grid(
-            row=1, column=1, sticky='w', pady=(6, 0))
-        Tooltip(_pref_fuzzy_threshold_label, TIP_FUZZY_THRESHOLD)
-        Tooltip(_pref_fuzzy_threshold_spin, TIP_FUZZY_THRESHOLD)
-
-        display_frame = ttk.LabelFrame(
-            outer, text=FRAME_DISPLAY, padding=(12, 6))
-        display_frame.pack(fill='x', pady=(0, 8))
-        show_ids_var = tk.BooleanVar(value=self.show_ids.get())
-        ttk.Checkbutton(display_frame, text=CHK_SHOW_IDS,
-                        variable=show_ids_var).pack(anchor='w', padx=8)
-
-        name_order_row = ttk.Frame(display_frame)
-        name_order_row.pack(anchor='w', padx=8, pady=(4, 0))
-        ttk.Label(name_order_row, text=LBL_NAME_FORMAT).pack(
-            side='left', padx=(0, 8))
-        name_order_var = tk.StringVar(value=self._name_order)
-        ttk.Radiobutton(name_order_row, text=NAME_FIRST_LAST,
-                        variable=name_order_var, value='first_last').pack(side='left', padx=(0, 8))
-        ttk.Radiobutton(name_order_row, text=NAME_LAST_FIRST,
-                        variable=name_order_var, value='last_first').pack(side='left')
-
-        cache_frame = ttk.LabelFrame(outer, text=FRAME_CACHE, padding=(12, 6))
-        cache_frame.pack(fill='x', pady=(0, 8))
-        ttk.Button(cache_frame, text=BTN_CLEAR_CACHE,
-                   command=self._clear_cache).pack(side='left')
-        ttk.Label(cache_frame, text=LBL_CACHE_NOTE).pack(
-            side='left', padx=(10, 0))
-
-        btn_frame = ttk.Frame(outer)
-        btn_frame.pack(fill='x', pady=(8, 0))
-
-        def on_ok():
-            self._font_size_pref = size_var.get()
-            self._save_font_preference(self._font_size_pref)
-            self._save_theme_preference(theme_var.get())
-            try:
-                self.top_n.set(max(1, int(top_n_var.get())))
-                self._config.set_top_n(self.top_n.get())
-            except (tk.TclError, ValueError):
-                pass
-            try:
-                self.max_depth.set(max(1, int(max_depth_var.get())))
-                self._config.set_max_depth(self.max_depth.get())
-            except (tk.TclError, ValueError):
-                pass
-            try:
-                threshold = min(1.0, max(0.0, float(fuzzy_threshold_var.get())))
-                self.fuzzy_threshold.set(threshold)
-                self._config.set_fuzzy_threshold(threshold)
-            except (tk.TclError, ValueError):
-                pass
-            self.show_ids.set(show_ids_var.get())
-            self._config.set_show_ids(show_ids_var.get())
-            self._name_order = name_order_var.get()
-            self._config.set_name_order(self._name_order)
-            self._populate_tree()
-            self._refresh_result()
-            win.destroy()
-
-        def on_cancel():
-            self._apply_font_size(original_font)
-            self._apply_theme(original_theme)
-            self.top_n.set(original_top_n)
-            self.max_depth.set(original_max_depth)
-            self.fuzzy_threshold.set(original_fuzzy_threshold)
-            win.destroy()
-
-        win.bind('<Escape>', lambda _: on_cancel())
-        win.bind('<Return>', lambda _: on_ok())
-
-        ttk.Button(btn_frame, text=BTN_OK, command=on_ok).pack(
-            side='right', padx=(4, 0))
-        ttk.Button(btn_frame, text=BTN_CANCEL,
-                   command=on_cancel).pack(side='right')
-
-        # Size and centre after all widgets are built so the window fits
-        # whatever font is currently active (small / medium / large).
-        win.update_idletasks()
-        req_w = win.winfo_reqwidth()
-        req_h = win.winfo_reqheight()
-        self.root.update_idletasks()
-        px = self.root.winfo_x() + (self.root.winfo_width() - req_w) // 2
-        py = self.root.winfo_y() + (self.root.winfo_height() - req_h) // 2
-        win.geometry(f"{req_w}x{req_h}+{px}+{py}")
-        win.deiconify()
-
-    def _load_show_person_geometry(self):
-        """Load the saved geometry for the person detail window."""
-        return self._config.get_window_geometry('show_person_geometry')
-
-    def _persist_show_person_geometry(self, win):
-        """Persist the current person detail window geometry."""
-        try:
-            geo = win.geometry()
-            self._show_person_geometry = geo
-            self._config.set_window_geometry('show_person_geometry', geo)
-        except Exception as e: # pylint: disable=broad-except
-            print(f"Error persisting show person geometry: {e}")
-            pass
-
-    def _set_home_person(self):
-        """Save the selected person as the home person for the active GEDCOM."""
-        if not self.individuals:
-            messagebox.showwarning(ERR_NO_DATA_TITLE, ERR_NO_DATA_MSG)
-            return
-        sel = self.tree.selection()
-        if not sel:
-            messagebox.showwarning(ERR_NO_SEL_TITLE, ERR_NO_SEL_MSG)
-            return
-        indi_id = sel[0]
-        gedcom_path = self.gedcom_path.get().strip()
-        if not gedcom_path:
-            return
-        self._home_person_id = indi_id
-        self._save_home_person(gedcom_path, indi_id)
-        name = self.individuals[indi_id]['name'] or indi_id
-        self.status_text.set(STATUS_HOME_SET.format(name=name))
-
-    # ---------------------------------------------------------- Keybindings
-    def _setup_keybindings(self):
-        """Register keyboard shortcuts and focus traversal for the main window."""
-        def bind(seq, cmd):
-            self.root.bind(seq, lambda _: cmd() or 'break')
-
-        bind('<Control-f>', self._kb_focus_search)
-        bind('<Control-i>', self._kb_focus_filter)
-        bind('<Control-d>', lambda: self.show_flagged_only.set(
-            not self.show_flagged_only.get()))
-        bind('<Control-u>', lambda: self.fuzzy_search.set(
-            not self.fuzzy_search.get()))
-        bind('<Control-p>', self._find_path)
-        bind('<Control-t>', self._view_tags)
-        bind('<Control-o>', self._browse)
-        bind('<Control-h>', self._set_home_person)
-        bind('<Control-s>', self._show_person)
-        bind('<Control-n>', self._find_matches)
-        bind('<Control-l>', self._clear_results)
-        bind('<Escape>', self._clear_results)
-        # Ctrl-C: only invoke _copy_results when a Text widget isn't focused
-        # (Text widgets capture Ctrl-C themselves to copy selected text).
-        self.root.bind('<Control-c>', self._kb_copy)
-
-        # Explicit tab chain:
-        # tree → results → top_n → max_depth → set_home → show_person → find_matches
-        self.results.configure(takefocus=True)
-        tab_chain = [
-            self.tree, self.results,
-            self.top_n_spin, self.max_depth_spin,
-            self.set_home_btn, self.show_person_btn, self.find_matches_btn,
-        ]
-        for i, w in enumerate(tab_chain):
-            nxt = tab_chain[(i + 1) % len(tab_chain)]
-            prv = tab_chain[(i - 1) % len(tab_chain)]
-            w.bind('<Tab>', lambda _, nw=nxt: nw.focus_set() or 'break')
-            w.bind('<Shift-Tab>', lambda _, pw=prv: pw.focus_set() or 'break')
-
-        self.root.bind('<Alt-m>', lambda _: self._open_app_menu() or 'break')
-        self.root.bind('<Alt-M>', lambda _: self._open_app_menu() or 'break')
-
-        r = self.results
-        r.bind('<Up>', lambda _: r.yview_scroll(-1, 'units') or 'break')
-        r.bind('<Down>', lambda _: r.yview_scroll(1, 'units') or 'break')
-        r.bind('<Prior>', lambda _: r.yview_scroll(-1, 'pages') or 'break')
-        r.bind('<Next>', lambda _: r.yview_scroll(1, 'pages') or 'break')
-        r.bind('<Home>', lambda _: r.yview_moveto(0) or 'break')
-        r.bind('<End>', lambda _: r.yview_moveto(1) or 'break')
-
-    def _open_app_menu(self):
-        """Post the application menu at the top-left of the root window."""
-        self.root.update_idletasks()
-        x = self.root.winfo_rootx()
-        y = self.root.winfo_rooty()
-        self._app_menu.tk_popup(x, y)
-
-    def _kb_focus_search(self):
-        """Focus and select the main search field."""
-        self.search_entry.focus_set()
-        self.search_entry.select_range(0, 'end')
-
-    def _kb_focus_filter(self):
-        """Focus and select the raw GEDCOM filter field."""
-        self.filter_entry.focus_set()
-        self.filter_entry.select_range(0, 'end')
-
-    def _kb_focus_list(self):
-        """Focus the people list and select the first row when needed."""
-        self.tree.focus_set()
-        if not self.tree.focus():
-            children = self.tree.get_children()
-            if children:
-                self.tree.focus(children[0])
-                self.tree.selection_set(children[0])
+            threading.Thread(target=_do_dna, daemon=True).start()
 
     def _display_name(self, indi):
         """Return an individual's display name using the configured name order."""
@@ -2307,391 +1229,31 @@ class DNAMatchFinderApp:
                 return surname
         return indi['name'] or '(unknown)'
 
-    def _tree_jump(self, end, tree=None):
-        """Move selection to the first or last row of a tree widget."""
-        t = tree or self.tree
-        children = t.get_children()
-        if not children:
-            return
-        item = children[0] if end == 'first' else children[-1]
-        t.focus_set()
-        t.focus(item)
-        t.selection_set(item)
-        t.see(item)
-
-    def _tree_type_ahead(self, event, tree=None):
-        """Select the first tree row whose name starts with the typed character."""
-        char = event.char
-        if not char or not char.isalnum():
-            return
-        t = tree or self.tree
-        char_lower = char.lower()
-        children = t.get_children()
-        if not children:
-            return
-        for item in children:
-            name = t.set(item, 'name')
-            if name.lower().startswith(char_lower):
-                t.focus_set()
-                t.focus(item)
-                t.selection_set(item)
-                t.see(item)
-                return 'break'
-
-    def _kb_copy(self, *_):
-        """Handle Ctrl-C by copying results unless a Text widget has focus."""
-        if isinstance(self.root.focus_get(), tk.Text):
-            return  # let the text widget handle its own copy
-        self._copy_results()
-        return 'break'
-
-    # ---------------------------------------------------------- Menu
-    def _setup_menu(self):
-        """Build the application menu and connect menu commands."""
-        menubar = tk.Menu(self.root)
-        self.root.config(menu=menubar)
-        self._menubar = menubar
-
-        app_menu = tk.Menu(menubar, tearoff=0)
-        self._app_menu = app_menu
-        menubar.add_cascade(label=MENU_MENU, underline=0, menu=app_menu)
-        app_menu.add_command(label=MENU_PREFERENCES, underline=0,
-                             command=self._show_preferences)
-        app_menu.add_command(label=MENU_CLEAR_CACHE, underline=0,
-                             command=self._clear_cache)
-        app_menu.add_separator()
-        app_menu.add_command(label=MENU_HOW_TO_USE, underline=0,
-                             command=self._show_how_to_use)
-        app_menu.add_command(label=MENU_KEYBOARD_SHORTCUTS, underline=0,
-                             command=self._show_keyboard_shortcuts)
-        app_menu.add_command(label=MENU_PRIVACY_POLICY, underline=1,
-                             command=self._show_privacy_policy)
-        app_menu.add_command(label=MENU_ABOUT, underline=0,
-                             command=self._show_about)
-
-        # macOS supplies Quit via Cmd+Q automatically; only add it explicitly elsewhere.
-        if sys.platform != 'darwin':
-            app_menu.add_separator()
-            app_menu.add_command(label=MENU_QUIT, underline=0,
-                                 command=self.root.quit)
-        else:
-            self.root.createcommand('::tk::mac::Quit', self.root.quit)
-
-    def _resource_path(self, filename):
-        """Locate a bundled resource whether running from source or PyInstaller."""
-        if getattr(sys, 'frozen', False):
-            base = sys._MEIPASS
-        else:
-            # Assume resources are in the parent directory of the script
-            # (e.g. in a 'resources' folder), for source version only
-            base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        return os.path.join(base, filename)
-
-    def _show_how_to_use(self):
-        """Open the help documentation window."""
-        self._show_file_window(
-            WIN_HOW_TO_USE, self._resource_path('docs/HELP.md'), markdown=True)
-
-    def _show_keyboard_shortcuts(self):
-        """Open the keyboard shortcuts documentation window."""
-        self._show_file_window(
-            WIN_KEYBOARD_SHORTCUTS,
-            self._resource_path('docs/KEYBOARD_SHORTCUTS.md'), markdown=True)
-
-    def _show_about(self):
-        """Open the about window with version and license information."""
-        self._show_file_window(
-            WIN_ABOUT,
-            self._resource_path('docs/LICENSE.md'), markdown=True,
-            preamble=f"# {APP_TITLE}  v{__version__} ({__release_date__})\n\n",
-        )
-
-    def _show_privacy_policy(self):
-        """Open the privacy policy documentation window."""
-        self._show_file_window(
-            WIN_PRIVACY_POLICY,
-            self._resource_path('docs/PRIVACY_POLICY.md'), markdown=True,
-        )
-
-    def _show_file_window(self, title, filepath, markdown=False, preamble=""):
-        """Open a modal text window for a bundled documentation file."""
-        try:
-            with open(filepath, 'r', encoding='utf-8') as f:
-                content = preamble + f.read()
-        except OSError as e:
-            messagebox.showerror(
-                ERR_FILE_NOT_FOUND_TITLE,
-                ERR_FILE_NOT_FOUND_MSG.format(path=filepath, error=e))
-            return
-
-        win = tk.Toplevel(self.root)
-        win.title(title)
-        win.minsize(500, 300)
-        win.transient(self.root)
-        win.grab_set()
-        win.bind('<Escape>', lambda _: win.destroy())
-        dw, dh = 820, 640
-        self.root.update_idletasks()
-        px = self.root.winfo_x() + (self.root.winfo_width() - dw) // 2
-        py = self.root.winfo_y() + (self.root.winfo_height() - dh) // 2
-        win.geometry(f"{dw}x{dh}+{px}+{py}")
-
-        text_frame = ttk.Frame(win)
-        text_frame.pack(fill='both', expand=True)
-        vsb = ttk.Scrollbar(text_frame, orient='vertical')
-        text = tk.Text(text_frame, wrap='word', padx=12, pady=8,
-                       relief='flat', borderwidth=0, font='TkTextFont',
-                       yscrollcommand=vsb.set)
-        vsb.configure(command=text.yview)
-        vsb.pack(side='right', fill='y')
-        text.pack(side='left', fill='both', expand=True)
-
-        base_dir = os.path.dirname(os.path.abspath(filepath))
-
-        def _set_state(enabled):
-            if sys.platform == 'darwin':
-                if enabled:
-                    text.unbind('<Key>')
-                else:
-                    text.bind('<Key>', lambda e: 'break')
-            else:
-                text.configure(state='normal' if enabled else 'disabled')
-
-        def _nav_handler(url):
-            if not url.startswith(('http://', 'https://')) and url.endswith('.md'):
-                target = os.path.normpath(os.path.join(base_dir, url))
-                try:
-                    with open(target, 'r', encoding='utf-8') as f:
-                        new_content = f.read()
-                except OSError:
-                    webbrowser.open(url)
-                    return
-                win.title(os.path.splitext(os.path.basename(target))[0]
-                          .replace('_', ' ').title())
-                for tag in list(text.tag_names()):
-                    if tag.startswith('_url_'):
-                        text.tag_delete(tag)
-                text._link_count = 0
-                _set_state(True)
-                text.delete('1.0', 'end')
-                self._render_markdown(text, new_content, url_handler=_nav_handler)
-                _set_state(False)
-                text.yview_moveto(0)
-            else:
-                webbrowser.open(url)
-
-        if markdown:
-            self._render_markdown(text, content, url_handler=_nav_handler)
-        else:
-            text.insert('1.0', content)
-
-        if sys.platform == 'darwin':
-            # On macOS Aqua, state='disabled' blocks all mouse events including
-            # tag_bind clicks, so keep the widget editable and block key input instead.
-            text.bind('<Key>', lambda e: 'break')
-        else:
-            text.configure(state='disabled')
-        ttk.Separator(win, orient='horizontal').pack(fill='x')
-        btn_frame = ttk.Frame(win)
-        btn_frame.pack(fill='x', padx=12, pady=8)
-        ttk.Button(btn_frame, text=BTN_CLOSE, command=win.destroy).pack(side='right')
-
-        win.bind('<Up>', lambda _: text.yview_scroll(-1, 'units') or 'break')
-        win.bind('<Down>', lambda _: text.yview_scroll(1, 'units') or 'break')
-        win.bind('<Prior>', lambda _: text.yview_scroll(-1, 'pages') or 'break')
-        win.bind('<Next>', lambda _: text.yview_scroll(1, 'pages') or 'break')
-        win.bind('<Home>', lambda _: text.yview_moveto(0) or 'break')
-        win.bind('<End>', lambda _: text.yview_moveto(1) or 'break')
-
-        win.lift()
-        win.focus_set()
-
-    def _render_markdown(self, widget, content, url_handler=None):
-        """Render basic markdown into a tkinter Text widget using tag formatting."""
-        base = tkfont.Font(font=widget.cget('font'))
-        info = base.actual()
-        family = info['family']
-        size = abs(info['size']) or 10
-        mono = 'Menlo' if sys.platform == 'darwin' else 'Courier'
-
-        widget.tag_configure('h1', font=(
-            family, size + 7, 'bold'), spacing1=10, spacing3=5)
-        widget.tag_configure('h2', font=(
-            family, size + 4, 'bold'), spacing1=8, spacing3=4)
-        widget.tag_configure('h3', font=(
-            family, size + 2, 'bold'), spacing1=6, spacing3=3)
-        widget.tag_configure('bold', font=(family, size, 'bold'))
-        widget.tag_configure('italic', font=(family, size, 'italic'))
-        widget.tag_configure('code_inline', font=(
-            mono, size - 1), background='#f0f0f0')
-        widget.tag_configure('code_block', font=(mono, size - 1), background='#f0f0f0',
-                             lmargin1=16, lmargin2=16, spacing1=1, spacing3=1)
-        widget.tag_configure('link', foreground=self._link_color)
-        widget.tag_configure('bullet', lmargin1=16, lmargin2=32)
-        widget.tag_configure('normal', font=(family, size))
-        widget.tag_configure('table_cell', font=(mono, size - 1))
-        widget.tag_configure('table_bold', font=(mono, size - 1, 'bold'))
-
-        lines = content.split('\n')
-
-        # Pre-scan: compute max visual column widths across all table rows
-        _col_widths: list = []
-        for _ln in lines:
-            _s = _ln.strip()
-            if (_s.startswith('|') and _s.endswith('|')
-                    and not re.match(r'^\|[\s\-:|]+\|$', _s)):
-                _cells = [c.strip() for c in _s[1:-1].split('|')]
-                for _j, _cell in enumerate(_cells):
-                    _vl = _visual_len(_cell)
-                    if _j >= len(_col_widths):
-                        _col_widths.append(_vl)
-                    else:
-                        _col_widths[_j] = max(_col_widths[_j], _vl)
-        # Divider width: │ sp col sp │ sp col sp │ …  = sum(widths) + 3*n + 1
-        _divider_width = (sum(_col_widths) + 3 * len(_col_widths) + 1
-                          if _col_widths else 64)
-
-        i = 0
-        in_code = False
-        code_acc = []
-
-        while i < len(lines):
-            line = lines[i]
-            stripped = line.strip()
-
-            # Fenced code block toggle
-            if stripped.startswith('```'):
-                if in_code:
-                    widget.insert('end', '\n'.join(
-                        code_acc) + '\n', 'code_block')
-                    code_acc = []
-                    in_code = False
-                else:
-                    in_code = True
-                i += 1
+    def _get_family_members(self, indi_id):
+        """Return (parents, siblings, spouses, children) lists for an individual."""
+        indi = self.individuals[indi_id]
+        parents, siblings, spouses, children = [], [], [], []
+        for fam_id in indi['famc']:
+            fam = self.families.get(fam_id)
+            if not fam:
                 continue
-
-            if in_code:
-                code_acc.append(line)
-                i += 1
+            for pid in (fam['husb'], fam['wife']):
+                if pid and pid in self.individuals:
+                    parents.append(pid)
+            for sib_id in fam['chil']:
+                if sib_id != indi_id and sib_id in self.individuals:
+                    siblings.append(sib_id)
+        for fam_id in indi['fams']:
+            fam = self.families.get(fam_id)
+            if not fam:
                 continue
-
-            # ASCII-art table border row (+---+---+ or +===+===+)
-            if re.match(r'^\+[-=+]+\+$', stripped):
-                widget.insert('end', '─' * _divider_width + '\n', 'table_cell')
-                i += 1
-                continue
-
-            # GFM table separator row – skip
-            if re.match(r'^\|[\s\-:|]+\|$', stripped):
-                i += 1
-                continue
-
-            # ATX headers (up to ###)
-            hm = re.match(r'^(#{1,3})\s+(.*)', stripped)
-            if hm:
-                self._insert_inline(widget, hm.group(
-                    2), 'h' + str(len(hm.group(1))), url_handler=url_handler)
-                widget.insert('end', '\n')
-                i += 1
-                continue
-
-            # Horizontal rule
-            if re.match(r'^[-*_]{3,}\s*$', stripped):
-                widget.insert('end', '─' * 64 + '\n', 'normal')
-                i += 1
-                continue
-
-            # Table row
-            if stripped.startswith('|') and stripped.endswith('|'):
-                cells = [c.strip() for c in stripped[1:-1].split('|')]
-                next_line = lines[i + 1].strip() if i + 1 < len(lines) else ''
-                is_header = bool(
-                    re.match(r'^\|[\s\-:|]+\|$', next_line) or
-                    re.match(r'^\+[=+]+\+$', next_line)
-                )
-                base_tag = 'table_bold' if is_header else 'table_cell'
-                widget.insert('end', '│ ', base_tag)
-                for j, cell in enumerate(cells):
-                    self._insert_inline(
-                        widget, cell, base_tag, bold_tag='table_bold', url_handler=url_handler)
-                    pad = (_col_widths[j] - _visual_len(cell)
-                           if j < len(_col_widths) else 0)
-                    suffix = ' ' * max(0, pad) + ' │'
-                    if j < len(cells) - 1:
-                        suffix += ' '
-                    widget.insert('end', suffix, base_tag)
-                widget.insert('end', '\n')
-                i += 1
-                continue
-
-            # Bullet list
-            bm = re.match(r'^[-*+]\s+(.*)', stripped)
-            if bm:
-                self._insert_inline(widget, '• ' + bm.group(1), 'bullet', url_handler=url_handler)
-                widget.insert('end', '\n')
-                i += 1
-                continue
-
-            # Numbered list
-            nm = re.match(r'^(\d+\.)\s+(.*)', stripped)
-            if nm:
-                self._insert_inline(widget, nm.group(
-                    1) + ' ' + nm.group(2), 'bullet', url_handler=url_handler)
-                widget.insert('end', '\n')
-                i += 1
-                continue
-
-            # Empty line
-            if not stripped:
-                widget.insert('end', '\n')
-                i += 1
-                continue
-
-            # Normal paragraph line
-            self._insert_inline(widget, line, 'normal', url_handler=url_handler)
-            widget.insert('end', '\n')
-            i += 1
-
-        if code_acc:
-            widget.insert('end', '\n'.join(code_acc) + '\n', 'code_block')
-
-    def _insert_inline(self, widget, text, base_tag, bold_tag='bold', url_handler=None):
-        """Insert text with inline markdown (bold, italic, code, links) into widget."""
-        pos = 0
-        for m in _INLINE_RE.finditer(text):
-            if m.start() > pos:
-                widget.insert('end', text[pos:m.start()], base_tag)
-            g1, g2, g3, g4, g5 = m.group(1), m.group(
-                2), m.group(3), m.group(4), m.group(5)
-            if g1 is not None:
-                url = g2
-                lc = getattr(widget, '_link_count', 0)
-                widget._link_count = lc + 1
-                tag = f'_url_{lc}'
-                _open = url_handler if url_handler is not None else webbrowser.open
-                widget.tag_configure(
-                    tag, foreground=self._link_color, underline=True)
-                widget.tag_bind(tag, '<Button-1>', lambda _,
-                                u=url, h=_open: h(u))
-                widget.tag_bind(
-                    tag, '<Enter>', lambda _: widget.config(cursor='hand2'))
-                widget.tag_bind(
-                    tag, '<Leave>', lambda _: widget.config(cursor=''))
-                if not hasattr(widget, '_url_tags'):
-                    widget._url_tags = {}
-                widget._url_tags[tag] = url
-                widget.insert('end', g1, (base_tag, tag))
-            elif g3 is not None:
-                widget.insert('end', g3, (base_tag, bold_tag))
-            elif g4 is not None:
-                widget.insert('end', g4, (base_tag, 'italic'))
-            elif g5 is not None:
-                widget.insert('end', g5, 'code_inline')
-            # else: image – discard silently
-            pos = m.end()
-        if pos < len(text):
-            widget.insert('end', text[pos:], base_tag)
+            spouse_id = fam['wife'] if fam['husb'] == indi_id else fam['husb']
+            if spouse_id and spouse_id in self.individuals:
+                spouses.append(spouse_id)
+            for child_id in fam['chil']:
+                if child_id in self.individuals:
+                    children.append(child_id)
+        return parents, siblings, spouses, children
 
 
 def main():
@@ -2706,15 +1268,21 @@ def main():
     )
     args = parser.parse_args()
 
-    root = tk.Tk()
+    root = ctk.CTk()
+    # On macOS the window briefly appears at the default top-left position
+    # before _fit_window_to_content centres it, so withdraw it first.
+    # On Windows withdraw()/deiconify() causes the window to vanish; the
+    # flash doesn't occur there, so skip it.
+    if sys.platform == 'darwin':
+        root.withdraw()
     app = DNAMatchFinderApp(root)
+    if sys.platform == 'darwin':
+        root.deiconify()
 
     if args.gedcom:
         path = os.path.abspath(os.path.expanduser(args.gedcom))
         app.gedcom_path.set(path)
         if os.path.isfile(path):
-            # Defer the load until after the window is mapped, so the
-            # status bar and cursor change are visible during parsing.
             root.after(50, app._load_file)
         else:
             root.after(
@@ -2724,6 +1292,9 @@ def main():
                     ERR_GEDCOM_NOT_FOUND_MSG.format(path=p),
                 ),
             )
+    else:
+        if not (app._recent_files and os.path.isfile(app._recent_files[0])):
+            root.after(100, app._browse)
 
     root.mainloop()
 

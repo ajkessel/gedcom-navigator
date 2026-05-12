@@ -47,6 +47,16 @@ def check_codesigning_key():
 # tcl86t.dll / tk86t.dll are required by _tkinter.pyd. Same issue — they live
 # under base_prefix\Library\bin, not under the venv Scripts directory.
 _extra_binaries = []
+_excludes = [
+    # Pillow is only used by helper scripts that generate icons. The GUI does
+    # not use CTkImage, but customtkinter imports it and thereby exposes PIL to
+    # PyInstaller's analysis when Pillow is installed in the build environment.
+    # this causes problems for building a universal2 binary, so it is excluded
+    # explicitly here
+    'PIL',
+    'PIL.*',
+]
+
 if sys.platform == 'win32':
     _base = os.path.dirname(sys.executable)
     _conda_base = sys.base_prefix  # resolves to conda root even inside a venv
@@ -84,7 +94,7 @@ a = Analysis(
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=[],
+    excludes=_excludes,
     noarchive=False,
     optimize=0,
 )
@@ -135,6 +145,8 @@ if sys.platform == 'darwin':
                  icon='../icons/family_tree.icns',
                  bundle_identifier='com.ajkessel.gedcom-dna-finder',
                  info_plist={
+                     'CFBundleName': 'GEDCOM DNA Finder',
+                     'CFBundleDisplayName': 'GEDCOM DNA Finder',
                      'CFBundleSupportedPlatforms': ['MacOSX'],
                      'LSMinimumSystemVersion': '10.13.0',
                      'CFBundleIdentifier': 'com.ajkessel.gedcom-dna-finder',

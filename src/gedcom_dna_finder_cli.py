@@ -146,6 +146,7 @@ def find_target(individuals, query, fuzzy=False, fuzzy_threshold=0.6, fuzzy_max=
 
 
 def print_result(start_id, individuals, results):
+    """Print the results of a DNA match search."""
     start = individuals[start_id]
     print()
     print(f'Starting from: {describe(start)}')
@@ -179,6 +180,7 @@ def print_result(start_id, individuals, results):
 # ---------------------------------------------------------------------------
 
 def main():
+    """Parse command-line options and execute the DNA finder."""
     parser = argparse.ArgumentParser(
         description='Find the nearest DNA-flagged relative(s) to a target person in a GEDCOM tree.'
     )

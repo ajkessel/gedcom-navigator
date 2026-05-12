@@ -1,4 +1,9 @@
 #!/usr/bin/env python3
+"""
+generate_icon.py
+
+Generate a Windows icon file from a PNG image.
+"""
 from PIL import Image
 from sys import argv
 from pathlib import Path

@@ -26,14 +26,14 @@ class ConfigManager:
         try:
             data = json.loads(self._path.read_text(encoding='utf-8'))
             return data.get(key, default)
-        except Exception: # pylint: disable=broad-exception-caught
+        except Exception:  # pylint: disable=broad-exception-caught
             return default
 
     def save_value(self, key, value):
         """Persist a single setting value while preserving other saved settings."""
         try:
             data = json.loads(self._path.read_text(encoding='utf-8'))
-        except Exception: # pylint: disable=broad-exception-caught
+        except Exception:  # pylint: disable=broad-exception-caught
             data = {}
         data[key] = value
         self._path.parent.mkdir(parents=True, exist_ok=True)
@@ -72,9 +72,9 @@ class ConfigManager:
         self.save_value('font_size', size_name)
 
     def get_theme_preference(self, valid_themes):
-        """Return a saved theme preference, falling back to Default if invalid."""
-        pref = self.load_value('theme', 'Default')
-        return pref if pref in valid_themes else 'Default'
+        """Return a saved theme preference, falling back to System if invalid."""
+        pref = self.load_value('theme', 'System')
+        return pref if pref in valid_themes else 'System'
 
     def set_theme_preference(self, theme_name):
         """Save the selected theme preference name."""
@@ -124,6 +124,18 @@ class ConfigManager:
         """Save the fuzzy match threshold as a floating-point value."""
         self.save_value('fuzzy_threshold', float(value))
 
+    def get_max_display(self, default=2000):
+        """Return the maximum number of people shown in the search results list."""
+        val = self.load_value('max_display', default)
+        try:
+            return max(1, int(val))
+        except (TypeError, ValueError):
+            return default
+
+    def set_max_display(self, value):
+        """Save the maximum number of people shown in the search results list."""
+        self.save_value('max_display', int(value))
+
     def get_show_ids(self):
         """Return whether individual IDs should be shown in the UI."""
         return bool(self.load_value('show_ids', False))
@@ -140,6 +152,14 @@ class ConfigManager:
     def set_name_order(self, value):
         """Save the display name order preference."""
         self.save_value('name_order', value)
+
+    def get_hide_tooltips(self):
+        """Return whether tooltips should be suppressed."""
+        return bool(self.load_value('hide_tooltips', False))
+
+    def set_hide_tooltips(self, value):
+        """Save whether tooltips should be suppressed."""
+        self.save_value('hide_tooltips', bool(value))
 
     # ------------------------------------------------------------------
     # Platform default path
@@ -158,5 +178,6 @@ class ConfigManager:
             base = Path.home() / 'Library' / 'Application Support'
         else:
             import os
-            base = Path(os.environ.get('XDG_CONFIG_HOME', Path.home() / '.config'))
+            base = Path(os.environ.get(
+                'XDG_CONFIG_HOME', Path.home() / '.config'))
         return base / 'gedcom-dna-finder' / 'settings.json'

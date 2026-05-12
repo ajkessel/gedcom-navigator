@@ -5,7 +5,8 @@ import shutil
 from pathlib import Path
 
 if not Path('./venv').is_dir():
-    print("venv directory not found. Please create a virtual environment in the current directory named 'venv' and install the required packages before running this script.")
+    print("venv directory not found. Please create a virtual environment in the current directory "
+          "named 'venv' and install the required packages before running this script.")
     exit(1)
 
 _dlls = []

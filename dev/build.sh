@@ -1,6 +1,6 @@
 #!/bin/bash
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
-cd "${SCRIPT_DIR}/.."
+cd "${SCRIPT_DIR}/.." || exit 1
 [[ -e ./dist/ ]] && rm -r ./dist/
 [[ -e ./src/gedcom_dna_finder_gui.py ]] || {
 	echo 'Build files not found.'
@@ -9,11 +9,11 @@ cd "${SCRIPT_DIR}/.."
 git pull
 if [[ $(uname) == "Linux" ]]; then
 	echo 'Building for Linux...'
-  dev/build-linux.sh "$@"
+	dev/build-linux.sh "$@"
 elif [[ $(uname) == "Darwin" ]]; then
 	echo 'Building for macOS...'
-  dev/build-mac.sh "$@"
+	dev/build-mac.sh "$@"
 else
-  echo 'Platform not recognized. Use build.ps1 for Windows. Exiting.'
-  exit 1
+	echo 'Platform not recognized. Use build.ps1 for building natively on Windows. Exiting.'
+	exit 1
 fi
