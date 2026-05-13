@@ -145,6 +145,9 @@ class AppearanceMixin:
 
         self._apply_styles()
 
+        if hasattr(self, 'tree'):
+            self._configure_tree_columns()
+
         if hasattr(self, 'results'):
             # CTkTextbox fonts are passed as tuples; update on size change.
             self.results.configure(font=(self._mono_family, mono_sz))
@@ -209,6 +212,8 @@ class AppearanceMixin:
 
     def _refit_windows(self):
         """Grow open windows as needed to fit the current font metrics."""
+        if hasattr(self, '_refresh_main_pane_layout'):
+            self._refresh_main_pane_layout()
         self._fit_window_to_content(
             self.root,
             min_w=1000,
@@ -283,6 +288,11 @@ class AppearanceMixin:
                         arrowcolor=fg, bordercolor=bg,
                         darkcolor=bg, lightcolor=bg)
         style.configure('TPanedwindow', background=bg)
+        if hasattr(self, '_paned'):
+            try:
+                self._paned.configure(background=bg)
+            except tk.TclError:
+                pass
         style.configure('Treeview', background=field_bg, foreground=fg,
                         fieldbackground=field_bg)
         style.configure('Treeview.Heading', background=hbg, foreground=fg)

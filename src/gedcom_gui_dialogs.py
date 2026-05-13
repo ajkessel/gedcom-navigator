@@ -535,7 +535,8 @@ class DialogsMixin:
                     if i == 0:
                         person(node_id, prefix="  ")
                     else:
-                        person(node_id, prefix=PATH_EDGE.format(edge=edge))
+                        person(node_id, prefix=self._path_edge_prefix(
+                            edge, "    "))
                 nl()
             if truncated:
                 nl(PATH_SEARCH_CAP)

@@ -48,7 +48,7 @@ from gedcom_relationship import (
     get_descendant_depths,
     describe_relationship,
 )
-from gedcom_theme import THEME_NAMES, get_flag_bg
+from gedcom_theme import THEME_NAMES, get_flag_bg, ttk_colors
 from gedcom_tooltip import Tooltip
 from gedcom_gui_appearance import AppearanceMixin
 from gedcom_gui_dialogs import DialogsMixin
@@ -96,6 +96,7 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
     MAIN_PREFERRED_WIDTH = 1500
     MAIN_PREFERRED_HEIGHT = 760
     RESULTS_PREFERRED_WIDTH = 850
+    RESULTS_MIN_WIDTH = 420
     _FONT_SIZES = {
         'small':  {'ui': 9,  'mono': 11},
         'medium': {'ui': 11, 'mono': 14},
@@ -242,6 +243,28 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
         inner.pack(fill='x', padx=8, pady=(0, 8))
         return inner
 
+    def _configure_tree_columns(self):
+        """Size fixed Treeview columns from the current UI font metrics."""
+        heading_font = tkfont.nametofont('TkDefaultFont')
+
+        def _fit_heading(text, sample='', padding=34):
+            text_w = max(heading_font.measure(text), heading_font.measure(sample))
+            return text_w + padding
+
+        name_w = max(240, _fit_heading(COL_NAME, padding=28))
+        birth_w = _fit_heading(COL_BIRTH, '0000')
+        death_w = _fit_heading(COL_DEATH, '0000')
+        flagged_w = _fit_heading(COL_DNA)
+
+        self.tree.column('name', width=name_w, minwidth=name_w,
+                         anchor='w', stretch=True)
+        self.tree.column('birth', width=birth_w, minwidth=birth_w,
+                         anchor='w', stretch=False)
+        self.tree.column('death', width=death_w, minwidth=death_w,
+                         anchor='w', stretch=False)
+        self.tree.column('flagged', width=flagged_w, minwidth=flagged_w,
+                         anchor='center', stretch=False)
+
     # ---------------------------------------------------------- UI build
     def _build_ui(self):
         """Build the main application window and connect primary controls."""
@@ -277,14 +300,27 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
         _find_path_btn.grid(row=0, column=5, padx=(12, 4))
         Tooltip(_find_path_btn, TIP_FIND_PATH)
 
-        # Main paned area
-        paned = ttk.PanedWindow(outer, orient='horizontal')
+        # Main paned area.  Use the classic Tk paned window here because it
+        # supports per-pane minsize constraints; ttk.PanedWindow only supports
+        # relative weights.
+        _pane_colors = ttk_colors(
+            ctk.get_appearance_mode() == 'Dark', self._theme_pref)
+        paned = tk.PanedWindow(
+            outer,
+            orient=tk.HORIZONTAL,
+            bd=0,
+            borderwidth=0,
+            sashwidth=6,
+            sashrelief='flat',
+            opaqueresize=True,
+            showhandle=False,
+            background=_pane_colors['bg'],
+        )
         self._paned = paned
         paned.pack(fill='both', expand=True, pady=(8, 0))
 
         # --- Left pane ---
         left = ctk.CTkFrame(paned, fg_color='transparent')
-        paned.add(left, weight=1)
 
         search_frame = ctk.CTkFrame(left, fg_color='transparent')
         search_frame.pack(fill='x')
@@ -337,11 +373,7 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
                           command=lambda: self._sort_by('death'))
         self.tree.heading('flagged', text=COL_DNA,
                           command=lambda: self._sort_by('flagged'))
-        _mac = sys.platform == 'darwin'
-        self.tree.column('name', width=240, anchor='w', stretch=True)
-        self.tree.column('birth', width=72 if _mac else 55, anchor='w', stretch=False)
-        self.tree.column('death', width=72 if _mac else 55, anchor='w', stretch=False)
-        self.tree.column('flagged', width=65 if _mac else 50, anchor='center', stretch=False)
+        self._configure_tree_columns()
 
         ysb = ctk.CTkScrollbar(list_frame, orientation='vertical',
                                command=self.tree.yview)
@@ -396,23 +428,6 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
 
         # --- Right pane ---
         right = ctk.CTkFrame(paned, fg_color='transparent')
-        paned.add(right, weight=3)
-
-        # Enforce a minimum left-pane width so the five action-row controls are
-        # never clipped.  ttk.PanedWindow has no built-in minsize option, so we
-        # clamp the sash position on initial layout and on every drag.
-        #
-        # We sum the reqwidths of the fixed-column widgets directly rather than
-        # reading the action frame's reqwidth: the frame is packed with fill='x'
-        # and its grid has a weight-1 spacer column, so after layout its
-        # reqwidth reflects the full expanded width, not the minimum content.
-        #
-        # On Windows the paned window has no real size until the event loop
-        # processes the geometry request, so _init_sash retries until
-        # winfo_width() returns a non-trivial value before placing the sash.
-        _sash_initialized = [False]
-        _last_pane_w = [0]
-        _stable_pane_w = [False]
 
         def _action_min_w():
             # padx totals per grid() call: spinbox1=14, spinbox2=2,
@@ -427,54 +442,59 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
                 + self.find_matches_btn.winfo_reqwidth()
             )
 
-        def _max_left_pane_w(pane_w=None):
-            if pane_w is None:
-                pane_w = paned.winfo_width()
-            # Keep enough of the results pane visible if the window is narrow
-            # or Windows reports a transient width during startup.
-            min_right_w = min(self.RESULTS_PREFERRED_WIDTH, max(160, pane_w // 4))
-            return max(0, pane_w - min_right_w)
+        def _tree_min_w():
+            columns_w = sum(
+                int(self.tree.column(col, 'minwidth'))
+                for col in self.tree['columns']
+            )
+            scrollbar_w = max(ysb.winfo_reqwidth(), 16)
+            return columns_w + scrollbar_w + 12
 
-        def _target_left_pane_w(pane_w):
-            min_w = _action_min_w()
-            target = max(min_w, pane_w - self.RESULTS_PREFERRED_WIDTH)
-            return min(target, _max_left_pane_w(pane_w))
+        def _left_min_w():
+            return max(_tree_min_w(), _action_min_w())
 
-        def _clamp_left_pane(event=None):
-            _sash_initialized[0] = True
+        def _clamp(value, lower, upper):
+            if upper < lower:
+                return max(0, upper)
+            return max(lower, min(value, upper))
+
+        def _refresh_main_pane_layout(place_preferred_sash=False):
             try:
-                min_w = _action_min_w()
-                target = min(min_w, _max_left_pane_w())
-                if target > 0 and paned.sashpos(0) < target:
-                    paned.sashpos(0, target)
-            except Exception: # pylint: disable=broad-exception-caught
-                pass
-
-        def _init_sash():
-            if _sash_initialized[0]:
-                return
-            try:
+                left_min = _left_min_w()
+                right_min = self.RESULTS_MIN_WIDTH
+                paned.paneconfig(left, minsize=left_min)
+                paned.paneconfig(right, minsize=right_min)
+                if not place_preferred_sash:
+                    return
                 pane_w = paned.winfo_width()
                 if pane_w <= 1:
-                    self.root.after(100, _init_sash)
+                    self.root.after_idle(
+                        lambda: _refresh_main_pane_layout(True))
                     return
-                if pane_w != _last_pane_w[0]:
-                    _last_pane_w[0] = pane_w
-                    _stable_pane_w[0] = False
-                    self.root.after(50, _init_sash)
-                    return
-                if not _stable_pane_w[0]:
-                    _stable_pane_w[0] = True
-                    self.root.after(50, _init_sash)
-                    return
-                target = _target_left_pane_w(pane_w)
-                paned.sashpos(0, target)
-                _sash_initialized[0] = True
-            except Exception: # pylint: disable=broad-exception-caught
+                max_left = pane_w - right_min
+                preferred = pane_w - self.RESULTS_PREFERRED_WIDTH
+                target = _clamp(preferred, left_min, max_left)
+                paned.sash_place(0, target, 0)
+            except tk.TclError:
                 pass
 
-        self.root.after(50, _init_sash)
-        paned.bind('<B1-Motion>', lambda e: _clamp_left_pane())
+        left_min = _left_min_w()
+        left.configure(width=left_min)
+        right.configure(width=self.RESULTS_PREFERRED_WIDTH)
+        paned.add(left, minsize=left_min, width=left_min, sticky='nsew')
+        paned.add(
+            right,
+            minsize=self.RESULTS_MIN_WIDTH,
+            width=self.RESULTS_PREFERRED_WIDTH,
+            sticky='nsew',
+        )
+        try:
+            paned.paneconfig(left, stretch='never')
+            paned.paneconfig(right, stretch='always')
+        except tk.TclError:
+            pass
+        self._refresh_main_pane_layout = _refresh_main_pane_layout
+        self.root.after_idle(lambda: _refresh_main_pane_layout(True))
 
         results_header = ctk.CTkFrame(right, fg_color='transparent')
         results_header.pack(fill='x')
@@ -928,6 +948,13 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
             result.append((src_id, rev_edge))
         return result
 
+    @staticmethod
+    def _path_edge_prefix(edge, indent):
+        """Return a fixed-width visual connector for an edge label."""
+        label = EDGE_LABELS.get(edge, edge)
+        label_width = max(len(value) for value in EDGE_LABELS.values())
+        return f"{indent}──{label.center(label_width,"─")}──▶ "
+
     def _reverse_results(self):
         """Toggle reversed display of the current results."""
         if not self._last_result:
@@ -1005,6 +1032,10 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
             # TODO consider permanently removing code that shows "edges"
             w.insert('end', '\n')
 
+        result_detail_indent = "   "
+        result_edge_indent = "       "
+        home_edge_indent = "    "
+
         start = self.individuals[start_id]
         name = self._display_name(start)
         b, d = start.get('birth_year'), start.get('death_year')
@@ -1041,13 +1072,15 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
                         ancestors=m_anc, descendants=m_desc)
                     person(match_id,
                            prefix=RESULT_RANK_PREFIX.format(rank=rank), bold=True)
-                    nl(RESULT_RELATIONSHIP.format(rel=rel))
-                    nl(RESULT_PATH)
+                    nl(result_detail_indent +
+                       RESULT_RELATIONSHIP.format(rel=rel))
+                    nl(result_detail_indent + RESULT_PATH)
                     for i, (node_id, edge) in enumerate(rev_path):
                         if i == 0:
                             person(node_id, prefix="     ")
                         else:
-                            person(node_id, prefix=RESULT_EDGE.format(edge=edge))
+                            person(node_id, prefix=self._path_edge_prefix(
+                                edge, result_edge_indent))
                     nl(RESULT_DNA_MARKERS)
                     for m in self.individuals[match_id]['dna_markers']:
                         nl(f"     - {self._format_marker(m)}")
@@ -1065,13 +1098,15 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
                     rel = describe_relationship(
                         path, self.individuals,
                         ancestors=ancestors, descendants=descendants)
-                    nl(RESULT_RELATIONSHIP.format(rel=rel))
-                    nl(RESULT_PATH)
+                    nl(result_detail_indent +
+                       RESULT_RELATIONSHIP.format(rel=rel))
+                    nl(result_detail_indent + RESULT_PATH)
                     for i, (node_id, edge) in enumerate(path):
                         if i == 0:
                             person(node_id, prefix="     ")
                         else:
-                            person(node_id, prefix=RESULT_EDGE.format(edge=edge))
+                            person(node_id, prefix=self._path_edge_prefix(
+                                edge, result_edge_indent))
                     nl(RESULT_DNA_MARKERS)
                     for m in self.individuals[end_id]['dna_markers']:
                         nl(f"     - {self._format_marker(m)}")
@@ -1132,15 +1167,14 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
                     rel = describe_relationship(
                         disp_path, self.individuals,
                         ancestors=ancestors, descendants=descendants)
-                dist = len(disp_path) - 1
-                nl(RESULT_HOME_REL.format(
-                    rel=rel, dist=dist, plural='s' if dist != 1 else ''))
-                nl(RESULT_HOME_PATH)
+                nl(RESULT_RELATIONSHIP.format(rel=rel))
+                nl(RESULT_PATH)
                 for i, (node_id, edge) in enumerate(disp_path):
                     if i == 0:
                         person(node_id, prefix="  ")
                     else:
-                        person(node_id, prefix=RESULT_HOME_EDGE.format(edge=edge))
+                        person(node_id, prefix=self._path_edge_prefix(
+                            edge, home_edge_indent))
             nl()
 
         self._reverse_btn.configure(state='normal')

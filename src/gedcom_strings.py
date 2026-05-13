@@ -217,17 +217,18 @@ RESULT_NO_DNA_FOUND = "No DNA-flagged relatives found within the search depth."
 RESULT_RANK_PREFIX = "#{rank}: "
 RESULT_DISTANCE = " (distance: {dist} edges)"
 RESULT_DNA_MARKERS = "   DNA markers:"
-RESULT_RELATIONSHIP = "   Relationship: {rel}"
-RESULT_PATH = "   Path:"
-RESULT_EDGE = "       --[{edge}]--> "
+RESULT_RELATIONSHIP = "Relationship: {rel}"
+RESULT_PATH = "Path:"
 RESULT_PATH_SECTION = "Path to Home Person"
 RESULT_HOME = "Home: "
 RESULT_NO_HOME_PATH = "No path found to home person within the current max depth."
-# TODO consider permanently removing all edge{plural} placeholders
-# RESULT_HOME_REL = "Relationship: {rel} ({dist} edge{plural})"
-RESULT_HOME_REL = "Relationship: {rel}"
-RESULT_HOME_PATH = "Path:"
-RESULT_HOME_EDGE = "    --[{edge}]--> "
+EDGE_LABELS = {
+    'father': 'father',
+    'mother': 'mother',
+    'sibling': 'sibling',
+    'spouse': 'spouse',
+    'child': 'child',
+}
 
 # ---------------------------------------------------------------------------
 # Relationship path results
@@ -237,9 +238,7 @@ PATH_FROM = "  From: "
 PATH_TO = "  To:   "
 PATH_SAME_PERSON = "(Same person selected for both.)"
 PATH_NOT_FOUND = "No relationship path found within max depth {depth}."
-# PATH_RANK = "Path #{rank} — {rel} ({dist} edge{plural}):"
 PATH_RANK = "Path #{rank} — {rel}:"
-PATH_EDGE = "    --[{edge}]--> "
 PATH_SEARCH_CAP = (
     "(Search cap reached — there may be additional paths. "
     "Reduce Max depth to search a smaller area.)"
