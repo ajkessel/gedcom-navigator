@@ -615,6 +615,11 @@ class AppearanceMixin:
     def _setup_menu(self):
         """Build the application menu and connect menu commands."""
         menubar = tk.Menu(self.root)
+        if sys.platform == 'darwin':
+            apple_menu = tk.Menu(menubar, name='apple')
+            menubar.add_cascade(menu=apple_menu)
+            apple_menu.add_command(label='About', command=self._show_about)
+            apple_menu.add_separator()
         self.root.config(menu=menubar)
         self._menubar = menubar
 
@@ -642,16 +647,15 @@ class AppearanceMixin:
         if sys.platform == 'darwin':
             self.root.createcommand(
                 '::tk::mac::ShowPreferences', self._show_preferences)
-            self.root.createcommand(
-                '::tk::mac::standardAboutPanel', self._show_about)
         app_menu.add_command(label=MENU_HOW_TO_USE, underline=0,
                              command=self._show_how_to_use)
         app_menu.add_command(label=MENU_KEYBOARD_SHORTCUTS, underline=0,
                              command=self._show_keyboard_shortcuts)
         app_menu.add_command(label=MENU_PRIVACY_POLICY, underline=1,
                              command=self._show_privacy_policy)
-        app_menu.add_command(label=MENU_ABOUT, underline=0,
-                             command=self._show_about)
+        if sys.platform != 'darwin':
+                app_menu.add_command(label=MENU_ABOUT, underline=0,
+                                     command=self._show_about)
 
         self.root.createcommand('::tk::mac::Quit', self.root.quit)
 
