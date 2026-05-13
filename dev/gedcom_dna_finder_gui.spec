@@ -155,4 +155,5 @@ if sys.platform == 'darwin':
                      'NSHumanReadableCopyright': f'Copyright {_app_release_date[:4]} Adam Kessel',
                      'NSHighResolutionCapable': True,
                      'LSApplicationCategoryType': 'public.app-category.utilities',
+                     'ITSAppUsesNonExemptEncryption': False,
                  })
