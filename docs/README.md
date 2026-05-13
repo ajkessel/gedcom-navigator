@@ -6,14 +6,14 @@ This application is for genealogists to explore large GEDCOM files, particularly
 
 ## What does it do exactly?
 
-This tool provides useful ways to explore a GEDCOM file exported from services like Ancestry, MyHeritage, Geni, and Family Tree Maker:
+GEDCOM DNA Finder provides useful ways to explore a GEDCOM file exported from services like Ancestry, MyHeritage, Geni, and Family Tree Maker:
 
 * Find the closest DNA-flagged person to any other person in a family tree
 * Show multiple relationship paths between any two people in your tree, for example when two people are related through multiple common ancestors
 * Search your tree for variations on names (including fuzzy matching) and filter on other information like geographical locations, for example "Smith" and "Chicago"
 * Rapidly explore names and relationships between people, even in a very large tree with tens of thousands of records
 
-Available as a graphical tool for normal users, as well as a command-line version for power users.
+Available as a graphical application for normal users, as well as a command-line tool for power users.
 
 Downloads:
 * [Mac App Store](https://apps.apple.com/app/gedcom-dna-finder/id6765485580) - easy install, may be behind the latest version here
@@ -30,11 +30,11 @@ This is an alpha release. Only one person has tested it so far--me. If you are i
 
 Many genealogists working with autosomal DNA add unfamiliar people to their family tree based on DNA matches and then build out those people's lines, hoping to find the most recent common ancestor between the match and themselves. After accumulating thousands of these speculative additions, you often end up looking at a person in your tree and thinking: *why is this person here? which DNA match did this branch come from?*
 
-Ancestry, Family Tree Maker, and other standard GEDCOM viewers show you a flat list of everyone you've tagged as a DNA match, but none of them will, given an arbitrary person in the tree, walk outward through the relationship graph and tell you the nearest tagged relative. That is the main purpose of this tool.
+Ancestry, Family Tree Maker, and other standard GEDCOM viewers show you a flat list of everyone you've tagged as a DNA match, but none of them will, given an arbitrary person in the tree, walk outward through the relationship graph and tell you the nearest tagged relative. That is the main purpose of this application.
 
-You can also use this tool to find multiple paths between any two people in your tree and also view individual records from your tree. For example, if your grandfather's maternal cousin married your grandfather's paternal cousin, you will have multiple paths to their descendants. Most applications only show one path; this tool can find as many paths as you like.
+You can also use this application to find multiple paths between any two people in your tree and also view individual records from your tree. For example, if your grandfather's maternal cousin married your grandfather's paternal cousin, you will have multiple paths to their descendants. Most applications only show one path; this application can find as many paths as you like. If there are not multiple common ancestors between the two people, the "alternate" paths will be less interesting (e.g. your first cousin could be your mother's sister's son or your father's sister-in-law's son), but "interesting" alternative paths should show up first (e.g., your first maternal cousin is married to your first paternal cousin, and you can reach their children going through either line).
 
-If you set a person as the "Home Person" using the "Set Home" button, the results will always include the path from the selected person to the Home Person in addition to the closest people with DNA match markers.
+Set a person as the "Home Person" using the "Set Home" button and the results will always include the path from the selected person to the Home Person in addition to the closest people with DNA match markers.
 
 Finally, if you have a large tree, you may find it difficult to search for specific individuals in other tools. Ancestry, for example, only searches on the person's "preferred name" and not any of the alternate names, and neither Ancestry nor Family Tree Maker allow fuzzy matching searches. If you have a relative with the name "Herbert Smith," a search for "Herb Smith" will come up empty. Likewise, if you don't remember if someone is "Neil" or "Neal," you have to try each to find the person. Ancestry also does not allow you to easily search on multiple fields at once, like name and location. With this tool, you can search for a name with fuzzy matching (e.g. "John Smith" in the "Find:" box) and then further limit the results by a term that appears anywhere in the person's record (e.g. "Chicago" in the "Filter" box). If you have multiple names in a person's record (e.g. maiden name and married name), this tool will match either one. This search method avoids the clumsy workarounds people use to label people in their tree, for example, by packing all the person's different surnames into the surname field. You can create a separate "name" record for each name the person has, and then find them easily using this tool's search functionality.
 
