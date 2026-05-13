@@ -332,8 +332,10 @@ class AppearanceMixin:
         if tint is None:
             return
         theme = ctk.ThemeManager.theme
-        theme['CTkToplevel']['tooltip_bg_color'] = tint.get('tooltip_bg_color', "#EEEEEE")
-        theme['CTkToplevel']['tooltip_text_color'] = tint.get('tooltip_text_color', "#222222")
+        theme['CTkToplevel']['tooltip_bg_color'] = tint.get(
+            'tooltip_bg_color', "#EEEEEE")
+        theme['CTkToplevel']['tooltip_text_color'] = tint.get(
+            'tooltip_text_color', "#222222")
         for widget, value in tint.items():
             if widget not in theme:
                 continue
@@ -372,12 +374,12 @@ class AppearanceMixin:
         self._update_header_label_style()
         if not hasattr(self, 'results'):
             return
-        #needs_rebuild = color_theme != old_color_theme or old_tinted != (
-            #theme_name in _BG_TINTS)
-        #if needs_rebuild:
+        # needs_rebuild = color_theme != old_color_theme or old_tinted != (
+            # theme_name in _BG_TINTS)
+        # if needs_rebuild:
         self.root.after(0, self._rebuild_ui_for_theme)
-        #else:
-            #self.root.after(0, self._refit_windows)
+        # else:
+            # self.root.after(0, self._refit_windows)
 
     def _rebuild_ui_for_theme(self):
         """Destroy and rebuild main-window widgets to apply a new colour theme."""
@@ -640,6 +642,8 @@ class AppearanceMixin:
         if sys.platform == 'darwin':
             self.root.createcommand(
                 '::tk::mac::ShowPreferences', self._show_preferences)
+            self.root.createcommand(
+                '::tk::mac::standardAboutPanel', self._show_about)
         app_menu.add_command(label=MENU_HOW_TO_USE, underline=0,
                              command=self._show_how_to_use)
         app_menu.add_command(label=MENU_KEYBOARD_SHORTCUTS, underline=0,
