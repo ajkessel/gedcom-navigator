@@ -1,3 +1,3 @@
 """GEDCOM DNA Finder — locate DNA-tagged relatives in a GEDCOM family tree."""
 __version__ = "1.0.1"
-__release_date__ = "2026-05-12"
+__release_date__ = "2026-05-13"

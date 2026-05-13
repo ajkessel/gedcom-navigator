@@ -411,6 +411,8 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
         # processes the geometry request, so _init_sash retries until
         # winfo_width() returns a non-trivial value before placing the sash.
         _sash_initialized = [False]
+        _last_pane_w = [0]
+        _stable_pane_w = [False]
 
         def _action_min_w():
             # padx totals per grid() call: spinbox1=14, spinbox2=2,
@@ -425,12 +427,26 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
                 + self.find_matches_btn.winfo_reqwidth()
             )
 
+        def _max_left_pane_w(pane_w=None):
+            if pane_w is None:
+                pane_w = paned.winfo_width()
+            # Keep enough of the results pane visible if the window is narrow
+            # or Windows reports a transient width during startup.
+            min_right_w = min(self.RESULTS_PREFERRED_WIDTH, max(160, pane_w // 4))
+            return max(0, pane_w - min_right_w)
+
+        def _target_left_pane_w(pane_w):
+            min_w = _action_min_w()
+            target = max(min_w, pane_w - self.RESULTS_PREFERRED_WIDTH)
+            return min(target, _max_left_pane_w(pane_w))
+
         def _clamp_left_pane(event=None):
             _sash_initialized[0] = True
             try:
                 min_w = _action_min_w()
-                if min_w > 0 and paned.sashpos(0) < min_w:
-                    paned.sashpos(0, min_w)
+                target = min(min_w, _max_left_pane_w())
+                if target > 0 and paned.sashpos(0) < target:
+                    paned.sashpos(0, target)
             except Exception: # pylint: disable=broad-exception-caught
                 pass
 
@@ -442,8 +458,16 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
                 if pane_w <= 1:
                     self.root.after(100, _init_sash)
                     return
-                min_w = _action_min_w()
-                target = max(min_w, pane_w - self.RESULTS_PREFERRED_WIDTH)
+                if pane_w != _last_pane_w[0]:
+                    _last_pane_w[0] = pane_w
+                    _stable_pane_w[0] = False
+                    self.root.after(50, _init_sash)
+                    return
+                if not _stable_pane_w[0]:
+                    _stable_pane_w[0] = True
+                    self.root.after(50, _init_sash)
+                    return
+                target = _target_left_pane_w(pane_w)
                 paned.sashpos(0, target)
                 _sash_initialized[0] = True
             except Exception: # pylint: disable=broad-exception-caught
