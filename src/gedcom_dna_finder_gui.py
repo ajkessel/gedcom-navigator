@@ -1069,7 +1069,8 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
                     m_desc = get_descendant_depths(match_id, self.individuals, self.families)
                     rel = describe_relationship(
                         rev_path, self.individuals,
-                        ancestors=m_anc, descendants=m_desc)
+                        ancestors=m_anc, descendants=m_desc,
+                        families=self.families)
                     person(match_id,
                            prefix=RESULT_RANK_PREFIX.format(rank=rank), bold=True)
                     nl(result_detail_indent +
@@ -1097,7 +1098,8 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
                            suffix=RESULT_DISTANCE.format(dist=dist), bold=True)
                     rel = describe_relationship(
                         path, self.individuals,
-                        ancestors=ancestors, descendants=descendants)
+                        ancestors=ancestors, descendants=descendants,
+                        families=self.families)
                     nl(result_detail_indent +
                        RESULT_RELATIONSHIP.format(rel=rel))
                     nl(result_detail_indent + RESULT_PATH)
@@ -1157,7 +1159,8 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
                     h_desc = get_descendant_depths(home_id, self.individuals, self.families)
                     rel = describe_relationship(
                         disp_path, self.individuals,
-                        ancestors=h_anc, descendants=h_desc)
+                        ancestors=h_anc, descendants=h_desc,
+                        families=self.families)
                 else:
                     disp_path = raw_path
                     ancestors = get_ancestor_depths(
@@ -1166,7 +1169,8 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
                         start_id, self.individuals, self.families)
                     rel = describe_relationship(
                         disp_path, self.individuals,
-                        ancestors=ancestors, descendants=descendants)
+                        ancestors=ancestors, descendants=descendants,
+                        families=self.families)
                 nl(RESULT_RELATIONSHIP.format(rel=rel))
                 nl(RESULT_PATH)
                 for i, (node_id, edge) in enumerate(disp_path):

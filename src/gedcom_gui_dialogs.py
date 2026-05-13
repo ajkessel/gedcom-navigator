@@ -527,7 +527,8 @@ class DialogsMixin:
                 dist = len(path) - 1
                 rel = describe_relationship(path, self.individuals,
                                             ancestors=ancestors,
-                                            descendants=descendants)
+                                            descendants=descendants,
+                                            families=self.families)
                 nl(PATH_RANK.format(
                     rank=rank, rel=rel, dist=dist,
                     plural='s' if dist != 1 else ''), bold=True)

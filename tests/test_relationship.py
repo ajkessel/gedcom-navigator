@@ -43,6 +43,41 @@ def _make_fam(id, husb=None, wife=None, chil=None):
             "marr_date": "", "marr_place": ""}
 
 
+def _add_parent_child(indiv, fams, parent_id, child_id, fam_id):
+    if parent_id not in indiv:
+        indiv[parent_id] = _make_indi_full(parent_id, "M")
+    if child_id not in indiv:
+        indiv[child_id] = _make_indi_full(child_id, "M")
+    indiv[parent_id]["fams"].append(fam_id)
+    indiv[child_id]["famc"].append(fam_id)
+    fams[fam_id] = _make_fam(fam_id, husb=parent_id, chil=[child_id])
+
+
+def _make_common_ancestor_tree(start_id, target_id, depth=5):
+    indiv = {
+        start_id: _make_indi_full(start_id, "M"),
+        target_id: _make_indi_full(target_id, "M"),
+        "@COMMON@": _make_indi_full("@COMMON@", "M"),
+    }
+    fams = {}
+
+    parent = "@COMMON@"
+    for n in range(depth - 1, 0, -1):
+        child = f"@START_ANC_{n}@"
+        _add_parent_child(indiv, fams, parent, child, f"@FS{n}@")
+        parent = child
+    _add_parent_child(indiv, fams, parent, start_id, "@FS0@")
+
+    parent = "@COMMON@"
+    for n in range(depth - 1, 0, -1):
+        child = f"@TARGET_ANC_{n}@"
+        _add_parent_child(indiv, fams, parent, child, f"@FT{n}@")
+        parent = child
+    _add_parent_child(indiv, fams, parent, target_id, "@FT0@")
+
+    return indiv, fams
+
+
 # ===========================================================================
 # _nth_great
 # ===========================================================================
@@ -359,6 +394,45 @@ class TestInLawsAndStepRelations:
         result = describe_relationship(path, indiv)
         assert result == "step-mother"
 
+    def test_interior_spouse_before_sibling_does_not_make_step_child(self):
+        # Paternal grandfather → son → daughter-in-law → her sister.
+        indiv = {
+            "@PGF@": _i("M"), "@SON@": _i("M"), "@DIL@": _i("F"),
+            "@SIS@": _i("F")
+        }
+        path = _path("@PGF@", None, "@SON@", "child", "@DIL@", "spouse",
+                     "@SIS@", "sibling")
+        assert describe_relationship(path, indiv) == "daughter-in-law's sister"
+
+    def test_paternal_grandfather_to_maternal_first_cousin(self):
+        # Paternal grandfather → son → daughter-in-law → her sister → sister's son.
+        indiv = {
+            "@PGF@": _i("M"), "@SON@": _i("M"), "@DIL@": _i("F"),
+            "@AUNT@": _i("F"), "@COUSIN@": _i("M")
+        }
+        path = _path("@PGF@", None, "@SON@", "child", "@DIL@", "spouse",
+                     "@AUNT@", "sibling", "@COUSIN@", "child")
+        assert describe_relationship(path, indiv) == "daughter-in-law's nephew"
+
+    def test_spouse_detour_to_siblings_child_still_describes_niece(self):
+        # Me → brother → brother's wife → their daughter.
+        indiv = {
+            "@ME@": _i(), "@BRO@": _i("M"), "@WIFE@": _i("F"),
+            "@NIECE@": _i("F")
+        }
+        path = _path("@ME@", None, "@BRO@", "sibling", "@WIFE@", "spouse",
+                     "@NIECE@", "child")
+        assert describe_relationship(path, indiv) == "niece"
+
+    def test_cousins_sibling_still_describes_cousin(self):
+        indiv = {
+            "@ME@": _i(), "@DAD@": _i("M"), "@UNCLE@": _i("M"),
+            "@COUSIN@": _i("M"), "@COUSINS_SIS@": _i("F")
+        }
+        path = _path("@ME@", None, "@DAD@", "father", "@UNCLE@", "sibling",
+                     "@COUSIN@", "child", "@COUSINS_SIS@", "sibling")
+        assert describe_relationship(path, indiv) == "first cousin"
+
 
 class TestAncestorDescendantOverride:
     """When ancestors/descendants dicts are provided, they override path classification."""
@@ -380,6 +454,32 @@ class TestAncestorDescendantOverride:
         descendants = {"@GC@": 2}
         result = describe_relationship(path, indiv, descendants=descendants)
         assert result == "grandson"
+
+
+class TestEfficientBiologicalRelationships:
+    def test_long_possessive_path_prefers_fourth_cousin_when_supported_by_tree(self):
+        indiv, fams = _make_common_ancestor_tree("@ME@", "@TARGET@", depth=5)
+        for node_id in ["@P1@", "@P2@", "@P3@", "@AUNT@", "@GSONP@",
+                        "@GSON@", "@INLAW@", "@I1@", "@I2@", "@I3@",
+                        "@I4@"]:
+            indiv[node_id] = _make_indi_full(node_id, "M")
+
+        path = _path("@ME@", None, "@P1@", "father", "@P2@", "father",
+                     "@P3@", "father", "@AUNT@", "sibling",
+                     "@GSONP@", "child", "@GSON@", "child",
+                     "@INLAW@", "spouse", "@I1@", "father",
+                     "@I2@", "father", "@I3@", "sibling",
+                     "@I4@", "child", "@TARGET@", "child")
+
+        assert describe_relationship(path, indiv) != "fourth cousin"
+        assert describe_relationship(path, indiv, families=fams) == "fourth cousin"
+
+    def test_direct_in_law_is_not_replaced_by_distant_biological_cousin(self):
+        indiv, fams = _make_common_ancestor_tree("@ME@", "@FIL@", depth=5)
+        indiv["@SPOUSE@"] = _make_indi_full("@SPOUSE@", "F")
+        path = _path("@ME@", None, "@SPOUSE@", "spouse", "@FIL@", "father")
+
+        assert describe_relationship(path, indiv, families=fams) == "father-in-law"
 
 
 # ===========================================================================

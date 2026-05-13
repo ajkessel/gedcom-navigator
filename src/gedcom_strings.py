@@ -211,7 +211,7 @@ BTN_CLOSE = "Close"
 # ---------------------------------------------------------------------------
 # DNA match results display
 # ---------------------------------------------------------------------------
-RESULT_CLOSEST_MATCHES = "Closest Tag and Page Marker Matches"
+RESULT_CLOSEST_MATCHES = "Closest DNA Matches"
 RESULT_DNA_FLAGGED_NOTE = "  Note: this person is themselves DNA-flagged."
 RESULT_NO_DNA_FOUND = "No DNA-flagged relatives found within the search depth."
 RESULT_RANK_PREFIX = "#{rank}: "
