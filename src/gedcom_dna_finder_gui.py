@@ -48,7 +48,8 @@ from gedcom_relationship import (
     get_descendant_depths,
     describe_relationship,
 )
-from gedcom_theme import Tooltip, THEME_NAMES, get_flag_bg
+from gedcom_theme import THEME_NAMES, get_flag_bg
+from gedcom_tooltip import Tooltip
 from gedcom_gui_appearance import AppearanceMixin
 from gedcom_gui_dialogs import DialogsMixin
 
@@ -603,7 +604,12 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
                 messagebox.showerror(
                     ERR_PARSE_TITLE, ERR_PARSE_MSG.format(error=error))
                 return
-            from_cache, encoding_warning = result
+            from_cache, encoding_warning, model_error = result
+            if model_error:
+                self.status_text.set(STATUS_LOAD_FAILED)
+                messagebox.showerror(
+                    ERR_PARSE_TITLE, ERR_PARSE_MSG.format(error=model_error))
+                return
             self.individuals = self._model.individuals
             self.families = self._model.families
             self.tag_records = self._model.tag_records

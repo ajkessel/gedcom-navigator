@@ -132,7 +132,7 @@ def extract_year(date_str):
 
 
 def build_model(gedcom_path, dna_keyword, page_marker):
-    """Parse the GEDCOM and return (individuals, families, tag_records, encoding_warning).
+    """Parse the GEDCOM and return model data plus warnings/errors.
 
     individuals[id] = {
         id, name, sex, famc[], fams[], dna_markers[],
@@ -141,6 +141,7 @@ def build_model(gedcom_path, dna_keyword, page_marker):
     families[id]    = {id, husb, wife, chil[]}
     tag_records[id] = name string (from the NAME subrecord of an _MTTAG record)
     encoding_warning = string or None
+    model_error = string or None; non-None when no usable model could be built
     """
     records, encoding_warning = iter_records_checked(gedcom_path)
 
@@ -280,7 +281,24 @@ def build_model(gedcom_path, dna_keyword, page_marker):
                     f'Tag: {tag_name} ({ref})'
                 )
 
-    return individuals, families, tag_records, encoding_warning
+    model_error = None
+    if not records:
+        model_error = (
+            "No GEDCOM records were found in the selected file. "
+            "Please choose a valid .ged or .gedcom file."
+        )
+    elif not any(rec and rec[0][0] == 0 and rec[0][2] == 'HEAD' for rec in records):
+        model_error = (
+            "The selected file does not look like a valid GEDCOM file "
+            "because it is missing a HEAD record."
+        )
+    elif not individuals:
+        model_error = (
+            "No individual records were found in the selected GEDCOM file. "
+            "The app needs at least one INDI record to build the family model."
+        )
+
+    return individuals, families, tag_records, encoding_warning, model_error
 
 
 def neighbors(indi_id, individuals, families):
