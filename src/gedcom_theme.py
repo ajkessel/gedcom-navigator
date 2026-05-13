@@ -94,6 +94,9 @@ class _SizedToolTip(_CTkToolTip):
         # start with an empty message since we will be customizing the display
         # in _show() to support multi-line text with different fonts
         super().__init__(widget, message="", font=self._base_font, *args, **kwargs)
+        # when user starts typing in text entry box, tooltip should disappear as if
+        # the mouse pointer had left the window
+        self.widget.bind("<Key>", self.on_leave, add="+")
         self._bold_font = CTkFont(
             family=self._base_font.cget("family"),
             size=self._base_font.cget("size")+2,
@@ -113,6 +116,7 @@ class _SizedToolTip(_CTkToolTip):
         self.configure(bg_color=self.bg_color,
                        text_color=self.text_color,
                        padx=4, pady=8)
+
 
     def configure(self, **kwargs):
         super().configure(**kwargs)
