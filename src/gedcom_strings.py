@@ -101,7 +101,7 @@ TIP_REVERSE = (
 # Tooltips
 # ---------------------------------------------------------------------------
 TIP_COPY = (
-    f"Copy results({_MOD}C)\n"
+    f"Copy results ({_MOD}C)\n"
     "Copy the entire contents of the results pane to the clipboard. "
     "When the results text area has keyboard focus, "
     f"{_MOD}C copies only the selected text as usual."
