@@ -48,21 +48,15 @@ if [ "${branch}" != "main" ]; then
   [ "${x}" == "q" ] && exit 1
 fi
 git pull || die 'Error updating from git.'
-<<<<<<< HEAD
-=======
 # shellcheck source=/dev/null
->>>>>>> devel
 source .venv/bin/activate || die 'Error activating venv.'
 echo 'Building for Linux platform...'
 ./dev/build.sh "${OPTIONS}" || die 'Error building for Linux.'
 echo 'Building for Windows platform...'
 pwsh -command 'c:/apps/src/gedcom-dna-finder/dev/build.ps1' || die 'Error building for Windows.'
 echo 'Building for Mac platform...'
-<<<<<<< HEAD
-=======
 # ${OPTIONS} should be expanded locally, not remotely
 # shellcheck disable=SC2029
->>>>>>> devel
 ssh mac "src/gedcom-dna-finder/dev/build.sh ${OPTIONS}" || die 'Error building for Mac.'
 echo 'Copying built ZIP files locally...'
 scp mac:src/gedcom-dna-finder/dist/*zip ./dist || die 'Error copying ZIP files.'
