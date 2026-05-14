@@ -561,6 +561,7 @@ class DialogsMixin:
         win.title(WIN_PREFERENCES)
         win.resizable(True, True)
         win.transient(self.root)
+        win.grab_set()
 
         outer = ctk.CTkFrame(win, fg_color='transparent')
         outer.pack(fill='both', expand=True, padx=16, pady=16)

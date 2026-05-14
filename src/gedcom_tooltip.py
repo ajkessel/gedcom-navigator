@@ -4,6 +4,8 @@ gedcom_tooltip.py
 Tooltip widget helper for customtkinter controls.
 """
 
+import sys
+import tkinter as tk
 from time import time
 
 from CTkToolTip import CTkToolTip as _CTkToolTip
@@ -26,6 +28,7 @@ class _SizedToolTip(_CTkToolTip):
         # start with an empty message since we will be customizing the display
         # in _show() to support multi-line text with different fonts
         super().__init__(widget, message="", font=self._base_font, *args, **kwargs)
+        self._configure_macos_window_behavior()
         # when user starts typing in text entry box, tooltip should disappear as if
         # the mouse pointer had left the window
         self.widget.bind("<Key>", self.on_leave, add="+")
@@ -48,6 +51,26 @@ class _SizedToolTip(_CTkToolTip):
         self.configure(bg_color=self.bg_color,
                        text_color=self.text_color,
                        padx=4, pady=8)
+
+    def _configure_macos_window_behavior(self):
+        if sys.platform != 'darwin':
+            return
+        try:
+            owner = self.widget.winfo_toplevel()
+            if owner is not self:
+                self.transient(owner)
+        except tk.TclError:
+            pass
+        try:
+            self.tk.call(
+                "::tk::unsupported::MacWindowStyle",
+                "style",
+                self,
+                "help",
+                "noActivates",
+            )
+        except tk.TclError:
+            pass
 
     # currently not using any subclass of configure
     # def configure(self, message: str = None, delay: float = None, bg_color: str = None, **kwargs):
