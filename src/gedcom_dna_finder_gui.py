@@ -10,6 +10,7 @@ import tkinter.font as tkfont
 import argparse
 import difflib
 import os
+import queue
 import re
 import subprocess
 import sys
@@ -185,6 +186,10 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
         # Progress animation state
         self._progress_anim_id = None
         self._progress_anim_val = 0.0
+        self._search_popup = None
+        self._search_popup_bar = None
+        self._search_popup_anim_id = None
+        self._background_cancel_event = None
 
         self._font_size_pref = self._load_font_preference()
         self._theme_pref = self._load_theme_preference()
@@ -261,10 +266,10 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
         # Settings row
         settings_group = ctk.CTkFrame(outer, border_width=1)
         settings_group.pack(fill='x', pady=(8, 0))
-        ctk.CTkLabel(settings_group, text=FRAME_DNA_SETTINGS, anchor='w').pack(
-            anchor='nw', padx=10, pady=(6, 2))
+        # ctk.CTkLabel(settings_group, text=FRAME_DNA_SETTINGS, anchor='w').pack(
+        #    anchor='nw', padx=10, pady=(6, 2))
         settings_frame = ctk.CTkFrame(settings_group, fg_color='transparent')
-        settings_frame.pack(fill='x', padx=8, pady=(0, 8))
+        settings_frame.pack(fill='x', padx=8, pady=(6, 8))
 
         # Tag Keyword and Page Marker settings
         ctk.CTkLabel(settings_frame, text=LBL_TAG_KEYWORD).grid(
@@ -558,12 +563,143 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
         self._progress_bar.grid_remove()
         self._copy_btn.grid()
 
+    def _run_background_task(self, work, done, *, popup_message=None,
+                             cancelable=False, on_cancel=None):
+        """Run CPU-heavy work in a thread and deliver its result on the Tk thread."""
+        result_queue = queue.Queue(maxsize=1)
+        cancel_event = threading.Event() if cancelable else None
+        cancelled = {'value': False}
+        switch_interval = sys.getswitchinterval()
+        using_fast_switch = switch_interval > 0.001
+
+        def _worker():
+            try:
+                if cancel_event is None:
+                    result_queue.put((work(), None))
+                else:
+                    result_queue.put((work(cancel_event), None))
+            except Exception as e:  # pylint: disable=broad-exception-caught
+                result_queue.put((None, e))
+
+        def _cancel_task():
+            if cancel_event is None or cancelled['value']:
+                return
+            cancelled['value'] = True
+            cancel_event.set()
+            self._background_cancel_event = None
+            self._hide_search_popup()
+            if on_cancel:
+                on_cancel()
+
+        def _poll_result():
+            try:
+                result, error = result_queue.get_nowait()
+            except queue.Empty:
+                self.root.after(50, _poll_result)
+                return
+            if using_fast_switch:
+                sys.setswitchinterval(switch_interval)
+            if cancel_event is not None and self._background_cancel_event is cancel_event:
+                self._background_cancel_event = None
+            if cancelled['value']:
+                return
+            done(result, error)
+
+        def _start_worker():
+            if cancelled['value']:
+                return
+            if using_fast_switch:
+                sys.setswitchinterval(0.0005)
+            threading.Thread(target=_worker, daemon=True).start()
+            _poll_result()
+
+        if cancel_event is not None:
+            self._background_cancel_event = cancel_event
+        if popup_message:
+            self._show_search_popup(
+                popup_message,
+                on_cancel=_cancel_task if cancelable else None,
+            )
+            # Let Tk process the popup's map/expose events before starting a
+            # CPU-heavy Python thread that will compete with the GUI for the GIL.
+            self.root.after(100, _start_worker)
+        else:
+            _start_worker()
+
     def _set_busy(self, busy):
         """Disable or re-enable the controls that trigger long operations."""
         self._busy = busy
         state = 'disabled' if busy else 'normal'
         self.find_matches_btn.configure(state=state)
         self._file_menu.entryconfigure(MENU_OPEN_GEDCOM, state=state)
+
+    # ---------------------------------------------------------- Search popup
+    _SLOW_SEARCH_THRESHOLD = 50_000
+
+    @staticmethod
+    def _is_slow_search(max_depth, n_individuals):
+        """Predict whether a BFS DNA-match search will be noticeably slow."""
+        return max_depth * n_individuals > DNAMatchFinderApp._SLOW_SEARCH_THRESHOLD
+
+    def _show_search_popup(self, message=PROGRESS_SEARCHING, on_cancel=None):
+        """Show a centered progress dialog for slow searches."""
+        if self._search_popup is not None:
+            return
+        # Use tk.Toplevel rather than ctk.CTkToplevel to avoid the Windows-only
+        # deferred deiconify callback in CTkToplevel that races with destroy()
+        # when the search finishes before the ~10 ms title bar-color timer fires.
+        popup = tk.Toplevel(self.root)
+        popup.withdraw()  # hide until positioned to avoid flash at 0,0
+        popup.title(PROGRESS_SEARCHING_TITLE)
+        popup.resizable(False, False)
+        popup.transient(self.root)
+        popup.protocol("WM_DELETE_WINDOW", lambda: None)
+
+        # Use plain ttk widgets — CTk widgets defer rendering via after() timers
+        # that update_idletasks() does not flush, leaving the window blank.
+        frame = ttk.Frame(popup, padding=(20, 14))
+        frame.pack(fill='both', expand=True)
+        ttk.Label(frame, text=message).pack(pady=(0, 10))
+        bar = ttk.Progressbar(frame, mode='indeterminate', length=260)
+        bar.pack(pady=(0, 10 if on_cancel else 4))
+        if on_cancel:
+            ttk.Button(frame, text=BTN_CANCEL, command=on_cancel).pack()
+
+        self._fit_window_to_content(popup, min_w=300, min_h=80)
+        popup.deiconify()
+        popup.lift()
+        self._search_popup = popup
+        self._search_popup_bar = bar
+        self._tick_search_popup_progress()
+
+    def _tick_search_popup_progress(self):
+        """Advance the search popup's progress bar one step."""
+        if self._search_popup is None or self._search_popup_bar is None:
+            self._search_popup_anim_id = None
+            return
+        try:
+            self._search_popup_bar.step(6)
+        except tk.TclError:
+            self._search_popup_anim_id = None
+            return
+        self._search_popup_anim_id = self.root.after(
+            50, self._tick_search_popup_progress)
+
+    def _hide_search_popup(self):
+        """Destroy the search progress dialog."""
+        if self._search_popup_anim_id is not None:
+            try:
+                self.root.after_cancel(self._search_popup_anim_id)
+            except tk.TclError:
+                pass
+            self._search_popup_anim_id = None
+        if self._search_popup is not None:
+            try:
+                self._search_popup.destroy()
+            except tk.TclError:
+                pass
+            self._search_popup = None
+        self._search_popup_bar = None
 
     # ---------------------------------------------------------- Handlers
     def _browse(self):
@@ -888,36 +1024,46 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
             messagebox.showerror(ERR_BAD_VAL_TITLE, ERR_BAD_VAL_TOP_N)
             return
 
+        _slow = self._is_slow_search(max_depth, len(self.individuals))
         self._show_progress()
         self._set_busy(True)
 
-        def _do_search():
-            try:
-                results = self._model.find_dna_matches(
-                    start_id, top_n, max_depth)
-                home_paths = None
-                home_id = self._home_person_id
-                if home_id and home_id != start_id and home_id in self.individuals:
-                    home_paths, _ = bfs_find_all_paths(
-                        start_id, home_id, self.individuals, self.families,
-                        top_n=1, max_depth=max_depth,
-                    )
-                self.root.after(0, lambda: _on_done(results, home_paths, None))
-            except Exception as e:  # pylint: disable=broad-exception-caught
-                self.root.after(0, lambda: _on_done(None, None, e))
+        def _do_search(cancel_event):
+            results = self._model.find_dna_matches(
+                start_id, top_n, max_depth, cancel_event=cancel_event)
+            home_paths = None
+            home_id = self._home_person_id
+            if home_id and home_id != start_id and home_id in self.individuals:
+                home_paths, _ = bfs_find_all_paths(
+                    start_id, home_id, self.individuals, self.families,
+                    top_n=1, max_depth=max_depth, cancel_event=cancel_event,
+                )
+            return results, home_paths
 
-        def _on_done(results, home_paths, error):
+        def _on_cancel():
+            self._hide_progress()
+            self._set_busy(False)
+
+        def _on_done(result, error):
+            self._hide_search_popup()
             self._hide_progress()
             self._set_busy(False)
             if error:
                 messagebox.showerror(ERR_PARSE_TITLE, str(error))
                 return
+            results, home_paths = result
             self._results_reversed = False
             self._reverse_btn.configure(text=BTN_REVERSE)
             self._last_result = {'type': 'dna_matches', 'start_id': start_id}
             self._render_results(start_id, results, home_paths=home_paths)
 
-        threading.Thread(target=_do_search, daemon=True).start()
+        self._run_background_task(
+            _do_search,
+            _on_done,
+            popup_message=PROGRESS_SEARCHING if _slow else None,
+            cancelable=True,
+            on_cancel=_on_cancel,
+        )
 
     @staticmethod
     def _reverse_path(path, individuals):
@@ -1219,46 +1365,51 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
         new person.  If it shows a relationship path, finds the path from the new
         person to the same destination.
         """
-        self._active_id = indi_id
-        if not self.tree.exists(indi_id):
-            self.search_text.set('')
-            self.filter_text.set('')
-            self.show_flagged_only.set(False)
-            self._populate_tree()
-        if self.tree.exists(indi_id):
-            self.tree.selection_set(indi_id)
-            self.tree.see(indi_id)
-            self.tree.focus(indi_id)
-        else:
-            # Person exceeds max_display even with no filters; clear the stale
-            # tree selection so action buttons fall back to _active_id.
-            self.tree.selection_remove(*self.tree.selection())
+
+        # reset "reverse" button and pull in default search parameters
+        self._results_reversed = False
+        self._reverse_btn.configure(text=BTN_REVERSE)
         try:
             top_n = int(self.top_n.get())
             max_depth = int(self.max_depth.get())
         except (tk.TclError, ValueError):
             return
-        self._results_reversed = False
-        self._reverse_btn.configure(text=BTN_REVERSE)
 
         kind = self._last_result.get('type') if self._last_result else None
 
+        # for a "path" search, find the path from the originally selected person
         if kind == 'path':
-            end_id = self._last_result.get('end_id', indi_id)
+        # to the newly selected person
+            start_id = self._last_result['start_id']
             self._last_result = {'type': 'path',
-                                 'start_id': indi_id, 'end_id': end_id}
+                                 'start_id': start_id, 'end_id': indi_id}
 
             def _do_path():
                 try:
                     paths, truncated = self._model.find_all_paths(
-                        indi_id, end_id, top_n, max_depth)
+                        start_id, indi_id, top_n, max_depth)
                     self.root.after(0, lambda: self._render_path_results(
-                        indi_id, end_id, paths, truncated))
+                        start_id, indi_id, paths, truncated))
                 except Exception:  # pylint: disable=broad-exception-caught
                     pass
 
             threading.Thread(target=_do_path, daemon=True).start()
+        # for a "DNA" search, find the closest DNA markers to the newly selected person
         else:
+            self._active_id = indi_id
+            if not self.tree.exists(indi_id):
+                self.search_text.set('')
+                self.filter_text.set('')
+                self.show_flagged_only.set(False)
+                self._populate_tree()
+            if self.tree.exists(indi_id):
+                self.tree.selection_set(indi_id)
+                self.tree.see(indi_id)
+                self.tree.focus(indi_id)
+            else:
+                # Person exceeds max_display even with no filters; clear the stale
+                # tree selection so action buttons fall back to _active_id.
+                self.tree.selection_remove(*self.tree.selection())
             self._last_result = {'type': 'dna_matches', 'start_id': indi_id}
 
             def _do_dna():

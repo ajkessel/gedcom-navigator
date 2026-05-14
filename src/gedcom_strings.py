@@ -78,7 +78,7 @@ COL_DNA = "DNA"
 # ---------------------------------------------------------------------------
 # Action controls (main window)
 # ---------------------------------------------------------------------------
-LBL_TOP_N = "Top N:"
+LBL_TOP_N = "Results:"
 LBL_MAX_DEPTH = "Max depth:"
 BTN_FIND_MATCHES = "Find Matches"
 BTN_SHOW_PERSON = "Show Person"
@@ -114,13 +114,13 @@ TIP_FIND = (
     "Use the checkboxes to show only DNA-flagged people and to allow fuzzy name matching."
 )
 TIP_FIND_MATCHES = (
-    f"Find Nearest DNA Matches ({_MOD}N)\n"
+    f"Find Nearest Matches ({_MOD}N)\n"
     "Find the closest DNA matches to the selected person. "
     "The results are ranked by proximity to the selected person, with ties broken by "
     "the number of DNA markers (if any) associated with the match. "
     "Use the Top N and Max depth settings to adjust how many results are returned and " +
     "how far to search within the tree.\n\n"
-    "Can also be triggered by pressing Enter when selecting a person."
+    "Also triggered by pressing Enter when selecting a person."
 )
 TIP_FILTER = (
     f"Filter ({_MOD}I)\n"
@@ -152,20 +152,25 @@ TIP_SELECT_TAG = (
 TIP_FIND_PATH = (
     f"Find Relationship Paths ({_MOD}P)\n"
     "Find multiple paths between the selected person and any other"
-    " person in your tree."
+    " person in your tree. Select any person in the results to find"
+    " the relationships between the originally selected person and"
+    " the newly-selected person."
 )
 TIP_TOP_N = (
-    "Top N Results\n"
+    "Number of Results\n"
     "Specify how many results to return when finding the closest"
     " people who are DNA matches as well as the number of paths"
     " between the selected person and the home person."
 )
 TIP_MAX_DEPTH = (
     "Maximum Depth For Finding Relationships\n"
-    "Specify how far to search within the tree for closest DNA"
-    " matches and for the relationship between two people."
+    "Specify how far to search within the tree for DNA matches"
+    " and relationship paths between two people."
     " Higher values will find more distant connections but will"
-    " take longer to find in large trees."
+    " take longer to find in large trees. Reasonable values are"
+    " 10 for fast searching or 50 to find very distant but often"
+    " interesting paths between people in your tree. To change this"
+    " setting permanently, alter it in the preferences window."
 )
 TIP_FUZZY_THRESHOLD = (
     "Fuzzy Threshold\n"
@@ -289,6 +294,13 @@ NAME_LAST_FIRST = "Last, First"
 FRAME_CACHE = "Cache"
 BTN_CLEAR_CACHE = "Clear Cache…"
 LBL_CACHE_NOTE = "Remove all cached GEDCOM data"
+
+# ---------------------------------------------------------------------------
+# Search progress popup
+# ---------------------------------------------------------------------------
+PROGRESS_SEARCHING_TITLE = "Searching"
+PROGRESS_SEARCHING = "Searching for DNA matches…\n(reduce 'max depth' setting for faster search)"
+PROGRESS_FINDING_PATH = "Finding relationship paths…\n(reduce 'max depth' setting for faster search)"
 
 # ---------------------------------------------------------------------------
 # Status bar messages  (use .format() to fill in placeholders)

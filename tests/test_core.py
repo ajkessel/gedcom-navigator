@@ -1,10 +1,12 @@
 """Tests for gedcom_core.py — GEDCOM parsing, BFS engine, and utility functions."""
 import os
+import threading
 import zipfile
 
 import pytest
 
 from gedcom_core import (
+    SearchCancelled,
     ZIP_MAX_BYTES,
     bfs_find_all_paths,
     bfs_find_dna_matches,
@@ -501,6 +503,14 @@ class TestBfsFindDnaMatches:
                                         top_n=5, max_depth=50)
         assert results2 == []
 
+    def test_cancel_event_stops_search(self):
+        cancel_event = threading.Event()
+        cancel_event.set()
+        with pytest.raises(SearchCancelled):
+            bfs_find_dna_matches("@ME@", self.indiv, self.fams,
+                                 top_n=5, max_depth=50,
+                                 cancel_event=cancel_event)
+
 
 # ===========================================================================
 # bfs_find_all_paths
@@ -561,6 +571,13 @@ class TestBfsFindAllPaths:
         assert path[0][1] is None
         assert path[1][1] == "child"
         assert path[2][1] == "child"
+
+    def test_cancel_event_stops_path_search(self):
+        cancel_event = threading.Event()
+        cancel_event.set()
+        with pytest.raises(SearchCancelled):
+            bfs_find_all_paths("@A@", "@C@", self.indiv, self.fams,
+                               cancel_event=cancel_event)
 
 
 # ===========================================================================

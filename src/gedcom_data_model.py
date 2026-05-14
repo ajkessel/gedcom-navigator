@@ -66,18 +66,18 @@ class GedcomDataModel:
         self._save_to_cache(gedcom_path, dna_keyword, page_marker, cache_dir)
         return False, warning, None
 
-    def find_dna_matches(self, start_id, top_n, max_depth):
+    def find_dna_matches(self, start_id, top_n, max_depth, cancel_event=None):
         """Find the nearest DNA-flagged people to a given individual."""
         return bfs_find_dna_matches(
             start_id, self.individuals, self.families,
-            top_n=top_n, max_depth=max_depth,
+            top_n=top_n, max_depth=max_depth, cancel_event=cancel_event,
         )
 
-    def find_all_paths(self, start_id, end_id, top_n, max_depth):
+    def find_all_paths(self, start_id, end_id, top_n, max_depth, cancel_event=None):
         """Find up to top_n relationship paths between two individuals."""
         return bfs_find_all_paths(
             start_id, end_id, self.individuals, self.families,
-            top_n=top_n, max_depth=max_depth,
+            top_n=top_n, max_depth=max_depth, cancel_event=cancel_event,
         )
 
     def clear_cache(self, cache_dir):

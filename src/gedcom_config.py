@@ -100,7 +100,7 @@ class ConfigManager:
         """Save the number of closest matches to show."""
         self.save_value('top_n', int(value))
 
-    def get_max_depth(self, default=50):
+    def get_max_depth(self, default=10):
         """Return the positive maximum ancestor search depth."""
         val = self.load_value('max_depth', default)
         try:

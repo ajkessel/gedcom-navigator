@@ -10,11 +10,10 @@ import tkinter.font as tkfont
 from tkinter import ttk, messagebox
 import os
 import sys
-import threading
 import webbrowser
 import customtkinter as ctk
 
-from gedcom_core import bfs_find_all_paths, describe
+from gedcom_core import describe
 from gedcom_relationship import (
     _extract_event, get_ancestor_depths, get_descendant_depths,
     describe_relationship,
@@ -446,27 +445,36 @@ class DialogsMixin:
         self._show_progress()
         self._set_busy(True)
 
-        def _do_search():
-            try:
-                paths, truncated = self._model.find_all_paths(
-                    start_id, target_id, top_n, max_depth)
-                self.root.after(0, lambda: _on_done(paths, truncated, None))
-            except Exception as e:  # pylint: disable=broad-exception-caught
-                self.root.after(0, lambda: _on_done(None, None, e))
+        def _do_search(cancel_event):
+            return self._model.find_all_paths(
+                start_id, target_id, top_n, max_depth,
+                cancel_event=cancel_event)
 
-        def _on_done(paths, truncated, error):
+        def _on_cancel():
+            self._hide_progress()
+            self._set_busy(False)
+
+        def _on_done(result, error):
+            self._hide_search_popup()
             self._hide_progress()
             self._set_busy(False)
             if error:
                 messagebox.showerror(ERR_PARSE_TITLE, str(error))
                 return
+            paths, truncated = result
             self._results_reversed = False
             self._reverse_btn.configure(text=BTN_REVERSE)
             self._last_result = {'type': 'path',
                                  'start_id': start_id, 'end_id': target_id}
             self._render_path_results(start_id, target_id, paths, truncated)
 
-        threading.Thread(target=_do_search, daemon=True).start()
+        self._run_background_task(
+            _do_search,
+            _on_done,
+            popup_message=PROGRESS_FINDING_PATH,
+            cancelable=True,
+            on_cancel=_on_cancel,
+        )
 
     def _render_path_results(self, start_id, end_id, paths, truncated=False):
         """Render relationship paths between two selected individuals."""

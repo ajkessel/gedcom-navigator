@@ -120,7 +120,7 @@ def _strip_spouse_detours(seq):
 
     Only strips spouse→child (e.g. uncle→wife→child ≈ uncle→child).
     Does NOT strip spouse→sibling: that hop is a genuine lateral connection
-    between two family branches (e.g. user's father→mother→maternal aunt)
+    between two family branches (e.g. user's father→spouse→maternal aunt)
     and removing it produces an incorrect relationship label.
     """
     result = []
@@ -145,37 +145,72 @@ def _trailing_sibling_trim_is_safe(u, d, s):
 def _sibling_normalize(edges):
     """Collapse sibling-equivalent patterns in an edge sequence.
 
-    Two rules applied in order:
-    1. parent→child ≡ sibling: going up to a shared ancestor and down to a
+    Three rules applied iteratively until stable:
+    1. parent→child ≡ sibling: going up to a shared parent and down to a
        different child is the same relationship type as a direct sibling hop.
-    2. Consecutive sibling edges collapse to one (sibling's sibling = sibling).
+    2. sibling→parent ≡ parent: going to a sibling then up to their parent
+       reaches your own parent (siblings share parents), so the sibling hop is
+       redundant.  Collapses "brother's aunt" → "aunt".
+    3. Consecutive sibling edges collapse to one (sibling's sibling = sibling).
 
-    These normalizations are applied so that paths reaching the same person via
-    different family-graph routes (e.g. directly Herbert→Joel vs. through the
-    common ancestor Herbert→Abraham→Joel) produce the same relationship label.
+    Rules iterate until stable because one substitution can expose another
+    (e.g. sibling→parent can expose a new parent→child pair on the next pass).
     """
-    # Step 1: parent→child → sibling
+    result = list(edges)
+    while True:
+        changed = False
+        new = []
+        i = 0
+        while i < len(result):
+            if i + 1 < len(result):
+                if result[i] in _UP_SET and result[i + 1] == 'child':
+                    new.append('sibling')
+                    i += 2
+                    changed = True
+                    continue
+                if result[i] == 'sibling' and result[i + 1] in _UP_SET:
+                    new.append(result[i + 1])
+                    i += 2
+                    changed = True
+                    continue
+            new.append(result[i])
+            i += 1
+        collapsed = []
+        for e in new:
+            if e == 'sibling' and collapsed and collapsed[-1] == 'sibling':
+                changed = True
+                continue
+            collapsed.append(e)
+        result = collapsed
+        if not changed:
+            break
+    return result
+
+
+def _collapse_marriage_bridges(edges):
+    """Collapse sibling→spouse→sibling to sibling (marriage bridge = same generation).
+
+    When two people are connected via sibling→spouse→sibling, they are at the
+    same generational level as direct siblings.  This equivalence is only used
+    at the top level of describe_relationship (not in _smart_chain sub-paths),
+    controlled by the allow_bridge flag in _classify_indirect.
+    """
     result = []
     i = 0
     while i < len(edges):
-        if (i + 1 < len(edges)
-                and edges[i] in _UP_SET
-                and edges[i + 1] == 'child'):
+        if (i + 2 < len(edges)
+                and edges[i] == 'sibling'
+                and edges[i + 1] == 'spouse'
+                and edges[i + 2] == 'sibling'):
             result.append('sibling')
-            i += 2
+            i += 3
         else:
             result.append(edges[i])
             i += 1
-    # Step 2: collapse consecutive siblings
-    collapsed = []
-    for e in result:
-        if e == 'sibling' and collapsed and collapsed[-1] == 'sibling':
-            continue
-        collapsed.append(e)
-    return collapsed
+    return result
 
 
-def _classify_indirect(inner):
+def _classify_indirect(inner, allow_bridge=False):
     """Classify a non-trivial edge sequence.
 
     Returns (u, d, s, used_spouse_detour, valid).  Interior spouse edges are
@@ -187,6 +222,13 @@ def _classify_indirect(inner):
     Consecutive sibling edges are collapsed to one before classification:
     uncle→brother→niece and uncle→niece are the same relationship type since
     a sibling's sibling is still a sibling of the original node.
+
+    allow_bridge: when True, collapse sibling→spouse→sibling patterns (marriage
+    bridges) to sibling before classifying.  Enabled both at the top level of
+    describe_relationship and in _describe_sub_path (used by _smart_chain), so
+    that compound paths like "first cousin once removed-in-law's first cousin
+    once removed" are expressed using compact cousin terms rather than the
+    verbose possessive chain that would result without the bridge recognition.
     """
     # Normalize sibling-equivalent patterns: parent→child ≡ sibling (going up
     # to a shared parent and down to a different child is a sibling hop).
@@ -194,15 +236,35 @@ def _classify_indirect(inner):
     # Must be re-applied after spouse stripping because the strip can expose new
     # parent→child adjacencies (e.g. father→spouse→child → father→child after
     # spouse is removed).
-    inner = _sibling_normalize(inner)
+    normalized = _sibling_normalize(inner)
+    sibling_changed = normalized != inner
+    inner = normalized
+
+    # Marriage bridge: sibling→spouse→sibling acts as a direct sibling hop.
+    # Only applied at top-level classification (not in _smart_chain sub-paths).
+    if allow_bridge:
+        bridged = _collapse_marriage_bridges(inner)
+        if bridged != inner:
+            inner = _sibling_normalize(bridged)
+            sibling_changed = True
 
     u, d, s, valid = _classify(inner)
     if valid:
-        return u, d, s, False, True
+        # sibling→parent ≡ parent: the ancestor reached via sibling normalization
+        # is a direct biological relative (your sibling's parent = your parent),
+        # so spouse_detour=True suppresses the spurious 'step-' prefix.
+        return u, d, s, sibling_changed, True
 
     no_sp, changed = _strip_spouse_detours(inner)
     if changed:
         no_sp = _sibling_normalize(no_sp)
+        # Re-apply marriage bridge collapse after stripping, since stripping a
+        # spouse→child detour (e.g. Harris→Eva→Louis) can expose a new
+        # sibling→spouse→sibling bridge that wasn't visible before.
+        if allow_bridge:
+            bridged = _collapse_marriage_bridges(no_sp)
+            if bridged != no_sp:
+                no_sp = _sibling_normalize(bridged)
         u, d, s, valid = _classify(no_sp)
         if valid:
             return u, d, s, True, True
@@ -376,7 +438,7 @@ def _describe_sub_path(sub_path, individuals):
     if not inner or lead_sp > 1 or trail_sp > 1 or (lead_sp and trail_sp):
         return None
 
-    u, d, s, spouse_detour, valid = _classify_indirect(inner)
+    u, d, s, spouse_detour, valid = _classify_indirect(inner, allow_bridge=True)
 
     if not valid:
         return None
@@ -573,17 +635,23 @@ def describe_relationship(path, individuals, ancestors=None, descendants=None,
     if lead_sp == 1 and trail_sp == 1 and inner == ['sibling']:
         core = 'brother' if target_sex == 'M' else (
             'sister' if target_sex == 'F' else 'sibling')
-        return _prefer_more_efficient(core + '-in-law', biological_desc)
+        return core + '-in-law'
 
     if not inner or lead_sp > 1 or trail_sp > 1 or (lead_sp and trail_sp):
-        return _prefer_more_efficient(
-            _smart_chain(path, individuals, ancestors=ancestors), biological_desc)
+        smart = _smart_chain(path, individuals, ancestors=ancestors)
+        if lead_sp or trail_sp:
+            return smart
+        return _prefer_more_efficient(smart, biological_desc)
 
-    u, d, s, spouse_detour, valid = _classify_indirect(inner)
+    u, d, s, spouse_detour, valid = _classify_indirect(inner, allow_bridge=True)
     if not valid:
-        return _prefer_more_efficient(
-            _smart_chain(path, individuals, ancestors=ancestors), biological_desc)
+        smart = _smart_chain(path, individuals, ancestors=ancestors)
+        if lead_sp or trail_sp:
+            return smart
+        return _prefer_more_efficient(smart, biological_desc)
 
     path_desc = _relationship_from_classification(
         u, d, s, target_sex, lead_sp, trail_sp, spouse_detour)
+    if lead_sp or trail_sp:
+        return path_desc
     return _prefer_more_efficient(path_desc, biological_desc)
