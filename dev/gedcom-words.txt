@@ -1,5 +1,6 @@
 ajkessel
 altgraph
+ANSEL
 arrowcolor
 autojunk
 autosomal
@@ -34,6 +35,7 @@ indi
 INDI
 initialdir
 insertbackground
+ipady
 libexec
 lightcolor
 linespace
@@ -42,8 +44,10 @@ marr
 MARR
 MEIPASS
 Menlo
+minwidth
 MTTAG
 notarytool
+opaqueresize
 osascript
 padx
 pady
@@ -56,11 +60,15 @@ pytest
 reparsed
 rowheight
 Rsrc
+rstripped
+sashrelief
+sashwidth
 sdist
 selectbackground
 selectforeground
 selectmode
 setuptools
+showhandle
 Smth
 subrecord
 takefocus
@@ -70,6 +78,7 @@ testpypi
 textvariable
 textvariables
 tkfont
+tkhtmlview
 Treeviews
 troughcolor
 wraplength

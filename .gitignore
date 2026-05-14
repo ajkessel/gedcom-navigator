@@ -20,3 +20,4 @@ gedcom_dna_finder/icons/
 *.egg-info/
 dev/old/
 dev/gedcom-dna-finder.provisionprofile
+*.ged

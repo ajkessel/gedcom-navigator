@@ -2,7 +2,8 @@
 gedcom_relationship.py
 
 Pure-Python helpers for extracting GEDCOM events and generating plain-English
-relationship descriptions from BFS paths.  No tkinter dependency.
+relationship descriptions from BFS paths. This is the most complex part of the
+application.
 """
 
 from collections import deque
@@ -115,13 +116,19 @@ def _classify(seq):
 
 
 def _strip_spouse_detours(seq):
-    """Remove only spouse hops that act like nuclear-family detours."""
+    """Remove only spouse hops that act like nuclear-family detours.
+
+    Only strips spouse→child (e.g. uncle→wife→child ≈ uncle→child).
+    Does NOT strip spouse→sibling: that hop is a genuine lateral connection
+    between two family branches (e.g. user's father→mother→maternal aunt)
+    and removing it produces an incorrect relationship label.
+    """
     result = []
     changed = False
     for i, edge in enumerate(seq):
         if (edge == 'spouse'
                 and 0 < i < len(seq) - 1
-                and seq[i + 1] in ('child', 'sibling')):
+                and seq[i + 1] == 'child'):
             changed = True
             continue
         result.append(edge)
@@ -135,6 +142,39 @@ def _trailing_sibling_trim_is_safe(u, d, s):
     return (u + s) > 0 and (d + s) > 0
 
 
+def _sibling_normalize(edges):
+    """Collapse sibling-equivalent patterns in an edge sequence.
+
+    Two rules applied in order:
+    1. parent→child ≡ sibling: going up to a shared ancestor and down to a
+       different child is the same relationship type as a direct sibling hop.
+    2. Consecutive sibling edges collapse to one (sibling's sibling = sibling).
+
+    These normalizations are applied so that paths reaching the same person via
+    different family-graph routes (e.g. directly Herbert→Joel vs. through the
+    common ancestor Herbert→Abraham→Joel) produce the same relationship label.
+    """
+    # Step 1: parent→child → sibling
+    result = []
+    i = 0
+    while i < len(edges):
+        if (i + 1 < len(edges)
+                and edges[i] in _UP_SET
+                and edges[i + 1] == 'child'):
+            result.append('sibling')
+            i += 2
+        else:
+            result.append(edges[i])
+            i += 1
+    # Step 2: collapse consecutive siblings
+    collapsed = []
+    for e in result:
+        if e == 'sibling' and collapsed and collapsed[-1] == 'sibling':
+            continue
+        collapsed.append(e)
+    return collapsed
+
+
 def _classify_indirect(inner):
     """Classify a non-trivial edge sequence.
 
@@ -143,13 +183,26 @@ def _classify_indirect(inner):
     that family unit's child or sibling.  A final sibling hop may be trimmed
     for cousin/sibling-style relationships, but never when doing so would turn
     "child's sibling" or "spouse's sibling" into a fake step relationship.
+
+    Consecutive sibling edges are collapsed to one before classification:
+    uncle→brother→niece and uncle→niece are the same relationship type since
+    a sibling's sibling is still a sibling of the original node.
     """
+    # Normalize sibling-equivalent patterns: parent→child ≡ sibling (going up
+    # to a shared parent and down to a different child is a sibling hop).
+    # Then collapse consecutive sibling runs (uncle→brother→niece ≡ uncle→niece).
+    # Must be re-applied after spouse stripping because the strip can expose new
+    # parent→child adjacencies (e.g. father→spouse→child → father→child after
+    # spouse is removed).
+    inner = _sibling_normalize(inner)
+
     u, d, s, valid = _classify(inner)
     if valid:
         return u, d, s, False, True
 
     no_sp, changed = _strip_spouse_detours(inner)
     if changed:
+        no_sp = _sibling_normalize(no_sp)
         u, d, s, valid = _classify(no_sp)
         if valid:
             return u, d, s, True, True
@@ -332,13 +385,18 @@ def _describe_sub_path(sub_path, individuals):
         u, d, s, target_sex, lead_sp, trail_sp, spouse_detour)
 
 
-def _smart_chain(path, individuals):
+def _smart_chain(path, individuals, ancestors=None):
     """Build a compact possessive chain by greedily matching the longest
     recognized sub-path at each position, then joining with "'s ".
 
     This replaces the naive per-edge chain() fallback and enables compression
     of patterns like 'son's son's son' → 'great-grandson' and
     'husband's sister's husband' → 'brother-in-law'.
+
+    ancestors: optional {id: depth} dict of biological ancestors of path[0].
+    Used to avoid labelling a biological ancestor as a 'step-' relative when
+    the path reaches them via a roundabout route (e.g. father → spouse →
+    biological-mother is still "mother", not "step-mother").
     """
     if len(path) <= 1:
         return 'same person'
@@ -362,6 +420,17 @@ def _smart_chain(path, individuals):
             sex = individuals.get(path[i + 1][0], {}).get('sex', '')
             best_desc = _edge_to_term(edge, sex)
             best_end = i + 2
+
+        # If a 'step-' label was produced but the terminal node is a known
+        # biological ancestor of path[0], use the direct ancestor term instead.
+        # Example: father → wife → biological-mother → should be "mother",
+        # not "step-mother".
+        if (ancestors and best_desc and best_desc.startswith('step-')
+                and best_end > 1):
+            terminal_id = path[best_end - 1][0]
+            if terminal_id in ancestors:
+                terminal_sex = individuals.get(terminal_id, {}).get('sex', '')
+                best_desc = _ancestor_term(ancestors[terminal_id], terminal_sex)
 
         # Absorb a trailing 'spouse' edge when doing so yields a more compact
         # term (e.g. "first cousin" + "wife" → "first cousin-in-law",
@@ -507,12 +576,12 @@ def describe_relationship(path, individuals, ancestors=None, descendants=None,
 
     if not inner or lead_sp > 1 or trail_sp > 1 or (lead_sp and trail_sp):
         return _prefer_more_efficient(
-            _smart_chain(path, individuals), biological_desc)
+            _smart_chain(path, individuals, ancestors=ancestors), biological_desc)
 
     u, d, s, spouse_detour, valid = _classify_indirect(inner)
     if not valid:
         return _prefer_more_efficient(
-            _smart_chain(path, individuals), biological_desc)
+            _smart_chain(path, individuals, ancestors=ancestors), biological_desc)
 
     path_desc = _relationship_from_classification(
         u, d, s, target_sex, lead_sp, trail_sp, spouse_detour)

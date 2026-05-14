@@ -12,6 +12,11 @@ import tempfile
 import zipfile
 from collections import deque
 
+from gedcom_relationship import (
+    describe_relationship as _describe_rel,
+    get_ancestor_depths as _get_ancestor_depths,
+)
+
 
 # Captures: level, optional xref (@…@), tag (non-space), optional value (rest)
 LINE_RE = re.compile(r'^\s*(\d+)\s+(?:(@[^@]+@)\s+)?(\S+)(?:\s+(.*?))?\s*$')
@@ -36,7 +41,7 @@ _GEDCOM_ENCODINGS = {
 def _detect_encoding(path):
     """Peek at the GEDCOM HEAD record to find the CHAR tag encoding.
 
-    Returns a Python codec name. Falls back to 'utf-8-sig' if unrecognised or absent.
+    Returns a Python codec name. Falls back to 'utf-8-sig' if unrecognized or absent.
     """
     try:
         with open(path, 'rb') as f:
@@ -404,6 +409,110 @@ def describe(indi, show_id=True):
     return f'{name} ({span})' if span else name
 
 
+_UP_EDGES = frozenset({'father', 'mother'})
+
+
+def _path_kinship_signature(path):
+    """Return a canonical kinship tuple used to deduplicate genealogically equivalent paths.
+
+    Two paths represent the same relationship type when they yield the same signature.
+    Algorithm:
+      1. Strip interior spouse-detour hops (spouse immediately before child/sibling).
+      2. Peel bare leading/trailing spouse edges (in-law indicator).
+      3. Classify the core as up* [sibling] down*, yielding (u, d, s).
+      4. If a trailing sibling causes classification to fail, trim it — but only
+         when the path already has both ascending and descending components, so that
+         a first cousin's sibling collapses to the same signature as the first cousin.
+      5. Fall back to a normalized edge tuple for unusual paths.
+    """
+    if len(path) <= 1:
+        return ('self',)
+
+    raw = [e for _, e in path[1:]]
+
+    # Step 1: strip interior spouse→child detours only.
+    # spouse→sibling is a genuine lateral hop (e.g. father→mother→maternal aunt)
+    # and must not be stripped, or the resulting classification is wrong.
+    edges = []
+    i = 0
+    while i < len(raw):
+        if (raw[i] == 'spouse' and i + 1 < len(raw)
+                and raw[i + 1] == 'child'):
+            i += 1
+        else:
+            edges.append(raw[i])
+            i += 1
+
+    # Step 1.5: collapse consecutive sibling hops to one.
+    # A's sibling's sibling is genealogically the same level as A's sibling
+    # (they share the same parents), so routing through uncle1→uncle2→... vs
+    # directly through uncle1 represents the same relationship type.
+    collapsed = []
+    for e in edges:
+        if e == 'sibling' and collapsed and collapsed[-1] == 'sibling':
+            continue
+        collapsed.append(e)
+    edges = collapsed
+
+    # Step 2: peel leading/trailing bare spouse edges
+    lead_sp = trail_sp = 0
+    while edges and edges[0] == 'spouse':
+        lead_sp += 1
+        edges.pop(0)
+    while edges and edges[-1] == 'spouse':
+        trail_sp += 1
+        edges.pop()
+
+    if not edges:
+        return ('spouse', lead_sp, trail_sp)
+
+    def _classify(seq):
+        state = 'up'
+        u = d = s = 0
+        for e in seq:
+            if state == 'up':
+                if e in _UP_EDGES:
+                    u += 1
+                elif e == 'sibling':
+                    s += 1
+                    state = 'down'
+                elif e == 'child':
+                    d += 1
+                    state = 'down'
+                else:
+                    return None
+            else:
+                if e == 'child':
+                    d += 1
+                else:
+                    return None
+        return u, d, s
+
+    # Step 3: try direct classification
+    result = _classify(edges)
+    if result:
+        u, d, s = result
+        return ('kin', u, d, s, lead_sp, trail_sp)
+
+    # Step 4: trim trailing sibling and retry (safe only for cousin/sibling-style paths)
+    if edges[-1] == 'sibling':
+        result = _classify(edges[:-1])
+        if result:
+            u, d, s = result
+            if (u + s) > 0 and (d + s) > 0:
+                return ('kin', u, d, s, lead_sp, trail_sp)
+
+    # Step 5: fallback to normalized edge tuple.
+    # Also trim a trailing sibling so paths that reach the same marriage bridge
+    # via the target's sibling share a signature with those that don't.
+    if edges and edges[-1] == 'sibling':
+        edges = edges[:-1]
+    if not edges:
+        return ('spouse', lead_sp, trail_sp)
+    norm = tuple('up' if e in _UP_EDGES else e for e in edges)
+    return ('chain', norm, lead_sp, trail_sp)
+
+
 def _is_spouse_detour_of(longer, shorter):
     """Return True if `longer` is `shorter` with one or more spouse-detour nodes inserted."""
     shorter_ids = {nid for nid, _ in shorter}
@@ -440,6 +549,45 @@ def _filter_spouse_detours(paths):
     return kept
 
 
+def _find_shortest_path(start_id, target_id, individuals, families, max_depth,
+                        exclude=None):
+    """BFS shortest path from start to target; returns path list or None.
+
+    exclude: optional set of node IDs to skip (except target_id itself).
+    """
+    if start_id not in individuals or target_id not in individuals:
+        return None
+    if start_id == target_id:
+        return [(start_id, None)]
+    _exclude = frozenset(exclude) if exclude else frozenset()
+    predecessor = {start_id: None}
+    queue = deque([(start_id, 0)])
+    while queue:
+        current_id, dist = queue.popleft()
+        if dist >= max_depth:
+            continue
+        for neighbor_id, edge_label in neighbors(current_id, individuals, families):
+            if neighbor_id in predecessor:
+                continue
+            if neighbor_id in _exclude and neighbor_id != target_id:
+                continue
+            predecessor[neighbor_id] = (current_id, edge_label)
+            if neighbor_id == target_id:
+                path = []
+                node = target_id
+                while node is not None:
+                    pred = predecessor[node]
+                    if pred is None:
+                        path.append((node, None))
+                        break
+                    path.append((node, pred[1]))
+                    node = pred[0]
+                path.reverse()
+                return path
+            queue.append((neighbor_id, dist + 1))
+    return None
+
+
 def bfs_find_all_paths(start_id, end_id, individuals, families, top_n=5, max_depth=50):
     """Find up to top_n distinct paths between start and end.
 
@@ -473,7 +621,7 @@ def bfs_find_all_paths(start_id, end_id, individuals, families, top_n=5, max_dep
     if shortest is None:
         return [], False
 
-    DELTA = 4
+    DELTA = max(8, shortest)
     length_limit = min(shortest + DELTA, max_depth)
 
     # Phase 1.5: reverse BFS from end_id to build a distance-to-end map for pruning
@@ -488,10 +636,14 @@ def bfs_find_all_paths(start_id, end_id, individuals, families, top_n=5, max_dep
                 dist_to_end[nbr] = dist + 1
                 q_rev.append((nbr, dist + 1))
 
+    # Precompute start's biological ancestors for describe_relationship
+    _start_ancestors = _get_ancestor_depths(start_id, individuals, families)
+
     # Phase 2: A*-style path search
-    MAX_EXPLORE = 100_000
+    MAX_EXPLORE = 500_000
 
     found = []
+    found_labels = set()
     explored = 0
     truncated = False
     _seq = 0
@@ -517,12 +669,49 @@ def bfs_find_all_paths(start_id, end_id, individuals, families, top_n=5, max_dep
                 continue
             new_path = path + ((neighbor_id, edge_label),)
             if neighbor_id == end_id:
-                found.append(list(new_path))
+                new_path_list = list(new_path)
+                label = _describe_rel(new_path_list, individuals,
+                                      ancestors=_start_ancestors,
+                                      families=families)
+                if label not in found_labels:
+                    found_labels.add(label)
+                    found.append(new_path_list)
             else:
                 _seq += 1
                 heapq.heappush(heap, (new_g + h, _seq, neighbor_id, new_path))
 
+    # Filter detours from the A* results before checking the count.
     found = _filter_spouse_detours(found)
+
+    # Targeted spouse expansion: after filtering, if we still need more paths,
+    # BFS to each spouse of end_id (excluding end_id itself to avoid routing
+    # through the target) and add the spouse-hop path when it has a new label.
+    if len(found) < top_n:
+        end_ind = individuals.get(end_id, {})
+        for fam_id in end_ind.get('fams', []):
+            if len(found) >= top_n:
+                break
+            fam = families.get(fam_id, {})
+            if not fam:
+                continue
+            for spouse_id in (fam.get('husb'), fam.get('wife')):
+                if not spouse_id or spouse_id == end_id:
+                    continue
+                if len(found) >= top_n:
+                    break
+                spouse_path = _find_shortest_path(
+                    start_id, spouse_id, individuals, families, max_depth - 1,
+                    exclude={end_id})
+                if spouse_path is None:
+                    continue
+                full_path = spouse_path + [(end_id, 'spouse')]
+                label = _describe_rel(full_path, individuals,
+                                      ancestors=_start_ancestors,
+                                      families=families)
+                if label not in found_labels:
+                    found_labels.add(label)
+                    found.append(full_path)
+
     return found, truncated
 
 

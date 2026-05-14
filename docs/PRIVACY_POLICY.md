@@ -58,4 +58,4 @@ This privacy policy may be updated with new releases of the application. The cur
 
 ## Contact
 
-For questions or concerns, please open an issue at the [project's source repository](https://github.com/ajkessel/gedcom-dna-finder).
+For questions, feedback, or concerns, please open an issue at the [project's source repository](https://github.com/ajkessel/gedcom-dna-finder).

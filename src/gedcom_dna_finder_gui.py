@@ -4,21 +4,6 @@ gedcom_dna_finder_gui.py
 
 customtkinter GUI for finding the nearest DNA-flagged relative(s) to a target
 person in a GEDCOM tree.
-
-Workflow:
-  1. Browse to your GEDCOM and click Load.
-  2. Type in the search box to filter the people list.
-  3. Select a person and click "Find Nearest DNA Matches"
-     (or just double-click the row).
-  4. The right pane shows the path from that person to the nearest
-     DNA-flagged relative(s).
-
-Two DNA-flag signals are detected (either is sufficient):
-  - A source-citation PAGE line whose text contains "AncestryDNA Match"
-  - An _MTTAG pointer to a tag-record whose NAME contains "DNA"
-    (configurable from the UI)
-
-Pure stdlib + customtkinter. Requires Python 3.8+.
 """
 
 import tkinter.font as tkfont
@@ -36,7 +21,7 @@ import customtkinter as ctk
 
 from gedcom_data_model import GedcomDataModel
 from gedcom_config import ConfigManager
-from gedcom_strings import * # pylint: disable=unused-wildcard-import
+from gedcom_strings import *  # pylint: disable=unused-wildcard-import
 from gedcom_core import (
     bfs_find_dna_matches,
     bfs_find_all_paths,
@@ -109,7 +94,7 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
         if sys.platform == 'darwin':
             return 'Menlo'
         if sys.platform == 'win32':
-            return 'Consolas'
+            return 'Consolas'  # cspell: disable-line
         available = set(tkfont.families())
         for name in ('DejaVu Sans Mono', 'Liberation Mono', 'Courier New'):
             if name in available:
@@ -248,7 +233,8 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
         heading_font = tkfont.nametofont('TkDefaultFont')
 
         def _fit_heading(text, sample='', padding=34):
-            text_w = max(heading_font.measure(text), heading_font.measure(sample))
+            text_w = max(heading_font.measure(text),
+                         heading_font.measure(sample))
             return text_w + padding
 
         name_w = max(240, _fit_heading(COL_NAME, padding=28))
@@ -285,12 +271,14 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
             row=0, column=0, sticky='w', padx=(0, 4))
         ctk.CTkEntry(settings_frame, textvariable=self.tag_keyword,
                      width=150).grid(row=0, column=1, padx=(0, 16))
-        Tooltip(settings_frame.grid_slaves(row=0, column=1)[0], TIP_TAG_KEYWORD)
+        Tooltip(settings_frame.grid_slaves(
+            row=0, column=1)[0], TIP_TAG_KEYWORD)
         ctk.CTkLabel(settings_frame, text=LBL_PAGE_MARKER).grid(
             row=0, column=2, sticky='w', padx=(0, 4))
         ctk.CTkEntry(settings_frame, textvariable=self.page_marker,
                      width=240).grid(row=0, column=3, padx=(0, 16))
-        Tooltip(settings_frame.grid_slaves(row=0, column=3)[0], TIP_PAGE_MARKER)
+        Tooltip(settings_frame.grid_slaves(
+            row=0, column=3)[0], TIP_PAGE_MARKER)
         _select_tag_btn = ctk.CTkButton(
             settings_frame, text=BTN_SELECT_TAG, width=100, command=self._view_tags)
         _select_tag_btn.grid(row=0, column=4, padx=4)
@@ -387,7 +375,8 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
         self.tree.bind('<Double-1>', lambda *_: self._find_matches())
         self.tree.bind('<Return>', lambda *_: self._find_matches())
         self.tree.bind('<Key>', self._tree_type_ahead)
-        self.tree.bind('<Home>', lambda *_: self._tree_jump('first') or 'break')
+        self.tree.bind(
+            '<Home>', lambda *_: self._tree_jump('first') or 'break')
         self.tree.bind('<End>', lambda *_: self._tree_jump('last') or 'break')
 
         # Action controls — single row grid.  Column 4 is a flexible spacer
@@ -507,7 +496,8 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
             fg_color='transparent',
             corner_radius=6,
         )
-        self._results_header_label.pack(side='left', fill='x', expand=True, ipady=4)
+        self._results_header_label.pack(
+            side='left', fill='x', expand=True, ipady=4)
 
         self.results = ctk.CTkTextbox(
             right,
@@ -707,7 +697,8 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
         if kind == 'dna_matches':
             def _do_refresh():
                 try:
-                    results = self._model.find_dna_matches(start_id, top_n, max_depth)
+                    results = self._model.find_dna_matches(
+                        start_id, top_n, max_depth)
                     home_paths = None
                     home_id = self._home_person_id
                     if home_id and home_id != start_id and home_id in self.individuals:
@@ -942,7 +933,8 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
                 rev_edge = 'child'
             elif orig_edge == 'child':
                 sex = individuals.get(src_id, {}).get('sex', '')
-                rev_edge = 'father' if sex == 'M' else ('mother' if sex == 'F' else 'father')
+                rev_edge = 'father' if sex == 'M' else (
+                    'mother' if sex == 'F' else 'father')
             else:
                 rev_edge = orig_edge
             result.append((src_id, rev_edge))
@@ -953,7 +945,7 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
         """Return a fixed-width visual connector for an edge label."""
         label = EDGE_LABELS.get(edge, edge)
         label_width = max(len(value) for value in EDGE_LABELS.values())
-        return f"{indent}──{label.center(label_width,"─")}──▶ "
+        return f"{indent}──{label.center(label_width, "─")}──▶ "
 
     def _reverse_results(self):
         """Toggle reversed display of the current results."""
@@ -1019,7 +1011,7 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
             tw.window_create('end', window=sep)
             tw.insert('end', '\n')
 
-        def person(indi_id, prefix='', suffix='', bold=False):
+        def person(indi_id, prefix='', bold=False):
             base = ('bold',) if bold else ()
             if prefix:
                 w.insert('end', prefix, base)
@@ -1027,9 +1019,6 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
             tag_to_id[tag] = indi_id
             w.insert('end', describe(self.individuals[indi_id], show_id=self.show_ids.get()),
                      base + ('person_link', tag))
-            #if suffix:
-            #    w.insert('end', suffix, base)
-            # TODO consider permanently removing code that shows "edges"
             w.insert('end', '\n')
 
         result_detail_indent = "   "
@@ -1065,8 +1054,10 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
                 for rank, (dist, path) in enumerate(results, 1):
                     match_id = path[-1][0]
                     rev_path = self._reverse_path(path, self.individuals)
-                    m_anc = get_ancestor_depths(match_id, self.individuals, self.families)
-                    m_desc = get_descendant_depths(match_id, self.individuals, self.families)
+                    m_anc = get_ancestor_depths(
+                        match_id, self.individuals, self.families)
+                    m_desc = get_descendant_depths(
+                        match_id, self.individuals, self.families)
                     rel = describe_relationship(
                         rev_path, self.individuals,
                         ancestors=m_anc, descendants=m_desc,
@@ -1095,7 +1086,7 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
                     end_id = path[-1][0]
                     person(end_id,
                            prefix=RESULT_RANK_PREFIX.format(rank=rank),
-                           suffix=RESULT_DISTANCE.format(dist=dist), bold=True)
+                           bold=True)
                     rel = describe_relationship(
                         path, self.individuals,
                         ancestors=ancestors, descendants=descendants,
@@ -1117,7 +1108,8 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
         # Family section
         nl(FAM_SECTION, bold=True)
         family_found = False
-        parents, siblings, spouses, children = self._get_family_members(start_id)
+        parents, siblings, spouses, children = self._get_family_members(
+            start_id)
 
         if parents:
             family_found = True
@@ -1155,8 +1147,10 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
                 raw_path = home_paths[0]
                 if self._results_reversed:
                     disp_path = self._reverse_path(raw_path, self.individuals)
-                    h_anc = get_ancestor_depths(home_id, self.individuals, self.families)
-                    h_desc = get_descendant_depths(home_id, self.individuals, self.families)
+                    h_anc = get_ancestor_depths(
+                        home_id, self.individuals, self.families)
+                    h_desc = get_descendant_depths(
+                        home_id, self.individuals, self.families)
                     rel = describe_relationship(
                         disp_path, self.individuals,
                         ancestors=h_anc, descendants=h_desc,
@@ -1251,7 +1245,8 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
 
         if kind == 'path':
             end_id = self._last_result.get('end_id', indi_id)
-            self._last_result = {'type': 'path', 'start_id': indi_id, 'end_id': end_id}
+            self._last_result = {'type': 'path',
+                                 'start_id': indi_id, 'end_id': end_id}
 
             def _do_path():
                 try:

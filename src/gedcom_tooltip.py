@@ -49,8 +49,9 @@ class _SizedToolTip(_CTkToolTip):
                        text_color=self.text_color,
                        padx=4, pady=8)
 
-    def configure(self, **kwargs):
-        super().configure(**kwargs)
+    # currently not using any subclass of configure
+    # def configure(self, message: str = None, delay: float = None, bg_color: str = None, **kwargs):
+    #     super().configure(message, delay, bg_color, **kwargs)
 
     def hide(self) -> None:
         if not self.winfo_exists():
@@ -58,14 +59,14 @@ class _SizedToolTip(_CTkToolTip):
         self.disable = True
         try:
             self.after_idle(self._deferred_withdraw)
-        except Exception:
+        except Exception:  # pylint: disable=broad-exception-caught
             pass
 
     def _deferred_withdraw(self):
         try:
             if self.winfo_exists():
                 self.withdraw()
-        except Exception:
+        except Exception:  # pylint: disable=broad-exception-caught
             pass
 
     def _show(self):

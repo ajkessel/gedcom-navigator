@@ -1,9 +1,5 @@
 """Tests for gedcom_data_model.py — caching layer and BFS wrapper."""
-import json
-import os
 import time
-
-import pytest
 
 from gedcom_data_model import GedcomDataModel
 
@@ -12,6 +8,7 @@ from gedcom_data_model import GedcomDataModel
 # GEDCOM fixture content
 # ---------------------------------------------------------------------------
 
+# cspell: disable
 SIMPLE_GED = """\
 0 HEAD
 1 GEDC
@@ -41,7 +38,7 @@ SIMPLE_GED = """\
 1 CHIL @I3@
 0 TRLR
 """
-
+# cspell: enable
 
 def _write_ged(tmp_path, content="", filename="tree.ged"):
     p = tmp_path / filename
