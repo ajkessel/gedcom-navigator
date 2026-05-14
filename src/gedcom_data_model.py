@@ -37,35 +37,47 @@ class GedcomDataModel:
     def load(self, gedcom_path, dna_keyword, page_marker, cache_dir):
         """Parse (or restore from cache) a GEDCOM file.
 
-        Returns (from_cache, encoding_warning).
+        Returns (from_cache, encoding_warning, model_error).
         encoding_warning is a string or None; always None when loaded from cache.
+        model_error is a string or None when parsing did not produce a usable model.
         """
         cached = self._load_from_cache(
             gedcom_path, dna_keyword, page_marker, cache_dir)
         if cached is not None:
             self.individuals, self.families, self.tag_records = cached
-            return True, None
+            return True, None, None
 
-        self.individuals, self.families, self.tag_records, warning = build_model(
+        (
+            self.individuals,
+            self.families,
+            self.tag_records,
+            warning,
+            model_error,
+        ) = build_model(
             gedcom_path,
             dna_keyword=dna_keyword,
             page_marker=page_marker,
         )
+        if model_error:
+            self.individuals = {}
+            self.families = {}
+            self.tag_records = {}
+            return False, warning, model_error
         self._save_to_cache(gedcom_path, dna_keyword, page_marker, cache_dir)
-        return False, warning
+        return False, warning, None
 
-    def find_dna_matches(self, start_id, top_n, max_depth):
+    def find_dna_matches(self, start_id, top_n, max_depth, cancel_event=None):
         """Find the nearest DNA-flagged people to a given individual."""
         return bfs_find_dna_matches(
             start_id, self.individuals, self.families,
-            top_n=top_n, max_depth=max_depth,
+            top_n=top_n, max_depth=max_depth, cancel_event=cancel_event,
         )
 
-    def find_all_paths(self, start_id, end_id, top_n, max_depth):
+    def find_all_paths(self, start_id, end_id, top_n, max_depth, cancel_event=None):
         """Find up to top_n relationship paths between two individuals."""
         return bfs_find_all_paths(
             start_id, end_id, self.individuals, self.families,
-            top_n=top_n, max_depth=max_depth,
+            top_n=top_n, max_depth=max_depth, cancel_event=cancel_event,
         )
 
     def clear_cache(self, cache_dir):
@@ -103,6 +115,8 @@ class GedcomDataModel:
                     or data.get('mtime') != file_mtime
                     or data.get('dna_keyword') != dna_keyword
                     or data.get('page_marker') != page_marker):
+                return None
+            if not data.get('individuals'):
                 return None
             return data['individuals'], data['families'], data['tag_records']
         except Exception: # pylint: disable=broad-exception-caught

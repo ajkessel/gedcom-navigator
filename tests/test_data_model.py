@@ -1,9 +1,5 @@
 """Tests for gedcom_data_model.py — caching layer and BFS wrapper."""
-import json
-import os
 import time
-
-import pytest
 
 from gedcom_data_model import GedcomDataModel
 
@@ -12,6 +8,7 @@ from gedcom_data_model import GedcomDataModel
 # GEDCOM fixture content
 # ---------------------------------------------------------------------------
 
+# cspell: disable
 SIMPLE_GED = """\
 0 HEAD
 1 GEDC
@@ -41,7 +38,7 @@ SIMPLE_GED = """\
 1 CHIL @I3@
 0 TRLR
 """
-
+# cspell: enable
 
 def _write_ged(tmp_path, content="", filename="tree.ged"):
     p = tmp_path / filename
@@ -69,9 +66,11 @@ class TestLoad:
     def test_fresh_parse_returns_false_from_cache(self, tmp_path):
         mdl = GedcomDataModel()
         p = _write_ged(tmp_path)
-        from_cache, warn = mdl.load(p, "DNA", "AncestryDNA",
-                                     str(tmp_path / "cache"))
+        from_cache, warn, error = mdl.load(p, "DNA", "AncestryDNA",
+                                            str(tmp_path / "cache"))
         assert from_cache is False
+        assert warn is None
+        assert error is None
 
     def test_individuals_populated_after_load(self, tmp_path):
         mdl = GedcomDataModel()
@@ -90,8 +89,19 @@ class TestLoad:
     def test_clean_file_no_encoding_warning(self, tmp_path):
         mdl = GedcomDataModel()
         p = _write_ged(tmp_path)
-        _, warn = mdl.load(p, "DNA", "AncestryDNA", str(tmp_path / "cache"))
+        _, warn, error = mdl.load(p, "DNA", "AncestryDNA", str(tmp_path / "cache"))
         assert warn is None
+        assert error is None
+
+    def test_invalid_file_returns_model_error(self, tmp_path):
+        mdl = GedcomDataModel()
+        p = _write_ged(tmp_path, "0 HEAD\n0 TRLR\n")
+        from_cache, warn, error = mdl.load(
+            p, "DNA", "AncestryDNA", str(tmp_path / "cache"))
+        assert from_cache is False
+        assert warn is None
+        assert error is not None
+        assert "No individual records" in error
 
 
 # ===========================================================================
@@ -106,15 +116,17 @@ class TestCacheHit:
         mdl1.load(p, "DNA", "AncestryDNA", cache_dir)
 
         mdl2 = GedcomDataModel()
-        from_cache, _ = mdl2.load(p, "DNA", "AncestryDNA", cache_dir)
+        from_cache, _, error = mdl2.load(p, "DNA", "AncestryDNA", cache_dir)
         assert from_cache is True
+        assert error is None
 
     def test_cache_hit_returns_no_encoding_warning(self, tmp_path):
         cache_dir = str(tmp_path / "cache")
         p = _write_ged(tmp_path)
         GedcomDataModel().load(p, "DNA", "AncestryDNA", cache_dir)
-        _, warn = GedcomDataModel().load(p, "DNA", "AncestryDNA", cache_dir)
+        _, warn, error = GedcomDataModel().load(p, "DNA", "AncestryDNA", cache_dir)
         assert warn is None
+        assert error is None
 
     def test_cache_hit_preserves_individuals(self, tmp_path):
         cache_dir = str(tmp_path / "cache")
@@ -134,16 +146,16 @@ class TestCacheInvalidation:
         cache_dir = str(tmp_path / "cache")
         p = _write_ged(tmp_path)
         GedcomDataModel().load(p, "DNA", "AncestryDNA", cache_dir)
-        from_cache, _ = GedcomDataModel().load(p, "DIFFERENT", "AncestryDNA",
-                                                cache_dir)
+        from_cache, _, _ = GedcomDataModel().load(p, "DIFFERENT", "AncestryDNA",
+                                                   cache_dir)
         assert from_cache is False
 
     def test_changed_page_marker_invalidates_cache(self, tmp_path):
         cache_dir = str(tmp_path / "cache")
         p = _write_ged(tmp_path)
         GedcomDataModel().load(p, "DNA", "AncestryDNA", cache_dir)
-        from_cache, _ = GedcomDataModel().load(p, "DNA", "OtherMarker",
-                                                cache_dir)
+        from_cache, _, _ = GedcomDataModel().load(p, "DNA", "OtherMarker",
+                                                   cache_dir)
         assert from_cache is False
 
     def test_file_mtime_change_invalidates_cache(self, tmp_path):
@@ -154,8 +166,8 @@ class TestCacheInvalidation:
         time.sleep(0.05)
         Path_p = __import__("pathlib").Path(p)
         Path_p.write_text(SIMPLE_GED, encoding="utf-8")
-        from_cache, _ = GedcomDataModel().load(p, "DNA", "AncestryDNA",
-                                                cache_dir)
+        from_cache, _, _ = GedcomDataModel().load(p, "DNA", "AncestryDNA",
+                                                   cache_dir)
         assert from_cache is False
 
     def test_corrupted_cache_falls_back_to_parse(self, tmp_path):
@@ -169,8 +181,9 @@ class TestCacheInvalidation:
         fname = hashlib.md5(key).hexdigest() + ".json"
         (cache_dir / fname).write_text("not json", encoding="utf-8")
         mdl = GDM()
-        from_cache, _ = mdl.load(p, "DNA", "AncestryDNA", str(cache_dir))
+        from_cache, _, error = mdl.load(p, "DNA", "AncestryDNA", str(cache_dir))
         assert from_cache is False
+        assert error is None
         assert "@I1@" in mdl.individuals
 
 

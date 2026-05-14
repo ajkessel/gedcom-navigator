@@ -1,12 +1,12 @@
 # GEDCOM DNA Finder
 
-This tool provides useful ways to explore a GEDCOM file exported from services like Ancestry, MyHeritage, Geni, and Family Tree Maker:
+This tool provides useful ways to rapidly explore a GEDCOM file exported from genealogy services like Ancestry, MyHeritage, Geni, and Family Tree Maker:
 
 * Find the closest DNA-flagged person to any other person in a family tree
 * Show multiple relationship paths between any two people in your tree
 * Search your tree for variations on names and filter on other information like
-  geographical locations
-* Rapidly explore names and connections, even in a very large tree
+  geographical locations or occupation
+* Rapidly explore names and connections, even in a very large tree with very distant connections
 
 ## The problems this solves
 
@@ -14,11 +14,11 @@ Many genealogists working with autosomal DNA add unfamiliar people to their fami
 
 Ancestry, Family Tree Maker, and other standard GEDCOM viewers show you a flat list of everyone you've tagged as a DNA match, but none of them will, given an arbitrary person in the tree, walk outward through the relationship graph and tell you the nearest tagged relative. That is the main purpose of this tool.
 
-You can also use this tool to find multiple paths between any two people in your tree and also view individual records from your tree. For example, if your grandfather's maternal cousin married your grandfather's paternal cousin, you will have multiple paths to their descendants. Most applications only show one path; this tool can find as many paths as you like.
+You can also use this tool to find multiple paths between any two people in your tree and also view individual records from your tree. For example, if your grandfather's maternal cousin married your grandfather's paternal cousin, you will have multiple paths to their descendants. Most applications only show one path; this tool can find as many paths as you like. If you set the application to cast a wide net by setting the "max depth" to a high value, you can discover unexpected links between your relatives.
 
 If you set a person as the "Home Person" using the "Set Home" button, the results will always include the path from the selected person to the Home Person in addition to the closest people with DNA match markers.
 
-Finally, if you have a large tree, you may find it difficult to search for specific individuals in other tools. Ancestry, for example, only searches on the person's "preferred name" and not any of the alternate names, and neither Ancestry nor Family Tree Maker allow fuzzy matching searches. Ancestry also does not allow you to easily search on multiple fields, like name and location. With this tool, you can search for a name with fuzzy matching (e.g. "John Smith" in the "Find:" box) and then further limit the results by a term that appears anywhere in the person's record (e.g. "Chicago" in the "Filter" box). If you have multiple names in a person's record (e.g. maiden name and married name), this tool will match either one. This search method avoids the clumsy workarounds people use to label people in their tree, for example, by packing all the person's different surnames into the surname field. You can create a separate "name" record for each name the person has, and then find them easily using this tool's search functionality.
+Finally, if you have a large tree, you may find it difficult to search for specific individuals in other tools. Ancestry, for example, only searches on the person's "preferred name" and not any of the alternate names, and neither Ancestry nor Family Tree Maker allow fuzzy matching searches. Ancestry also does not allow you to easily search on multiple fields simultaneously, like name, location, and occupation. With this tool, you can search for a name with fuzzy matching (e.g. "John Smith" in the "Find:" box) and then further limit the results by a term that appears anywhere in the person's record (e.g. "Chicago" and "tailor" in the "Filter" box). If you have multiple names in a person's record (e.g. maiden name, married name, nicknames), this tool will match any of them. This search method avoids the clumsy workarounds people use to label people in their tree, for example, by packing all the person's different surnames into the surname field. You can create a separate "name" record for each name the person has, and then find them easily using this tool's search functionality.
 
 I've also sought to make all actions accessible from the keyboard. See [the keyboard shortcuts list](KEYBOARD_SHORTCUTS.md) for guidance. This makes it very fast to search for and compare people, even in a very large tree.
 

@@ -145,6 +145,9 @@ class AppearanceMixin:
 
         self._apply_styles()
 
+        if hasattr(self, 'tree'):
+            self._configure_tree_columns()
+
         if hasattr(self, 'results'):
             # CTkTextbox fonts are passed as tuples; update on size change.
             self.results.configure(font=(self._mono_family, mono_sz))
@@ -209,6 +212,8 @@ class AppearanceMixin:
 
     def _refit_windows(self):
         """Grow open windows as needed to fit the current font metrics."""
+        if hasattr(self, '_refresh_main_pane_layout'):
+            self._refresh_main_pane_layout()
         self._fit_window_to_content(
             self.root,
             min_w=1000,
@@ -283,6 +288,11 @@ class AppearanceMixin:
                         arrowcolor=fg, bordercolor=bg,
                         darkcolor=bg, lightcolor=bg)
         style.configure('TPanedwindow', background=bg)
+        if hasattr(self, '_paned'):
+            try:
+                self._paned.configure(background=bg)
+            except tk.TclError:
+                pass
         style.configure('Treeview', background=field_bg, foreground=fg,
                         fieldbackground=field_bg)
         style.configure('Treeview.Heading', background=hbg, foreground=fg)
@@ -332,8 +342,10 @@ class AppearanceMixin:
         if tint is None:
             return
         theme = ctk.ThemeManager.theme
-        theme['CTkToplevel']['tooltip_bg_color'] = tint.get('tooltip_bg_color', "#EEEEEE")
-        theme['CTkToplevel']['tooltip_text_color'] = tint.get('tooltip_text_color', "#222222")
+        theme['CTkToplevel']['tooltip_bg_color'] = tint.get(
+            'tooltip_bg_color', "#EEEEEE")
+        theme['CTkToplevel']['tooltip_text_color'] = tint.get(
+            'tooltip_text_color', "#222222")
         for widget, value in tint.items():
             if widget not in theme:
                 continue
@@ -372,12 +384,12 @@ class AppearanceMixin:
         self._update_header_label_style()
         if not hasattr(self, 'results'):
             return
-        #needs_rebuild = color_theme != old_color_theme or old_tinted != (
-            #theme_name in _BG_TINTS)
-        #if needs_rebuild:
+        # needs_rebuild = color_theme != old_color_theme or old_tinted != (
+            # theme_name in _BG_TINTS)
+        # if needs_rebuild:
         self.root.after(0, self._rebuild_ui_for_theme)
-        #else:
-            #self.root.after(0, self._refit_windows)
+        # else:
+            # self.root.after(0, self._refit_windows)
 
     def _rebuild_ui_for_theme(self):
         """Destroy and rebuild main-window widgets to apply a new colour theme."""
@@ -613,6 +625,11 @@ class AppearanceMixin:
     def _setup_menu(self):
         """Build the application menu and connect menu commands."""
         menubar = tk.Menu(self.root)
+        if sys.platform == 'darwin':
+            apple_menu = tk.Menu(menubar, name='apple')
+            menubar.add_cascade(menu=apple_menu)
+            apple_menu.add_command(label='About', command=self._show_about)
+            apple_menu.add_separator()
         self.root.config(menu=menubar)
         self._menubar = menubar
 
@@ -646,8 +663,9 @@ class AppearanceMixin:
                              command=self._show_keyboard_shortcuts)
         app_menu.add_command(label=MENU_PRIVACY_POLICY, underline=1,
                              command=self._show_privacy_policy)
-        app_menu.add_command(label=MENU_ABOUT, underline=0,
-                             command=self._show_about)
+        if sys.platform != 'darwin':
+                app_menu.add_command(label=MENU_ABOUT, underline=0,
+                                     command=self._show_about)
 
         self.root.createcommand('::tk::mac::Quit', self.root.quit)
 

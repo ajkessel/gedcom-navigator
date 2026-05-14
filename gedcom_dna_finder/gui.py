@@ -25,6 +25,7 @@ def _scripts_dir():
 
 
 def main():
+    """Wrapper used only for pypi build to launch the GUI."""
     sd = _scripts_dir()
     if sd is None:
         raise RuntimeError(
@@ -34,7 +35,8 @@ def main():
     if sd not in sys.path:
         sys.path.insert(0, sd)
     script = os.path.join(sd, "gedcom_dna_finder_gui.py")
-    spec = importlib.util.spec_from_file_location("gedcom_dna_finder_gui", script)
+    spec = importlib.util.spec_from_file_location(
+        "gedcom_dna_finder_gui", script)
     mod = importlib.util.module_from_spec(spec)
     sys.modules["gedcom_dna_finder_gui"] = mod
     spec.loader.exec_module(mod)

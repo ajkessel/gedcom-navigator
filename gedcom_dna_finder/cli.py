@@ -23,6 +23,7 @@ def _scripts_dir():
 
 
 def main():
+    """Wrapper used only for pypi build to launch the CLI."""
     sd = _scripts_dir()
     if sd is None:
         raise RuntimeError(

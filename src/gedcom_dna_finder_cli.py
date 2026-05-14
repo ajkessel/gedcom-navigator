@@ -229,7 +229,13 @@ def main():
 
     print(f'Parsing {args.gedcom} ...', file=sys.stderr)
     try:
-        individuals, families, tag_records, encoding_warning = build_model(
+        (
+            individuals,
+            families,
+            tag_records,
+            encoding_warning,
+            model_error,
+        ) = build_model(
             gedcom_path,
             dna_keyword=args.tag_keyword,
             page_marker=args.page_marker,
@@ -243,6 +249,10 @@ def main():
 
     if encoding_warning:
         print(encoding_warning, file=sys.stderr)
+
+    if model_error:
+        print(f'Error: {model_error}', file=sys.stderr)
+        sys.exit(1)
 
     print(f'  {len(individuals)} individuals, {len(families)} families, '
           f'{len(tag_records)} _MTTAG definitions', file=sys.stderr)
