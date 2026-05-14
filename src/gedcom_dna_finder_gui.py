@@ -663,7 +663,29 @@ class DNAMatchFinderApp(DialogsMixin, AppearanceMixin):
         bar = ttk.Progressbar(frame, mode='indeterminate', length=260)
         bar.pack(pady=(0, 10 if on_cancel else 4))
         if on_cancel:
-            ttk.Button(frame, text=BTN_CANCEL, command=on_cancel).pack()
+            if sys.platform == 'darwin':
+                is_dark = ctk.get_appearance_mode() == 'Dark'
+                colors = ttk_colors(is_dark, self._theme_pref)
+                cancel_btn = tk.Label(
+                    frame,
+                    text=BTN_CANCEL,
+                    bg=colors['select_bg'],
+                    fg=colors['select_fg'],
+                    activebackground=colors['select_bg'],
+                    activeforeground=colors['select_fg'],
+                    padx=18,
+                    pady=5,
+                    relief='raised',
+                    bd=1,
+                    cursor='hand2',
+                    takefocus=True,
+                )
+                cancel_btn.bind('<Button-1>', lambda *_: on_cancel())
+                cancel_btn.bind('<Return>', lambda *_: on_cancel())
+                cancel_btn.bind('<space>', lambda *_: on_cancel())
+                cancel_btn.pack()
+            else:
+                ttk.Button(frame, text=BTN_CANCEL, command=on_cancel).pack()
 
         self._fit_window_to_content(popup, min_w=300, min_h=80)
         popup.deiconify()
