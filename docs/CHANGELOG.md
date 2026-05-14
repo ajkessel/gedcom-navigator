@@ -1,5 +1,61 @@
 # Changelog
 
+## [1.1.0] - 2026-05-14
+
+### Added
+
+- **Cancelable long-running searches** — DNA match searches and relationship path searches now run in a background worker with an animated progress indicator. Searches that are likely to take a while show a modal "Searching" window with a Cancel button, so the application remains responsive even on very large trees or high max-depth settings.
+- **Cooperative cancellation in the search engine** — the shared BFS/pathfinding code now accepts a cancellation event and raises `SearchCancelled` when the user cancels a long search. This is used by the GUI and covered by tests.
+- **Progress guidance for expensive searches** — slow-search popups now explain that reducing Max Depth can make searches faster.
+- **Standalone tooltip module** — tooltip handling has moved into `gedcom_tooltip.py`, with richer multi-line tooltip formatting, bold first lines, global enable/disable support, improved screen-edge placement, and better macOS tooltip window behavior.
+- **Target-person result header** — the results pane now shows a styled header with the selected person's display name and lifespan, making it easier to keep track of whose results are currently shown.
+- **Fixed-width relationship connectors** — relationship paths now use a cleaner Unicode connector style with centered edge labels so every arrow and relationship description has the same visual width and names align vertically.
+- **Validation errors for unusable GEDCOM files** — empty files, files without a `HEAD` record, and files without any `INDI` records now produce clear model errors instead of silently loading an empty tree.
+- **Release/build metadata** — the package version is now `1.1.0` with release date `2026-05-14`, and the macOS bundle metadata declares `ITSAppUsesNonExemptEncryption: False`.
+- **Repository housekeeping files** — `.gitattributes` now normalizes text handling, `.gitignore` now excludes local `.ged` files, `docs/TODO.md` captures future work, and the developer word list has been expanded for project-specific terms.
+
+### Changed
+
+- **More capable relationship path search** — alternate path discovery now searches a wider area around the shortest path, raises the exploration cap, oversamples candidate paths before filtering, deduplicates paths by relationship label, and sorts results so simpler relationship descriptions appear first.
+- **Better discovery of compound in-law paths** — pathfinding now adds targeted spouse expansion from either endpoint and a marriage-bridge expansion for paths joined through spouses near both endpoints. This lets the application find longer compound relationships that the previous shortest-path-bounded search missed.
+- **Redundant path filtering improved** — spouse detours and limited child-to-parent detours are now recognized as equivalent to shorter paths, reducing duplicate or unhelpful alternate routes.
+- **Relationship labels are more concise when the family graph supports it** — when a path-specific possessive chain is technically valid but a shorter biological relationship is available, the app now prefers the more efficient label, such as `fourth cousin` instead of a long chain of in-law and ancestor terms.
+- **Relationship classification handles more real-world edge cases** — sibling-equivalent patterns are normalized, cousin siblings can collapse to the same cousin term, direct in-law labels are preserved when appropriate, and spouse detours are stripped only when they represent a family-unit detour rather than a genuine lateral connection.
+- **Relationship rendering owns layout, not translation strings** — `gedcom_strings.py` now keeps plain edge-label vocabulary while the GUI renderer owns arrows, indentation, and padding.
+- **Relationship summaries now use family context throughout the GUI** — DNA match results, home-person paths, reverse-path views, and relationship-path dialogs all pass the family graph into `describe_relationship()` so concise biological terms can be chosen consistently.
+- **Results pane text is cleaner** — result headings now use "Closest DNA Matches"; relationship and path labels are shorter; distance text was removed from the main result headers; horizontal separators divide results; and DNA marker/path sections are easier to scan.
+- **Main window layout is more robust** — the app now uses a classic `tk.PanedWindow` with explicit pane minimums, a fixed minimum width for the results pane, recalculated people-list column widths, and pane refreshes after font/theme changes to avoid clipped controls and oversized left panes.
+- **People-list columns size from font metrics** — Name, Birth, Death, and DNA columns now compute their widths from the active UI font and heading text, improving large-font and macOS layouts.
+- **Default Max Depth reduced to 10** — the saved/default search depth now favors faster everyday searches, while tooltips explain that larger values such as 50 are useful for finding very distant relationships.
+- **Search and DNA-setting changes are debounced** — search/filter/fuzzy changes, result-count/depth changes, and tag/page-marker changes are now delayed briefly before refreshing or reloading, reducing unnecessary recomputation while typing.
+- **Busy state handling tightened** — while long operations are running, search and file-open controls are disabled and restored after completion or cancellation.
+- **macOS menu behavior refined** — the About item now appears in the Apple menu on macOS, Preferences is registered with the standard macOS command hook, and the non-macOS Help/About menu layout is preserved separately.
+- **Documentation updated for current behavior** — README and Help text now describe faster large-tree exploration, fuzzy matching, filtering by additional GEDCOM fields, relationship-path expectations, CTKToolTip as a GUI dependency, current source-install commands, and current download ordering.
+- **Source launcher behavior improved** — `start.sh` now reuses an existing active virtual environment before creating or activating a local one, and installs `dev/requirements.txt` only when needed.
+- **Build/release scripts cleaned up** — release scripting gained shellcheck-oriented comments and safer local/remote option handling, while the PyInstaller spec carries the new macOS encryption declaration.
+- **PyPI entry-point wrappers documented** — the CLI and GUI wrapper `main()` functions now include docstrings clarifying their packaging role.
+
+### Fixed
+
+- **GUI freezes during distant searches** — CPU-heavy graph searches now periodically yield and can be canceled, avoiding a stuck UI when searching very large trees.
+- **Blank or invalid GEDCOM loads** — the parser and data model now reject unusable inputs with an explanatory error and avoid writing/using empty cache entries.
+- **CLI invalid-file handling** — the command-line tool now reports model errors and exits non-zero when parsing does not produce a usable family model.
+- **Incorrect "step-" relationship labels** — biological ancestors reached through alternate or spouse-involved paths are no longer mislabeled as step-relatives when ancestor context is available.
+- **Over-aggressive spouse stripping** — spouse-to-sibling paths are no longer collapsed into incorrect step-child style relationships; only spouse-to-child detours are treated as removable family-unit detours.
+- **Verbose biological relationships** — long possessive descriptions are replaced by shorter valid biological terms when the family graph proves the relationship, while direct in-law labels such as `father-in-law` are not replaced by distant cousin terms.
+- **Too few relationship paths after filtering** — pathfinding now oversamples before removing detours, so asking for multiple paths is less likely to return fewer results than requested only because duplicate variants were pruned.
+- **Left pane/result pane sizing problems** — pane minimum sizes and sash placement were reworked to keep action controls, people-list columns, and the results pane visible across platforms and font sizes.
+- **Tooltip display glitches** — tooltip windows now handle multi-line messages, typing in entry fields, display edges, macOS transient behavior, and redraw timing more reliably.
+- **Preferences modality** — the Preferences window now grabs focus like the other dialogs, reducing accidental interaction with the main window while settings are open.
+- **About window version display** — the About dialog now includes the current version and release date in its markdown preamble.
+
+### Tests
+
+- **Invalid model tests** — core and data-model tests now cover empty GEDCOM input, files without individuals, and data-model error propagation.
+- **Cancellation tests** — BFS DNA-match and all-path search tests now verify that a set cancellation event stops the search.
+- **Relationship edge-case tests** — the relationship suite now covers spouse/lateral edge cases, cousin-sibling normalization, concise biological relationship preference, and protection against replacing direct in-law labels with distant biological labels.
+- **Test configuration update** — `pytest.ini` now sets a base temporary directory for test runs.
+
 ## [1.0.0] - 2026-05-10
 
 ### Architecture
