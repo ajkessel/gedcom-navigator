@@ -317,7 +317,7 @@ def _biological_relationship(start_id, target_id, individuals, families,
         score = (min(start_depth, target_depth),
                  abs(start_depth - target_depth),
                  start_depth + target_depth)
-        if best is None or score < best[0]:
+        if best is None or score < best[0]:  # pylint: disable=unsubscriptable-object
             best = (score, start_depth, target_depth)
 
     _, start_depth, target_depth = best
@@ -430,7 +430,8 @@ def _smart_chain(path, individuals, ancestors=None):
             terminal_id = path[best_end - 1][0]
             if terminal_id in ancestors:
                 terminal_sex = individuals.get(terminal_id, {}).get('sex', '')
-                best_desc = _ancestor_term(ancestors[terminal_id], terminal_sex)
+                best_desc = _ancestor_term(
+                    ancestors[terminal_id], terminal_sex)
 
         # Absorb a trailing 'spouse' edge when doing so yields a more compact
         # term (e.g. "first cousin" + "wife" → "first cousin-in-law",
