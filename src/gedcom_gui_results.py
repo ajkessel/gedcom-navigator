@@ -26,7 +26,7 @@ from gedcom_relationship import (
 from gedcom_search import bfs_find_all_paths, bfs_find_dna_matches
 from gedcom_strings import *  # pylint: disable=unused-wildcard-import,wildcard-import
 from gedcom_theme import get_link_color, ttk_colors
-from gedcom_tooltip import Tooltip
+from gedcom_tooltip import TextTagTooltip, Tooltip
 
 
 class ResultsMixin:
@@ -982,10 +982,19 @@ class ResultsMixin:
                     lambda *_: tw.config(cursor=''))
         tw.tag_configure('relationship_link',
                          foreground=self._link_color, underline=1)
+
+        relationship_tooltip = getattr(self, '_relationship_tooltip', None)
+        if relationship_tooltip is None:
+            relationship_tooltip = TextTagTooltip(tw, TIP_RELATIONSHIP)
+            self._relationship_tooltip = relationship_tooltip
         tw.tag_bind('relationship_link', '<Enter>',
-                    lambda *_: tw.config(cursor='hand2'))
+                    lambda e: (tw.config(cursor='hand2'),
+                               relationship_tooltip.on_enter(e)))
+        tw.tag_bind('relationship_link', '<Motion>',
+                    relationship_tooltip.on_enter)
         tw.tag_bind('relationship_link', '<Leave>',
-                    lambda *_: tw.config(cursor=''))
+                    lambda e: (tw.config(cursor=''),
+                               relationship_tooltip.on_leave(e)))
 
         def _on_person_click(event):
             idx = tw.index(f'@{event.x},{event.y}')

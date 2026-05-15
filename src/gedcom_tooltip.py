@@ -215,3 +215,36 @@ class Tooltip(metaclass=_TooltipMeta):
         if not Tooltip._enabled:
             self._impl.hide()
         Tooltip._instances.append(self)
+
+
+class TextTagTooltip:
+    """Hover tooltip for a specific tag inside a Tk Text widget."""
+
+    def __init__(self, text_widget, text: str):
+        self._anchor = tk.Frame(text_widget)
+        self._impl = _SizedToolTip(
+            self._anchor, message=text, wraplength=360, justify='left',
+            follow=True
+        )
+        if not Tooltip._enabled:
+            self._impl.hide()
+        Tooltip._instances.append(self)
+        text_widget.bind("<Destroy>", self._on_destroy, add="+")
+
+    def on_enter(self, event) -> None:
+        """Show or move the tooltip from a Text tag event."""
+        self._impl.on_enter(event)
+
+    def on_leave(self, event=None) -> None:
+        """Hide the tooltip when the pointer leaves the Text tag."""
+        self._impl.on_leave(event)
+
+    def _on_destroy(self, _event=None) -> None:
+        try:
+            Tooltip._instances.remove(self)
+        except ValueError:
+            pass
+        try:
+            self._impl.destroy()
+        except tk.TclError:
+            pass
