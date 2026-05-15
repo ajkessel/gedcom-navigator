@@ -1,5 +1,47 @@
 # Changelog
 
+## [1.2.0] - 2026-05-15
+
+### Added
+
+- **Graphical relationship view** - relationship descriptions in DNA-match results, home-person paths, and relationship-path results are now clickable. Clicking a relationship opens a scrollable "Relationship Graph" window that lays out each person in the path by generation, labels the relationship edges, and highlights the start and end people.
+- **Copyable relationship graphs** - the relationship graph window includes a Copy button and keyboard shortcut support. On Windows the graph is copied as a bitmap; on other platforms the canvas is copied as PostScript where supported by Tk.
+- **Common ancestor reporting** - relationship result sections now show the nearest common biological ancestor or ancestors when one can be found, with clickable ancestor names. In-law-only paths explicitly report that no common ancestor was found.
+- **Data-model API for common ancestors** - `GedcomDataModel` now exposes `find_common_ancestors()`, backed by relationship helpers that rank the closest shared ancestors and preserve ties such as both parents of siblings or both grandparents of first cousins.
+- **Dedicated source modules** - parsing, search/pathfinding, display formatting, GUI background work, GUI search/list handling, and GUI result rendering now live in separate modules: `gedcom_parser.py`, `gedcom_search.py`, `gedcom_display.py`, `gedcom_gui_background.py`, `gedcom_gui_search.py`, and `gedcom_gui_results.py`.
+- **Repository agent guidance** - `AGENTS.md` now documents source-running commands, build commands, architecture, data flow, GUI structure, DNA flag detection, and settings storage for future maintenance work.
+
+### Changed
+
+- **Graph-aware relationship wording** - relationship classification now uses an indexed family lookup when family data is available, so biological shortcuts are only applied when the underlying family graph supports them.
+- **Safer sibling and spouse compaction** - spouse-to-child detours, parent-child sibling equivalents, sibling-parent shortcuts, and repeated sibling hops are now validated against the family graph before being collapsed into simpler relationship terms.
+- **Fewer false biological labels** - paths through marriage bridges, half-sibling parents, and a spouse's non-shared child now fall back to explicit possessive descriptions instead of being mislabeled as direct cousins, parents, nieces, or nephews.
+- **Relationship search deduplication uses graph-aware labels** - alternate path discovery now prepares a reusable family lookup and uses it while deduplicating relationship labels, reducing incorrect merging of paths that look similar as edge sequences but differ biologically.
+- **Relationship path headings simplified** - path result headers now show `Path #N:` and put the relationship wording on the clickable relationship line, avoiding duplicated label text.
+- **Result rendering moved out of the main GUI class** - result-pane rendering, path reversal, graph display, person navigation from results, marker formatting, display-name formatting, and family summary helpers now live in `ResultsMixin`.
+- **Search and load handling moved out of the main GUI class** - GEDCOM browsing/loading, ZIP extraction, settings-change debouncing, people-list filtering/sorting, fuzzy matching, and DNA-match search launching now live in `SearchMixin`.
+- **Background task handling moved out of the main GUI class** - progress-bar animation, cancelable worker-thread orchestration, busy-state management, and slow-search popup handling now live in `BackgroundTaskMixin`.
+- **Core module is now a compatibility facade** - `gedcom_core.py` now re-exports parser, search, and display helpers from their focused modules so existing callers can continue importing the old names while the implementation is easier to maintain.
+- **Help text updated for graphs** - the user help now mentions graphical relationship visualization and notes that wider relationship searches can take longer on large trees.
+- **Line-ending normalization tightened** - `.gitattributes` now uses LF for most files while preserving CRLF for PowerShell scripts.
+- **Test cache/temp directories localized** - `pytest.ini` now points pytest cache and temporary files at workspace-local `.pytest_cache` paths.
+- **Release metadata updated** - the package version is now `1.2.0` with release date `2026-05-15`.
+
+### Fixed
+
+- **False third-cousin style labels through marriage bridges** - relationship paths that cross a sibling-spouse-sibling marriage bridge are no longer collapsed into unsupported biological cousin terms.
+- **Incorrect labels for a spouse's child from another relationship** - a sibling's spouse's non-shared child is now described as a possessive in-law chain, such as `sister-in-law's son`, rather than as a niece or nephew.
+- **Incorrect labels for half-sibling parents** - a half-sibling's other parent is no longer treated as the selected person's own parent when the family graph does not support that shortcut.
+- **Over-broad spouse detour stripping** - spouse-to-child simplification now requires evidence that both spouses are co-parents of the child being reached.
+- **Over-broad sibling normalization** - sibling-equivalent shortcuts now require shared-family evidence before collapsing paths, avoiding biological labels that are not proven by the GEDCOM data.
+- **Result graph sizing on varied displays** - graph windows size themselves to the generated content when possible and otherwise fit within the available virtual screen bounds.
+- **Graph label readability** - graph node labels wrap based on measured font width, endpoint nodes are marked as START and END, and graph colors are derived from the active application theme for light/dark readability.
+
+### Tests
+
+- **Common ancestor tests** - data-model and relationship tests now cover shared parents, shared grandparents, and in-law-only paths with no biological common ancestor.
+- **Graph-aware relationship tests** - relationship tests now cover marriage-bridge false positives, non-shared spouse children, shared spouse children, and half-sibling parent edge cases.
+
 ## [1.1.0] - 2026-05-14
 
 ### Added

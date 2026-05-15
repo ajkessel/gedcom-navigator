@@ -238,7 +238,10 @@ EDGE_LABELS = {
     'child': 'child',
 }
 WIN_PATH_GRAPH = "Relationship Graph"
+DLG_SAVE_GRAPH = "Save relationship graph"
+BTN_SAVE_GRAPH = "Save"
 BTN_COPY_GRAPH = "Copy"
+TIP_SAVE_GRAPH = "Save this graphical representation to a file."
 TIP_COPY_GRAPH = "Copy this graphical representation to clipboard."
 PATH_GRAPH_START = "START"
 PATH_GRAPH_END = "END"
@@ -351,6 +354,8 @@ ERR_BAD_VAL_DEPTH = "Max Depth must be an integer."
 ERR_NO_PATH_SEL_MSG = "Select a starting person from the main list first."
 ERR_FILE_NOT_FOUND_TITLE = "File not found"
 ERR_FILE_NOT_FOUND_MSG = "Could not open:\n{path}\n\n{error}"
+ERR_SAVE_GRAPH_TITLE = "Save error"
+ERR_SAVE_GRAPH_MSG = "Could not save relationship graph:\n\n{error}"
 ERR_GEDCOM_NOT_FOUND_MSG = (
     "GEDCOM file not found:\n{path}\n\n"
     "Use Browse… to choose a different file."

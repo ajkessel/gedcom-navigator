@@ -5,8 +5,12 @@ gedcom_gui_results.py
 Result rendering, path reversal, person navigation, and family-summary helpers.
 """
 
+import os
 import re
+import shutil
+import subprocess
 import sys
+import tempfile
 import threading
 import tkinter as tk
 import tkinter.font as tkfont
@@ -246,6 +250,65 @@ class ResultsMixin:
             user32.ReleaseDC(hwnd, source_dc)
 
     @staticmethod
+    def _applescript_string(value):
+        """Return value escaped as an AppleScript string literal."""
+        return '"' + value.replace('\\', '\\\\').replace('"', '\\"') + '"'
+
+    @classmethod
+    def _copy_macos_canvas_pdf(cls, canvas, width, height):
+        """Copy a Tk canvas to the macOS pasteboard as PDF data."""
+        pstopdf = (
+            '/usr/bin/pstopdf'
+            if os.path.exists('/usr/bin/pstopdf')
+            else shutil.which('pstopdf')
+        )
+        if not pstopdf:
+            raise tk.TclError("Could not find pstopdf for PDF clipboard copy.")
+
+        postscript = canvas.postscript(
+            colormode='color', x=0, y=0, width=width, height=height)
+        with tempfile.TemporaryDirectory(prefix='gedcom-dna-finder-') as tmpdir:
+            ps_path = os.path.join(tmpdir, 'path-graph.ps')
+            pdf_path = os.path.join(tmpdir, 'path-graph.pdf')
+            with open(ps_path, 'w', encoding='utf-8') as ps_file:
+                ps_file.write(postscript)
+
+            try:
+                subprocess.run(
+                    [pstopdf, '-o', pdf_path, ps_path],
+                    check=True, stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE, text=True)
+            except (OSError, subprocess.CalledProcessError) as exc:
+                raise tk.TclError(
+                    "Could not convert graph to PDF for clipboard copy."
+                ) from exc
+            if not os.path.exists(pdf_path) or os.path.getsize(pdf_path) == 0:
+                raise tk.TclError("Could not create graph PDF for clipboard copy.")
+
+            script = '\n'.join((
+                'use framework "AppKit"',
+                'use scripting additions',
+                f'set pdfPath to {cls._applescript_string(pdf_path)}',
+                "set pdfData to current application's NSData's "
+                "dataWithContentsOfFile:pdfPath",
+                "set pasteboard to current application's NSPasteboard's "
+                "generalPasteboard()",
+                "pasteboard's clearContents()",
+                "set ok to pasteboard's setData:pdfData "
+                'forType:(current application\'s NSPasteboardTypePDF)',
+                'if ok is false then error "Could not set PDF clipboard data."',
+            ))
+            try:
+                subprocess.run(
+                    ['/usr/bin/osascript', '-e', script],
+                    check=True, stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE, text=True)
+            except (OSError, subprocess.CalledProcessError) as exc:
+                raise tk.TclError(
+                    "Could not copy graph PDF to the macOS clipboard."
+                ) from exc
+
+    @staticmethod
     def _reverse_path(path, individuals):
         """Return path reversed with edge labels recalculated for the new direction."""
         if len(path) <= 1:
@@ -460,6 +523,8 @@ class ResultsMixin:
             canvas.update_idletasks()
             if sys.platform == 'win32':
                 self._copy_windows_widget_bitmap(canvas)
+            elif sys.platform == 'darwin':
+                self._copy_macos_canvas_pdf(canvas, canvas_w, canvas_h)
             else:
                 postscript = canvas.postscript(
                     colormode='color', x=0, y=0,
