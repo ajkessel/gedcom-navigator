@@ -163,6 +163,37 @@ class ResultsMixin:
             ))
         draw.polygon(points, fill=fill)
 
+    @staticmethod
+    def _pillow_text_width(draw, text, font):
+        """Return the rendered width of text for a Pillow font."""
+        bbox = draw.textbbox((0, 0), text, font=font)
+        return bbox[2] - bbox[0]
+
+    @classmethod
+    def _wrap_pillow_text(cls, draw, text, font, max_width):
+        """Wrap text to match a Tk canvas text width constraint."""
+        if not max_width or max_width <= 0:
+            return text.splitlines() or ['']
+
+        wrapped = []
+        for raw_line in text.splitlines() or ['']:
+            words = raw_line.split()
+            if not words:
+                wrapped.append('')
+                continue
+            current = ''
+            for word in words:
+                trial = word if not current else f'{current} {word}'
+                if cls._pillow_text_width(draw, trial, font) <= max_width:
+                    current = trial
+                else:
+                    if current:
+                        wrapped.append(current)
+                    current = word
+            if current:
+                wrapped.append(current)
+        return wrapped or ['']
+
     @classmethod
     def _draw_canvas_text_png(cls, draw, canvas, item_id):
         """Draw a Tk canvas text item into a Pillow image."""
@@ -170,8 +201,13 @@ class ResultsMixin:
         text = canvas.itemcget(item_id, 'text')
         fill = cls._canvas_color_to_rgb(canvas.itemcget(item_id, 'fill'))
         anchor = canvas.itemcget(item_id, 'anchor') or 'center'
+        justify = canvas.itemcget(item_id, 'justify') or 'center'
         font = cls._pillow_canvas_font(canvas.itemcget(item_id, 'font'))
-        lines = text.splitlines() or ['']
+        try:
+            max_width = float(canvas.itemcget(item_id, 'width') or 0)
+        except ValueError:
+            max_width = 0
+        lines = cls._wrap_pillow_text(draw, text, font, max_width)
         line_spacing = max(
             font.getbbox('Mg')[3] - font.getbbox('Mg')[1] + 3, 12)
         sizes = []
@@ -191,11 +227,17 @@ class ResultsMixin:
         for index, line in enumerate(lines):
             line_w = sizes[index][0]
             if anchor in ('w', 'nw', 'sw'):
-                left = x
+                box_left = x
             elif anchor in ('e', 'ne', 'se'):
-                left = x - line_w
+                box_left = x - max_w
             else:
-                left = x - line_w / 2
+                box_left = x - max_w / 2
+            if justify == 'left':
+                left = box_left
+            elif justify == 'right':
+                left = box_left + max_w - line_w
+            else:
+                left = box_left + (max_w - line_w) / 2
             draw.text((left, top + index * line_spacing), line, fill=fill, font=font)
         return max_w, total_h
 
