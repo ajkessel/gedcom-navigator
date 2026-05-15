@@ -76,7 +76,9 @@ source .venv/bin/activate || {
 	echo 'Failed to activate virtual environment.'
 	exit 1
 }
-pip3 install -r ./dev/requirements-dev.txt || {
+# It's necessary to build from source and disable default-const-init-var-unsafe due to recent xcode changes
+# issue filed at https://github.com/ronaldoussoren/pyobjc/issues/673
+env CFLAGS="-Wno-error=default-const-init-var-unsafe" ARCHFLAGS="-arch arm64 -arch x86_64" pip install -r ./dev/requirements-dev.txt --no-binary :all: || {
 	echo 'Failed to install dependencies.'
 	exit 1
 }
