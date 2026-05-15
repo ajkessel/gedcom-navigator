@@ -13,7 +13,7 @@ import sys
 import webbrowser
 import customtkinter as ctk
 
-from gedcom_core import describe
+from gedcom_display import describe
 from gedcom_relationship import (
     _extract_event, get_ancestor_depths, get_descendant_depths,
     describe_relationship,
@@ -492,6 +492,12 @@ class DialogsMixin:
                             lambda *_: w._textbox.config(cursor='hand2'))
         w._textbox.tag_bind('person_link', '<Leave>',
                             lambda *_: w._textbox.config(cursor=''))
+        w._textbox.tag_configure('relationship_link',
+                                 foreground=self._link_color, underline=1)
+        w._textbox.tag_bind('relationship_link', '<Enter>',
+                            lambda *_: w._textbox.config(cursor='hand2'))
+        w._textbox.tag_bind('relationship_link', '<Leave>',
+                            lambda *_: w._textbox.config(cursor=''))
 
         def nl(text='', bold=False):
             w.insert('end', text + '\n', ('bold',) if bold else ())
@@ -510,12 +516,60 @@ class DialogsMixin:
                 w.insert('end', suffix)
             w.insert('end', '\n')
 
+        def person_inline(indi_id, prefix='', suffix=''):
+            if prefix:
+                w.insert('end', prefix)
+            tag = f'pers_{indi_id.strip("@")}'
+            w.insert('end', describe(self.individuals[indi_id],
+                                     show_id=self.show_ids.get()),
+                     ('person_link', tag))
+            w._textbox.tag_configure(tag, foreground=self._link_color)
+            w._textbox.tag_bind(tag, '<Button-1>',
+                                lambda _, iid=indi_id: self._navigate_to(iid))
+            if suffix:
+                w.insert('end', suffix)
+
+        relationship_link_count = 0
+
+        def relationship_line(rel, path, prefix=''):
+            nonlocal relationship_link_count
+            tag = f'path_graph_{relationship_link_count}'
+            relationship_link_count += 1
+            if prefix:
+                w.insert('end', prefix)
+            w.insert('end', RESULT_RELATIONSHIP.format(rel=rel),
+                     ('relationship_link', tag))
+            w._textbox.tag_bind(
+                tag, '<Button-1>',
+                lambda _, p=tuple(path), r=rel: self._show_path_graph(p, r))
+            w.insert('end', '\n')
+
+        def common_ancestor_line(ancestor_ids, prefix='', item_prefix='    '):
+            if prefix:
+                w.insert('end', prefix)
+            if not ancestor_ids:
+                w.insert('end', RESULT_COMMON_ANCESTOR)
+                w.insert('end', RESULT_COMMON_ANCESTOR_NONE)
+                w.insert('end', '\n')
+                return
+            if len(ancestor_ids) == 1:
+                w.insert('end', RESULT_COMMON_ANCESTOR)
+                person_inline(ancestor_ids[0])
+                w.insert('end', '\n')
+                return
+            w.insert('end', RESULT_COMMON_ANCESTORS + '\n')
+            for ancestor_id in ancestor_ids:
+                person_inline(ancestor_id, prefix=item_prefix)
+                w.insert('end', '\n')
+
         if self._results_reversed:
             disp_start, disp_end = end_id, start_id
             disp_paths = [self._reverse_path(p, self.individuals) for p in paths]
         else:
             disp_start, disp_end = start_id, end_id
             disp_paths = paths
+        common_ancestor_ids = self._model.find_common_ancestors(
+            disp_start, disp_end)
 
         nl(PATH_SECTION, bold=True)
         person(disp_start, prefix=PATH_FROM)
@@ -540,6 +594,9 @@ class DialogsMixin:
                 nl(PATH_RANK.format(
                     rank=rank, rel=rel, dist=dist,
                     plural='s' if dist != 1 else ''), bold=True)
+                relationship_line(rel, path, prefix="  ")
+                common_ancestor_line(
+                    common_ancestor_ids, prefix="  ", item_prefix="    ")
                 for i, (node_id, edge) in enumerate(path):
                     if i == 0:
                         person(node_id, prefix="  ")

@@ -59,6 +59,70 @@ _REMOVALS = {1: 'once', 2: 'twice', 3: 'three times',
 _UP_SET = {'father', 'mother'}
 
 
+class _FamilyLookup:
+    """Indexed view of families for repeated relationship checks."""
+
+    def __init__(self, families):
+        self._families = families
+        self._parents_by_child = None
+        self._family_ids_by_child = None
+        self._parent_sets_by_child = None
+
+    def __bool__(self):
+        return bool(self._families)
+
+    def get(self, fam_id, default=None):
+        return self._families.get(fam_id, default)
+
+    def values(self):
+        return self._families.values()
+
+    def is_parent_of(self, parent_id, child_id):
+        self._ensure_indexes()
+        return parent_id in self._parents_by_child.get(child_id, ())
+
+    def share_child_family(self, left_id, right_id):
+        self._ensure_indexes()
+        left_fams = self._family_ids_by_child.get(left_id, ())
+        right_fams = self._family_ids_by_child.get(right_id, ())
+        return bool(left_fams and right_fams and left_fams.intersection(right_fams))
+
+    def are_coparents_of(self, left_id, right_id, child_id):
+        self._ensure_indexes()
+        for parents in self._parent_sets_by_child.get(child_id, ()):
+            if left_id in parents and right_id in parents:
+                return True
+        return False
+
+    def _ensure_indexes(self):
+        if self._parents_by_child is not None:
+            return
+        parents_by_child = {}
+        family_ids_by_child = {}
+        parent_sets_by_child = {}
+        for fam_id, fam in self._families.items():
+            parents = {
+                parent_id
+                for parent_id in (fam.get('husb'), fam.get('wife'))
+                if parent_id
+            }
+            for child_id in fam.get('chil', []):
+                family_ids_by_child.setdefault(child_id, set()).add(fam_id)
+                parent_sets_by_child.setdefault(child_id, []).append(parents)
+                if parents:
+                    parents_by_child.setdefault(child_id, set()).update(parents)
+        self._parents_by_child = parents_by_child
+        self._family_ids_by_child = family_ids_by_child
+        self._parent_sets_by_child = parent_sets_by_child
+
+
+def prepare_family_lookup(families):
+    """Return an indexed family view suitable for repeated relationship labels."""
+    if families is None or isinstance(families, _FamilyLookup):
+        return families
+    return _FamilyLookup(families)
+
+
 def _nth_great(n):
     """Return 'great-' for n==1, '2nd-great-' for n==2, etc.  n==0 returns ''."""
     if n == 0:
@@ -135,6 +199,62 @@ def _strip_spouse_detours(seq):
     return result, changed
 
 
+def _is_parent_of(parent_id, child_id, families):
+    if hasattr(families, 'is_parent_of'):
+        return families.is_parent_of(parent_id, child_id)
+    for fam in families.values():
+        if child_id in fam.get('chil', []):
+            if parent_id in (fam.get('husb'), fam.get('wife')):
+                return True
+    return False
+
+
+def _share_child_family(left_id, right_id, families):
+    if hasattr(families, 'share_child_family'):
+        return families.share_child_family(left_id, right_id)
+    for fam in families.values():
+        if left_id in fam.get('chil', []) and right_id in fam.get('chil', []):
+            return True
+    return False
+
+
+def _are_coparents_of(left_id, right_id, child_id, families):
+    if hasattr(families, 'are_coparents_of'):
+        return families.are_coparents_of(left_id, right_id, child_id)
+    for fam in families.values():
+        if child_id not in fam.get('chil', []):
+            continue
+        parents = {fam.get('husb'), fam.get('wife')}
+        if left_id in parents and right_id in parents:
+            return True
+    return False
+
+
+def _path_edges(path):
+    return [edge for _, edge in path[1:]]
+
+
+def _strip_spouse_detours_from_path(path, families):
+    """Remove spouse→child only when the child belongs to both spouses."""
+    result = [path[0]]
+    changed = False
+    i = 1
+    while i < len(path):
+        edge = path[i][1]
+        if (edge == 'spouse'
+                and i + 1 < len(path)
+                and path[i + 1][1] == 'child'
+                and _are_coparents_of(
+                    result[-1][0], path[i][0], path[i + 1][0], families)):
+            changed = True
+            result.append((path[i + 1][0], 'child'))
+            i += 2
+            continue
+        result.append(path[i])
+        i += 1
+    return result, changed
+
+
 def _trailing_sibling_trim_is_safe(u, d, s):
     """A cousin/sibling's sibling can share the same term; pure up/down cannot."""
     if u == 0 and d == 0:
@@ -187,30 +307,53 @@ def _sibling_normalize(edges):
     return result
 
 
-def _collapse_marriage_bridges(edges):
-    """Collapse sibling→spouse→sibling to sibling (marriage bridge = same generation).
+def _sibling_normalize_path(path, families):
+    """Collapse sibling-equivalent path segments only when the graph supports it."""
+    result = list(path)
+    while True:
+        changed = False
+        new = [result[0]]
+        i = 1
+        while i < len(result):
+            if i + 1 < len(result):
+                first_edge = result[i][1]
+                second_edge = result[i + 1][1]
+                start_id = new[-1][0]
+                mid_id = result[i][0]
+                end_id = result[i + 1][0]
 
-    When two people are connected via sibling→spouse→sibling, they are at the
-    same generational level as direct siblings.  This equivalence is only used
-    at the top level of describe_relationship (not in _smart_chain sub-paths),
-    controlled by the allow_bridge flag in _classify_indirect.
-    """
-    result = []
-    i = 0
-    while i < len(edges):
-        if (i + 2 < len(edges)
-                and edges[i] == 'sibling'
-                and edges[i + 1] == 'spouse'
-                and edges[i + 2] == 'sibling'):
-            result.append('sibling')
-            i += 3
-        else:
-            result.append(edges[i])
+                if (first_edge in _UP_SET and second_edge == 'child'
+                        and _is_parent_of(mid_id, start_id, families)
+                        and _is_parent_of(mid_id, end_id, families)):
+                    new.append((end_id, 'sibling'))
+                    i += 2
+                    changed = True
+                    continue
+
+                if (first_edge == 'sibling' and second_edge in _UP_SET
+                        and _is_parent_of(end_id, start_id, families)):
+                    new.append((end_id, second_edge))
+                    i += 2
+                    changed = True
+                    continue
+
+                if (first_edge == 'sibling' and second_edge == 'sibling'
+                        and _share_child_family(start_id, end_id, families)):
+                    new.append((end_id, 'sibling'))
+                    i += 2
+                    changed = True
+                    continue
+
+            new.append(result[i])
             i += 1
+
+        result = new
+        if not changed:
+            break
     return result
 
 
-def _classify_indirect(inner, allow_bridge=False):
+def _classify_indirect(inner, path=None, families=None):
     """Classify a non-trivial edge sequence.
 
     Returns (u, d, s, used_spouse_detour, valid).  Interior spouse edges are
@@ -223,13 +366,26 @@ def _classify_indirect(inner, allow_bridge=False):
     uncle→brother→niece and uncle→niece are the same relationship type since
     a sibling's sibling is still a sibling of the original node.
 
-    allow_bridge: when True, collapse sibling→spouse→sibling patterns (marriage
-    bridges) to sibling before classifying.  Enabled both at the top level of
-    describe_relationship and in _describe_sub_path (used by _smart_chain), so
-    that compound paths like "first cousin once removed-in-law's first cousin
-    once removed" are expressed using compact cousin terms rather than the
-    verbose possessive chain that would result without the bridge recognition.
+    When families and a matching path are provided, shortcuts that can cross a
+    non-biological boundary are verified against the family graph.  Unverified
+    spouse and half-sibling branches fall back to _smart_chain instead of being
+    described as biological cousins, ancestors, or descendants.
     """
+    if families and path:
+        stripped_path, spouse_changed = _strip_spouse_detours_from_path(
+            path, families)
+        if 'spouse' in _path_edges(stripped_path):
+            return 0, 0, 0, False, False
+
+        normalized_path = _sibling_normalize_path(stripped_path, families)
+        normalized = _path_edges(normalized_path)
+        sibling_changed = normalized_path != stripped_path
+
+        u, d, s, valid = _classify(normalized)
+        if valid:
+            return u, d, s, spouse_changed or sibling_changed, True
+        return 0, 0, 0, False, False
+
     # Normalize sibling-equivalent patterns: parent→child ≡ sibling (going up
     # to a shared parent and down to a different child is a sibling hop).
     # Then collapse consecutive sibling runs (uncle→brother→niece ≡ uncle→niece).
@@ -239,14 +395,6 @@ def _classify_indirect(inner, allow_bridge=False):
     normalized = _sibling_normalize(inner)
     sibling_changed = normalized != inner
     inner = normalized
-
-    # Marriage bridge: sibling→spouse→sibling acts as a direct sibling hop.
-    # Only applied at top-level classification (not in _smart_chain sub-paths).
-    if allow_bridge:
-        bridged = _collapse_marriage_bridges(inner)
-        if bridged != inner:
-            inner = _sibling_normalize(bridged)
-            sibling_changed = True
 
     u, d, s, valid = _classify(inner)
     if valid:
@@ -258,13 +406,6 @@ def _classify_indirect(inner, allow_bridge=False):
     no_sp, changed = _strip_spouse_detours(inner)
     if changed:
         no_sp = _sibling_normalize(no_sp)
-        # Re-apply marriage bridge collapse after stripping, since stripping a
-        # spouse→child detour (e.g. Harris→Eva→Louis) can expose a new
-        # sibling→spouse→sibling bridge that wasn't visible before.
-        if allow_bridge:
-            bridged = _collapse_marriage_bridges(no_sp)
-            if bridged != no_sp:
-                no_sp = _sibling_normalize(bridged)
         u, d, s, valid = _classify(no_sp)
         if valid:
             return u, d, s, True, True
@@ -387,13 +528,13 @@ def _biological_relationship(start_id, target_id, individuals, families,
         start_depth, target_depth, target_sex)
 
 
-def _describe_sub_path(sub_path, individuals):
+def _describe_sub_path(sub_path, individuals, families=None):
     """Try to describe sub_path compactly.
 
     Returns a plain-English string if the edge sequence matches a recognized
-    pattern (ancestor, descendant, sibling, cousin, in-law, step-, or the
-    spouse→sibling→spouse "brother/sister-in-law" idiom).  Returns None when
-    no compact pattern matches, signalling _smart_chain to try a shorter slice.
+    pattern (ancestor, descendant, sibling, cousin, in-law, or step-). Returns
+    None when no compact pattern matches, signalling _smart_chain to try a
+    shorter slice.
     """
     if len(sub_path) <= 1:
         return 'same person'
@@ -438,7 +579,9 @@ def _describe_sub_path(sub_path, individuals):
     if not inner or lead_sp > 1 or trail_sp > 1 or (lead_sp and trail_sp):
         return None
 
-    u, d, s, spouse_detour, valid = _classify_indirect(inner, allow_bridge=True)
+    inner_path = sub_path[lead_sp:len(sub_path) - trail_sp]
+    u, d, s, spouse_detour, valid = _classify_indirect(
+        inner, path=inner_path, families=families)
 
     if not valid:
         return None
@@ -447,7 +590,7 @@ def _describe_sub_path(sub_path, individuals):
         u, d, s, target_sex, lead_sp, trail_sp, spouse_detour)
 
 
-def _smart_chain(path, individuals, ancestors=None):
+def _smart_chain(path, individuals, ancestors=None, families=None):
     """Build a compact possessive chain by greedily matching the longest
     recognized sub-path at each position, then joining with "'s ".
 
@@ -470,7 +613,8 @@ def _smart_chain(path, individuals, ancestors=None):
         best_desc = None
         # Longest match first: try from the full remaining path down to 2 nodes
         for j in range(len(path), i + 1, -1):
-            desc = _describe_sub_path(path[i:j], individuals)
+            desc = _describe_sub_path(
+                path[i:j], individuals, families=families)
             if desc is not None and desc != 'same person':
                 best_end = j
                 best_desc = desc
@@ -499,22 +643,11 @@ def _smart_chain(path, individuals, ancestors=None):
         # term (e.g. "first cousin" + "wife" → "first cousin-in-law",
         # "step-son" + "wife" → "step-son-in-law").
         if best_end < len(path) and path[best_end][1] == 'spouse':
-            ext_desc = _describe_sub_path(path[i:best_end + 1], individuals)
+            ext_desc = _describe_sub_path(
+                path[i:best_end + 1], individuals, families=families)
             if ext_desc is not None and ext_desc != 'same person':
                 best_desc = ext_desc
                 best_end += 1
-
-        # When an uncle/aunt-type term is an intermediate step (not the final
-        # target) and arose from a trailing spouse edge, drop the '-in-law'
-        # suffix.  Colloquially, a parent's sibling's spouse is called
-        # 'uncle'/'aunt', so "uncle-in-law's father" → "uncle's father".
-        if (best_end < len(path)
-                and best_desc.endswith('-in-law')
-                and path[best_end - 1][1] == 'spouse'):
-            base = best_desc[:-len('-in-law')]
-            if base == 'uncle' or base.endswith('uncle') \
-                    or base == 'aunt' or base.endswith('aunt'):
-                best_desc = base
 
         terms.append(best_desc)
         i = best_end - 1
@@ -542,6 +675,52 @@ def get_ancestor_depths(start_id, individuals, families):
                     depths[parent_id] = depth + 1
                     queue.append((parent_id, depth + 1))
     return depths
+
+
+def find_common_ancestors(start_id, end_id, individuals, families):
+    """Return the nearest common biological ancestor IDs for two people.
+
+    Multiple ancestors can tie for nearest, commonly the two parents of a pair
+    of siblings or the two grandparents shared by first cousins.
+    """
+    if not families or start_id not in individuals or end_id not in individuals:
+        return []
+
+    start_ancestors = get_ancestor_depths(start_id, individuals, families)
+    end_ancestors = get_ancestor_depths(end_id, individuals, families)
+    common = {
+        ancestor_id
+        for ancestor_id in set(start_ancestors).intersection(end_ancestors)
+        if ancestor_id in individuals
+    }
+    if not common:
+        return []
+
+    def _score(ancestor_id):
+        start_depth = start_ancestors[ancestor_id]
+        end_depth = end_ancestors[ancestor_id]
+        indi = individuals.get(ancestor_id, {})
+        name = indi.get('name') or ancestor_id
+        return (
+            max(start_depth, end_depth),
+            start_depth + end_depth,
+            min(start_depth, end_depth),
+            name.casefold(),
+            ancestor_id,
+        )
+
+    best_score = None
+    best = []
+    for ancestor_id in common:
+        score = _score(ancestor_id)
+        rank = score[:3]
+        if best_score is None or rank < best_score:
+            best_score = rank
+            best = [ancestor_id]
+        elif rank == best_score:
+            best.append(ancestor_id)
+
+    return sorted(best, key=_score)
 
 
 def get_descendant_depths(start_id, individuals, families):
@@ -638,14 +817,18 @@ def describe_relationship(path, individuals, ancestors=None, descendants=None,
         return core + '-in-law'
 
     if not inner or lead_sp > 1 or trail_sp > 1 or (lead_sp and trail_sp):
-        smart = _smart_chain(path, individuals, ancestors=ancestors)
+        smart = _smart_chain(
+            path, individuals, ancestors=ancestors, families=families)
         if lead_sp or trail_sp:
             return smart
         return _prefer_more_efficient(smart, biological_desc)
 
-    u, d, s, spouse_detour, valid = _classify_indirect(inner, allow_bridge=True)
+    inner_path = path[lead_sp:len(path) - trail_sp]
+    u, d, s, spouse_detour, valid = _classify_indirect(
+        inner, path=inner_path, families=families)
     if not valid:
-        smart = _smart_chain(path, individuals, ancestors=ancestors)
+        smart = _smart_chain(
+            path, individuals, ancestors=ancestors, families=families)
         if lead_sp or trail_sp:
             return smart
         return _prefer_more_efficient(smart, biological_desc)

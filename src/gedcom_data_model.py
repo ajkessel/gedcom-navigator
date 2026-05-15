@@ -11,11 +11,9 @@ import json
 import os
 from pathlib import Path
 
-from gedcom_core import (
-    build_model,
-    bfs_find_dna_matches,
-    bfs_find_all_paths
-)
+from gedcom_parser import build_model
+from gedcom_relationship import find_common_ancestors
+from gedcom_search import bfs_find_all_paths, bfs_find_dna_matches
 
 
 class GedcomDataModel:
@@ -79,6 +77,11 @@ class GedcomDataModel:
             start_id, end_id, self.individuals, self.families,
             top_n=top_n, max_depth=max_depth, cancel_event=cancel_event,
         )
+
+    def find_common_ancestors(self, start_id, end_id):
+        """Find nearest common biological ancestors between two individuals."""
+        return find_common_ancestors(
+            start_id, end_id, self.individuals, self.families)
 
     def clear_cache(self, cache_dir):
         """Delete all .json cache files under cache_dir. Returns count deleted."""

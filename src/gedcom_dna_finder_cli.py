@@ -60,12 +60,9 @@ import os
 import re
 import sys
 
-from gedcom_core import (
-    build_model,
-    bfs_find_dna_matches,
-    describe,
-    extract_ged_from_zip,
-)
+from gedcom_display import describe
+from gedcom_parser import build_model, extract_ged_from_zip
+from gedcom_search import bfs_find_dna_matches
 
 
 # ---------------------------------------------------------------------------

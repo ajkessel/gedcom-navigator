@@ -5,6 +5,7 @@ from gedcom_relationship import (
     _edge_to_term,
     _nth_great,
     describe_relationship,
+    find_common_ancestors,
     get_ancestor_depths,
     get_descendant_depths,
 )
@@ -480,6 +481,175 @@ class TestEfficientBiologicalRelationships:
         path = _path("@ME@", None, "@SPOUSE@", "spouse", "@FIL@", "father")
 
         assert describe_relationship(path, indiv, families=fams) == "father-in-law"
+
+
+class TestGraphAwareCompaction:
+    def test_marriage_bridge_does_not_create_false_third_cousin(self):
+        indiv = {
+            "@STANLEY@": _make_indi_full("@STANLEY@", "M", famc=["@F1@"]),
+            "@ABRAHAM@": _make_indi_full("@ABRAHAM@", "M",
+                                         famc=["@F2@"], fams=["@F1@"]),
+            "@SAMUEL@": _make_indi_full("@SAMUEL@", "M",
+                                        famc=["@F3@"], fams=["@F2@"]),
+            "@IDA@": _make_indi_full("@IDA@", "F",
+                                     famc=["@F4@"], fams=["@F3@"]),
+            "@OSCAR@": _make_indi_full("@OSCAR@", "M",
+                                       famc=["@F4@"], fams=["@F5@"]),
+            "@FRANCES@": _make_indi_full("@FRANCES@", "F",
+                                         famc=["@F6@"], fams=["@F5@"]),
+            "@MAX@": _make_indi_full("@MAX@", "M",
+                                     famc=["@F6@"], fams=["@F7@"]),
+            "@MAURICE@": _make_indi_full("@MAURICE@", "M",
+                                         famc=["@F7@"], fams=["@F8@"]),
+            "@BARBARA@": _make_indi_full("@BARBARA@", "F",
+                                         famc=["@F8@"], fams=["@F9@"]),
+            "@ADAM@": _make_indi_full("@ADAM@", "M", famc=["@F9@"]),
+        }
+        fams = {
+            "@F1@": _make_fam("@F1@", husb="@ABRAHAM@", chil=["@STANLEY@"]),
+            "@F2@": _make_fam("@F2@", husb="@SAMUEL@", chil=["@ABRAHAM@"]),
+            "@F3@": _make_fam("@F3@", wife="@IDA@", chil=["@SAMUEL@"]),
+            "@F4@": _make_fam("@F4@", chil=["@IDA@", "@OSCAR@"]),
+            "@F5@": _make_fam("@F5@", husb="@OSCAR@", wife="@FRANCES@"),
+            "@F6@": _make_fam("@F6@", chil=["@FRANCES@", "@MAX@"]),
+            "@F7@": _make_fam("@F7@", husb="@MAX@", chil=["@MAURICE@"]),
+            "@F8@": _make_fam("@F8@", husb="@MAURICE@", chil=["@BARBARA@"]),
+            "@F9@": _make_fam("@F9@", wife="@BARBARA@", chil=["@ADAM@"]),
+        }
+        path = _path("@STANLEY@", None,
+                     "@ABRAHAM@", "father",
+                     "@SAMUEL@", "father",
+                     "@IDA@", "mother",
+                     "@OSCAR@", "sibling",
+                     "@FRANCES@", "spouse",
+                     "@MAX@", "sibling",
+                     "@MAURICE@", "child",
+                     "@BARBARA@", "child",
+                     "@ADAM@", "child")
+
+        assert describe_relationship(path, indiv, families=fams) == (
+            "2nd-great-aunt-in-law's 2nd-great-nephew")
+
+    def test_spouses_non_shared_child_is_not_described_as_niece(self):
+        indiv = {
+            "@ME@": _make_indi_full("@ME@", "M", famc=["@F1@"]),
+            "@BRO@": _make_indi_full("@BRO@", "M",
+                                     famc=["@F1@"], fams=["@F2@"]),
+            "@WIFE@": _make_indi_full("@WIFE@", "F",
+                                      fams=["@F2@", "@F3@"]),
+            "@OTHER@": _make_indi_full("@OTHER@", "M", fams=["@F3@"]),
+            "@SON@": _make_indi_full("@SON@", "M", famc=["@F3@"]),
+        }
+        fams = {
+            "@F1@": _make_fam("@F1@", chil=["@ME@", "@BRO@"]),
+            "@F2@": _make_fam("@F2@", husb="@BRO@", wife="@WIFE@"),
+            "@F3@": _make_fam("@F3@", husb="@OTHER@", wife="@WIFE@",
+                              chil=["@SON@"]),
+        }
+        path = _path("@ME@", None, "@BRO@", "sibling", "@WIFE@", "spouse",
+                     "@SON@", "child")
+
+        assert describe_relationship(path, indiv, families=fams) == (
+            "sister-in-law's son")
+
+    def test_spouses_shared_child_still_describes_niece(self):
+        indiv = {
+            "@ME@": _make_indi_full("@ME@", "M", famc=["@F1@"]),
+            "@BRO@": _make_indi_full("@BRO@", "M",
+                                     famc=["@F1@"], fams=["@F2@"]),
+            "@WIFE@": _make_indi_full("@WIFE@", "F", fams=["@F2@"]),
+            "@NIECE@": _make_indi_full("@NIECE@", "F", famc=["@F2@"]),
+        }
+        fams = {
+            "@F1@": _make_fam("@F1@", chil=["@ME@", "@BRO@"]),
+            "@F2@": _make_fam("@F2@", husb="@BRO@", wife="@WIFE@",
+                              chil=["@NIECE@"]),
+        }
+        path = _path("@ME@", None, "@BRO@", "sibling", "@WIFE@", "spouse",
+                     "@NIECE@", "child")
+
+        assert describe_relationship(path, indiv, families=fams) == "niece"
+
+    def test_half_siblings_other_parent_is_not_described_as_parent(self):
+        indiv = {
+            "@ME@": _make_indi_full("@ME@", "M", famc=["@F1@"]),
+            "@BRO@": _make_indi_full("@BRO@", "M",
+                                     famc=["@F1@", "@F2@"]),
+            "@DAD@": _make_indi_full("@DAD@", "M", fams=["@F1@"]),
+            "@MOM@": _make_indi_full("@MOM@", "F", fams=["@F1@"]),
+            "@OTHER_MOM@": _make_indi_full("@OTHER_MOM@", "F",
+                                           fams=["@F2@"]),
+        }
+        fams = {
+            "@F1@": _make_fam("@F1@", husb="@DAD@", wife="@MOM@",
+                              chil=["@ME@", "@BRO@"]),
+            "@F2@": _make_fam("@F2@", wife="@OTHER_MOM@", chil=["@BRO@"]),
+        }
+        path = _path("@ME@", None, "@BRO@", "sibling",
+                     "@OTHER_MOM@", "mother")
+
+        assert describe_relationship(path, indiv, families=fams) == (
+            "brother's mother")
+
+
+class TestFindCommonAncestors:
+    def test_siblings_share_both_parents(self):
+        indiv = {
+            "@A@": _make_indi_full("@A@", "M", famc=["@F1@"]),
+            "@B@": _make_indi_full("@B@", "F", famc=["@F1@"]),
+            "@DAD@": _make_indi_full("@DAD@", "M", fams=["@F1@"]),
+            "@MOM@": _make_indi_full("@MOM@", "F", fams=["@F1@"]),
+        }
+        fams = {
+            "@F1@": _make_fam("@F1@", husb="@DAD@", wife="@MOM@",
+                              chil=["@A@", "@B@"]),
+        }
+
+        assert find_common_ancestors("@A@", "@B@", indiv, fams) == [
+            "@DAD@", "@MOM@"]
+
+    def test_first_cousins_share_grandparents_not_path_sibling(self):
+        indiv = {
+            "@A@": _make_indi_full("@A@", "M", famc=["@F3@"]),
+            "@B@": _make_indi_full("@B@", "F", famc=["@F4@"]),
+            "@P1@": _make_indi_full("@P1@", "M",
+                                    famc=["@F1@"], fams=["@F3@"]),
+            "@P2@": _make_indi_full("@P2@", "F",
+                                    famc=["@F1@"], fams=["@F4@"]),
+            "@GF@": _make_indi_full("@GF@", "M", fams=["@F1@"]),
+            "@GM@": _make_indi_full("@GM@", "F", fams=["@F1@"]),
+        }
+        fams = {
+            "@F1@": _make_fam("@F1@", husb="@GF@", wife="@GM@",
+                              chil=["@P1@", "@P2@"]),
+            "@F3@": _make_fam("@F3@", husb="@P1@", chil=["@A@"]),
+            "@F4@": _make_fam("@F4@", wife="@P2@", chil=["@B@"]),
+        }
+
+        assert find_common_ancestors("@A@", "@B@", indiv, fams) == [
+            "@GF@", "@GM@"]
+
+    def test_in_law_only_path_has_no_common_ancestor(self):
+        indiv = {
+            "@ME@": _make_indi_full("@ME@", "M", famc=["@F1@"]),
+            "@BRO@": _make_indi_full("@BRO@", "M",
+                                     famc=["@F1@"], fams=["@F2@"]),
+            "@WIFE@": _make_indi_full("@WIFE@", "F",
+                                      famc=["@F3@"], fams=["@F2@"]),
+            "@WIFES_BRO@": _make_indi_full("@WIFES_BRO@", "M",
+                                           famc=["@F3@"]),
+            "@DAD@": _make_indi_full("@DAD@", "M", fams=["@F1@"]),
+            "@WIFE_DAD@": _make_indi_full("@WIFE_DAD@", "M", fams=["@F3@"]),
+        }
+        fams = {
+            "@F1@": _make_fam("@F1@", husb="@DAD@", chil=["@ME@", "@BRO@"]),
+            "@F2@": _make_fam("@F2@", husb="@BRO@", wife="@WIFE@"),
+            "@F3@": _make_fam("@F3@", husb="@WIFE_DAD@",
+                              chil=["@WIFE@", "@WIFES_BRO@"]),
+        }
+
+        assert find_common_ancestors(
+            "@ME@", "@WIFES_BRO@", indiv, fams) == []
 
 
 # ===========================================================================

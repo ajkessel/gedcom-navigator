@@ -7,6 +7,7 @@ This tool provides useful ways to rapidly explore a GEDCOM file exported from ge
 * Search your tree for variations on names and filter on other information like
   geographical locations or occupation
 * Rapidly explore names and connections, even in a very large tree with very distant connections
+* Visualize relationships between any two people graphically
 
 ## The problems this solves
 
@@ -14,7 +15,9 @@ Many genealogists working with autosomal DNA add unfamiliar people to their fami
 
 Ancestry, Family Tree Maker, and other standard GEDCOM viewers show you a flat list of everyone you've tagged as a DNA match, but none of them will, given an arbitrary person in the tree, walk outward through the relationship graph and tell you the nearest tagged relative. That is the main purpose of this tool.
 
-You can also use this tool to find multiple paths between any two people in your tree and also view individual records from your tree. For example, if your grandfather's maternal cousin married your grandfather's paternal cousin, you will have multiple paths to their descendants. Most applications only show one path; this tool can find as many paths as you like. If you set the application to cast a wide net by setting the "max depth" to a high value, you can discover unexpected links between your relatives.
+You can also use this tool to find multiple paths between any two people in your tree and also view individual records from your tree. For example, if your grandfather's maternal cousin married your grandfather's paternal cousin, you will have multiple paths to their descendants. Most applications only show one path; this tool can find as many paths as you like. If you set the application to cast a wide net by setting the "max depth" to a high value, you can discover unexpected links between your relatives. This will take longer to process in a large tree but can yield interesting information.
+
+Any relationship description can be clicked to see a graphical representation of that relationship, which you can then copy and use as you like.
 
 If you set a person as the "Home Person" using the "Set Home" button, the results will always include the path from the selected person to the Home Person in addition to the closest people with DNA match markers.
 

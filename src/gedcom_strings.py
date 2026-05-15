@@ -223,6 +223,9 @@ RESULT_RANK_PREFIX = "#{rank}: "
 RESULT_DISTANCE = " (distance: {dist} edges)"
 RESULT_DNA_MARKERS = "   DNA markers:"
 RESULT_RELATIONSHIP = "Relationship: {rel}"
+RESULT_COMMON_ANCESTOR = "Common ancestor: "
+RESULT_COMMON_ANCESTORS = "Common ancestors:"
+RESULT_COMMON_ANCESTOR_NONE = "None found."
 RESULT_PATH = "Path:"
 RESULT_PATH_SECTION = "Path to Home Person"
 RESULT_HOME = "Home: "
@@ -234,6 +237,11 @@ EDGE_LABELS = {
     'spouse': 'spouse',
     'child': 'child',
 }
+WIN_PATH_GRAPH = "Relationship Graph"
+BTN_COPY_GRAPH = "Copy"
+TIP_COPY_GRAPH = "Copy this graphical representation to clipboard."
+PATH_GRAPH_START = "START"
+PATH_GRAPH_END = "END"
 
 # ---------------------------------------------------------------------------
 # Relationship path results
@@ -243,7 +251,7 @@ PATH_FROM = "  From: "
 PATH_TO = "  To:   "
 PATH_SAME_PERSON = "(Same person selected for both.)"
 PATH_NOT_FOUND = "No relationship path found within max depth {depth}."
-PATH_RANK = "Path #{rank} — {rel}:"
+PATH_RANK = "Path #{rank}:"
 PATH_SEARCH_CAP = (
     "(Search cap reached — there may be additional paths. "
     "Reduce Max depth to search a smaller area.)"

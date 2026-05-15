@@ -267,3 +267,38 @@ class TestBfsIntegration:
         paths, _ = mdl.find_all_paths("@I1@", "@I1@", top_n=5, max_depth=50)
         assert len(paths) == 1
         assert paths[0][0][0] == "@I1@"
+
+    def test_find_common_ancestors_between_siblings(self, tmp_path):
+        ged = """\
+0 HEAD
+1 GEDC
+2 VERS 5.5.1
+0 @DAD@ INDI
+1 NAME Dad /Smith/
+1 SEX M
+1 FAMS @F1@
+0 @MOM@ INDI
+1 NAME Mom /Smith/
+1 SEX F
+1 FAMS @F1@
+0 @A@ INDI
+1 NAME Alice /Smith/
+1 SEX F
+1 FAMC @F1@
+0 @B@ INDI
+1 NAME Bob /Smith/
+1 SEX M
+1 FAMC @F1@
+0 @F1@ FAM
+1 HUSB @DAD@
+1 WIFE @MOM@
+1 CHIL @A@
+1 CHIL @B@
+0 TRLR
+"""
+        cache_dir = str(tmp_path / "cache")
+        p = _write_ged(tmp_path, ged)
+        mdl = GedcomDataModel()
+        mdl.load(p, "DNA", "AncestryDNA", cache_dir)
+
+        assert mdl.find_common_ancestors("@A@", "@B@") == ["@DAD@", "@MOM@"]
