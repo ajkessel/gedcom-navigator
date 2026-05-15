@@ -14,6 +14,7 @@ import tempfile
 import threading
 import tkinter as tk
 import tkinter.font as tkfont
+from tkinter import filedialog, messagebox
 
 import customtkinter as ctk
 
@@ -75,6 +76,172 @@ class ResultsMixin:
             'spouse': cls._mix_hex_color(accent, theme['fg'], 0.28),
             'sibling': cls._mix_hex_color(accent, theme['trough'], 0.45),
         }
+
+    @staticmethod
+    def _svg_escape(value):
+        """Return text with XML special characters escaped."""
+        return str(value).replace('&', '&amp;').replace('<', '&lt;').replace(
+            '>', '&gt;').replace('"', '&quot;')
+
+    @staticmethod
+    def _svg_number(value):
+        """Return a compact SVG-compatible numeric string."""
+        number = float(value)
+        if number.is_integer():
+            return str(int(number))
+        return f'{number:.3f}'.rstrip('0').rstrip('.')
+
+    @classmethod
+    def _svg_attrs(cls, **attrs):
+        """Return formatted SVG attributes, omitting empty values."""
+        parts = []
+        for name, value in attrs.items():
+            if value in (None, ''):
+                continue
+            parts.append(f' {name.replace("_", "-")}="{cls._svg_escape(value)}"')
+        return ''.join(parts)
+
+    @classmethod
+    def _canvas_text_svg(cls, canvas, item_id):
+        """Return SVG markup for a Tk canvas text item."""
+        x, y = canvas.coords(item_id)
+        text = canvas.itemcget(item_id, 'text')
+        fill = canvas.itemcget(item_id, 'fill') or '#000000'
+        anchor = canvas.itemcget(item_id, 'anchor') or 'center'
+        justify = canvas.itemcget(item_id, 'justify') or 'center'
+        font_name = canvas.itemcget(item_id, 'font')
+        try:
+            font = tkfont.Font(font=font_name)
+            actual = font.actual()
+            line_space = font.metrics('linespace')
+        except tk.TclError:
+            actual = {'family': 'sans-serif', 'size': 10, 'weight': 'normal'}
+            line_space = 12
+
+        family = actual.get('family') or 'sans-serif'
+        size = abs(int(actual.get('size') or 10))
+        weight = 'bold' if actual.get('weight') == 'bold' else 'normal'
+        slant = 'italic' if actual.get('slant') == 'italic' else 'normal'
+        text_anchor = {
+            'w': 'start',
+            'nw': 'start',
+            'sw': 'start',
+            'e': 'end',
+            'ne': 'end',
+            'se': 'end',
+        }.get(anchor, 'middle')
+        dominant = 'central'
+        if anchor in ('n', 'ne', 'nw'):
+            dominant = 'text-before-edge'
+        elif anchor in ('s', 'se', 'sw'):
+            dominant = 'text-after-edge'
+        if justify == 'left':
+            text_anchor = 'start'
+        elif justify == 'right':
+            text_anchor = 'end'
+
+        lines = text.splitlines() or ['']
+        attrs = cls._svg_attrs(
+            x=cls._svg_number(x), y=cls._svg_number(y),
+            fill=fill, font_family=family, font_size=size,
+            font_weight=weight, font_style=slant,
+            text_anchor=text_anchor, dominant_baseline=dominant)
+        if len(lines) == 1:
+            return f'  <text{attrs}>{cls._svg_escape(lines[0])}</text>'
+
+        first_dy = -((len(lines) - 1) * line_space / 2)
+        tspans = []
+        for index, line in enumerate(lines):
+            dy = first_dy if index == 0 else line_space
+            tspans.append(
+                f'<tspan x="{cls._svg_number(x)}" '
+                f'dy="{cls._svg_number(dy)}">'
+                f'{cls._svg_escape(line)}</tspan>')
+        return f'  <text{attrs}>{"".join(tspans)}</text>'
+
+    @classmethod
+    def _canvas_to_svg(cls, canvas, width, height):
+        """Return SVG markup for the full graph canvas."""
+        width = int(round(width))
+        height = int(round(height))
+        bg = canvas.cget('bg')
+        lines = [
+            '<?xml version="1.0" encoding="UTF-8"?>',
+            (
+                f'<svg xmlns="http://www.w3.org/2000/svg" '
+                f'width="{width}" height="{height}" viewBox="0 0 {width} {height}">'
+            ),
+            f'  <rect width="100%" height="100%" fill="{cls._svg_escape(bg)}"/>',
+        ]
+        markers = {}
+
+        def marker_id(color):
+            if color not in markers:
+                markers[color] = f'arrow{len(markers) + 1}'
+            return markers[color]
+
+        body = []
+        for item_id in canvas.find_all():
+            item_type = canvas.type(item_id)
+            if item_type == 'rectangle':
+                x1, y1, x2, y2 = canvas.coords(item_id)
+                attrs = cls._svg_attrs(
+                    x=cls._svg_number(x1),
+                    y=cls._svg_number(y1),
+                    width=cls._svg_number(x2 - x1),
+                    height=cls._svg_number(y2 - y1),
+                    fill=canvas.itemcget(item_id, 'fill'),
+                    stroke=canvas.itemcget(item_id, 'outline'),
+                    stroke_width=canvas.itemcget(item_id, 'width'),
+                )
+                body.append(f'  <rect{attrs}/>')
+            elif item_type == 'line':
+                coords = canvas.coords(item_id)
+                fill = canvas.itemcget(item_id, 'fill') or '#000000'
+                dash = canvas.itemcget(item_id, 'dash').strip('{}')
+                attrs = {
+                    'fill': 'none',
+                    'stroke': fill,
+                    'stroke_width': canvas.itemcget(item_id, 'width'),
+                    'stroke_dasharray': dash,
+                    'marker_end': (
+                        f'url(#{marker_id(fill)})'
+                        if canvas.itemcget(item_id, 'arrow') in ('last', 'both')
+                        else None
+                    ),
+                }
+                if len(coords) == 4:
+                    x1, y1, x2, y2 = coords
+                    attrs.update({
+                        'x1': cls._svg_number(x1),
+                        'y1': cls._svg_number(y1),
+                        'x2': cls._svg_number(x2),
+                        'y2': cls._svg_number(y2),
+                    })
+                    body.append(f'  <line{cls._svg_attrs(**attrs)}/>')
+                else:
+                    points = ' '.join(
+                        f'{cls._svg_number(coords[i])},'
+                        f'{cls._svg_number(coords[i + 1])}'
+                        for i in range(0, len(coords), 2))
+                    attrs['points'] = points
+                    body.append(f'  <polyline{cls._svg_attrs(**attrs)}/>')
+            elif item_type == 'text':
+                body.append(cls._canvas_text_svg(canvas, item_id))
+
+        if markers:
+            lines.append('  <defs>')
+            for color, ident in markers.items():
+                lines.append(
+                    f'    <marker id="{ident}" viewBox="0 0 12 12" '
+                    'refX="10" refY="6" markerWidth="8" markerHeight="8" '
+                    'orient="auto" markerUnits="strokeWidth">'
+                    f'<path d="M 0 0 L 12 6 L 0 12 z" fill="{cls._svg_escape(color)}"/>'
+                    '</marker>')
+            lines.append('  </defs>')
+        lines.extend(body)
+        lines.append('</svg>')
+        return '\n'.join(lines) + '\n'
 
     @staticmethod
     def _simplify_path_for_graph(path):
@@ -519,6 +686,31 @@ class ResultsMixin:
 
         canvas.configure(scrollregion=(0, 0, canvas_w, canvas_h))
 
+        def _save_graph(*_):
+            canvas.update_idletasks()
+            path = filedialog.asksaveasfilename(
+                parent=win,
+                title=DLG_SAVE_GRAPH,
+                defaultextension='.svg',
+                filetypes=[
+                    ("SVG images", "*.svg"),
+                    ("All files", "*.*"),
+                ],
+            )
+            if not path:
+                return 'break'
+            try:
+                svg = self._canvas_to_svg(canvas, canvas_w, canvas_h)
+                with open(path, 'w', encoding='utf-8') as svg_file:
+                    svg_file.write(svg)
+            except (OSError, tk.TclError) as exc:
+                messagebox.showerror(
+                    ERR_SAVE_GRAPH_TITLE,
+                    ERR_SAVE_GRAPH_MSG.format(error=exc),
+                    parent=win,
+                )
+            return 'break'
+
         def _copy_graph(*_):
             canvas.update_idletasks()
             if sys.platform == 'win32':
@@ -546,9 +738,15 @@ class ResultsMixin:
             btn_frame, text=BTN_COPY_GRAPH, width=80, command=_copy_graph)
         copy_btn.pack(side='right', padx=(0, 8))
         Tooltip(copy_btn, TIP_COPY_GRAPH)
+        save_btn = ctk.CTkButton(
+            btn_frame, text=BTN_SAVE_GRAPH, width=80, command=_save_graph)
+        save_btn.pack(side='right', padx=(0, 8))
+        Tooltip(save_btn, TIP_SAVE_GRAPH)
 
         copy_shortcut = '<Command-c>' if sys.platform == 'darwin' else '<Control-c>'
+        save_shortcut = '<Command-s>' if sys.platform == 'darwin' else '<Control-s>'
         win.bind(copy_shortcut, _copy_graph)
+        win.bind(save_shortcut, _save_graph)
 
         win.update_idletasks()
         try:
