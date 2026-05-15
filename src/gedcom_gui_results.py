@@ -182,17 +182,17 @@ class ResultsMixin:
             (height for _, height in sizes), default=line_spacing)
         max_w = max((width for width, _ in sizes), default=0)
 
-        if 'n' in anchor:
+        if anchor in ('n', 'ne', 'nw'):
             top = y
-        elif 's' in anchor:
+        elif anchor in ('s', 'se', 'sw'):
             top = y - total_h
         else:
             top = y - total_h / 2
         for index, line in enumerate(lines):
             line_w = sizes[index][0]
-            if 'w' in anchor:
+            if anchor in ('w', 'nw', 'sw'):
                 left = x
-            elif 'e' in anchor:
+            elif anchor in ('e', 'ne', 'se'):
                 left = x - line_w
             else:
                 left = x - line_w / 2
