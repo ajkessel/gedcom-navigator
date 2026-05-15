@@ -510,13 +510,17 @@ class DNAMatchFinderApp(
                                           command=self._reverse_results, state='disabled')
         self._reverse_btn.grid(row=0, column=1, padx=(4, 4), pady=4)
         Tooltip(self._reverse_btn, TIP_REVERSE)
+        self._save_btn = ctk.CTkButton(status_bar, text=BTN_SAVE, width=80,
+                                       command=self._save_results)
+        self._save_btn.grid(row=0, column=2, padx=(4, 4), pady=4)
+        Tooltip(self._save_btn, TIP_SAVE)
         self._copy_btn = ctk.CTkButton(status_bar, text=BTN_COPY, width=80,
                                        command=self._copy_results)
-        self._copy_btn.grid(row=0, column=2, padx=(4, 8), pady=4)
+        self._copy_btn.grid(row=0, column=3, padx=(4, 8), pady=4)
         Tooltip(self._copy_btn, TIP_COPY)
         self._progress_bar = ctk.CTkProgressBar(status_bar, width=130)
         self._progress_bar.set(0)
-        self._progress_bar.grid(row=0, column=2, padx=(4, 8), pady=4)
+        self._progress_bar.grid(row=0, column=2, columnspan=2, padx=(4, 8), pady=4)
         self._progress_bar.grid_remove()
 
         self._setup_keybindings()

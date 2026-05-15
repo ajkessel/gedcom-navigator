@@ -1244,6 +1244,33 @@ class ResultsMixin:
         self.root.clipboard_clear()
         self.root.clipboard_append(text)
 
+    def _save_results(self):
+        """Save the current results text to a user-selected text file."""
+        text = self.results.get('1.0', 'end').rstrip()
+        if not text:
+            return
+        path = filedialog.asksaveasfilename(
+            parent=self.root,
+            title=DLG_SAVE_RESULTS,
+            defaultextension='.txt',
+            filetypes=[
+                ("Text files", "*.txt"),
+                ("All files", "*.*"),
+            ],
+        )
+        if not path:
+            return
+        try:
+            with open(path, 'w', encoding='utf-8') as results_file:
+                results_file.write(text)
+                results_file.write('\n')
+        except OSError as exc:
+            messagebox.showerror(
+                ERR_SAVE_GRAPH_TITLE,
+                ERR_SAVE_RESULTS_MSG.format(error=exc),
+                parent=self.root,
+            )
+
     def _clear_results(self):
         """Clear result output and reset search focus."""
         self.results.configure(state='normal')

@@ -24,6 +24,7 @@ class BackgroundTaskMixin:
         """Reveal the animated progress bar and optionally set status text."""
         if msg:
             self.status_text.set(msg)
+        self._save_btn.grid_remove()
         self._copy_btn.grid_remove()
         self._progress_bar.grid()
         self._progress_anim_val = 0.0
@@ -43,6 +44,7 @@ class BackgroundTaskMixin:
             self.root.after_cancel(self._progress_anim_id)
             self._progress_anim_id = None
         self._progress_bar.grid_remove()
+        self._save_btn.grid()
         self._copy_btn.grid()
 
     def _run_background_task(self, work, done, *, popup_message=None,

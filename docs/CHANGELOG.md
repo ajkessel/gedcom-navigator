@@ -4,7 +4,7 @@
 
 ### Added
 
-- **Graphical relationship view** - relationship descriptions in DNA-match results, home-person paths, and relationship-path results are now clickable. Clicking a relationship opens a scrollable "Relationship Graph" window that lays out each person in the path by generation, labels the relationship edges, and highlights the start and end people.
+- **Graphical relationship view** - relationship descriptions in DNA-match results, home-person paths, and relationship-path results are now clickable. Clicking a relationship opens a scrollable "Relationship Graph" window that lays out each person in the path by generation, labels the relationship edges, and highlights the start and end people. Visualizations can be copied to clipboard or saved to a file.
 - **Copyable relationship graphs** - the relationship graph window includes a Copy button and keyboard shortcut support. On Windows the graph is copied as a bitmap; on other platforms the canvas is copied as PostScript where supported by Tk.
 - **Common ancestor reporting** - relationship result sections now show the nearest common biological ancestor or ancestors when one can be found, with clickable ancestor names. In-law-only paths explicitly report that no common ancestor was found.
 - **Data-model API for common ancestors** - `GedcomDataModel` now exposes `find_common_ancestors()`, backed by relationship helpers that rank the closest shared ancestors and preserve ties such as both parents of siblings or both grandparents of first cousins.

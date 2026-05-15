@@ -87,11 +87,12 @@ BTN_SET_HOME = "Set Home"
 # ---------------------------------------------------------------------------
 # Results panel
 # ---------------------------------------------------------------------------
-BTN_COPY = "Copy Results"
-BTN_REVERSE = "Reverse Path"
+BTN_COPY = "Copy"
+BTN_REVERSE = "Reverse"
 BTN_REVERSE_RESTORE = "Normal Path"
+BTN_SAVE = "Save"
 TIP_REVERSE = (
-    f"Reverse Path ({_MOD}R)\n"
+    f"Reverse ({_MOD}R)\n"
     "Reverse the direction of all relationship paths shown, computing "
     "the relationship from the other person's perspective. "
     "Click again to restore the original path."
@@ -105,6 +106,10 @@ TIP_COPY = (
     "Copy the entire contents of the results pane to the clipboard. "
     "When the results text area has keyboard focus, "
     f"{_MOD}C copies only the selected text as usual."
+)
+TIP_SAVE = (
+    f"Save ({_MOD}S)\n"
+    "Save the results to a text file."
 )
 TIP_FIND = (
     f"Find ({_MOD}F)\n"
@@ -140,7 +145,7 @@ TIP_SET_HOME = (
     "Set the selected person as the home person for finding relationship paths."
 )
 TIP_SHOW_PERSON = (
-    f"Show Person ({_MOD}S)\n"
+    f"Show Person ({_MOD}E)\n"
     "View the full GEDCOM record for the selected person, along with a summary "
     "of biographical and family information."
 )
@@ -239,6 +244,7 @@ EDGE_LABELS = {
     'child': 'child',
 }
 WIN_PATH_GRAPH = "Relationship Graph"
+DLG_SAVE_RESULTS = "Save results"
 DLG_SAVE_GRAPH = "Save relationship graph"
 BTN_SAVE_GRAPH = "Save"
 BTN_COPY_GRAPH = "Copy"
@@ -359,6 +365,7 @@ ERR_FILE_NOT_FOUND_TITLE = "File not found"
 ERR_FILE_NOT_FOUND_MSG = "Could not open:\n{path}\n\n{error}"
 ERR_SAVE_GRAPH_TITLE = "Save error"
 ERR_SAVE_GRAPH_MSG = "Could not save relationship graph:\n\n{error}"
+ERR_SAVE_RESULTS_MSG = "Could not save results:\n\n{error}"
 ERR_GEDCOM_NOT_FOUND_MSG = (
     "GEDCOM file not found:\n{path}\n\n"
     "Use Browse… to choose a different file."
@@ -399,11 +406,12 @@ KEYBOARD_SHORTCUT_ROWS = [
     (f"{_MOD}U",     "Toggle fuzzy search mode"),
     (f"{_MOD}O",     "Open a new GEDCOM file"),
     (f"{_MOD}N",     "Find Nearest DNA Matches for the selected person"),
-    (f"{_MOD}S",     "Show the full GEDCOM record for the selected person"),
+    (f"{_MOD}E",     "Show the full GEDCOM record for the selected person"),
     (f"{_MOD}H",     "Set Home person to the selected person"),
     (f"{_MOD}P",     "Open the Find Relationship Paths dialog"),
     (f"{_MOD}T",     "Select new tag for finding relationship paths"),
     (f"{_MOD}R",     "Reverse/restore the direction of all relationship paths"),
+    (f"{_MOD}S",     "Save results to a text file"),
     (f"{_MOD}C",     "Copy result to clipboard"),
     (f"{_MOD}L",     "Clear the results"),
 ]

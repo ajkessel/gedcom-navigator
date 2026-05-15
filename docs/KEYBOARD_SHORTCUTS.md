@@ -17,9 +17,11 @@
 +------------+--------------------------------------------------------+
 | **Ctrl+N** | Find **N**earest DNA Matches for the selected person   |
 +------------+--------------------------------------------------------+
-| **Ctrl+S** | **S**how the full GEDCOM record for the selected person|
+| **Ctrl+E** | Show th**e** full GEDCOM record for the selected person|
 +------------+--------------------------------------------------------+
 | **Ctrl+H** | Set **H**ome person to the selected person             |
++------------+--------------------------------------------------------+
+| **Ctrl+S** | **S**ave results to a text file                        |
 +------------+--------------------------------------------------------+
 | **Ctrl+P** | Open the Find Relationship **P**aths dialog            |
 +------------+--------------------------------------------------------+
