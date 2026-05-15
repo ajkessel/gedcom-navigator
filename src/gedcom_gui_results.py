@@ -7,6 +7,7 @@ Result rendering, path reversal, person navigation, and family-summary helpers.
 
 import io
 import math
+import os
 import re
 import sys
 import threading
@@ -853,8 +854,9 @@ class ResultsMixin:
             path = filedialog.asksaveasfilename(
                 parent=win,
                 title=DLG_SAVE_GRAPH,
-                defaultextension='.svg',
+                defaultextension='.png',
                 filetypes=[
+                    ("PNG images", "*.png"),
                     ("SVG images", "*.svg"),
                     ("All files", "*.*"),
                 ],
@@ -862,9 +864,15 @@ class ResultsMixin:
             if not path:
                 return 'break'
             try:
-                svg = self._canvas_to_svg(canvas, canvas_w, canvas_h)
-                with open(path, 'w', encoding='utf-8') as svg_file:
-                    svg_file.write(svg)
+                ext = os.path.splitext(path)[1].lower()
+                if ext == '.svg':
+                    svg = self._canvas_to_svg(canvas, canvas_w, canvas_h)
+                    with open(path, 'w', encoding='utf-8') as svg_file:
+                        svg_file.write(svg)
+                else:
+                    png = self._canvas_to_png_bytes(canvas, canvas_w, canvas_h)
+                    with open(path, 'wb') as png_file:
+                        png_file.write(png)
             except (OSError, tk.TclError) as exc:
                 messagebox.showerror(
                     ERR_SAVE_GRAPH_TITLE,

@@ -47,14 +47,7 @@ def check_codesigning_key():
 # tcl86t.dll / tk86t.dll are required by _tkinter.pyd. Same issue — they live
 # under base_prefix\Library\bin, not under the venv Scripts directory.
 _extra_binaries = []
-_excludes = [
-]
-
-if sys.platform != 'darwin':
-    # Pillow is needed by the macOS graph clipboard path, but non-macOS builds
-    # do not use it at runtime. Exclude it there so customtkinter's optional
-    # CTkImage import does not pull helper-only Pillow modules into the bundle.
-    _excludes += ['PIL', 'PIL.*']
+_excludes = []
 
 if sys.platform == 'win32':
     _base = os.path.dirname(sys.executable)
