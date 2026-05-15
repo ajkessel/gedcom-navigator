@@ -5,12 +5,10 @@ gedcom_gui_results.py
 Result rendering, path reversal, person navigation, and family-summary helpers.
 """
 
-import os
+import io
+import math
 import re
-import shutil
-import subprocess
 import sys
-import tempfile
 import threading
 import tkinter as tk
 import tkinter.font as tkfont
@@ -90,6 +88,166 @@ class ResultsMixin:
         if number.is_integer():
             return str(int(number))
         return f'{number:.3f}'.rstrip('0').rstrip('.')
+
+    @staticmethod
+    def _canvas_color_to_rgb(value, default=(0, 0, 0)):
+        """Return an RGB tuple for a Tk color value."""
+        if not value:
+            return default
+        try:
+            from PIL import ImageColor  # pylint: disable=import-outside-toplevel
+
+            return ImageColor.getrgb(value)
+        except (ImportError, ValueError):
+            return default
+
+    @staticmethod
+    def _pillow_canvas_font(font_name):
+        """Return a Pillow font that approximates a Tk canvas font."""
+        try:
+            from PIL import ImageFont  # pylint: disable=import-outside-toplevel
+        except ImportError as exc:
+            raise tk.TclError(
+                "Pillow is required for macOS graph clipboard copy."
+            ) from exc
+
+        try:
+            actual = tkfont.Font(font=font_name).actual()
+            family = actual.get('family') or ''
+            size = abs(int(actual.get('size') or 10))
+        except tk.TclError:
+            family = ''
+            size = 10
+        for candidate in (family, f'{family}.ttf' if family else ''):
+            if not candidate:
+                continue
+            try:
+                return ImageFont.truetype(candidate, size=size)
+            except OSError:
+                continue
+        return ImageFont.load_default(size=size)
+
+    @staticmethod
+    def _draw_dashed_line(draw, xy, fill, width, dash):
+        """Draw a dashed line segment."""
+        x1, y1, x2, y2 = xy
+        dash_values = [float(value) for value in dash.split() if value]
+        if len(dash_values) < 2:
+            draw.line(xy, fill=fill, width=width)
+            return
+        dash_len, gap_len = dash_values[:2]
+        total = math.hypot(x2 - x1, y2 - y1)
+        if total <= 0:
+            return
+        ux = (x2 - x1) / total
+        uy = (y2 - y1) / total
+        pos = 0.0
+        while pos < total:
+            end = min(pos + dash_len, total)
+            draw.line(
+                (x1 + ux * pos, y1 + uy * pos, x1 + ux * end, y1 + uy * end),
+                fill=fill, width=width)
+            pos = end + gap_len
+
+    @staticmethod
+    def _draw_arrowhead(draw, x1, y1, x2, y2, fill, width):
+        """Draw an arrowhead at the end of a line."""
+        angle = math.atan2(y2 - y1, x2 - x1)
+        length = max(width * 4, 12)
+        spread = math.radians(28)
+        points = [(x2, y2)]
+        for sign in (1, -1):
+            points.append((
+                x2 - length * math.cos(angle + sign * spread),
+                y2 - length * math.sin(angle + sign * spread),
+            ))
+        draw.polygon(points, fill=fill)
+
+    @classmethod
+    def _draw_canvas_text_png(cls, draw, canvas, item_id):
+        """Draw a Tk canvas text item into a Pillow image."""
+        x, y = canvas.coords(item_id)
+        text = canvas.itemcget(item_id, 'text')
+        fill = cls._canvas_color_to_rgb(canvas.itemcget(item_id, 'fill'))
+        anchor = canvas.itemcget(item_id, 'anchor') or 'center'
+        font = cls._pillow_canvas_font(canvas.itemcget(item_id, 'font'))
+        lines = text.splitlines() or ['']
+        line_spacing = max(
+            font.getbbox('Mg')[3] - font.getbbox('Mg')[1] + 3, 12)
+        sizes = []
+        for line in lines:
+            bbox = draw.textbbox((0, 0), line, font=font)
+            sizes.append((bbox[2] - bbox[0], bbox[3] - bbox[1]))
+        total_h = line_spacing * (len(lines) - 1) + max(
+            (height for _, height in sizes), default=line_spacing)
+        max_w = max((width for width, _ in sizes), default=0)
+
+        if 'n' in anchor:
+            top = y
+        elif 's' in anchor:
+            top = y - total_h
+        else:
+            top = y - total_h / 2
+        for index, line in enumerate(lines):
+            line_w = sizes[index][0]
+            if 'w' in anchor:
+                left = x
+            elif 'e' in anchor:
+                left = x - line_w
+            else:
+                left = x - line_w / 2
+            draw.text((left, top + index * line_spacing), line, fill=fill, font=font)
+        return max_w, total_h
+
+    @classmethod
+    def _canvas_to_png_bytes(cls, canvas, width, height):
+        """Return PNG bytes for the full graph canvas."""
+        try:
+            from PIL import Image, ImageDraw  # pylint: disable=import-outside-toplevel
+        except ImportError as exc:
+            raise tk.TclError(
+                "Pillow is required for macOS graph clipboard copy."
+            ) from exc
+
+        width = int(round(width))
+        height = int(round(height))
+        bg = cls._canvas_color_to_rgb(canvas.cget('bg'), default=(255, 255, 255))
+        image = Image.new('RGB', (width, height), bg)
+        draw = ImageDraw.Draw(image)
+
+        for item_id in canvas.find_all():
+            item_type = canvas.type(item_id)
+            if item_type == 'rectangle':
+                x1, y1, x2, y2 = canvas.coords(item_id)
+                fill = cls._canvas_color_to_rgb(
+                    canvas.itemcget(item_id, 'fill'), default=None)
+                outline = cls._canvas_color_to_rgb(
+                    canvas.itemcget(item_id, 'outline'), default=None)
+                item_width = max(int(float(canvas.itemcget(item_id, 'width') or 1)), 1)
+                draw.rectangle(
+                    (x1, y1, x2, y2), fill=fill, outline=outline,
+                    width=item_width)
+            elif item_type == 'line':
+                coords = canvas.coords(item_id)
+                if len(coords) < 4:
+                    continue
+                fill = cls._canvas_color_to_rgb(canvas.itemcget(item_id, 'fill'))
+                item_width = max(int(float(canvas.itemcget(item_id, 'width') or 1)), 1)
+                dash = canvas.itemcget(item_id, 'dash').strip('{}')
+                if dash and len(coords) == 4:
+                    cls._draw_dashed_line(draw, coords, fill, item_width, dash)
+                else:
+                    draw.line(coords, fill=fill, width=item_width)
+                if canvas.itemcget(item_id, 'arrow') in ('last', 'both'):
+                    cls._draw_arrowhead(
+                        draw, coords[-4], coords[-3], coords[-2], coords[-1],
+                        fill, item_width)
+            elif item_type == 'text':
+                cls._draw_canvas_text_png(draw, canvas, item_id)
+
+        out = io.BytesIO()
+        image.save(out, format='PNG')
+        return out.getvalue()
 
     @classmethod
     def _svg_attrs(cls, **attrs):
@@ -416,64 +574,26 @@ class ResultsMixin:
                 gdi32.DeleteDC(memory_dc)
             user32.ReleaseDC(hwnd, source_dc)
 
-    @staticmethod
-    def _applescript_string(value):
-        """Return value escaped as an AppleScript string literal."""
-        return '"' + value.replace('\\', '\\\\').replace('"', '\\"') + '"'
-
     @classmethod
-    def _copy_macos_canvas_pdf(cls, canvas, width, height):
-        """Copy a Tk canvas to the macOS pasteboard as PDF data."""
-        pstopdf = (
-            '/usr/bin/pstopdf'
-            if os.path.exists('/usr/bin/pstopdf')
-            else shutil.which('pstopdf')
-        )
-        if not pstopdf:
-            raise tk.TclError("Could not find pstopdf for PDF clipboard copy.")
+    def _copy_macos_canvas_png(cls, canvas, width, height):
+        """Copy a Tk canvas to the macOS pasteboard as PNG image data."""
+        try:
+            from AppKit import (  # pylint: disable=import-outside-toplevel
+                NSPasteboard,
+                NSPasteboardTypePNG,
+            )
+            from Foundation import NSData  # pylint: disable=import-outside-toplevel
+        except ImportError as exc:
+            raise tk.TclError(
+                "PyObjC is required for macOS graph clipboard copy."
+            ) from exc
 
-        postscript = canvas.postscript(
-            colormode='color', x=0, y=0, width=width, height=height)
-        with tempfile.TemporaryDirectory(prefix='gedcom-dna-finder-') as tmpdir:
-            ps_path = os.path.join(tmpdir, 'path-graph.ps')
-            pdf_path = os.path.join(tmpdir, 'path-graph.pdf')
-            with open(ps_path, 'w', encoding='utf-8') as ps_file:
-                ps_file.write(postscript)
-
-            try:
-                subprocess.run(
-                    [pstopdf, '-o', pdf_path, ps_path],
-                    check=True, stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE, text=True)
-            except (OSError, subprocess.CalledProcessError) as exc:
-                raise tk.TclError(
-                    "Could not convert graph to PDF for clipboard copy."
-                ) from exc
-            if not os.path.exists(pdf_path) or os.path.getsize(pdf_path) == 0:
-                raise tk.TclError("Could not create graph PDF for clipboard copy.")
-
-            script = '\n'.join((
-                'use framework "AppKit"',
-                'use scripting additions',
-                f'set pdfPath to {cls._applescript_string(pdf_path)}',
-                "set pdfData to current application's NSData's "
-                "dataWithContentsOfFile:pdfPath",
-                "set pasteboard to current application's NSPasteboard's "
-                "generalPasteboard()",
-                "pasteboard's clearContents()",
-                "set ok to pasteboard's setData:pdfData "
-                'forType:(current application\'s NSPasteboardTypePDF)',
-                'if ok is false then error "Could not set PDF clipboard data."',
-            ))
-            try:
-                subprocess.run(
-                    ['/usr/bin/osascript', '-e', script],
-                    check=True, stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE, text=True)
-            except (OSError, subprocess.CalledProcessError) as exc:
-                raise tk.TclError(
-                    "Could not copy graph PDF to the macOS clipboard."
-                ) from exc
+        png_bytes = cls._canvas_to_png_bytes(canvas, width, height)
+        png_data = NSData.dataWithBytes_length_(png_bytes, len(png_bytes))
+        pasteboard = NSPasteboard.generalPasteboard()
+        pasteboard.clearContents()
+        if not pasteboard.setData_forType_(png_data, NSPasteboardTypePNG):
+            raise tk.TclError("Could not set macOS clipboard image data.")
 
     @staticmethod
     def _reverse_path(path, individuals):
@@ -716,7 +836,7 @@ class ResultsMixin:
             if sys.platform == 'win32':
                 self._copy_windows_widget_bitmap(canvas)
             elif sys.platform == 'darwin':
-                self._copy_macos_canvas_pdf(canvas, canvas_w, canvas_h)
+                self._copy_macos_canvas_png(canvas, canvas_w, canvas_h)
             else:
                 postscript = canvas.postscript(
                     colormode='color', x=0, y=0,

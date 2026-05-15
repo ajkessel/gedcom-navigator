@@ -48,14 +48,13 @@ def check_codesigning_key():
 # under base_prefix\Library\bin, not under the venv Scripts directory.
 _extra_binaries = []
 _excludes = [
-    # Pillow is only used by helper scripts that generate icons. The GUI does
-    # not use CTkImage, but customtkinter imports it and thereby exposes PIL to
-    # PyInstaller's analysis when Pillow is installed in the build environment.
-    # this causes problems for building a universal2 binary, so it is excluded
-    # explicitly here
-    'PIL',
-    'PIL.*',
 ]
+
+if sys.platform != 'darwin':
+    # Pillow is needed by the macOS graph clipboard path, but non-macOS builds
+    # do not use it at runtime. Exclude it there so customtkinter's optional
+    # CTkImage import does not pull helper-only Pillow modules into the bundle.
+    _excludes += ['PIL', 'PIL.*']
 
 if sys.platform == 'win32':
     _base = os.path.dirname(sys.executable)

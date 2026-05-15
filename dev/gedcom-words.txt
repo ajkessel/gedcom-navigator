@@ -1,6 +1,7 @@
 ajkessel
 altgraph
 ANSEL
+AppKit
 arrowcolor
 autojunk
 autosomal
@@ -46,9 +47,10 @@ MEIPASS
 Menlo
 minwidth
 MTTAG
+NSData
+NSPasteboard
 notarytool
 opaqueresize
-osascript
 padx
 pady
 pers
@@ -57,6 +59,7 @@ pyenv
 pypi
 pypirc
 pytest
+PyObjC
 reparsed
 rowheight
 Rsrc
