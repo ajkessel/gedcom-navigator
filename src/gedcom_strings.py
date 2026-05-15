@@ -241,8 +241,10 @@ WIN_PATH_GRAPH = "Relationship Graph"
 DLG_SAVE_GRAPH = "Save relationship graph"
 BTN_SAVE_GRAPH = "Save"
 BTN_COPY_GRAPH = "Copy"
-TIP_SAVE_GRAPH = "Save this graphical representation to a file."
-TIP_COPY_GRAPH = "Copy this graphical representation to clipboard."
+TIP_SAVE_GRAPH = (f"Save graphic ({_MOD}S)\n"
+                  "Save this graphical representation to a file.")
+TIP_COPY_GRAPH = (f"Copy graphic ({_MOD}C)\n"
+                  "Copy this graphical representation to clipboard.")
 PATH_GRAPH_START = "START"
 PATH_GRAPH_END = "END"
 
