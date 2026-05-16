@@ -24,7 +24,7 @@ from gedcom_relationship import (
     get_descendant_depths,
 )
 from gedcom_search import bfs_find_all_paths, bfs_find_dna_matches
-from gedcom_strings import *  # pylint: disable=unused-wildcard-import,wildcard-import
+from gedcom_strings import *  # pylint: disable=unused-wildcard-import
 from gedcom_theme import get_link_color, ttk_colors
 from gedcom_tooltip import TextTagTooltip, Tooltip
 
@@ -239,7 +239,8 @@ class ResultsMixin:
                 left = box_left + max_w - line_w
             else:
                 left = box_left + (max_w - line_w) / 2
-            draw.text((left, top + index * line_spacing), line, fill=fill, font=font)
+            draw.text((left, top + index * line_spacing),
+                      line, fill=fill, font=font)
         return max_w, total_h
 
     @classmethod
@@ -254,7 +255,8 @@ class ResultsMixin:
 
         width = int(round(width))
         height = int(round(height))
-        bg = cls._canvas_color_to_rgb(canvas.cget('bg'), default=(255, 255, 255))
+        bg = cls._canvas_color_to_rgb(
+            canvas.cget('bg'), default=(255, 255, 255))
         image = Image.new('RGB', (width, height), bg)
         draw = ImageDraw.Draw(image)
 
@@ -266,7 +268,8 @@ class ResultsMixin:
                     canvas.itemcget(item_id, 'fill'), default=None)
                 outline = cls._canvas_color_to_rgb(
                     canvas.itemcget(item_id, 'outline'), default=None)
-                item_width = max(int(float(canvas.itemcget(item_id, 'width') or 1)), 1)
+                item_width = max(
+                    int(float(canvas.itemcget(item_id, 'width') or 1)), 1)
                 draw.rectangle(
                     (x1, y1, x2, y2), fill=fill, outline=outline,
                     width=item_width)
@@ -274,8 +277,10 @@ class ResultsMixin:
                 coords = canvas.coords(item_id)
                 if len(coords) < 4:
                     continue
-                fill = cls._canvas_color_to_rgb(canvas.itemcget(item_id, 'fill'))
-                item_width = max(int(float(canvas.itemcget(item_id, 'width') or 1)), 1)
+                fill = cls._canvas_color_to_rgb(
+                    canvas.itemcget(item_id, 'fill'))
+                item_width = max(
+                    int(float(canvas.itemcget(item_id, 'width') or 1)), 1)
                 dash = canvas.itemcget(item_id, 'dash').strip('{}')
                 if dash and len(coords) == 4:
                     cls._draw_dashed_line(draw, coords, fill, item_width, dash)
@@ -299,7 +304,8 @@ class ResultsMixin:
         for name, value in attrs.items():
             if value in (None, ''):
                 continue
-            parts.append(f' {name.replace("_", "-")}="{cls._svg_escape(value)}"')
+            parts.append(
+                f' {name.replace("_", "-")}="{cls._svg_escape(value)}"')
         return ''.join(parts)
 
     @classmethod
@@ -724,7 +730,8 @@ class ResultsMixin:
         badge_font = tkfont.Font(
             family=self._mono_family, size=max(self._mono_size - 5, 7),
             weight='bold')
-        longest = max((label_font.measure(label) for label in labels), default=0)
+        longest = max((label_font.measure(label)
+                      for label in labels), default=0)
         node_w = min(max(longest + 28, 180), 320)
         wrapped_labels = [
             self._wrap_canvas_label(label, label_font, node_w - 22)
@@ -915,9 +922,10 @@ class ResultsMixin:
 
         copy_shortcut = '<Command-c>' if sys.platform == 'darwin' else '<Control-c>'
         save_shortcut = '<Command-s>' if sys.platform == 'darwin' else '<Control-s>'
+        win.bind('<Escape>', lambda *_: win.destroy())
         win.bind(copy_shortcut, _copy_graph)
         win.bind(save_shortcut, _save_graph)
-
+        win.grab_set()
         win.update_idletasks()
         try:
             screen_x = win.winfo_vrootx()
@@ -1112,7 +1120,8 @@ class ResultsMixin:
                         families=self.families)
                     person(match_id,
                            prefix=RESULT_RANK_PREFIX.format(rank=rank), bold=True)
-                    relationship_line(rel, rev_path, prefix=result_detail_indent)
+                    relationship_line(
+                        rel, rev_path, prefix=result_detail_indent)
                     common_ancestor_line(
                         self._model.find_common_ancestors(
                             rev_path[0][0], rev_path[-1][0]),
@@ -1318,7 +1327,7 @@ class ResultsMixin:
 
         # for a "path" search, find the path from the originally selected person
         if kind == 'path':
-        # to the newly selected person
+            # to the newly selected person
             start_id = self._last_result['start_id']
             self._last_result = {'type': 'path',
                                  'start_id': start_id, 'end_id': indi_id}
