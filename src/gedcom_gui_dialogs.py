@@ -14,6 +14,7 @@ import webbrowser
 import customtkinter as ctk
 
 from gedcom_display import describe
+from gedcom_name_search import individual_matches_query
 from gedcom_relationship import (
     _extract_event, get_ancestor_depths, get_descendant_depths,
     describe_relationship,
@@ -338,18 +339,14 @@ class DialogsMixin:
 
         def populate(query=''):
             picker_tree.delete(*picker_tree.get_children())
-            query_l = query.strip().lower()
-            query_tokens = query_l.split()
+            query = query.strip()
             shown = 0
             for indi_id in self.sorted_ids:
                 indi = self.individuals[indi_id]
-                if query_tokens:
-                    all_names = indi['alt_names'] or [indi['name']]
-                    if not (
-                        any(all(tok in name.lower() for tok in query_tokens)
-                            for name in all_names)
-                        or query_l in indi_id.lower()
-                    ):
+                if query:
+                    match, _score = individual_matches_query(
+                        indi_id, indi, query)
+                    if not match:
                         continue
                 tags = ('flagged_row',) if indi['dna_markers'] else ()
                 flagged_mark = '✓' if indi['dna_markers'] else ''
@@ -809,6 +806,7 @@ class DialogsMixin:
             self._config.set_show_ids(show_ids_var.get())
             self._name_order = name_order_var.get()
             self._config.set_name_order(self._name_order)
+            self._pop_sort_key = None
             self._populate_tree()
             self._refresh_result()
             win.destroy()

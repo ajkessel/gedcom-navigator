@@ -1,0 +1,49 @@
+"""Tests for shared GEDCOM name and ID search helpers."""
+
+from gedcom_name_search import find_candidates, individual_matches_query
+
+
+INDIVIDUALS = {
+    "@I1@": {
+        "name": "John Adam /Smith/",
+        "alt_names": ["John Adam Smith", "J. A. Smith"],
+    },
+    "@I2@": {
+        "name": "Jane /Doe/",
+        "alt_names": ["Jane Doe"],
+    },
+    "@I23@": {
+        "name": "Alice /Jones/",
+        "alt_names": ["Alice Jones"],
+    },
+}
+
+
+class TestFindCandidates:
+    def test_exact_id_with_at_signs(self):
+        assert find_candidates(INDIVIDUALS, "@I23@") == [("@I23@", None)]
+
+    def test_exact_id_without_at_signs(self):
+        assert find_candidates(INDIVIDUALS, "I23") == [("@I23@", None)]
+
+    def test_token_matching_is_order_independent(self):
+        assert find_candidates(INDIVIDUALS, "smith john") == [("@I1@", None)]
+
+    def test_id_substring_matching(self):
+        assert find_candidates(INDIVIDUALS, "23") == [("@I23@", None)]
+
+    def test_fuzzy_matching_adds_scored_candidates(self):
+        candidates = find_candidates(
+            INDIVIDUALS, "Jon Smit", fuzzy=True, fuzzy_threshold=0.72)
+        assert candidates[0][0] == "@I1@"
+        assert candidates[0][1] is not None
+
+
+class TestIndividualMatchesQuery:
+    def test_empty_query_matches_for_list_population(self):
+        assert individual_matches_query("@I1@", INDIVIDUALS["@I1@"], "") == (
+            True, None)
+
+    def test_rejects_non_matching_query(self):
+        assert individual_matches_query(
+            "@I1@", INDIVIDUALS["@I1@"], "unrelated") == (False, None)

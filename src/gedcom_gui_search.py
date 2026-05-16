@@ -5,14 +5,13 @@ gedcom_gui_search.py
 GEDCOM loading, person-list filtering, and DNA-match search handlers.
 """
 
-import difflib
 import os
 import threading
 import tkinter as tk
 from tkinter import filedialog, messagebox
 
+from gedcom_name_search import individual_matches_query
 from gedcom_parser import extract_ged_from_zip
-from gedcom_search import bfs_find_all_paths
 from gedcom_strings import *  # pylint: disable=unused-wildcard-import,wildcard-import
 
 
@@ -46,19 +45,6 @@ class SearchMixin:
                                  ERR_NOT_FOUND_MSG.format(path=path))
             return
 
-        gedcom_path = path
-        tmp_path = None
-        if path.lower().endswith('.zip'):
-            try:
-                tmp_path, ged_name = extract_ged_from_zip(path)
-                gedcom_path = tmp_path
-                self.status_text.set(
-                    STATUS_EXTRACTED_ZIP.format(name=ged_name))
-            except Exception as e:  # pylint: disable=broad-exception-caught
-                messagebox.showerror(
-                    ERR_ZIP_TITLE, ERR_ZIP_MSG.format(error=e))
-                return
-
         self._show_progress(STATUS_LOADING)
         self._set_busy(True)
 
@@ -67,18 +53,27 @@ class SearchMixin:
         cache_dir = self._cache_dir()
 
         def _do_load():
+            tmp_path = None
+            ged_name = None
             try:
+                gedcom_path = path
+                if path.lower().endswith('.zip'):
+                    tmp_path, ged_name = extract_ged_from_zip(path)
+                    gedcom_path = tmp_path
                 result = self._model.load(
                     gedcom_path,
                     dna_keyword=dna_keyword,
                     page_marker=page_marker,
                     cache_dir=cache_dir,
                 )
-                self.root.after(0, lambda: _on_done(result, None))
+                self.root.after(
+                    0, lambda: _on_done(result, None, tmp_path, ged_name))
             except Exception as e:  # pylint: disable=broad-exception-caught
-                self.root.after(0, lambda: _on_done(None, e))
+                self.root.after(
+                    0, lambda e=e, tmp_path=tmp_path: _on_done(
+                        None, e, tmp_path, ged_name))
 
-        def _on_done(result, error):
+        def _on_done(result, error, tmp_path=None, ged_name=None):
             if tmp_path:
                 try:
                     os.unlink(tmp_path)
@@ -88,8 +83,12 @@ class SearchMixin:
             self._set_busy(False)
             if error:
                 self.status_text.set(STATUS_LOAD_FAILED)
-                messagebox.showerror(
-                    ERR_PARSE_TITLE, ERR_PARSE_MSG.format(error=error))
+                if path.lower().endswith('.zip') and ged_name is None:
+                    messagebox.showerror(
+                        ERR_ZIP_TITLE, ERR_ZIP_MSG.format(error=error))
+                else:
+                    messagebox.showerror(
+                        ERR_PARSE_TITLE, ERR_PARSE_MSG.format(error=error))
                 return
             from_cache, encoding_warning, model_error = result
             if model_error:
@@ -114,7 +113,8 @@ class SearchMixin:
                       else STATUS_LOADED.format(count=len(self.individuals)))
             self.status_text.set(status)
 
-        threading.Thread(target=_do_load, daemon=True).start()
+        self.root.after(10, lambda: threading.Thread(
+            target=_do_load, daemon=True).start())
 
     def _on_settings_change(self, *_):
         """Debounce search depth and result count changes before rerendering."""
@@ -135,10 +135,22 @@ class SearchMixin:
         if self.individuals:
             self._load_file()
 
+    def _find_dna_result_data(self, start_id, top_n, max_depth, cancel_event=None):
+        """Return DNA search results plus the optional path to the home person."""
+        results = self._model.find_dna_matches(
+            start_id, top_n, max_depth, cancel_event=cancel_event)
+        home_paths = None
+        home_id = self._home_person_id
+        if home_id and home_id != start_id and home_id in self.individuals:
+            home_paths, _ = self._model.find_all_paths(
+                start_id, home_id, top_n=1, max_depth=max_depth,
+                cancel_event=cancel_event)
+        return results, home_paths
+
     def _refresh_result(self):
         """Recompute and redraw the most recent result view."""
         self._settings_after_id = None
-        if not self._last_result or not self.individuals:
+        if self._busy or not self._last_result or not self.individuals:
             return
         try:
             top_n = int(self.top_n.get())
@@ -147,28 +159,62 @@ class SearchMixin:
             return
         kind = self._last_result['type']
         start_id = self._last_result['start_id']
+        self._show_progress()
+        self._set_busy(True)
         if kind == 'dna_matches':
-            def _do_refresh():
-                try:
-                    results = self._model.find_dna_matches(
-                        start_id, top_n, max_depth)
-                    home_paths = None
-                    home_id = self._home_person_id
-                    if home_id and home_id != start_id and home_id in self.individuals:
-                        home_paths, _ = bfs_find_all_paths(
-                            start_id, home_id, self.individuals, self.families,
-                            top_n=1, max_depth=max_depth,
-                        )
-                    self.root.after(0, lambda: self._render_results(
-                        start_id, results, home_paths=home_paths))
-                except Exception:  # pylint: disable=broad-exception-caught
-                    pass
-            threading.Thread(target=_do_refresh, daemon=True).start()
+            def _do_refresh(cancel_event):
+                return self._find_dna_result_data(
+                    start_id, top_n, max_depth, cancel_event=cancel_event)
+
+            def _on_done(result, error):
+                self._hide_search_popup()
+                self._hide_progress()
+                self._set_busy(False)
+                if error:
+                    messagebox.showerror(ERR_PARSE_TITLE, str(error))
+                    return
+                results, home_paths = result
+                self._render_results(start_id, results, home_paths=home_paths)
+
+            self._run_background_task(
+                _do_refresh,
+                _on_done,
+                popup_message=(
+                    PROGRESS_SEARCHING
+                    if self._is_slow_search(max_depth, len(self.individuals))
+                    else None
+                ),
+                cancelable=True,
+                on_cancel=lambda: (self._hide_progress(), self._set_busy(False)),
+            )
         elif kind == 'path':
             end_id = self._last_result['end_id']
-            paths, truncated = self._model.find_all_paths(
-                start_id, end_id, top_n, max_depth)
-            self._render_path_results(start_id, end_id, paths, truncated)
+
+            def _do_refresh(cancel_event):
+                return self._model.find_all_paths(
+                    start_id, end_id, top_n, max_depth,
+                    cancel_event=cancel_event)
+
+            def _on_done(result, error):
+                self._hide_search_popup()
+                self._hide_progress()
+                self._set_busy(False)
+                if error:
+                    messagebox.showerror(ERR_PARSE_TITLE, str(error))
+                    return
+                paths, truncated = result
+                self._render_path_results(start_id, end_id, paths, truncated)
+
+            self._run_background_task(
+                _do_refresh,
+                _on_done,
+                popup_message=PROGRESS_FINDING_PATH,
+                cancelable=True,
+                on_cancel=lambda: (self._hide_progress(), self._set_busy(False)),
+            )
+        else:
+            self._hide_progress()
+            self._set_busy(False)
 
     def _on_search_change(self, *_):
         """Debounce person-list filtering while the user types."""
@@ -195,8 +241,7 @@ class SearchMixin:
         if not self.individuals:
             return
 
-        query = self.search_text.get().strip().lower()
-        query_tokens = query.split()
+        query = self.search_text.get().strip()
         filter_query = self.filter_text.get().strip().lower()
         flagged_only = self.show_flagged_only.get()
         flagged_count = sum(
@@ -224,7 +269,10 @@ class SearchMixin:
 
         # Re-sort only when sort settings or underlying data change.
         # id(self.sorted_ids) changes whenever a new file is loaded.
-        cache_key = (self._sort_col, self._sort_rev, id(self.sorted_ids))
+        cache_key = (
+            self._sort_col, self._sort_rev, id(self.sorted_ids),
+            self._name_order,
+        )
         if getattr(self, '_pop_sort_key', None) != cache_key:
             self._pop_sorted = sorted(self.sorted_ids, key=_sort_key,
                                       reverse=self._sort_rev)
@@ -238,26 +286,12 @@ class SearchMixin:
             indi = self.individuals[indi_id]
             if flagged_only and not indi['dna_markers']:
                 continue
-            if query_tokens:
-                all_names = indi['alt_names'] or [indi['name']]
-                id_lower = indi_id.lower()
-                if self.fuzzy_search.get():
-                    match = (
-                        any(
-                            all(self._fuzzy_token_matches(tok, name.lower().split())
-                                for tok in query_tokens)
-                            for name in all_names
-                        )
-                        or query in id_lower
-                    )
-                else:
-                    match = (
-                        any(
-                            all(tok in name.lower() for tok in query_tokens)
-                            for name in all_names
-                        )
-                        or query in id_lower
-                    )
+            if query:
+                match, _score = individual_matches_query(
+                    indi_id, indi, query,
+                    fuzzy=self.fuzzy_search.get(),
+                    fuzzy_threshold=self._fuzzy_threshold_value(),
+                )
                 if not match:
                     continue
             if filter_query:
@@ -301,17 +335,12 @@ class SearchMixin:
             self.status_text.set(STATUS_OVERVIEW.format(
                 total=total, families=len(self.families), flagged=flagged_count))
 
-    def _fuzzy_token_matches(self, token, name_words):
-        """Return whether token fuzzily matches any word in a name."""
+    def _fuzzy_threshold_value(self):
+        """Return the configured fuzzy threshold, falling back to the default."""
         try:
-            threshold = float(self.fuzzy_threshold.get())
+            return float(self.fuzzy_threshold.get())
         except (tk.TclError, ValueError):
-            threshold = self.FUZZY_THRESHOLD
-        return any(
-            difflib.SequenceMatcher(
-                None, token, word).ratio() >= threshold
-            for word in name_words
-        )
+            return self.FUZZY_THRESHOLD
 
     def _sort_by(self, col):
         """Toggle sorting for the people list by the requested column."""
@@ -346,16 +375,8 @@ class SearchMixin:
         self._set_busy(True)
 
         def _do_search(cancel_event):
-            results = self._model.find_dna_matches(
+            return self._find_dna_result_data(
                 start_id, top_n, max_depth, cancel_event=cancel_event)
-            home_paths = None
-            home_id = self._home_person_id
-            if home_id and home_id != start_id and home_id in self.individuals:
-                home_paths, _ = bfs_find_all_paths(
-                    start_id, home_id, self.individuals, self.families,
-                    top_n=1, max_depth=max_depth, cancel_event=cancel_event,
-                )
-            return results, home_paths
 
         def _on_cancel():
             self._hide_progress()

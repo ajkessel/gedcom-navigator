@@ -6,6 +6,7 @@ GEDCOM record parsing, model building, encoding detection, and archive extractio
 """
 
 import re
+import os
 import tempfile
 import zipfile
 
@@ -13,6 +14,7 @@ import zipfile
 LINE_RE = re.compile(r'^\s*(\d+)\s+(?:(@[^@]+@)\s+)?(\S+)(?:\s+(.*?))?\s*$')
 
 ZIP_MAX_BYTES = 500_000_000  # 500 MB
+ZIP_COPY_CHUNK_BYTES = 1024 * 1024
 
 # Maps GEDCOM CHAR values to Python codec names.
 _GEDCOM_ENCODINGS = {
@@ -296,12 +298,13 @@ def build_model(gedcom_path, dna_keyword, page_marker):
 
     return individuals, families, tag_records, encoding_warning, model_error
 
-def extract_ged_from_zip(zip_path):
+def extract_ged_from_zip(zip_path, cancel_event=None):
     """Return (temp_ged_path, entry_name) for the first .ged/.gedcom in a ZIP.
 
     Prefers top-level entries over those inside subdirectories.
     Caller is responsible for deleting the returned temp file.
     """
+    tmp_path = None
     with zipfile.ZipFile(zip_path, 'r') as zf:
         ged_names = sorted(
             [n for n in zf.namelist() if n.lower().endswith(('.ged', '.gedcom'))],
@@ -317,8 +320,29 @@ def extract_ged_from_zip(zip_path):
                 f"'{chosen}' claims {info.file_size / 1e6:.0f} MB uncompressed, "
                 f"exceeding the {ZIP_MAX_BYTES / 1e6:.0f} MB limit."
             )
-        data = zf.read(chosen)
-    tmp = tempfile.NamedTemporaryFile(suffix='.ged', delete=False)
-    tmp.write(data)
-    tmp.close()
-    return tmp.name, chosen
+        try:
+            with zf.open(info, 'r') as source:
+                with tempfile.NamedTemporaryFile(suffix='.ged', delete=False) as tmp:
+                    tmp_path = tmp.name
+                    copied = 0
+                    while True:
+                        if cancel_event is not None and cancel_event.is_set():
+                            raise InterruptedError("ZIP extraction canceled.")
+                        chunk = source.read(ZIP_COPY_CHUNK_BYTES)
+                        if not chunk:
+                            break
+                        copied += len(chunk)
+                        if copied > ZIP_MAX_BYTES:
+                            raise ValueError(
+                                f"'{chosen}' exceeds the {ZIP_MAX_BYTES / 1e6:.0f} MB "
+                                "uncompressed limit."
+                            )
+                        tmp.write(chunk)
+        except Exception:
+            if tmp_path:
+                try:
+                    os.unlink(tmp_path)
+                except OSError:
+                    pass
+            raise
+    return tmp_path, chosen

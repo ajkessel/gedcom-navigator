@@ -170,9 +170,6 @@ class ConfigManager:
         """Return the platform-specific default settings.json path."""
         if sys.platform == 'win32':
             import os
-            import ctypes
-            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(
-                "com.ajkessel.gedcom-dna-finder")
             base = Path(os.environ.get('APPDATA', Path.home()))
         elif sys.platform == 'darwin':
             base = Path.home() / 'Library' / 'Application Support'

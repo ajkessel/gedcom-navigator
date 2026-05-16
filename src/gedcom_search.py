@@ -44,6 +44,17 @@ def _check_cancelled(cancel_event):
         pass
 
 
+def _positive_int(value, name):
+    """Return value as a positive integer or raise ValueError."""
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"{name} must be a positive integer.") from exc
+    if parsed < 1:
+        raise ValueError(f"{name} must be a positive integer.")
+    return parsed
+
+
 def neighbors(indi_id, individuals, families):
     """Yield (neighbor_id, edge_label) for one BFS step.
 
@@ -142,6 +153,9 @@ def bfs_find_dna_matches(start_id, individuals, families, top_n, max_depth,
     The BFS continues through DNA-flagged nodes, so a flagged person
     a few hops past another flagged person can still be discovered.
     """
+    top_n = _positive_int(top_n, "top_n")
+    max_depth = _positive_int(max_depth, "max_depth")
+
     if start_id not in individuals:
         return []
 
@@ -539,6 +553,9 @@ def bfs_find_all_paths(start_id, end_id, individuals, families, top_n=5,
     Returns (paths, truncated) where paths is a list of path lists and
     truncated is True when the exploration cap was hit before finishing.
     """
+    top_n = _positive_int(top_n, "top_n")
+    max_depth = _positive_int(max_depth, "max_depth")
+
     if start_id not in individuals or end_id not in individuals:
         return [], False
     if start_id == end_id:

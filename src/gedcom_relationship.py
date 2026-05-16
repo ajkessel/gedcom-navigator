@@ -7,6 +7,7 @@ application.
 """
 
 from collections import deque
+from dataclasses import dataclass
 
 
 # ---------------------------------------------------------------------------
@@ -57,6 +58,19 @@ _REMOVALS = {1: 'once', 2: 'twice', 3: 'three times',
              4: 'four times', 5: 'five times'}
 
 _UP_SET = {'father', 'mother'}
+
+
+@dataclass(frozen=True)
+class RelationshipClassification:
+    """Structured relationship parts plus the formatted English phrase."""
+    description: str
+    kind: str
+    up: int = 0
+    down: int = 0
+    sibling: int = 0
+    lead_spouse: int = 0
+    trail_spouse: int = 0
+    spouse_detour: bool = False
 
 
 class _FamilyLookup:
@@ -490,6 +504,87 @@ def _relationship_from_common_ancestor_depths(start_depth, target_depth,
         start_depth, target_depth, 0, target_sex, spouse_detour=True)
 
 
+def _classify_relationship_path(path, individuals, families=None):
+    """Return structured relationship parts for a directly classifiable path."""
+    if len(path) <= 1:
+        return RelationshipClassification('same person', 'same')
+
+    edges = [edge for _, edge in path[1:]]
+    target_sex = individuals.get(path[-1][0], {}).get('sex', '')
+
+    if all(edge in _UP_SET for edge in edges):
+        return RelationshipClassification(
+            _ancestor_term(len(edges), target_sex),
+            'ancestor',
+            up=len(edges),
+        )
+
+    if all(edge == 'child' for edge in edges):
+        return RelationshipClassification(
+            _descendant_term(len(edges), target_sex),
+            'descendant',
+            down=len(edges),
+        )
+
+    if len(edges) == 1:
+        return RelationshipClassification(
+            _edge_to_term(edges[0], target_sex),
+            edges[0],
+        )
+
+    inner = list(edges)
+    lead_sp = trail_sp = 0
+    while inner and inner[0] == 'spouse':
+        lead_sp += 1
+        inner.pop(0)
+    while inner and inner[-1] == 'spouse':
+        trail_sp += 1
+        inner.pop()
+
+    if lead_sp == 1 and trail_sp == 1 and inner == ['sibling']:
+        core = 'brother' if target_sex == 'M' else (
+            'sister' if target_sex == 'F' else 'sibling')
+        return RelationshipClassification(
+            core + '-in-law',
+            'in_law',
+            sibling=1,
+            lead_spouse=lead_sp,
+            trail_spouse=trail_sp,
+        )
+
+    if lead_sp == 1 and trail_sp == 1 and inner and all(e == 'child' for e in inner):
+        core = _descendant_term(len(inner), target_sex)
+        return RelationshipClassification(
+            'step-' + core + '-in-law',
+            'step_in_law',
+            down=len(inner),
+            lead_spouse=lead_sp,
+            trail_spouse=trail_sp,
+        )
+
+    if not inner or lead_sp > 1 or trail_sp > 1 or (lead_sp and trail_sp):
+        return None
+
+    inner_path = path[lead_sp:len(path) - trail_sp]
+    up, down, sibling, spouse_detour, valid = _classify_indirect(
+        inner, path=inner_path, families=families)
+    if not valid:
+        return None
+
+    desc = _relationship_from_classification(
+        up, down, sibling, target_sex, lead_sp, trail_sp, spouse_detour)
+    return RelationshipClassification(
+        desc,
+        'classified',
+        up=up,
+        down=down,
+        sibling=sibling,
+        lead_spouse=lead_sp,
+        trail_spouse=trail_sp,
+        spouse_detour=spouse_detour,
+    )
+
+
 def _biological_relationship(start_id, target_id, individuals, families,
                              start_ancestors=None):
     """Return the closest direct biological relationship, if one exists."""
@@ -539,55 +634,9 @@ def _describe_sub_path(sub_path, individuals, families=None):
     if len(sub_path) <= 1:
         return 'same person'
 
-    edges = [e for _, e in sub_path[1:]]
-    sexes = [individuals.get(nid, {}).get('sex', '') for nid, _ in sub_path]
-    target_sex = sexes[-1]
-
-    # Pure ancestor (all parent edges)
-    if all(e in _UP_SET for e in edges):
-        return _ancestor_term(len(edges), target_sex)
-
-    # Pure descendant (all child edges)
-    if all(e == 'child' for e in edges):
-        return _descendant_term(len(edges), target_sex)
-
-    # Single edge
-    if len(edges) == 1:
-        return _edge_to_term(edges[0], target_sex)
-
-    # Strip leading/trailing spouse edges
-    inner = list(edges)
-    lead_sp = trail_sp = 0
-    while inner and inner[0] == 'spouse':
-        lead_sp += 1
-        inner.pop(0)
-    while inner and inner[-1] == 'spouse':
-        trail_sp += 1
-        inner.pop()
-
-    # spouse → sibling → spouse → "brother/sister-in-law"
-    if lead_sp == 1 and trail_sp == 1 and inner == ['sibling']:
-        core = 'brother' if target_sex == 'M' else (
-            'sister' if target_sex == 'F' else 'sibling')
-        return core + '-in-law'
-
-    # spouse → child(ren) → spouse → "step-son/daughter-in-law" etc.
-    if lead_sp == 1 and trail_sp == 1 and inner and all(e == 'child' for e in inner):
-        core = _descendant_term(len(inner), target_sex)
-        return 'step-' + core + '-in-law'
-
-    if not inner or lead_sp > 1 or trail_sp > 1 or (lead_sp and trail_sp):
-        return None
-
-    inner_path = sub_path[lead_sp:len(sub_path) - trail_sp]
-    u, d, s, spouse_detour, valid = _classify_indirect(
-        inner, path=inner_path, families=families)
-
-    if not valid:
-        return None
-
-    return _relationship_from_classification(
-        u, d, s, target_sex, lead_sp, trail_sp, spouse_detour)
+    classification = _classify_relationship_path(
+        sub_path, individuals, families=families)
+    return classification.description if classification else None
 
 
 def _smart_chain(path, individuals, ancestors=None, families=None):
@@ -768,9 +817,7 @@ def describe_relationship(path, individuals, ancestors=None, descendants=None,
     if len(path) <= 1:
         return 'same person'
 
-    edges = [e for _, e in path[1:]]
-    sexes = [individuals.get(nid, {}).get('sex', '') for nid, _ in path]
-    target_sex = sexes[-1]
+    target_sex = individuals.get(path[-1][0], {}).get('sex', '')
 
     target_id = path[-1][0]
     biological_desc = _biological_relationship(
@@ -785,56 +832,21 @@ def describe_relationship(path, individuals, ancestors=None, descendants=None,
             _descendant_term(descendants[target_id], target_sex),
             biological_desc)
 
-    # Pure ancestor (all father/mother edges)
-    if all(e in _UP_SET for e in edges):
+    classification = _classify_relationship_path(
+        path, individuals, families=families)
+    if classification is not None:
+        if classification.lead_spouse or classification.trail_spouse:
+            return classification.description
         return _prefer_more_efficient(
-            _ancestor_term(len(edges), target_sex), biological_desc)
+            classification.description, biological_desc)
 
-    # Pure descendant (all child edges)
-    if all(e == 'child' for e in edges):
-        return _prefer_more_efficient(
-            _descendant_term(len(edges), target_sex), biological_desc)
-
-    # Single edge (sibling, spouse, etc.)
-    if len(edges) == 1:
-        return _prefer_more_efficient(
-            _edge_to_term(edges[0], target_sex), biological_desc)
-
-    # Strip exactly one leading or one trailing spouse; anything else → smart chain
-    inner = list(edges)
-    lead_sp = trail_sp = 0
-    while inner and inner[0] == 'spouse':
-        lead_sp += 1
-        inner.pop(0)
-    while inner and inner[-1] == 'spouse':
-        trail_sp += 1
-        inner.pop()
-
-    # spouse → sibling → spouse = "brother/sister-in-law"
-    if lead_sp == 1 and trail_sp == 1 and inner == ['sibling']:
-        core = 'brother' if target_sex == 'M' else (
-            'sister' if target_sex == 'F' else 'sibling')
-        return core + '-in-law'
-
-    if not inner or lead_sp > 1 or trail_sp > 1 or (lead_sp and trail_sp):
-        smart = _smart_chain(
-            path, individuals, ancestors=ancestors, families=families)
-        if lead_sp or trail_sp:
-            return smart
-        return _prefer_more_efficient(smart, biological_desc)
-
-    inner_path = path[lead_sp:len(path) - trail_sp]
-    u, d, s, spouse_detour, valid = _classify_indirect(
-        inner, path=inner_path, families=families)
-    if not valid:
-        smart = _smart_chain(
-            path, individuals, ancestors=ancestors, families=families)
-        if lead_sp or trail_sp:
-            return smart
-        return _prefer_more_efficient(smart, biological_desc)
-
-    path_desc = _relationship_from_classification(
-        u, d, s, target_sex, lead_sp, trail_sp, spouse_detour)
+    lead_sp = int(len(path) > 1 and path[1][1] == 'spouse')
+    trail_sp = int(len(path) > 1 and path[-1][1] == 'spouse')
     if lead_sp or trail_sp:
-        return path_desc
-    return _prefer_more_efficient(path_desc, biological_desc)
+        smart = _smart_chain(
+            path, individuals, ancestors=ancestors, families=families)
+        return smart
+
+    smart = _smart_chain(
+        path, individuals, ancestors=ancestors, families=families)
+    return _prefer_more_efficient(smart, biological_desc)

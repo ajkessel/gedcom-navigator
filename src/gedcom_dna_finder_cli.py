@@ -55,14 +55,42 @@ Usage examples:
 """
 
 import argparse
-import difflib
 import os
-import re
 import sys
 
 from gedcom_display import describe
+from gedcom_name_search import find_candidates
 from gedcom_parser import build_model, extract_ged_from_zip
 from gedcom_search import bfs_find_dna_matches
+
+
+# ---------------------------------------------------------------------------
+# Argument parsing
+# ---------------------------------------------------------------------------
+
+def positive_int(value):
+    """argparse type for positive integer options."""
+    try:
+        parsed = int(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(
+            "must be a positive integer") from exc
+    if parsed < 1:
+        raise argparse.ArgumentTypeError("must be a positive integer")
+    return parsed
+
+
+def ratio_float(value):
+    """argparse type for ratios in the inclusive range 0.0 to 1.0."""
+    try:
+        parsed = float(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(
+            "must be a number between 0.0 and 1.0") from exc
+    if not 0.0 <= parsed <= 1.0:
+        raise argparse.ArgumentTypeError(
+            "must be a number between 0.0 and 1.0")
+    return parsed
 
 
 # ---------------------------------------------------------------------------
@@ -70,76 +98,10 @@ from gedcom_search import bfs_find_dna_matches
 # ---------------------------------------------------------------------------
 
 def find_target(individuals, query, fuzzy=False, fuzzy_threshold=0.6, fuzzy_max=30):
-    """Return a ranked list of (indi_id, score) candidates for `query`.
-
-    Score is None for exact-intent matches (INDI ID lookup or token match).
-    Score is a float in [0, 1] for fuzzy matches (only present when
-    `fuzzy=True`). Token matches are listed first, then fuzzy matches by
-    descending score.
-
-    Name matching is whitespace-tokenized and order-independent: the query
-    "John Smith" matches "John Adam Smith", and so does
-    "smith john". Each token is a case-insensitive substring match,
-    so partial tokens like "Smith" also work.
-    """
-    q = query.strip()
-
-    # Direct INDI ID lookups (unaffected by tokenization or fuzzy).
-    if q.startswith('@') and q.endswith('@'):
-        return [(q, None)] if q in individuals else []
-    if re.fullmatch(r'[A-Za-z]+\d+', q):
-        candidate = f'@{q}@'
-        if candidate in individuals:
-            return [(candidate, None)]
-
-    q_lower = q.lower()
-    tokens = q_lower.split()
-    if not tokens:
-        return []
-
-    # Token match: every whitespace-separated token must appear (as a
-    # substring) somewhere in at least one of the person's names, in any order.
-    def _token_match(indi):
-        names = indi['alt_names'] or [indi['name']]
-        return any(all(tok in name.lower() for tok in tokens) for name in names)
-
-    token_matches = [iid for iid, indi in individuals.items()
-                     if _token_match(indi)]
-    token_matches.sort(key=lambda iid: individuals[iid]['name'].lower())
-
-    if not fuzzy:
-        return [(iid, None) for iid in token_matches]
-
-    # Fuzzy: add anything similar enough that wasn't already a token match.
-    # SequenceMatcher with seq2 set once is faster (it caches b2j on seq2).
-    token_match_set = set(token_matches)
-    matcher = difflib.SequenceMatcher(autojunk=False)
-    matcher.set_seq2(q_lower)
-    fuzzy_candidates = []
-    for iid, indi in individuals.items():
-        if iid in token_match_set:
-            continue
-        names = indi['alt_names'] or ([indi['name']] if indi['name'] else [])
-        if not names:
-            continue
-        best_score = 0.0
-        for name in names:
-            matcher.set_seq1(name.lower())
-            if matcher.quick_ratio() < fuzzy_threshold:
-                continue
-            score = matcher.ratio()
-            if score > best_score:
-                best_score = score
-        if best_score >= fuzzy_threshold:
-            fuzzy_candidates.append((best_score, iid))
-
-    fuzzy_candidates.sort(
-        key=lambda x: (-x[0], individuals[x[1]]['name'].lower()))
-    fuzzy_candidates = fuzzy_candidates[:fuzzy_max]
-
-    result = [(iid, None) for iid in token_matches]
-    result.extend((iid, score) for score, iid in fuzzy_candidates)
-    return result
+    """Return a ranked list of (indi_id, score) candidates for `query`."""
+    return find_candidates(
+        individuals, query, fuzzy=fuzzy,
+        fuzzy_threshold=fuzzy_threshold, fuzzy_max=fuzzy_max)
 
 
 def print_result(start_id, individuals, results):
@@ -188,9 +150,9 @@ def main():
                                        'so "John Smith" matches "John Adam Smith". '
                                        'Use "_" as a placeholder when combined with '
                                        '--list-tags or --list-flagged.')
-    parser.add_argument('--top', type=int, default=3,
+    parser.add_argument('--top', type=positive_int, default=3,
                         help='Number of nearest matches to return (default 3).')
-    parser.add_argument('--max-depth', type=int, default=50,
+    parser.add_argument('--max-depth', type=positive_int, default=50,
                         help='Maximum BFS depth in edges (default 50).')
     parser.add_argument('--page-marker', default='AncestryDNA Match',
                         help='Case-insensitive substring to match in source-citation PAGE text. '
@@ -203,7 +165,7 @@ def main():
                         help='Enable fuzzy name matching. In addition to token matches, '
                              'include names whose similarity to the query exceeds '
                              '--fuzzy-threshold. Useful for typos and spelling variants.')
-    parser.add_argument('--fuzzy-threshold', type=float, default=0.6,
+    parser.add_argument('--fuzzy-threshold', type=ratio_float, default=0.6,
                         help='Similarity cutoff for --fuzzy, between 0.0 and 1.0 (default 0.6). '
                              'Lower = more matches, higher = stricter. '
                              'Uses difflib.SequenceMatcher.ratio.')

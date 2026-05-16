@@ -494,6 +494,15 @@ class TestBfsFindDnaMatches:
                                        top_n=1, max_depth=50)
         assert len(results) == 1
 
+    @pytest.mark.parametrize(
+        ("top_n", "max_depth"),
+        [(0, 50), (-1, 50), (5, 0), (5, -1), ("abc", 50)],
+    )
+    def test_rejects_non_positive_limits(self, top_n, max_depth):
+        with pytest.raises(ValueError):
+            bfs_find_dna_matches("@ME@", self.indiv, self.fams,
+                                 top_n=top_n, max_depth=max_depth)
+
     def test_returns_empty_when_no_dna_markers(self):
         results = bfs_find_dna_matches("@ME@", self.indiv, self.fams,
                                        top_n=5, max_depth=50)
@@ -536,6 +545,15 @@ class TestBfsFindAllPaths:
         assert len(paths) == 1
         assert paths[0][0][0] == "@A@"
         assert trunc is False
+
+    @pytest.mark.parametrize(
+        ("top_n", "max_depth"),
+        [(0, 50), (-1, 50), (5, 0), (5, -1), ("abc", 50)],
+    )
+    def test_rejects_non_positive_limits(self, top_n, max_depth):
+        with pytest.raises(ValueError):
+            bfs_find_all_paths("@A@", "@C@", self.indiv, self.fams,
+                               top_n=top_n, max_depth=max_depth)
 
     def test_finds_direct_path(self):
         paths, _ = bfs_find_all_paths("@A@", "@C@", self.indiv, self.fams)
@@ -684,3 +702,18 @@ class TestExtractGedFromZip:
             assert open(ged_path, "rb").read() == original
         finally:
             os.unlink(ged_path)
+
+    def test_rejects_entry_larger_than_limit(self, tmp_path, monkeypatch):
+        import gedcom_parser  # pylint: disable=import-outside-toplevel
+
+        monkeypatch.setattr(gedcom_parser, "ZIP_MAX_BYTES", 10)
+        zpath = self._make_zip(tmp_path, {"data.ged": b"0 HEAD\n0 TRLR\n"})
+        with pytest.raises(ValueError, match="exceed"):
+            extract_ged_from_zip(zpath)
+
+    def test_cancel_event_stops_zip_extraction(self, tmp_path):
+        cancel_event = threading.Event()
+        cancel_event.set()
+        zpath = self._make_zip(tmp_path, {"data.ged": b"0 HEAD\n0 TRLR\n"})
+        with pytest.raises(InterruptedError):
+            extract_ged_from_zip(zpath, cancel_event=cancel_event)

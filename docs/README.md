@@ -78,10 +78,12 @@ The pre-built executables have no requirements.
 If you want to run these scripts from the source code, you will need:
 
 - Python 3.8 or newer
-- [customtkinter](https://github.com/tomschimansky/customtkinter) (only for the GUI)
-- [CTKToolTip](https://github.com/Akascape/CTkToolTip) (only for the GUI)
+- [customtkinter](https://github.com/tomschimansky/customtkinter) (GUI only)
+- [CTKToolTip](https://github.com/Akascape/CTkToolTip) (GUI only)
+- [Pillow](https://python-pillow.org/) (GUI graph image export/clipboard support)
+- [PyObjC Cocoa](https://pyobjc.readthedocs.io/) (macOS GUI graph clipboard support)
 
-Aside from customtkinter and CTKToolTip, no other third-party libraries are used; everything else is included with the Python standard library.
+The command-line interface uses only the Python standard library.
 
 ## Installation
 
@@ -91,9 +93,15 @@ Download the [latest release for your operating system](https://github.com/ajkes
 
 ### pip (PyPI)
 
-This application is also available on [PyPI via pip](https://pypi.org/project/gedcom-dna-finder/). Use this command to install:
+This application is also available on [PyPI via pip](https://pypi.org/project/gedcom-dna-finder/). For the command-line interface only, use:
 ```
 pip install gedcom-dna-finder
+```
+
+For the graphical interface, install the GUI extra:
+
+```
+pip install "gedcom-dna-finder[gui]"
 ```
 
 After installation two commands are available:
@@ -103,7 +111,7 @@ After installation two commands are available:
 | `gedcom-dna-finder`     | Command-line interface |
 | `gedcom_dna_finder_gui` | Graphical interface    |
 
-The GUI requires customtkinter and CTKToolTip, which can be installed with pip once you have a python-tk package installed:
+On Linux, install your distribution's tkinter package before using the GUI:
 
 ```
 # install python-tk
@@ -129,11 +137,11 @@ python src/gedcom_dna_finder_gui.py        # GUI
 python src/gedcom_dna_finder_cli.py --help # CLI
 ```
 
-No third-party libraries other than customtkinter and CTKToolTip are needed to run from source. If you want to build distributable packages, swap `requirements-dev.txt` for `requirements.txt` above.
+The CLI can run without these GUI dependencies. If you want to build distributable packages, swap `requirements-dev.txt` for `requirements.txt` above.
 
 ### Build executables yourself
 
-Use [build.sh](../dev/build.sh) to compile for Linux or Mac and [build.ps1](../dev/build.ps1) for Windows. The build script automatically creates a Python virtual environment and installs the required dependencies. These dependencies are only needed for building, not for running from source.
+Use [build.sh](../dev/build.sh) to compile for Linux or Mac and [build.ps1](../dev/build.ps1) for Windows. The build script automatically creates a Python virtual environment and installs the required dependencies.
 
 A [build-and-release.sh](../dev/build-and-release.sh) script is also available that builds for all three platforms under WSL.
 

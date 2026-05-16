@@ -21,6 +21,7 @@ from gedcom_strings import *  # pylint: disable=unused-wildcard-import
 from gedcom_gui_background import BackgroundTaskMixin
 from gedcom_gui_search import SearchMixin
 from gedcom_gui_results import ResultsMixin
+from gedcom_platform import configure_process_identity
 from gedcom_theme import THEME_NAMES, get_flag_bg, ttk_colors
 from gedcom_tooltip import Tooltip
 from gedcom_gui_appearance import AppearanceMixin
@@ -88,6 +89,7 @@ class DNAMatchFinderApp(
 
     def __init__(self, root):
         """Initialize application state, preferences, data model, and widgets."""
+        configure_process_identity()
         self._config = ConfigManager(ConfigManager.default_path())
         self._model = GedcomDataModel()
 

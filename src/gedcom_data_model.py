@@ -16,6 +16,17 @@ from gedcom_relationship import find_common_ancestors
 from gedcom_search import bfs_find_all_paths, bfs_find_dna_matches
 
 
+def _positive_int(value, name):
+    """Return value as a positive integer or raise ValueError."""
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"{name} must be a positive integer.") from exc
+    if parsed < 1:
+        raise ValueError(f"{name} must be a positive integer.")
+    return parsed
+
+
 class GedcomDataModel:
     """Owns the parsed GEDCOM state and all I/O against it."""
 
@@ -66,6 +77,8 @@ class GedcomDataModel:
 
     def find_dna_matches(self, start_id, top_n, max_depth, cancel_event=None):
         """Find the nearest DNA-flagged people to a given individual."""
+        top_n = _positive_int(top_n, "top_n")
+        max_depth = _positive_int(max_depth, "max_depth")
         return bfs_find_dna_matches(
             start_id, self.individuals, self.families,
             top_n=top_n, max_depth=max_depth, cancel_event=cancel_event,
@@ -73,6 +86,8 @@ class GedcomDataModel:
 
     def find_all_paths(self, start_id, end_id, top_n, max_depth, cancel_event=None):
         """Find up to top_n relationship paths between two individuals."""
+        top_n = _positive_int(top_n, "top_n")
+        max_depth = _positive_int(max_depth, "max_depth")
         return bfs_find_all_paths(
             start_id, end_id, self.individuals, self.families,
             top_n=top_n, max_depth=max_depth, cancel_event=cancel_event,

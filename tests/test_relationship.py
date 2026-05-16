@@ -2,7 +2,9 @@
 import pytest
 
 from gedcom_relationship import (
+    RelationshipClassification,
     _edge_to_term,
+    _classify_relationship_path,
     _nth_great,
     describe_relationship,
     find_common_ancestors,
@@ -160,6 +162,40 @@ class TestSamePerson:
     def test_single_node_path(self):
         indiv = {"@A@": _i("M")}
         assert describe_relationship([("@A@", None)], indiv) == "same person"
+
+
+class TestRelationshipClassification:
+    def test_classifies_direct_ancestor(self):
+        indiv = {"@ME@": _i("M"), "@DAD@": _i("M")}
+        path = _path("@ME@", None, "@DAD@", "father")
+        classification = _classify_relationship_path(path, indiv)
+        assert classification == RelationshipClassification(
+            description="father", kind="ancestor", up=1)
+
+    def test_classifies_direct_descendant(self):
+        indiv = {"@ME@": _i(), "@SON@": _i("M")}
+        path = _path("@ME@", None, "@SON@", "child")
+        classification = _classify_relationship_path(path, indiv)
+        assert classification == RelationshipClassification(
+            description="son", kind="descendant", down=1)
+
+    def test_classifies_spouse_sibling_spouse_as_in_law(self):
+        indiv = {
+            "@ME@": _i(), "@SP@": _i(), "@SIB@": _i("M"), "@SIBSP@": _i("F")
+        }
+        path = _path("@ME@", None, "@SP@", "spouse", "@SIB@", "sibling",
+                     "@SIBSP@", "spouse")
+        classification = _classify_relationship_path(path, indiv)
+        assert classification.description == "sister-in-law"
+        assert classification.kind == "in_law"
+        assert classification.lead_spouse == 1
+        assert classification.trail_spouse == 1
+
+    def test_returns_none_for_unclassifiable_path(self):
+        indiv = {"@A@": _i(), "@B@": _i(), "@C@": _i(), "@D@": _i()}
+        path = _path("@A@", None, "@B@", "spouse", "@C@", "spouse",
+                     "@D@", "father")
+        assert _classify_relationship_path(path, indiv) is None
 
 
 class TestDirectAncestors:

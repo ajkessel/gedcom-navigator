@@ -30,7 +30,12 @@ dependencies = []
 [project.optional-dependencies]
 # tkinter ships with the official Python installers on Windows and macOS.
 # On Linux it is typically in a separate OS package (e.g. python3-tk).
-gui = []
+gui = [
+    "customtkinter>=5.2.0",
+    "CTkToolTip>=0.1.0",
+    "pillow",
+    "pyobjc-framework-Cocoa; sys_platform == 'darwin'",
+]
 
 [project.urls]
 Homepage = "https://github.com/ajkessel/gedcom-dna-finder"

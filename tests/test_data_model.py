@@ -1,6 +1,8 @@
 """Tests for gedcom_data_model.py — caching layer and BFS wrapper."""
 import time
 
+import pytest
+
 from gedcom_data_model import GedcomDataModel
 
 
@@ -250,6 +252,19 @@ class TestBfsIntegration:
         mdl.load(p, "DNA", "AncestryDNA", cache_dir)
         assert mdl.find_dna_matches("@NOBODY@", top_n=5, max_depth=50) == []
 
+    @pytest.mark.parametrize(
+        ("top_n", "max_depth"),
+        [(0, 50), (-1, 50), (5, 0), (5, -1), ("abc", 50)],
+    )
+    def test_find_dna_matches_rejects_non_positive_limits(
+            self, tmp_path, top_n, max_depth):
+        cache_dir = str(tmp_path / "cache")
+        p = _write_ged(tmp_path)
+        mdl = GedcomDataModel()
+        mdl.load(p, "DNA", "AncestryDNA", cache_dir)
+        with pytest.raises(ValueError):
+            mdl.find_dna_matches("@I1@", top_n=top_n, max_depth=max_depth)
+
     def test_find_all_paths_between_individuals(self, tmp_path):
         cache_dir = str(tmp_path / "cache")
         p = _write_ged(tmp_path)
@@ -267,6 +282,20 @@ class TestBfsIntegration:
         paths, _ = mdl.find_all_paths("@I1@", "@I1@", top_n=5, max_depth=50)
         assert len(paths) == 1
         assert paths[0][0][0] == "@I1@"
+
+    @pytest.mark.parametrize(
+        ("top_n", "max_depth"),
+        [(0, 50), (-1, 50), (5, 0), (5, -1), ("abc", 50)],
+    )
+    def test_find_all_paths_rejects_non_positive_limits(
+            self, tmp_path, top_n, max_depth):
+        cache_dir = str(tmp_path / "cache")
+        p = _write_ged(tmp_path)
+        mdl = GedcomDataModel()
+        mdl.load(p, "DNA", "AncestryDNA", cache_dir)
+        with pytest.raises(ValueError):
+            mdl.find_all_paths("@I1@", "@I3@",
+                               top_n=top_n, max_depth=max_depth)
 
     def test_find_common_ancestors_between_siblings(self, tmp_path):
         ged = """\

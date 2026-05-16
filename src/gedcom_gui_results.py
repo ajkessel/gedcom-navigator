@@ -10,7 +10,6 @@ import math
 import os
 import re
 import sys
-import threading
 import tkinter as tk
 import tkinter.font as tkfont
 from tkinter import filedialog, messagebox
@@ -18,12 +17,12 @@ from tkinter import filedialog, messagebox
 import customtkinter as ctk
 
 from gedcom_display import describe
+from gedcom_graph_export import canvas_to_png_bytes, canvas_to_svg
 from gedcom_relationship import (
     describe_relationship,
     get_ancestor_depths,
     get_descendant_depths,
 )
-from gedcom_search import bfs_find_all_paths, bfs_find_dna_matches
 from gedcom_strings import *  # pylint: disable=unused-wildcard-import
 from gedcom_theme import get_link_color, ttk_colors
 from gedcom_tooltip import TextTagTooltip, Tooltip
@@ -637,7 +636,7 @@ class ResultsMixin:
                 "PyObjC is required for macOS graph clipboard copy."
             ) from exc
 
-        png_bytes = cls._canvas_to_png_bytes(canvas, width, height)
+        png_bytes = canvas_to_png_bytes(canvas, width, height)
         png_data = NSData.dataWithBytes_length_(png_bytes, len(png_bytes))
         pasteboard = NSPasteboard.generalPasteboard()
         pasteboard.clearContents()
@@ -873,11 +872,11 @@ class ResultsMixin:
             try:
                 ext = os.path.splitext(path)[1].lower()
                 if ext == '.svg':
-                    svg = self._canvas_to_svg(canvas, canvas_w, canvas_h)
+                    svg = canvas_to_svg(canvas, canvas_w, canvas_h)
                     with open(path, 'w', encoding='utf-8') as svg_file:
                         svg_file.write(svg)
                 else:
-                    png = self._canvas_to_png_bytes(canvas, canvas_w, canvas_h)
+                    png = canvas_to_png_bytes(canvas, canvas_w, canvas_h)
                     with open(path, 'wb') as png_file:
                         png_file.write(png)
             except (OSError, tk.TclError) as exc:
@@ -1313,6 +1312,8 @@ class ResultsMixin:
         new person.  If it shows a relationship path, finds the path from the new
         person to the same destination.
         """
+        if self._busy:
+            return
 
         # reset "reverse" button and pull in default search parameters
         self._results_reversed = False
@@ -1329,19 +1330,40 @@ class ResultsMixin:
         if kind == 'path':
             # to the newly selected person
             start_id = self._last_result['start_id']
-            self._last_result = {'type': 'path',
-                                 'start_id': start_id, 'end_id': indi_id}
+            self._show_progress()
+            self._set_busy(True)
 
-            def _do_path():
-                try:
-                    paths, truncated = self._model.find_all_paths(
-                        start_id, indi_id, top_n, max_depth)
-                    self.root.after(0, lambda: self._render_path_results(
-                        start_id, indi_id, paths, truncated))
-                except Exception:  # pylint: disable=broad-exception-caught
-                    pass
+            def _do_path(cancel_event):
+                return self._model.find_all_paths(
+                    start_id, indi_id, top_n, max_depth,
+                    cancel_event=cancel_event)
 
-            threading.Thread(target=_do_path, daemon=True).start()
+            def _on_cancel():
+                self._hide_progress()
+                self._set_busy(False)
+
+            def _on_done(result, error):
+                self._hide_search_popup()
+                self._hide_progress()
+                self._set_busy(False)
+                if error:
+                    messagebox.showerror(ERR_PARSE_TITLE, str(error))
+                    return
+                paths, truncated = result
+                self._last_result = {
+                    'type': 'path',
+                    'start_id': start_id,
+                    'end_id': indi_id,
+                }
+                self._render_path_results(start_id, indi_id, paths, truncated)
+
+            self._run_background_task(
+                _do_path,
+                _on_done,
+                popup_message=PROGRESS_FINDING_PATH,
+                cancelable=True,
+                on_cancel=_on_cancel,
+            )
         # for a "DNA" search, find the closest DNA markers to the newly selected person
         else:
             self._active_id = indi_id
@@ -1358,27 +1380,39 @@ class ResultsMixin:
                 # Person exceeds max_display even with no filters; clear the stale
                 # tree selection so action buttons fall back to _active_id.
                 self.tree.selection_remove(*self.tree.selection())
-            self._last_result = {'type': 'dna_matches', 'start_id': indi_id}
+            self._show_progress()
+            self._set_busy(True)
 
-            def _do_dna():
-                try:
-                    results = bfs_find_dna_matches(
-                        indi_id, self.individuals, self.families,
-                        top_n=top_n, max_depth=max_depth,
-                    )
-                    home_paths = None
-                    home_id = self._home_person_id
-                    if home_id and home_id != indi_id and home_id in self.individuals:
-                        home_paths, _ = bfs_find_all_paths(
-                            indi_id, home_id, self.individuals, self.families,
-                            top_n=1, max_depth=max_depth,
-                        )
-                    self.root.after(0, lambda: self._render_results(
-                        indi_id, results, home_paths=home_paths))
-                except Exception:  # pylint: disable=broad-exception-caught
-                    pass
+            def _do_dna(cancel_event):
+                return self._find_dna_result_data(
+                    indi_id, top_n, max_depth, cancel_event=cancel_event)
 
-            threading.Thread(target=_do_dna, daemon=True).start()
+            def _on_cancel():
+                self._hide_progress()
+                self._set_busy(False)
+
+            def _on_done(result, error):
+                self._hide_search_popup()
+                self._hide_progress()
+                self._set_busy(False)
+                if error:
+                    messagebox.showerror(ERR_PARSE_TITLE, str(error))
+                    return
+                results, home_paths = result
+                self._last_result = {'type': 'dna_matches', 'start_id': indi_id}
+                self._render_results(indi_id, results, home_paths=home_paths)
+
+            self._run_background_task(
+                _do_dna,
+                _on_done,
+                popup_message=(
+                    PROGRESS_SEARCHING
+                    if self._is_slow_search(max_depth, len(self.individuals))
+                    else None
+                ),
+                cancelable=True,
+                on_cancel=_on_cancel,
+            )
 
     def _display_name(self, indi):
         """Return an individual's display name using the configured name order."""

@@ -194,7 +194,7 @@ TIP_DNA_FLAGGED_ONLY = (
 TIP_FUZZY = (
     f"Toggle Fuzzy Search ({_MOD}U)\n"
     "Allow fuzzy name matching in search results. "
-    "Fuzzy matching uses the Levenshtein distance to find names similar to the search term, "
+    "Fuzzy matching uses a similarity ratio to find names similar to the search term, "
     "which can help find matches when names are misspelled or have minor variations."
 )
 
@@ -379,7 +379,7 @@ CACHE_EMPTY_MSG = "No cache files found."
 CACHE_CLEAR_TITLE = "Clear cache"
 CACHE_CLEAR_MSG = (
     "Delete {count} cached file(s)?\n\n"
-    "Note: the cache may contain personal information (names, dates) "
+    "Note: the cache may contain personal information and raw records "
     "from your GEDCOM files."
 )
 CACHE_DONE_TITLE = "Cache cleared"

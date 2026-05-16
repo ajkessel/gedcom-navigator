@@ -26,7 +26,7 @@ The application stores the following information on your device only:
 
 - **Settings** — your preferences (theme, font size, search defaults) saved in a local configuration file.
 - **Recent files** — paths to recently opened GEDCOM files, stored in the same configuration file for convenience.
-- **Cache** — a parsed representation of your GEDCOM files stored locally to speed up subsequent loads. This cache may contain names, dates, and relationship data from your GEDCOM files. You can delete it at any time via **Menu → Preferences → Clear Cache** or **Menu → Clear cache…**
+- **Cache** — a parsed representation of your GEDCOM files stored locally to speed up subsequent loads. This cache may contain names, dates, relationship data, DNA marker details, and raw GEDCOM record content such as notes, places, source references, contact details, or other fields present in your GEDCOM files. You can delete it at any time via **Menu → Preferences → Clear Cache** or **Menu → Clear cache…**
 
 All local storage is confined to your device and is never shared externally.
 

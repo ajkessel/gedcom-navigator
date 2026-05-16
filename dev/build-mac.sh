@@ -24,9 +24,14 @@ while getopts "hnco:" opt; do
 	esac
 done
 echo 'Building for macOS...'
-[[ "$CLEAN" ]] && rm -r ./.venv "${HOME}/.pyenv"
+[[ "$CLEAN" ]] && {
+	echo 'Warning: this will delete the current .venv and any .pyenv in your home folder.'
+	read -t 5 -n 1 -s -r -p "Press any key to continue or q to exit (waiting 5s)..." x
+	[ "${x}" == "q" ] && exit 1
+	rm -r ./.venv "${HOME}/.pyenv"
+}
 if [[ -e "${HOME}/.config/p" ]]; then
-	echo 'Unlocking keychain...'
+	echo 'Local keychain password found, unlocking keychain...'
 	security unlock-keychain -p "$(cat "${HOME}"/.config/p)" "${HOME}/Library/Keychains/login.keychain-db"
 else
 	echo 'Password file not found at ~/.config/p, skipping automatic keychain unlock.'
