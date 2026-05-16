@@ -1,5 +1,50 @@
 # Changelog
 
+## [1.3.0] - 2026-05-16
+
+### Added
+
+- **User-initiated update checks** - the Help menu now includes "Check for updates", which checks the latest GitHub release in a background thread and reports whether a newer version is available, the current release is up to date, or the check failed.
+- **Update-check support module** - `gedcom_update.py` now handles GitHub release lookup, semantic-version parsing, update comparison, network errors, and unreadable release responses.
+- **Shared name-search engine** - `gedcom_name_search.py` centralizes exact GEDCOM ID lookup, ID substring matching, order-independent token matching, and fuzzy candidate ranking for both the CLI and GUI.
+- **Graph export helper module** - `gedcom_graph_export.py` now owns SVG and PNG rendering for relationship graph canvases, including Tk canvas shapes, text wrapping, dashed lines, arrowheads, and Pillow-backed PNG output.
+- **Clickable graph people** - people shown inside relationship graph nodes can now be clicked to close the graph and navigate to that person in the main window.
+- **PyPI GUI extra** - the package metadata now declares a `gui` optional dependency group for `customtkinter`, `CTkToolTip`, `pillow`, and macOS-only PyObjC Cocoa support.
+- **Windows process identity helper** - Windows AppUserModelID setup now lives in `gedcom_platform.py` and is applied during GUI startup instead of being hidden inside configuration path lookup.
+
+### Changed
+
+- **Privacy policy updated for update checks** - the privacy policy now states that GEDCOM data remains local while documenting the optional GitHub request made only when the user chooses to check for updates.
+- **Cache privacy wording expanded** - cache-clearing text and privacy documentation now clarify that cached GEDCOM data can include DNA marker details and raw record content, not just names and dates.
+- **ZIP loading is more responsive** - ZIP extraction now streams large GEDCOM entries in chunks, enforces the uncompressed-size limit while copying, supports cancellation, deletes partial temp files on failure, and runs inside the existing background load path.
+- **Search limits validated consistently** - CLI argument parsing, data-model wrappers, and BFS search functions now reject non-positive `top_n`, `max_depth`, and out-of-range fuzzy thresholds with clear errors.
+- **GUI filtering and picker search share matching rules** - the main people list and relationship picker now use the same ID, token, and fuzzy matching behavior as the CLI.
+- **Result refreshes use background workers** - refreshing DNA-match and relationship-path results after setting changes or navigation now uses the shared cancelable background-task flow instead of ad hoc worker threads or synchronous path searches.
+- **Relationship classification structured internally** - relationship labeling now uses a `RelationshipClassification` data object so classified paths, in-law paths, spouse-anchored paths, and biological-label preferences are easier to handle consistently.
+- **Graph save/copy code simplified** - result rendering now delegates SVG and PNG generation to `gedcom_graph_export.py`, reducing duplication inside `ResultsMixin`.
+- **Keyboard shortcut help cleaned up** - keyboard shortcuts are now documented in a simpler Markdown table and the obsolete Alt-M menu shortcut has been removed from the shortcut rows.
+- **Documentation and install guidance updated** - the README now distinguishes the standard-library CLI from the GUI extra, documents Pillow and PyObjC Cocoa needs, and shows the `gedcom-dna-finder[gui]` install form.
+- **macOS build scripts hardened** - Mac build scripts now warn before destructive clean builds, detect a Tk framework symbol that can trigger App Store rejection, reuse the release version consistently during upload, and can auto-bump App Store build versions after prior submissions.
+- **Release metadata updated** - the package version is now `1.3.0` with release date `2026-05-16`.
+
+### Fixed
+
+- **Graph tooltip reuse across result widgets** - relationship-link tooltips now verify that their underlying text widget still exists before being reused, avoiding stale tooltip state after result panes are rebuilt.
+- **Graph window modality and shortcuts** - relationship graph windows now grab focus, support Escape to close, and keep copy/save shortcuts scoped to the graph dialog.
+- **Navigation during busy work** - clicking a different person while a search or refresh is busy now does nothing instead of starting overlapping result work.
+- **Name-order resorting** - changing name display order now clears the cached people-list sort key so the visible list is rebuilt with the new name ordering.
+- **ZIP extraction memory pressure** - GEDCOM files inside ZIP archives are no longer read into memory all at once.
+- **Update-check privacy mismatch** - documentation no longer claims the app never makes network requests now that manual update checking exists.
+
+### Tests
+
+- **Update-check tests** - tests now cover semantic-version parsing, version comparison, current/newer release results, and network-error handling.
+- **Name-search tests** - tests now cover exact ID lookup, ID lookup without `@` delimiters, ID substring matching, order-independent token matching, and fuzzy candidate scoring.
+- **CLI validation tests** - tests now cover positive integer parsing, fuzzy-threshold range validation, and CLI delegation to the shared search helpers.
+- **Search-limit validation tests** - core search and data-model tests now cover rejection of non-positive search limits.
+- **ZIP extraction tests** - tests now cover oversized archive entries and cancellation during ZIP extraction.
+- **Relationship-classification tests** - tests now cover structured direct ancestor, descendant, in-law, and unclassifiable-path cases.
+
 ## [1.2.0] - 2026-05-15
 
 ### Added
