@@ -6,6 +6,8 @@ import sys
 import subprocess
 import re
 from PyInstaller.utils.hooks import collect_data_files
+if sys.platform == 'darwin':
+   import certifi
 
 # Read version and release date from the single source of truth.
 _init_path = os.path.join(SPECPATH, '..', 'gedcom_dna_finder', '__init__.py')
@@ -74,14 +76,20 @@ if sys.platform == 'win32':
     ]:
         _extra_binaries += [(p, '.') for p in glob.glob(_pat)]
 
+d=[('../docs/HELP.md', './docs'), ('../docs/LICENSE.md', './docs'),
+   ('../docs/KEYBOARD_SHORTCUTS.md', './docs'), ('../docs/PRIVACY_POLICY.md', './docs'),
+   ('../icons/family_tree.ico', './icons'), ('../icons/family_tree.png', './icons'),
+   ('../gedcom_dna_finder/__init__.py', 'gedcom_dna_finder')]
+
+# package certificates for MacOS since python.org does not include them by default
+if sys.platform=='darwin':
+   d.append((certifi.where(), 'certifi'))
+
 a = Analysis(
     ['../src/gedcom_dna_finder_gui.py'],
+    datas=d,
     pathex=[],
     binaries=_extra_binaries,
-    datas=[('../docs/HELP.md', './docs'), ('../docs/LICENSE.md', './docs'),
-           ('../docs/KEYBOARD_SHORTCUTS.md', './docs'), ('../docs/PRIVACY_POLICY.md', './docs'),
-           ('../icons/family_tree.ico', './icons'), ('../icons/family_tree.png', './icons'),
-           ('../gedcom_dna_finder/__init__.py', 'gedcom_dna_finder')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},

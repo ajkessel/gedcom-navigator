@@ -7,6 +7,12 @@ Helpers for checking whether a newer GitHub release is available.
 from dataclasses import dataclass
 import json
 import re
+from sys import platform
+from os import environ
+if platform == "darwin":
+    import certifi
+    environ['SSL_CERT_FILE'] = certifi.where()
+    environ['REQUESTS_CA_BUNDLE'] = certifi.where()
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 

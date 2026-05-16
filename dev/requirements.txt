@@ -3,4 +3,5 @@ customtkinter>=5.2.0
 CTkToolTip>=0.1.0
 pillow
 pyobjc-framework-Cocoa; sys_platform == 'darwin'
+certifi; sys_platform == 'darwin'
 pywin32-ctypes; sys_platform == 'win32'
