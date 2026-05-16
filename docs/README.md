@@ -2,7 +2,7 @@
 
 ## Who is this for?
 
-This application is for genealogists who maintain large GEDCOM files, particularly with tags for DNA matches.
+This application is for genealogists who manage large GEDCOM files, particularly with tags for DNA matches.
 
 ## What does it do?
 
