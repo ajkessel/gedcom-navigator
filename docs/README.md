@@ -18,7 +18,7 @@ This tool provides useful ways to rapidly explore a GEDCOM file exported from ge
 Available as a graphical application for normal users, as well as a command-line tool for power users.
 
 Downloads:
-* [Mac App Store](https://apps.apple.com/app/gedcom-dna-finder/id6765485580) - easy install, may be behind the latest version here
+* [Mac App Store](https://apps.apple.com/app/gedcom-dna-finder/id6765485580) - easy install, could be outdated due to slow process for App Store approval
 * [Mac ZIP Download](https://github.com/ajkessel/gedcom-dna-finder/releases/latest/download/gedcom-dna-finder-mac.zip) (see [security note](#macos-security))
 * [Windows](https://github.com/ajkessel/gedcom-dna-finder/releases/latest/download/gedcom-dna-finder-windows.zip) (see [security note](#windows-security))
 * [Linux](https://github.com/ajkessel/gedcom-dna-finder/releases/latest/download/gedcom-dna-finder-linux.zip)
