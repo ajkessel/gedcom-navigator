@@ -40,6 +40,11 @@ echo '--------------------------------'
 echo "Building app version ${VERSION} for Mac App Store."
 date
 echo '--------------------------------'
+if nm -pa /Library/Frameworks/Python.framework/Versions/Current/Frameworks/Tk.framework/Versions/Current/Tk|grep -iq _nswindowdidorder; then
+  echo "Error, forbidden symbol _NSWindowDidOrderOnScreenNotification exists in Tk framework. This will trigger App Store rejection."
+  echo "Patch available at https://github.com/ajkessel/fix-tk-for-appstore "
+  exit 1
+fi
 security unlock-keychain -p "$(cat ~/.config/p)" ~/Library/Keychains/login.keychain-db
 if [[ ! -e 'dist/gedcom-dna-finder.app' ]]; then
 	echo 'Built app not found, building now.'
