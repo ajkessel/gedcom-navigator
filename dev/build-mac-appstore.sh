@@ -23,11 +23,28 @@ done
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
 cd "${SCRIPT_DIR}/.."
 exec > >(sed 's/\x1b\[[0-9;]*m//g' | tee -a build-mac-appstore.log) 2>&1
-VERSION=$(sed -n 's/^__version__ = "\([0-9\.]*\).*/\1/p' gedcom_dna_finder/__init__.py)
+VERSION=$(grep __version__ gedcom_dna_finder/__init__.py | grep -o '[0-9]\+\.[0-9]\+\(\.[0-9]\+\)\+')
+x=0
+while grep xcrun build-mac-appstore.log |grep -qF "${VERSION}"; do
+  echo "Prior build found in build-mac-app-store.log; bumping version number."
+  NEW_VERSION=$(echo $VERSION | awk -F. -v OFS=. '{$NF += 1 ; print}')
+  perl -p -i -e "s/${VERSION}/${NEW_VERSION}/g" gedcom_dna_finder/__init__.py
+  VERSION="${NEW_VERSION}"
+  x=$((x+1))
+  if [ "${x}" -gt 20 ]; then
+    echo "Too many version bumps, exiting."
+    exit 1
+  fi
+done
 echo '--------------------------------'
 echo "Building app version ${VERSION} for Mac App Store."
 date
 echo '--------------------------------'
+if nm -pa /Library/Frameworks/Python.framework/Versions/Current/Frameworks/Tk.framework/Versions/Current/Tk|grep -iq _nswindowdidorder; then
+  echo "Error, forbidden symbol _NSWindowDidOrderOnScreenNotification exists in Tk framework. This will trigger App Store rejection."
+  echo "Patch available at https://github.com/ajkessel/fix-tk-for-appstore "
+  exit 1
+fi
 security unlock-keychain -p "$(cat ~/.config/p)" ~/Library/Keychains/login.keychain-db
 if [[ ! -e 'dist/gedcom-dna-finder.app' ]]; then
 	echo 'Built app not found, building now.'
@@ -131,13 +148,12 @@ echo "Submitting App Store package to app store..."
 apiKey=$(cat "${HOME}/.appstoreconnect/apikey.txt")
 apiIssuer=$(cat "${HOME}/.appstoreconnect/apiissuer.txt")
 appid=$(cat "${HOME}/.appstoreconnect/appid.txt")
-version=$(grep __version__ gedcom_dna_finder/__init__.py | grep -o '[0-9]\+\.[0-9]\+\.[0-9]\+')
-[ -z "${apiKey}" ] || [ -z "${apiIssuer}" ] || [ -z "${version}" ] || [ -z "${appid}" ] && {
+[ -z "${apiKey}" ] || [ -z "${apiIssuer}" ] || [ -z "${VERSION}" ] || [ -z "${appid}" ] && {
 	echo "Need apiKey, apiIssuer, version, and appid to be set for app store upload."
 	exit 1
 }
 # optional steps - not use to submit to app store, just validate pkg
 #xcrun altool --validate-app -f dist/gedcom-dna-finder.pkg -t macos --apiKey "${apiKey}" --apiIssuer "${apiIssuer}"
 echo 'Uploading with the following command:'
-echo xcrun altool --upload-package dist/gedcom-dna-finder.pkg --type osx --bundle-id "com.ajkessel.gedcom-dna-finder" --bundle-short-version-string "${version}" --bundle-version "${version}" --apiKey "${apiKey}" --apiIssuer "${apiIssuer}" --apple-id "${appid}"
-[ "${DRY}" ] || xcrun altool --upload-package dist/gedcom-dna-finder.pkg --type osx --bundle-id "com.ajkessel.gedcom-dna-finder" --bundle-short-version-string "${version}" --bundle-version "${version}" --apiKey "${apiKey}" --apiIssuer "${apiIssuer}" --apple-id "${appid}"
+echo xcrun altool --upload-package dist/gedcom-dna-finder.pkg --type osx --bundle-id "com.ajkessel.gedcom-dna-finder" --bundle-short-version-string "${VERSION}" --bundle-version "${VERSION}" --apiKey "${apiKey}" --apiIssuer "${apiIssuer}" --apple-id "${appid}"
+[ "${DRY}" ] || xcrun altool --upload-package dist/gedcom-dna-finder.pkg --type osx --bundle-id "com.ajkessel.gedcom-dna-finder" --bundle-short-version-string "${VERSION}" --bundle-version "${VERSION}" --apiKey "${apiKey}" --apiIssuer "${apiIssuer}" --apple-id "${appid}"
