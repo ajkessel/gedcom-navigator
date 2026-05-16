@@ -8,7 +8,7 @@
 
 ## Overview
 
-GEDCOM DNA Match Finder is a desktop application that runs entirely on your local computer. It does not connect to the internet, does not transmit data to any server, and does not collect any personal information.
+GEDCOM DNA Match Finder is a desktop application that processes your GEDCOM data entirely on your local computer. It does not transmit GEDCOM data to any server and does not collect any personal information.
 
 ---
 
@@ -32,9 +32,11 @@ All local storage is confined to your device and is never shared externally.
 
 ---
 
-## No Network Access
+## Network Access
 
-This application does not make any network requests. It has no analytics, no telemetry, no crash reporting, and no automatic update checks. It operates entirely offline.
+This application has no analytics, no telemetry, no crash reporting, and no automatic update checks. With the one exception below, it never accesses the network.
+
+If you choose **Help → Check for updates…**, the application makes a network request to GitHub to ask for the latest public release of GEDCOM DNA Match Finder. This request does not include your GEDCOM file, your settings, your recent files list, or your cache contents. GitHub receives the normal technical information involved in any web request, such as your IP address and user agent.
 
 ---
 

@@ -43,6 +43,7 @@ MENU_KEYBOARD_SHORTCUTS = (
     if sys.platform == 'darwin'
     else "Keyboard Shortcuts (F2)"
 )
+MENU_CHECK_FOR_UPDATES = "Check for updates…"
 MENU_PRIVACY_POLICY = "Privacy Policy"
 MENU_ABOUT = "About"
 MENU_QUIT = "Quit"
@@ -392,9 +393,24 @@ WIN_HOW_TO_USE = "How to Use"
 WIN_KEYBOARD_SHORTCUTS = "Keyboard Shortcuts"
 WIN_ABOUT = "About"
 WIN_PRIVACY_POLICY = "Privacy Policy"
+WIN_CHECKING_FOR_UPDATES = "Checking for Updates"
+WIN_UPDATE_AVAILABLE = "Update Available"
 
 COL_SHORTCUT = "Shortcut"
 COL_ACTION = "Action"
+
+UPDATE_CHECKING_MSG = "Checking GitHub for the latest release…"
+UPDATE_CHECK_FAILED_TITLE = "Update check failed"
+UPDATE_CHECK_FAILED_MSG = (
+    "Could not check for updates right now.\n\n{error}"
+)
+UPDATE_CURRENT_TITLE = "No update available"
+UPDATE_CURRENT_MSG = "You are running the latest version ({current})."
+UPDATE_AVAILABLE_HEADING = "A newer version is available."
+UPDATE_INSTALLED_VERSION = "Installed version: {current}"
+UPDATE_LATEST_VERSION = "Latest version: {latest}"
+UPDATE_DOWNLOAD_PROMPT = "Download the latest release from GitHub:"
+UPDATE_OPEN_RELEASES = "Open GitHub Releases"
 
 KEYBOARD_SHORTCUT_ROWS = [
     ("Esc",            "Close any dialog or pop-up window"),

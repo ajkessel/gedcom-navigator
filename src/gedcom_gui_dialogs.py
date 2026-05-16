@@ -10,6 +10,7 @@ import tkinter.font as tkfont
 from tkinter import ttk, messagebox
 import os
 import sys
+import threading
 import webbrowser
 import customtkinter as ctk
 
@@ -23,6 +24,7 @@ from gedcom_markdown import render_markdown
 from gedcom_strings import *  # noqa: F401,F403
 from gedcom_theme import get_flag_bg
 from gedcom_tooltip import Tooltip
+from gedcom_update import check_for_updates
 
 
 class DialogsMixin:
@@ -901,6 +903,130 @@ class DialogsMixin:
             WIN_PRIVACY_POLICY,
             self._resource_path('docs/PRIVACY_POLICY.md'), markdown=True,
         )
+
+    def _check_for_updates(self):
+        """Check GitHub for a newer release and report the result."""
+        if getattr(self, '_update_check_in_progress', False):
+            return
+        self._update_check_in_progress = True
+        progress = self._show_update_check_progress()
+
+        def _worker():
+            result = check_for_updates(self._version)
+            self.root.after(
+                0, lambda: self._finish_update_check(result, progress))
+
+        threading.Thread(target=_worker, daemon=True).start()
+
+    def _show_update_check_progress(self):
+        """Show a small progress dialog while the GitHub request runs."""
+        popup = tk.Toplevel(self.root)
+        popup.withdraw()
+        popup.title(WIN_CHECKING_FOR_UPDATES)
+        popup.resizable(False, False)
+        popup.transient(self.root)
+        popup.protocol("WM_DELETE_WINDOW", lambda: None)
+
+        frame = ttk.Frame(popup, padding=(20, 14))
+        frame.pack(fill='both', expand=True)
+        ttk.Label(frame, text=UPDATE_CHECKING_MSG).pack(pady=(0, 10))
+        bar = ttk.Progressbar(frame, mode='indeterminate', length=260)
+        bar.pack(pady=(0, 4))
+        bar.start(10)
+
+        self._fit_window_to_content(popup, min_w=320, min_h=90)
+        popup.deiconify()
+        popup.lift()
+        return popup
+
+    def _finish_update_check(self, result, progress):
+        """Close progress feedback and show the update-check result."""
+        self._update_check_in_progress = False
+        try:
+            progress.destroy()
+        except tk.TclError:
+            pass
+
+        if result.error:
+            messagebox.showerror(
+                UPDATE_CHECK_FAILED_TITLE,
+                UPDATE_CHECK_FAILED_MSG.format(error=result.error),
+                parent=self.root,
+            )
+            return
+
+        if result.update_available:
+            self._show_update_available(result)
+            return
+
+        messagebox.showinfo(
+            UPDATE_CURRENT_TITLE,
+            UPDATE_CURRENT_MSG.format(current=result.current_version),
+            parent=self.root,
+        )
+
+    def _show_update_available(self, result):
+        """Show a dialog linking to the latest GitHub release."""
+        win = ctk.CTkToplevel(self.root)
+        win.withdraw()
+        win.title(WIN_UPDATE_AVAILABLE)
+        win.transient(self.root)
+        win.grab_set()
+        win.resizable(False, False)
+        win.bind('<Escape>', lambda *_: win.destroy())
+
+        outer = ctk.CTkFrame(win, fg_color='transparent')
+        outer.pack(fill='both', expand=True, padx=18, pady=(16, 10))
+
+        ctk.CTkLabel(
+            outer,
+            text=UPDATE_AVAILABLE_HEADING,
+            font=ctk.CTkFont(weight='bold'),
+            anchor='w',
+        ).pack(fill='x', pady=(0, 10))
+        ctk.CTkLabel(
+            outer,
+            text=UPDATE_INSTALLED_VERSION.format(
+                current=result.current_version),
+            anchor='w',
+        ).pack(fill='x')
+        ctk.CTkLabel(
+            outer,
+            text=UPDATE_LATEST_VERSION.format(latest=result.latest_version),
+            anchor='w',
+        ).pack(fill='x', pady=(2, 12))
+        ctk.CTkLabel(
+            outer,
+            text=UPDATE_DOWNLOAD_PROMPT,
+            anchor='w',
+        ).pack(fill='x')
+        release_link = ctk.CTkLabel(
+            outer,
+            text=result.release_url,
+            text_color=self._link_color,
+            anchor='w',
+        )
+        release_link.pack(fill='x', pady=(2, 0))
+        release_link.bind(
+            '<Button-1>', lambda *_: webbrowser.open(result.release_url))
+
+        ctk.CTkFrame(win, height=1,
+                     fg_color=('gray70', 'gray30')).pack(fill='x')
+        btn_frame = ctk.CTkFrame(win, fg_color='transparent')
+        btn_frame.pack(fill='x', padx=12, pady=8)
+        ctk.CTkButton(
+            btn_frame,
+            text=UPDATE_OPEN_RELEASES,
+            command=lambda: webbrowser.open(result.release_url),
+        ).pack(side='right', padx=(4, 0))
+        ctk.CTkButton(
+            btn_frame, text=BTN_CLOSE, width=80,
+            command=win.destroy,
+        ).pack(side='right')
+
+        self._fit_window_to_content(win, min_w=430, min_h=220)
+        win.deiconify()
+        win.after(50, win.focus_force)
 
     def _show_file_window(self, title, filepath, markdown=False, preamble=""):
         """Open a modal text window for a bundled documentation file."""

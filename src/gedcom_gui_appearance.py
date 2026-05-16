@@ -659,6 +659,10 @@ class AppearanceMixin:
                              command=self._show_how_to_use)
         app_menu.add_command(label=MENU_KEYBOARD_SHORTCUTS, underline=0,
                              command=self._show_keyboard_shortcuts)
+        app_menu.add_separator()
+        app_menu.add_command(label=MENU_CHECK_FOR_UPDATES, underline=0,
+                             command=self._check_for_updates)
+        app_menu.add_separator()
         app_menu.add_command(label=MENU_PRIVACY_POLICY, underline=1,
                              command=self._show_privacy_policy)
         if sys.platform != 'darwin':
