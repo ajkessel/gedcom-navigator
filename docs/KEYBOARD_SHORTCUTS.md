@@ -20,4 +20,3 @@
 | **Ctrl+C** | **C**opy result to clipboard |
 | **Ctrl+L** | C**l**ear the results |
 | **F3** | Open Preferences |
-| **Alt-M** | **M**enu |

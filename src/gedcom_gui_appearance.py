@@ -541,9 +541,6 @@ class AppearanceMixin:
             w.bind('<Tab>', lambda *_, nw=nxt: nw.focus_set() or 'break')
             w.bind('<Shift-Tab>', lambda *_, pw=prv: pw.focus_set() or 'break')
 
-        self.root.bind('<Alt-m>', lambda *_: self._open_app_menu() or 'break')
-        self.root.bind('<Alt-M>', lambda *_: self._open_app_menu() or 'break')
-
         r_inner = self.results._textbox
         r_inner.bind(
             '<Up>', lambda *_: self.results.yview_scroll(-1, 'units') or 'break')

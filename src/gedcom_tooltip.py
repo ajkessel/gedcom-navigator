@@ -221,6 +221,8 @@ class TextTagTooltip:
     """Hover tooltip for a specific tag inside a Tk Text widget."""
 
     def __init__(self, text_widget, text: str):
+        self.text_widget = text_widget
+        self._destroyed = False
         self._anchor = tk.Frame(text_widget)
         self._impl = _SizedToolTip(
             self._anchor, message=text, wraplength=360, justify='left',
@@ -231,6 +233,15 @@ class TextTagTooltip:
         Tooltip._instances.append(self)
         text_widget.bind("<Destroy>", self._on_destroy, add="+")
 
+    def is_for(self, text_widget) -> bool:
+        """Return whether this tooltip is still usable for the given Text widget."""
+        if self._destroyed or self.text_widget is not text_widget:
+            return False
+        try:
+            return self._anchor.winfo_exists() and self._impl.winfo_exists()
+        except tk.TclError:
+            return False
+
     def on_enter(self, event) -> None:
         """Show or move the tooltip from a Text tag event."""
         self._impl.on_enter(event)
@@ -240,6 +251,7 @@ class TextTagTooltip:
         self._impl.on_leave(event)
 
     def _on_destroy(self, _event=None) -> None:
+        self._destroyed = True
         try:
             Tooltip._instances.remove(self)
         except ValueError:

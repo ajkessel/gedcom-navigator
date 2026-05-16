@@ -820,6 +820,8 @@ class ResultsMixin:
                 font=edge_font, anchor='center')
 
         for index, ((x, y), label) in enumerate(zip(positions, wrapped_labels)):
+            node_id = layout[index]['id']
+            node_tag = f'path_node_{index}'
             node_h = node_heights[index]
             x1 = x - node_w / 2
             y1 = y - node_h / 2
@@ -830,7 +832,7 @@ class ResultsMixin:
             outline_width = 3 if is_endpoint else 2
             canvas.create_rectangle(
                 x1, y1, x2, y2, fill=fill, outline=colors['node_outline'],
-                width=outline_width)
+                width=outline_width, tags=('path_node', node_tag))
             if is_endpoint:
                 badge = PATH_GRAPH_START if index == 0 else PATH_GRAPH_END
                 badge_w = badge_font.measure(badge) + 12
@@ -840,18 +842,39 @@ class ResultsMixin:
                 badge_y2 = badge_y1 + badge_h
                 canvas.create_rectangle(
                     badge_x1, badge_y1, badge_x2, badge_y2,
-                    fill=colors['badge_fill'], outline=colors['badge_fill'])
+                    fill=colors['badge_fill'], outline=colors['badge_fill'],
+                    tags=('path_node', node_tag))
                 canvas.create_text(
                     (badge_x1 + badge_x2) / 2, (badge_y1 + badge_y2) / 2,
                     text=badge, fill=colors['badge_text'], font=badge_font,
-                    anchor='center')
+                    anchor='center', tags=('path_node', node_tag))
                 text_y = y1 + endpoint_header_h + (
                     node_h - endpoint_header_h) / 2
             else:
                 text_y = y
             canvas.create_text(
                 x, text_y, text=label, fill=colors['text'], font=label_font,
-                width=node_w - 22, justify='center')
+                width=node_w - 22, justify='center',
+                tags=('path_node', node_tag))
+
+            if node_id in self.individuals:
+                canvas.tag_bind(
+                    node_tag, '<Enter>',
+                    lambda *_: canvas.configure(cursor='hand2'))
+                canvas.tag_bind(
+                    node_tag, '<Leave>',
+                    lambda *_: canvas.configure(cursor=''))
+
+                def _on_node_click(_, indi_id=node_id):
+                    try:
+                        win.grab_release()
+                    except tk.TclError:
+                        pass
+                    win.destroy()
+                    self.root.after_idle(lambda: self._navigate_to(indi_id))
+                    return 'break'
+
+                canvas.tag_bind(node_tag, '<Button-1>', _on_node_click)
 
         canvas.configure(scrollregion=(0, 0, canvas_w, canvas_h))
 
@@ -991,7 +1014,8 @@ class ResultsMixin:
                          foreground=self._link_color, underline=1)
 
         relationship_tooltip = getattr(self, '_relationship_tooltip', None)
-        if relationship_tooltip is None:
+        if (relationship_tooltip is None or
+                not relationship_tooltip.is_for(tw)):
             relationship_tooltip = TextTagTooltip(tw, TIP_RELATIONSHIP)
             self._relationship_tooltip = relationship_tooltip
         tw.tag_bind('relationship_link', '<Enter>',

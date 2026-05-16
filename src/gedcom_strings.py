@@ -418,5 +418,3 @@ KEYBOARD_SHORTCUT_ROWS = [
 
 if sys.platform == 'win32':
     KEYBOARD_SHORTCUT_ROWS.append(("F3", "Open Preferences"))
-if sys.platform != 'darwin':
-    KEYBOARD_SHORTCUT_ROWS.append(("Alt-M", "Menu"))
