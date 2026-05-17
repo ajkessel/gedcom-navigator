@@ -38,6 +38,7 @@ class GedcomDataModel:
         self.individuals = {}
         self.families = {}
         self.tag_records = {}
+        self.married_name_index = {}
 
     # ------------------------------------------------------------------
     # Public API
@@ -54,6 +55,7 @@ class GedcomDataModel:
             gedcom_path, dna_keyword, page_marker, cache_dir)
         if cached is not None:
             self.individuals, self.families, self.tag_records = cached
+            self.married_name_index = self._build_married_name_index()
             return True, None, None
 
         (
@@ -71,7 +73,9 @@ class GedcomDataModel:
             self.individuals = {}
             self.families = {}
             self.tag_records = {}
+            self.married_name_index = {}
             return False, warning, model_error
+        self.married_name_index = self._build_married_name_index()
         self._save_to_cache(gedcom_path, dna_keyword, page_marker, cache_dir)
         return False, warning, None
 
@@ -111,6 +115,36 @@ class GedcomDataModel:
         except Exception: # pylint: disable=broad-exception-caught
             pass
         return deleted
+
+    def _build_married_name_index(self):
+        """Return derived married-name aliases keyed by wife individual ID."""
+        index = {}
+        for fam in self.families.values():
+            wife_id = fam.get('wife')
+            husb_id = fam.get('husb')
+            if not wife_id or not husb_id:
+                continue
+
+            wife = self.individuals.get(wife_id)
+            husband = self.individuals.get(husb_id)
+            if not wife or not husband:
+                continue
+
+            given_name = wife.get('given_name', '').strip()
+            husband_surname = husband.get('surname', '').strip()
+            if not given_name or not husband_surname:
+                continue
+
+            married_name = f"{given_name} {husband_surname}".strip()
+            if not married_name:
+                continue
+
+            existing_names = set(wife.get('alt_names') or [wife.get('name', '')])
+            existing_names.update(index.get(wife_id, ()))
+            if married_name not in existing_names:
+                index.setdefault(wife_id, []).append(married_name)
+
+        return index
 
     # ------------------------------------------------------------------
     # Cache internals

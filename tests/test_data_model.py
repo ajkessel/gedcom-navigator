@@ -58,6 +58,7 @@ class TestInit:
         assert mdl.individuals == {}
         assert mdl.families == {}
         assert mdl.tag_records == {}
+        assert mdl.married_name_index == {}
 
 
 # ===========================================================================
@@ -95,6 +96,12 @@ class TestLoad:
         assert warn is None
         assert error is None
 
+    def test_married_name_index_built_after_load(self, tmp_path):
+        mdl = GedcomDataModel()
+        p = _write_ged(tmp_path)
+        mdl.load(p, "DNA", "AncestryDNA", str(tmp_path / "cache"))
+        assert mdl.married_name_index == {"@I1@": ["Alice Jones"]}
+
     def test_invalid_file_returns_model_error(self, tmp_path):
         mdl = GedcomDataModel()
         p = _write_ged(tmp_path, "0 HEAD\n0 TRLR\n")
@@ -104,6 +111,7 @@ class TestLoad:
         assert warn is None
         assert error is not None
         assert "No individual records" in error
+        assert mdl.married_name_index == {}
 
 
 # ===========================================================================
@@ -137,6 +145,18 @@ class TestCacheHit:
         mdl = GedcomDataModel()
         mdl.load(p, "DNA", "AncestryDNA", cache_dir)
         assert "@I1@" in mdl.individuals
+
+    def test_cache_hit_rebuilds_married_name_index(self, tmp_path):
+        cache_dir = str(tmp_path / "cache")
+        p = _write_ged(tmp_path)
+        GedcomDataModel().load(p, "DNA", "AncestryDNA", cache_dir)
+
+        mdl = GedcomDataModel()
+        from_cache, _, error = mdl.load(p, "DNA", "AncestryDNA", cache_dir)
+
+        assert from_cache is True
+        assert error is None
+        assert mdl.married_name_index == {"@I1@": ["Alice Jones"]}
 
 
 # ===========================================================================
