@@ -6,7 +6,7 @@ This application is for genealogists who maintain large GEDCOM files, particular
 
 ## What does it do?
 
-This tool provides useful ways to rapidly explore a GEDCOM file exported from genealogy services like Ancestry, MyHeritage, Geni, and Family Tree Maker:
+This application provides useful ways to rapidly explore a large GEDCOM file exported from genealogy services like Ancestry, MyHeritage, Geni, and Family Tree Maker:
 
 * Find the closest DNA-flagged person to any other person in a family tree
 * Show multiple relationship paths between any two people in your tree
@@ -15,7 +15,9 @@ This tool provides useful ways to rapidly explore a GEDCOM file exported from ge
 * Rapidly explore names and connections, even in a very large tree with very distant connections
 * Visualize relationships between any two people graphically
 
-Available as a graphical application for normal users, as well as a command-line tool for power users.
+The tool does not modify your GEDCOM file. It is only used for exploring connections.
+
+In addition to the GUI, this application also includes a command-line tool for power users.
 
 Downloads:
 * [Mac App Store](https://apps.apple.com/app/gedcom-dna-finder/id6765485580) - easy install, may be behind the latest version here

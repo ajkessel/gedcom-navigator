@@ -244,6 +244,11 @@ class SearchMixin:
         query = self.search_text.get().strip()
         filter_query = self.filter_text.get().strip().lower()
         flagged_only = self.show_flagged_only.get()
+        extra_names_by_id = (
+            self._model.married_name_index
+            if self.married_name_search.get()
+            else {}
+        )
         flagged_count = sum(
             1 for i in self.individuals.values() if i['dna_markers'])
 
@@ -291,6 +296,7 @@ class SearchMixin:
                     indi_id, indi, query,
                     fuzzy=self.fuzzy_search.get(),
                     fuzzy_threshold=self._fuzzy_threshold_value(),
+                    extra_names=extra_names_by_id.get(indi_id),
                 )
                 if not match:
                     continue

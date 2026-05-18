@@ -24,6 +24,7 @@ from gedcom_gui_results import ResultsMixin
 from gedcom_platform import configure_process_identity
 from gedcom_theme import THEME_NAMES, get_flag_bg, ttk_colors
 from gedcom_tooltip import Tooltip
+from gedcom_zoom import TextZoomController
 from gedcom_gui_appearance import AppearanceMixin
 from gedcom_gui_dialogs import DialogsMixin
 
@@ -132,13 +133,16 @@ class DNAMatchFinderApp(
             value=self._config.get_fuzzy_threshold(self.FUZZY_THRESHOLD))
         self.status_text = tk.StringVar(value=STATUS_NO_FILE)
         self.fuzzy_search = tk.BooleanVar(value=False)
+        self.married_name_search = tk.BooleanVar(value=False)
         self.show_ids = tk.BooleanVar(value=self._config.get_show_ids())
         self._name_order = self._config.get_name_order()
+        self._default_profile_view = self._config.get_profile_view_default()
 
         self.search_text.trace_add('write', self._on_search_change)
         self.filter_text.trace_add('write', self._on_search_change)
         self.show_flagged_only.trace_add('write', self._on_search_change)
         self.fuzzy_search.trace_add('write', self._on_search_change)
+        self.married_name_search.trace_add('write', self._on_search_change)
         self._search_after_id = None
 
         self.top_n.trace_add('write', self._on_settings_change)
@@ -152,12 +156,16 @@ class DNAMatchFinderApp(
         self._last_result = None
         self._results_reversed = False
         self._active_id = None
+        self._results_header_id = None
         self._busy = False
         self._sort_col = 'name'
         self._sort_rev = False
 
         self._recent_files = self._load_history()
         self._show_person_geometry = self._load_show_person_geometry()
+        self._show_person_opened_this_session = False
+        self._path_graph_geometry = None
+        self._path_graph_opened_this_session = False
 
         self._mono_family = self._pick_mono_family()
         self._mono_size = self._FONT_SIZES['medium']['mono']
@@ -312,7 +320,7 @@ class DNAMatchFinderApp(
         self.search_entry.bind(
             '<Return>', lambda *_: self._search_flush_and_jump())
         Tooltip(self.search_entry, TIP_FIND)
-        # DNA-flagged only and fuzzy search checkboxes
+        # Search mode checkboxes
         ctk.CTkCheckBox(
             search_frame, text=CHK_DNA_FLAGGED_ONLY,
             variable=self.show_flagged_only, width=0,
@@ -323,6 +331,11 @@ class DNAMatchFinderApp(
             variable=self.fuzzy_search, width=0,
         ).pack(side='left', padx=(8, 0))
         Tooltip(search_frame.winfo_children()[-1], TIP_FUZZY)
+        ctk.CTkCheckBox(
+            search_frame, text=CHK_MARRIED_NAMES,
+            variable=self.married_name_search, width=0,
+        ).pack(side='left', padx=(8, 0))
+        Tooltip(search_frame.winfo_children()[-1], TIP_MARRIED_NAMES)
 
         # Filter: box
         filter_frame = ctk.CTkFrame(left, fg_color='transparent')
@@ -397,10 +410,16 @@ class DNAMatchFinderApp(
             action_frame, text=BTN_SET_HOME, command=self._set_home_person)
         self.set_home_btn.grid(row=0, column=5, padx=(0, 6))
         Tooltip(self.set_home_btn, TIP_SET_HOME)
+        _show_person_label = (BTN_SHOW_PERSON_TREE
+                              if self._default_profile_view == 'tree'
+                              else BTN_SHOW_PERSON)
+        _show_person_tip = (TIP_SHOW_PERSON_TREE
+                            if self._default_profile_view == 'tree'
+                            else TIP_SHOW_PERSON)
         self.show_person_btn = ctk.CTkButton(
-            action_frame, text=BTN_SHOW_PERSON, command=self._show_person)
+            action_frame, text=_show_person_label, command=self._show_person)
         self.show_person_btn.grid(row=0, column=6, padx=(0, 6))
-        Tooltip(self.show_person_btn, TIP_SHOW_PERSON)
+        self._show_person_tooltip = Tooltip(self.show_person_btn, _show_person_tip)
         self.find_matches_btn = ctk.CTkButton(
             action_frame, text=BTN_FIND_MATCHES, command=self._find_matches)
         self.find_matches_btn.grid(row=0, column=7)
@@ -489,6 +508,10 @@ class DNAMatchFinderApp(
         )
         self._results_header_label.pack(
             side='left', fill='x', expand=True, ipady=4)
+        self._results_header_label.bind(
+            '<Button-3>', self._show_results_header_menu)
+        self._results_header_label.bind(
+            '<Control-Button-1>', self._show_results_header_menu)
 
         self.results = ctk.CTkTextbox(
             right,
@@ -500,6 +523,14 @@ class DNAMatchFinderApp(
         self.results._textbox.tag_configure(
             'bold', font=(self._mono_family, self._mono_size, 'bold'))
         self.results.configure(state='disabled')
+
+        def _apply_results_zoom(size):
+            self.results.configure(font=(self._mono_family, size))
+            self.results._textbox.tag_configure(
+                'bold', font=(self._mono_family, size, 'bold'))
+
+        self._results_zoom = TextZoomController(
+            self.results, self._mono_size, _apply_results_zoom)
 
         # Status bar
         status_bar = ctk.CTkFrame(outer, border_width=1)

@@ -8,7 +8,7 @@
 
 ## Overview
 
-GEDCOM DNA Match Finder is a desktop application that processes your GEDCOM data entirely on your local computer. It does not transmit GEDCOM data to any server and does not collect any personal information.
+GEDCOM DNA Match Finder is a desktop application that processes your GEDCOM data entirely on your local computer. It does not transmit GEDCOM data to any server and does not collect any personal information. It does not modify your GEDCOM file.
 
 ---
 

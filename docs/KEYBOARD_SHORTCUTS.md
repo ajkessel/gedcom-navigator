@@ -7,8 +7,9 @@
 | **F2** | **K**eyboard Shortcuts |
 | **Ctrl+F** | **F**ind Person |
 | **Ctrl+I** | F**i**lter Results |
-| **Ctrl+D** | Toggle the **D**NA-flagged only filter |
+| **Ctrl+D** | Toggle the **D**NA filter |
 | **Ctrl+U** | Toggle f**u**zzy search mode |
+| **Ctrl+M** | Toggle **m**arried-name search mode |
 | **Ctrl+O** | **O**pen a new GEDCOM file |
 | **Ctrl+N** | Find **N**earest DNA Matches for the selected person |
 | **Ctrl+E** | Show th**e** full GEDCOM record for the selected person |
@@ -19,4 +20,14 @@
 | **Ctrl+S** | **S**ave results to a text file |
 | **Ctrl+C** | **C**opy result to clipboard |
 | **Ctrl+L** | C**l**ear the results |
+| **Ctrl+Plus / Ctrl+Minus** | Zoom the focused text or graph view |
+| **Ctrl+0** | Reset zoom in the focused text or graph view |
 | **F3** | Open Preferences |
+
+## Profile / Tree View Window
+
+| Shortcut | Action |
+| --- | --- |
+| **Ctrl+T** | **T**oggle between Profile View and Tree View |
+| **Ctrl+S** | **S**ave profile or tree to a file |
+| **Ctrl+C** | **C**opy profile or tree to clipboard |

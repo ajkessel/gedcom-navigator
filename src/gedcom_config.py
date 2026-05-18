@@ -161,6 +161,15 @@ class ConfigManager:
         """Save whether tooltips should be suppressed."""
         self.save_value('hide_tooltips', bool(value))
 
+    def get_profile_view_default(self):
+        """Return the default view for the profile window ('profile' or 'tree')."""
+        val = self.load_value('profile_view_default', 'profile')
+        return val if val in ('profile', 'tree') else 'profile'
+
+    def set_profile_view_default(self, value):
+        """Save the default view for the profile window."""
+        self.save_value('profile_view_default', value)
+
     # ------------------------------------------------------------------
     # Platform default path
     # ------------------------------------------------------------------

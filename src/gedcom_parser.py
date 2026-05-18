@@ -178,6 +178,7 @@ def build_model(gedcom_path, dna_keyword, page_marker):
                 'famc': [],
                 'fams': [],
                 'dna_markers': [],
+                'tags': [],
                 'birth_year': None,
                 'death_year': None,
                 '_mttag_refs': [],
@@ -220,9 +221,11 @@ def build_model(gedcom_path, dna_keyword, page_marker):
                             if l2 <= 1:
                                 break
                             if l2 == 2 and t2 == 'NAME':
-                                if dna_keyword.lower() in v2.lower():
+                                name_val = v2.strip()
+                                indi['tags'].append(name_val)
+                                if dna_keyword.lower() in name_val.lower():
                                     indi['dna_markers'].append(
-                                        f'_MTTAG (inline): {v2.strip()}'
+                                        f'_MTTAG (inline): {name_val}'
                                     )
                                 break
                 elif level == 1 and tag in ('BIRT', 'DEAT'):
@@ -274,10 +277,12 @@ def build_model(gedcom_path, dna_keyword, page_marker):
     for indi in individuals.values():
         for ref in indi.pop('_mttag_refs'):
             tag_name = tag_records.get(ref, '')
-            if tag_name and dna_kw_l in tag_name.lower():
-                indi['dna_markers'].append(
-                    f'Tag: {tag_name} ({ref})'
-                )
+            if tag_name:
+                indi['tags'].append(tag_name)
+                if dna_kw_l in tag_name.lower():
+                    indi['dna_markers'].append(
+                        f'Tag: {tag_name} ({ref})'
+                    )
 
     model_error = None
     if not records:

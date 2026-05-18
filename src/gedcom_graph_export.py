@@ -194,6 +194,8 @@ def canvas_to_png_bytes(canvas, width, height):
     draw = ImageDraw.Draw(image)
 
     for item_id in canvas.find_all():
+        if canvas.itemcget(item_id, 'state') == 'hidden':
+            continue
         item_type = canvas.type(item_id)
         if item_type == 'rectangle':
             x1, y1, x2, y2 = canvas.coords(item_id)
@@ -320,6 +322,8 @@ def canvas_to_svg(canvas, width, height):
 
     body = []
     for item_id in canvas.find_all():
+        if canvas.itemcget(item_id, 'state') == 'hidden':
+            continue
         item_type = canvas.type(item_id)
         if item_type == 'rectangle':
             x1, y1, x2, y2 = canvas.coords(item_id)

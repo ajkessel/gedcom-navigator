@@ -150,9 +150,12 @@ class AppearanceMixin:
 
         if hasattr(self, 'results'):
             # CTkTextbox fonts are passed as tuples; update on size change.
-            self.results.configure(font=(self._mono_family, mono_sz))
-            self.results._textbox.tag_configure(
-                'bold', font=(self._mono_family, mono_sz, 'bold'))
+            if hasattr(self, '_results_zoom'):
+                self._results_zoom.set_base_size(mono_sz)
+            else:
+                self.results.configure(font=(self._mono_family, mono_sz))
+                self.results._textbox.tag_configure(
+                    'bold', font=(self._mono_family, mono_sz, 'bold'))
             if hasattr(self, '_results_header_label'):
                 self._results_header_label.configure(
                     font=ctk.CTkFont(size=mono_sz, weight='bold'))
@@ -396,6 +399,11 @@ class AppearanceMixin:
         # CTkEntry/CTkComboBox register write-traces on their textvariables that
         # survive Tkinter cascade-destroy (Python trace not removed, Tcl widget gone).
         # Clear every trace on the affected vars now; re-add our own below.
+        # CTkCheckBox DOES properly remove its own trace in destroy(), so BooleanVars
+        # (show_flagged_only, fuzzy_search, married_name_search) must NOT be listed
+        # here — pre-removing their traces causes CTkCheckBox.destroy() to raise
+        # TclError, which aborts the parent frame's cascade destroy and leaves a zombie
+        # Tk widget that causes the main window to appear duplicated.
         _app_traces = [
             (self.search_text,  'write', self._on_search_change),
             (self.filter_text,  'write', self._on_search_change),
@@ -474,7 +482,7 @@ class AppearanceMixin:
             self._show_person_geometry = geo
             self._config.set_window_geometry('show_person_geometry', geo)
         except Exception as e:  # pylint: disable=broad-except
-            print(f"Error persisting show person geometry: {e}")
+            print(f"Error persisting profile geometry: {e}")
 
     def _set_home_person(self):
         """Save the selected person as the home person for the active GEDCOM."""
@@ -512,6 +520,8 @@ class AppearanceMixin:
             not self.show_flagged_only.get()))
         bind(f'<{_MOD_KEY}-u>', lambda: self.fuzzy_search.set(
             not self.fuzzy_search.get()))
+        bind(f'<{_MOD_KEY}-m>', lambda: self.married_name_search.set(
+            not self.married_name_search.get()))
         bind(f'<{_MOD_KEY}-p>', self._find_path)
         bind(f'<{_MOD_KEY}-t>', self._view_tags)
         bind(f'<{_MOD_KEY}-o>', self._browse)
@@ -524,6 +534,23 @@ class AppearanceMixin:
         bind('<Escape>', self._clear_results)
         # Only invoke _copy_results when a Text widget isn't focused
         self.root.bind(f'<{_MOD_KEY}-c>', self._kb_copy)
+
+        self.root.bind(
+            '<KeyPress-Shift_L>',
+            lambda *_: self._update_show_person_btn_for_shift(True), add='+')
+        self.root.bind(
+            '<KeyPress-Shift_R>',
+            lambda *_: self._update_show_person_btn_for_shift(True), add='+')
+        self.root.bind(
+            '<KeyRelease-Shift_L>',
+            lambda *_: self._update_show_person_btn_for_shift(False), add='+')
+        self.root.bind(
+            '<KeyRelease-Shift_R>',
+            lambda *_: self._update_show_person_btn_for_shift(False), add='+')
+        self.root.bind(
+            '<FocusOut>',
+            lambda e: self._update_show_person_btn_for_shift(False)
+            if e.widget is self.root else None, add='+')
 
         # Explicit tab chain via the internal tk widgets for CTk widgets:
         # tree → results_text → top_n_spin → max_depth_spin →
