@@ -130,10 +130,14 @@ class SearchMixin:
             800, self._reload_if_loaded)
 
     def _reload_if_loaded(self):
-        """Reload the active GEDCOM when DNA marker settings change."""
+        """Re-flag DNA matches in-place when marker settings change."""
         self._dna_settings_after_id = None
-        if self.individuals:
-            self._load_file()
+        if not self.individuals or self._busy:
+            return
+        dna_keyword = self.tag_keyword.get()
+        page_marker = self.page_marker.get()
+        self._model.reflag(dna_keyword, page_marker)
+        self._populate_tree()
 
     def _find_dna_result_data(self, start_id, top_n, max_depth, cancel_event=None):
         """Return DNA search results plus the optional path to the home person."""

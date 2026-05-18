@@ -303,6 +303,52 @@ def build_model(gedcom_path, dna_keyword, page_marker):
 
     return individuals, families, tag_records, encoding_warning, model_error
 
+def apply_dna_flags(individuals, tag_records, dna_keyword, page_marker):
+    """Re-populate dna_markers and tags for all individuals from their _raw records.
+
+    Safe to call after a cache load or whenever keywords change — no file I/O,
+    only O(N) string comparisons over already-parsed tuples/lists.
+    """
+    page_marker_l = page_marker.lower()
+    dna_kw_l = dna_keyword.lower()
+    for indi in individuals.values():
+        indi['dna_markers'] = []
+        indi['tags'] = []
+        raw = indi.get('_raw') or []
+        n = len(raw)
+        mttag_refs = []
+        for i, entry in enumerate(raw):
+            if i == 0:
+                continue
+            # Entries are tuples from a fresh parse or lists after JSON round-trip.
+            level, tag, value = entry[0], entry[2], entry[3]
+            if level == 1 and tag == '_MTTAG':
+                v = value.strip()
+                if v.startswith('@') and v.endswith('@'):
+                    mttag_refs.append(v)
+                else:
+                    for j in range(i + 1, n):
+                        l2, t2, v2 = raw[j][0], raw[j][2], raw[j][3]
+                        if l2 <= 1:
+                            break
+                        if l2 == 2 and t2 == 'NAME':
+                            name_val = v2.strip()
+                            indi['tags'].append(name_val)
+                            if dna_kw_l in name_val.lower():
+                                indi['dna_markers'].append(
+                                    f'_MTTAG (inline): {name_val}'
+                                )
+                            break
+            elif tag == 'PAGE' and page_marker_l and page_marker_l in value.lower():
+                indi['dna_markers'].append(f'Source citation: "{value.strip()}"')
+        for ref in mttag_refs:
+            tag_name = tag_records.get(ref, '')
+            if tag_name:
+                indi['tags'].append(tag_name)
+                if dna_kw_l in tag_name.lower():
+                    indi['dna_markers'].append(f'Tag: {tag_name} ({ref})')
+
+
 def extract_ged_from_zip(zip_path, cancel_event=None):
     """Return (temp_ged_path, entry_name) for the first .ged/.gedcom in a ZIP.
 

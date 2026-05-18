@@ -6,6 +6,7 @@
 .vscode/
 venv/
 build/
+debug/
 dist/
 *.zip
 build-and-release.log
