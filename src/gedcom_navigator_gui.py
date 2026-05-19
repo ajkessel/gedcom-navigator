@@ -73,6 +73,7 @@ class GedcomNavigatorApp(
         'small':  {'ui': 9,  'mono': 11},
         'medium': {'ui': 13, 'mono': 14},
         'large':  {'ui': 15, 'mono': 18},
+        'jumbo':  {'ui': 20, 'mono': 23},
     }
     _THEME_NAMES = THEME_NAMES
 

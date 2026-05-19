@@ -629,11 +629,44 @@ class PersonDialogMixin:
             def _zoom_tree_reset():
                 _set_tree_zoom(1.0)
 
+            def _maybe_grow_tree_win():
+                """Grow window to fit expanded content; skip if already maximized."""
+                try:
+                    if sys.platform == 'win32':
+                        if win.state() == 'zoomed':
+                            return
+                    elif win.attributes('-zoomed'):
+                        return
+                except tk.TclError:
+                    return
+                tsw = self.root.winfo_screenwidth()
+                tsh = self.root.winfo_screenheight()
+                tnw = int(graph_state['canvas_w']) + 65
+                tnh = int(graph_state['canvas_h']) + 105
+                if tnw > int(tsw * 0.9) or tnh > int(tsh * 0.9):
+                    if sys.platform == 'win32':
+                        win.state('zoomed')
+                    else:
+                        win.attributes('-zoomed', True)
+                else:
+                    cur_w = win.winfo_width()
+                    cur_h = win.winfo_height()
+                    new_w = max(cur_w, tnw)
+                    new_h = max(cur_h, tnh)
+                    if new_w > cur_w or new_h > cur_h:
+                        cx, cy = win.winfo_x(), win.winfo_y()
+                        win.geometry(
+                            f"{int(new_w)}x{int(new_h)}"
+                            f"+{max(0, min(cx, tsw - new_w))}"
+                            f"+{max(0, min(cy, tsh - new_h))}"
+                        )
+
             def _expand_tree(expand_id, category):
                 request = (expand_id, category)
                 self._toggle_expansion_request(
                     state['tree_expanded'], request)
                 _redraw_tree()
+                _maybe_grow_tree_win()
 
             def _recenter_tree(new_center_id):
                 state['person_id'] = new_center_id
@@ -658,6 +691,7 @@ class PersonDialogMixin:
                 if self._expand_all_requests(
                         state['tree_expanded'], indi_id, categories):
                     _redraw_tree()
+                    _maybe_grow_tree_win()
 
             def _save_tree(*_):
                 win.update_idletasks()

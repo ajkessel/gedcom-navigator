@@ -4179,6 +4179,43 @@ def test_family_tree_child_alignment_keeps_adjusted_siblings_separate():
     assert by_id['@CHILD2@']['column'] != by_id['@CHILD3@']['column']
 
 
+def test_family_tree_spouse_next_to_center_does_not_overlap_sibling():
+    """Final center protection keeps adjacent spouse pairs from overlapping."""
+    visible = [
+        '@P1@',
+        '@P2@',
+        '@CH1@',
+        '@CENTER@',
+        '@CH2@',
+        '@CH1_SP@',
+        '@GC1@',
+        '@GC2@',
+        '@GC3@',
+        '@CH3@',
+    ]
+    edges = [
+        ('@P2@', '@P1@', 'spouses'),
+        ('@P2@', '@CH1@', 'children'),
+        ('@P2@', '@CENTER@', 'children'),
+        ('@P2@', '@CH2@', 'children'),
+        ('@P2@', '@CH3@', 'children'),
+        ('@CH1@', '@CH1_SP@', 'spouses'),
+        ('@CH1@', '@GC1@', 'children'),
+        ('@CH1@', '@GC2@', 'children'),
+        ('@CH1@', '@GC3@', 'children'),
+        ('@CENTER@', '@P1@', 'parents'),
+        ('@CENTER@', '@P2@', 'parents'),
+    ]
+
+    layout = layout_family_tree('@CENTER@', visible, edges)
+
+    assert all(
+        abs(left['column'] - right['column']) >= 1.0
+        for index, left in enumerate(layout)
+        for right in layout[index + 1:]
+        if left['generation'] == right['generation'])
+
+
 def test_family_tree_child_alignment_avoids_unrelated_spouse_pair_slots():
     """Expanded children avoid a spouse pair already displayed on their row."""
     visible = [

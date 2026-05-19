@@ -187,25 +187,47 @@ def _compact_row_gaps(positions, protected_ids=()):
 def _resolve_same_row_conflicts(positions, protected_ids=()):
     """Move same-row boxes apart after final adjacency adjustments."""
     protected_ids = set(protected_ids)
+
+    def shift_left_block(row, protected_index):
+        next_column = row[protected_index][0]
+        for index in range(protected_index - 1, -1, -1):
+            column, person_id = row[index]
+            if next_column - column >= MIN_COLUMN_SPACING:
+                break
+            if person_id in protected_ids:
+                break
+            column = next_column - MIN_COLUMN_SPACING
+            positions[person_id] = (positions[person_id][0], column)
+            row[index] = (column, person_id)
+            next_column = column
+
     by_generation = defaultdict(list)
     for person_id, (generation, column) in positions.items():
         by_generation[generation].append((column, person_id))
 
     for generation, row in by_generation.items():
         row = sorted(row)
-        for index in range(1, len(row)):
-            previous_column, previous_id = row[index - 1]
-            column, person_id = row[index]
-            if column - previous_column >= MIN_COLUMN_SPACING:
-                continue
-            if person_id in protected_ids and previous_id not in protected_ids:
-                previous_column = column - MIN_COLUMN_SPACING
-                positions[previous_id] = (generation, previous_column)
-                row[index - 1] = (previous_column, previous_id)
-            elif person_id not in protected_ids:
-                column = previous_column + MIN_COLUMN_SPACING
-                positions[person_id] = (generation, column)
-                row[index] = (column, person_id)
+        for _ in range(max(1, len(row))):
+            changed = False
+            for index in range(1, len(row)):
+                previous_column, previous_id = row[index - 1]
+                column, person_id = row[index]
+                if column - previous_column >= MIN_COLUMN_SPACING:
+                    continue
+                if person_id in protected_ids and previous_id not in protected_ids:
+                    before = list(row)
+                    shift_left_block(row, index)
+                    changed = row != before
+                    if changed:
+                        break
+                elif person_id not in protected_ids:
+                    column = previous_column + MIN_COLUMN_SPACING
+                    positions[person_id] = (generation, column)
+                    row[index] = (column, person_id)
+                    changed = True
+            if not changed:
+                break
+            row = sorted(row)
 
 
 def _reserve_same_row_slot(positions, occupied, generation, column,

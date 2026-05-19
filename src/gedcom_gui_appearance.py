@@ -446,6 +446,15 @@ class AppearanceMixin:
         self._theme_pref = theme_name
         mode, color_theme = CTK_THEME_MAP.get(theme_name, ('system', 'blue'))
         ctk.set_default_color_theme(color_theme)
+        # set_default_color_theme reloads the theme JSON, resetting
+        # CTkFont["size"] back to 13.  Re-stamp our preference so that
+        # CTkFont() instances created afterwards use the right size.
+        try:
+            ui_sz = self._FONT_SIZES.get(
+                self._font_size_pref, self._FONT_SIZES['medium'])['ui']
+            ctk.ThemeManager.theme["CTkFont"]["size"] = ui_sz
+        except Exception:  # pylint: disable=broad-except
+            pass
         self._inject_theme_backgrounds(theme_name)
         ctk.set_appearance_mode(mode)
         self._apply_window_background(self.root)

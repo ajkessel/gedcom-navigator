@@ -113,6 +113,7 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
             tag_tree.focus(target)
             tag_tree.selection_set(target)
             tag_tree.see(target)
+
     def _pick_person(self, title=WIN_SELECT_PERSON):
         """Modal dialog to pick one person from the loaded GEDCOM. Returns indi_id or None."""
         if not self.individuals:
@@ -130,7 +131,8 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
 
         search_frame = ctk.CTkFrame(dialog, fg_color='transparent')
         search_frame.pack(fill='x', padx=8, pady=8)
-        ctk.CTkLabel(search_frame, text=LBL_FIND).pack(side='left', padx=(0, 4))
+        ctk.CTkLabel(search_frame, text=LBL_FIND).pack(
+            side='left', padx=(0, 4))
         search_var = tk.StringVar()
         search_entry = ctk.CTkEntry(search_frame, textvariable=search_var)
         search_entry.pack(side='left', fill='x', expand=True)
@@ -153,7 +155,8 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
         picker_tree.column('death', width=55, anchor='w', stretch=False)
         picker_tree.column('flagged', width=50, anchor='center', stretch=False)
         is_dark = ctk.get_appearance_mode() == 'Dark'
-        picker_tree.tag_configure('flagged_row', background=get_flag_bg(is_dark))
+        picker_tree.tag_configure(
+            'flagged_row', background=get_flag_bg(is_dark))
 
         ysb = ctk.CTkScrollbar(list_frame, orientation='vertical',
                                command=picker_tree.yview)
@@ -239,6 +242,7 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
         search_entry.focus_set()
         dialog.wait_window()
         return result[0]
+
     def _find_path(self):
         """Prompt for a target person and render paths from the current selection."""
         if self._busy:
@@ -297,6 +301,7 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
             cancelable=True,
             on_cancel=_on_cancel,
         )
+
     def _render_path_results(self, start_id, end_id, paths, truncated=False):
         """Render relationship paths between two selected individuals."""
         if self._last_result and self._last_result.get('type') == 'path':
@@ -385,7 +390,8 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
 
         if self._results_reversed:
             disp_start, disp_end = end_id, start_id
-            disp_paths = [self._reverse_path(p, self.individuals) for p in paths]
+            disp_paths = [self._reverse_path(
+                p, self.individuals) for p in paths]
         else:
             disp_start, disp_end = start_id, end_id
             disp_paths = paths
@@ -431,6 +437,7 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
 
         self._reverse_btn.configure(state='normal')
         w.configure(state='disabled')
+
     def _show_preferences(self):
         """Open the preferences dialog for display, search, and cache settings."""
         win = ctk.CTkToplevel(self.root)
@@ -496,9 +503,11 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
         # Font size row
         font_row = ctk.CTkFrame(appearance_section, fg_color='transparent')
         font_row.pack(fill='x', padx=12, pady=(0, 4))
-        ctk.CTkLabel(font_row, text=FRAME_FONT_SIZE + ':').pack(side='left', padx=(0, 8))
+        ctk.CTkLabel(font_row, text=FRAME_FONT_SIZE +
+                     ':').pack(side='left', padx=(0, 8))
         size_var = tk.StringVar(value=self._font_size_pref)
-        for label, key in ((FONT_SMALL, "small"), (FONT_MEDIUM, "medium"), (FONT_LARGE, "large")):
+        for label, key in ((FONT_SMALL, "small"), (FONT_MEDIUM, "medium"),
+                           (FONT_LARGE, "large"), (FONT_JUMBO, "jumbo")):
             _radiobutton(
                 font_row, text=label, variable=size_var, value=key,
             ).pack(side='left', padx=8)
@@ -506,7 +515,8 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
         # Theme row
         theme_row = ctk.CTkFrame(appearance_section, fg_color='transparent')
         theme_row.pack(fill='x', padx=12, pady=(0, 4))
-        ctk.CTkLabel(theme_row, text=FRAME_THEME + ':').pack(side='left', padx=(0, 8))
+        ctk.CTkLabel(theme_row, text=FRAME_THEME +
+                     ':').pack(side='left', padx=(0, 8))
         theme_var = tk.StringVar(value=self._theme_pref)
         for name in self._THEME_NAMES:
             _radiobutton(
@@ -539,7 +549,8 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
         _pref_top_n_spin.grid(row=0, column=1, sticky='w', padx=(0, 24))
         Tooltip(_pref_top_n_label, TIP_TOP_N)
         Tooltip(_pref_top_n_spin, TIP_TOP_N)
-        _pref_max_depth_label = ctk.CTkLabel(search_frame, text=LBL_MAX_DEPTH_PREF)
+        _pref_max_depth_label = ctk.CTkLabel(
+            search_frame, text=LBL_MAX_DEPTH_PREF)
         _pref_max_depth_label.grid(row=0, column=2, sticky='w', padx=(0, 8))
         max_depth_var = tk.IntVar(value=self.max_depth.get())
         _pref_max_depth_spin = ttk.Spinbox(
@@ -547,8 +558,10 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
         _pref_max_depth_spin.grid(row=0, column=3, sticky='w')
         Tooltip(_pref_max_depth_label, TIP_MAX_DEPTH)
         Tooltip(_pref_max_depth_spin, TIP_MAX_DEPTH)
-        _pref_fuzzy_label = ctk.CTkLabel(search_frame, text=LBL_FUZZY_THRESHOLD)
-        _pref_fuzzy_label.grid(row=1, column=0, sticky='w', padx=(0, 8), pady=(6, 0))
+        _pref_fuzzy_label = ctk.CTkLabel(
+            search_frame, text=LBL_FUZZY_THRESHOLD)
+        _pref_fuzzy_label.grid(
+            row=1, column=0, sticky='w', padx=(0, 8), pady=(6, 0))
         fuzzy_threshold_var = tk.DoubleVar(
             value=round(float(self.fuzzy_threshold.get()), 2))
         _pref_fuzzy_spin = ttk.Spinbox(
@@ -558,8 +571,10 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
         Tooltip(_pref_fuzzy_label, TIP_FUZZY_THRESHOLD)
         Tooltip(_pref_fuzzy_spin, TIP_FUZZY_THRESHOLD)
 
-        _pref_max_display_label = ctk.CTkLabel(search_frame, text=LBL_MAX_DISPLAY)
-        _pref_max_display_label.grid(row=1, column=2, sticky='w', padx=(0, 8), pady=(6, 0))
+        _pref_max_display_label = ctk.CTkLabel(
+            search_frame, text=LBL_MAX_DISPLAY)
+        _pref_max_display_label.grid(
+            row=1, column=2, sticky='w', padx=(0, 8), pady=(6, 0))
         max_display_var = tk.IntVar(value=self.max_display.get())
         _pref_max_display_spin = ttk.Spinbox(
             search_frame, from_=100, to=100000, increment=500,
@@ -568,21 +583,27 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
         Tooltip(_pref_max_display_label, TIP_MAX_DISPLAY)
         Tooltip(_pref_max_display_spin, TIP_MAX_DISPLAY)
 
-        _pref_tag_keyword_label = ctk.CTkLabel(search_frame, text=LBL_TAG_KEYWORD)
-        _pref_tag_keyword_label.grid(row=2, column=0, sticky='w', padx=(0, 8), pady=(6, 0))
+        _pref_tag_keyword_label = ctk.CTkLabel(
+            search_frame, text=LBL_TAG_KEYWORD)
+        _pref_tag_keyword_label.grid(
+            row=2, column=0, sticky='w', padx=(0, 8), pady=(6, 0))
         tag_keyword_var = tk.StringVar(value=self.tag_keyword.get())
         _pref_tag_keyword_entry = ctk.CTkEntry(
             search_frame, textvariable=tag_keyword_var, width=180)
-        _pref_tag_keyword_entry.grid(row=2, column=1, columnspan=3, sticky='ew', pady=(6, 0))
+        _pref_tag_keyword_entry.grid(
+            row=2, column=1, columnspan=3, sticky='ew', pady=(6, 0))
         Tooltip(_pref_tag_keyword_label, TIP_TAG_KEYWORD)
         Tooltip(_pref_tag_keyword_entry, TIP_TAG_KEYWORD)
 
-        _pref_page_marker_label = ctk.CTkLabel(search_frame, text=LBL_PAGE_MARKER)
-        _pref_page_marker_label.grid(row=3, column=0, sticky='w', padx=(0, 8), pady=(6, 0))
+        _pref_page_marker_label = ctk.CTkLabel(
+            search_frame, text=LBL_PAGE_MARKER)
+        _pref_page_marker_label.grid(
+            row=3, column=0, sticky='w', padx=(0, 8), pady=(6, 0))
         page_marker_var = tk.StringVar(value=self.page_marker.get())
         _pref_page_marker_entry = ctk.CTkEntry(
             search_frame, textvariable=page_marker_var, width=180)
-        _pref_page_marker_entry.grid(row=3, column=1, columnspan=3, sticky='ew', pady=(6, 0))
+        _pref_page_marker_entry.grid(
+            row=3, column=1, columnspan=3, sticky='ew', pady=(6, 0))
         Tooltip(_pref_page_marker_label, TIP_PAGE_MARKER)
         Tooltip(_pref_page_marker_entry, TIP_PAGE_MARKER)
 
@@ -715,7 +736,8 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
             import sys as _sys
             import tkinter.font as _tkf
             win.update_idletasks()
-            print('[debug] --- Preferences dialog before fit ---', file=_sys.stderr, flush=True)
+            print('[debug] --- Preferences dialog before fit ---',
+                  file=_sys.stderr, flush=True)
             print(f'[debug]   win req: {win.winfo_reqwidth()}x{win.winfo_reqheight()}',
                   file=_sys.stderr, flush=True)
             try:
@@ -724,20 +746,23 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
                       f'  size={cf.cget("size")} (cget)  actual={cf.actual("size")}',
                       file=_sys.stderr, flush=True)
             except Exception as e:
-                print(f'[debug]   CTkFont: ERROR {e}', file=_sys.stderr, flush=True)
+                print(f'[debug]   CTkFont: ERROR {e}',
+                      file=_sys.stderr, flush=True)
             try:
                 df = _tkf.nametofont('TkDefaultFont')
                 print(f'[debug]   TkDefaultFont: size={df.cget("size")} (cget)'
                       f'  actual={df.actual("size")}',
                       file=_sys.stderr, flush=True)
             except Exception as e:
-                print(f'[debug]   TkDefaultFont: ERROR {e}', file=_sys.stderr, flush=True)
+                print(
+                    f'[debug]   TkDefaultFont: ERROR {e}', file=_sys.stderr, flush=True)
             try:
                 theme_font = ctk.ThemeManager.theme.get('CTkFont', 'N/A')
                 print(f'[debug]   CTk theme CTkFont: {theme_font}',
                       file=_sys.stderr, flush=True)
             except Exception as e:
-                print(f'[debug]   CTk theme: ERROR {e}', file=_sys.stderr, flush=True)
+                print(
+                    f'[debug]   CTk theme: ERROR {e}', file=_sys.stderr, flush=True)
 
         self._fit_window_to_content(win, min_w=500, min_h=420)
         win.deiconify()
