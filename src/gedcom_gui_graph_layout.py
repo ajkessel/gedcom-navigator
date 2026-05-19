@@ -167,6 +167,27 @@ class GraphLayoutMixin:
             occupied.add((generation, column))
             return column
 
+        def enforce_same_row_spacing():
+            """Ensure final same-row node columns never overlap."""
+            generations = sorted({node['generation'] for node in layout})
+            for generation in generations:
+                row = sorted(
+                    [
+                        node for node in layout
+                        if node['generation'] == generation
+                    ],
+                    key=lambda node: node['column'],
+                )
+                for index in range(1, len(row)):
+                    minimum_column = round(
+                        row[index - 1]['column'] + min_spacing, 3)
+                    if row[index]['column'] >= minimum_column:
+                        continue
+                    shift = round(minimum_column - row[index]['column'], 3)
+                    for node in row[index:]:
+                        node['column'] = round(node['column'] + shift, 3)
+            rebuild_occupied()
+
         def enforce_spouse_adjacency():
             for source_id, target_id in visible_spouse_pairs():
                 source_node = by_id.get(source_id)
@@ -1643,6 +1664,7 @@ class GraphLayoutMixin:
                 enforce_spouse_adjacency()
             enforce_unexpanded_path_child_alignment()
             enforce_spouse_adjacency()
+            enforce_same_row_spacing()
             return layout, extra_edges
 
         for _ in range(10):
@@ -1682,4 +1704,5 @@ class GraphLayoutMixin:
         enforce_vertical_path_edges()
         enforce_spouse_adjacency()
         enforce_two_parent_path_parent_alignment()
+        enforce_same_row_spacing()
         return layout, extra_edges

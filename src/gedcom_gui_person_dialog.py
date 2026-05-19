@@ -460,16 +460,17 @@ class PersonDialogMixin:
                     text._textbox.tag_bind(tlink, '<Button-1>', _on_tag_click)
                 add("")
 
-            add(GEDCOM_SECTION, bold=True)
+            if self.show_full_gedcom.get():
+                add(GEDCOM_SECTION, bold=True)
 
-            for level, xref, tag, value in indi.get('_raw', []):
-                parts = [str(level)]
-                if xref and self.show_ids.get():
-                    parts.append(xref)
-                parts.append(tag)
-                if value:
-                    parts.append(value)
-                add(' '.join(parts))
+                for level, xref, tag, value in indi.get('_raw', []):
+                    parts = [str(level)]
+                    if xref and self.show_ids.get():
+                        parts.append(xref)
+                    parts.append(tag)
+                    if value:
+                        parts.append(value)
+                    add(' '.join(parts))
 
             text.configure(state='disabled')
 
@@ -702,15 +703,17 @@ class PersonDialogMixin:
             canvas.after_idle(_center_tree_on_current)
 
             # Compute needed window size from tree content plus fixed UI overhead.
-            # Horizontal: canvas_frame padx×2 (24) + vertical scrollbar (~17) + margin (~4)
-            # Vertical: canvas_frame pady-top (12) + horiz scrollbar (~17) + button bar (~48) + margin (~8)
+            # Measured chrome at scale=1.0: padx×2 (24) + ybar (17) = 41 wide;
+            # pady-top (12) + xbar (17) + btn-bar+pady (~40) = 69 tall.
+            # Add a 24px horizontal and 36px vertical buffer above the measured
+            # chrome so that minor geometry rounding never triggers scrollbars.
             # Use self.root (always mapped) for reliable screen dimensions.
             _tsw = self.root.winfo_screenwidth()
             _tsh = self.root.winfo_screenheight()
             _tmax_w = int(_tsw * 0.9)
             _tmax_h = int(_tsh * 0.9)
-            _tnw = int(graph_state['canvas_w']) + 45
-            _tnh = int(graph_state['canvas_h']) + 85
+            _tnw = int(graph_state['canvas_w']) + 65
+            _tnh = int(graph_state['canvas_h']) + 105
             _twants_max = _tnw > _tmax_w or _tnh > _tmax_h
             state['_tree_wants_max'] = _twants_max
             state['_tree_needed_w'] = min(_tnw, _tmax_w)
@@ -776,8 +779,13 @@ class PersonDialogMixin:
                 _sgw, _sgh = 700, 520
                 _sgx, _sgy = (_sw - _sgw) // 2, (_sh - _sgh) // 2
             if _tnw and not _twm:
-                _w = min(max(_tnw, _sgw), _mw)
-                _h = min(max(_tnh, _sgh), _mh)
+                # Size to tree content, not to saved size.  The saved geometry
+                # may have been set when a large tree caused the window to grow
+                # to near-maximum; reusing that size would make every subsequent
+                # small tree open at full maximum width.  Use the saved position
+                # so the window re-opens near where the user left it.
+                _w = min(_tnw, _mw)
+                _h = min(_tnh, _mh)
             else:
                 _w, _h = min(_sgw, _mw), min(_sgh, _mh)
             _x = max(0, min(_sgx, _sw - _w))

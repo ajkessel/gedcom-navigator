@@ -468,6 +468,17 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
         # classic widget) does respect it, so we use that instead.
         _rb_style = ttk.Style()
 
+        # Match ttk.Radiobutton font to CTkFont pixel sizing.  CTkFont.cget('size')
+        # returns the positive pixel count; negate on Windows to use Tk's pixel
+        # notation so the radiobutton text renders at the same size as CTkLabel.
+        try:
+            _ctk_font_obj = ctk.CTkFont()
+            _size = _ctk_font_obj.cget('size')
+            _rb_font = (_ctk_font_obj.cget('family'),
+                        -_size if sys.platform == 'win32' else _size)
+        except Exception:
+            _rb_font = None
+
         def _radiobutton(parent, *, text, variable, value):
             if sys.platform == 'darwin':
                 bg = _section_bg(parent)
@@ -475,7 +486,10 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
                                       value=value, background=bg,
                                       activebackground=bg, highlightthickness=0)
             if sys.platform != 'darwin':
-                _rb_style.configure('Pref.TRadiobutton', background=_section_bg(parent))
+                style_kw = {'background': _section_bg(parent)}
+                if _rb_font:
+                    style_kw['font'] = _rb_font
+                _rb_style.configure('Pref.TRadiobutton', **style_kw)
             return ttk.Radiobutton(parent, text=text, variable=variable,
                                    value=value, style='Pref.TRadiobutton')
 
@@ -582,8 +596,17 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
         display_frame.pack(fill='x', padx=12, pady=(0, 10))
 
         show_ids_var = tk.BooleanVar(value=self.show_ids.get())
-        ctk.CTkCheckBox(display_frame, text=CHK_SHOW_IDS,
-                        variable=show_ids_var).pack(anchor='w')
+        _show_ids_chk = ctk.CTkCheckBox(display_frame, text=CHK_SHOW_IDS,
+                                        variable=show_ids_var)
+        _show_ids_chk.pack(anchor='w')
+        Tooltip(_show_ids_chk, TIP_SHOW_IDS)
+
+        show_full_gedcom_var = tk.BooleanVar(value=self.show_full_gedcom.get())
+        _show_full_gedcom_chk = ctk.CTkCheckBox(
+            display_frame, text=CHK_SHOW_FULL_GEDCOM,
+            variable=show_full_gedcom_var)
+        _show_full_gedcom_chk.pack(anchor='w', pady=(4, 0))
+        Tooltip(_show_full_gedcom_chk, TIP_SHOW_FULL_GEDCOM)
 
         name_order_row = ctk.CTkFrame(display_frame, fg_color='transparent')
         name_order_row.pack(anchor='w', pady=(6, 0))
@@ -660,6 +683,8 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
             self._config.set_page_marker(page_marker_var.get())
             self.show_ids.set(show_ids_var.get())
             self._config.set_show_ids(show_ids_var.get())
+            self.show_full_gedcom.set(show_full_gedcom_var.get())
+            self._config.set_show_full_gedcom(show_full_gedcom_var.get())
             self._name_order = name_order_var.get()
             self._config.set_name_order(self._name_order)
             self._default_profile_view = profile_view_var.get()
@@ -685,6 +710,34 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
                       command=on_ok).pack(side='right', padx=(4, 0))
         ctk.CTkButton(btn_frame, text=BTN_CANCEL, width=80,
                       command=on_cancel).pack(side='right')
+
+        if getattr(self, '_debug', False):
+            import sys as _sys
+            import tkinter.font as _tkf
+            win.update_idletasks()
+            print('[debug] --- Preferences dialog before fit ---', file=_sys.stderr, flush=True)
+            print(f'[debug]   win req: {win.winfo_reqwidth()}x{win.winfo_reqheight()}',
+                  file=_sys.stderr, flush=True)
+            try:
+                cf = ctk.CTkFont()
+                print(f'[debug]   CTkFont: family={cf.cget("family")!r}'
+                      f'  size={cf.cget("size")} (cget)  actual={cf.actual("size")}',
+                      file=_sys.stderr, flush=True)
+            except Exception as e:
+                print(f'[debug]   CTkFont: ERROR {e}', file=_sys.stderr, flush=True)
+            try:
+                df = _tkf.nametofont('TkDefaultFont')
+                print(f'[debug]   TkDefaultFont: size={df.cget("size")} (cget)'
+                      f'  actual={df.actual("size")}',
+                      file=_sys.stderr, flush=True)
+            except Exception as e:
+                print(f'[debug]   TkDefaultFont: ERROR {e}', file=_sys.stderr, flush=True)
+            try:
+                theme_font = ctk.ThemeManager.theme.get('CTkFont', 'N/A')
+                print(f'[debug]   CTk theme CTkFont: {theme_font}',
+                      file=_sys.stderr, flush=True)
+            except Exception as e:
+                print(f'[debug]   CTk theme: ERROR {e}', file=_sys.stderr, flush=True)
 
         self._fit_window_to_content(win, min_w=500, min_h=420)
         win.deiconify()

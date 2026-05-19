@@ -2,22 +2,22 @@
 
 ## Who is this for?
 
-This application is for genealogists who maintain large GEDCOM files, particularly with tags for DNA matches.
+This application is for genealogists who manage large GEDCOM files, particularly with tags for DNA matches.
 
 ## What does it do?
 
-This application provides useful ways to rapidly explore a large GEDCOM file exported from genealogy services like Ancestry, MyHeritage, Geni, and Family Tree Maker:
+This application provides useful ways to rapidly explore a GEDCOM file exported from genealogy services like Ancestry, MyHeritage, Geni, and Family Tree Maker:
 
-* Find the closest DNA-flagged person to any other person in a family tree
+* Find the closest tagged people (e.g. DNA match) to any other person in a family tree
 * Show multiple relationship paths between any two people in your tree
-* Search your tree for variations on names and filter on other information like
-  geographical locations or occupation
+* Search your tree for variations on names (maiden/married name, alternate names, fuzzy matching) and filter on other information like geographical locations or occupation
 * Rapidly explore names and connections, even in a very large tree with very distant connections
+* Generate custom images of parts of your tree, expanding or collapsing the connections you want to see and saving them to your clipboard or an image file
 * Visualize relationships between any two people graphically
 
 The tool does not modify your GEDCOM file. It is only used for exploring connections.
 
-In addition to the GUI, this application also includes a command-line tool for power users.
+In addition to the GUI, this application also includes a command-line tool for fast queries or incorporating into other programmatic workflows.
 
 Downloads:
 * [Mac App Store](https://apps.apple.com/app/gedcom-navigator/id6765485580) - easy install, may be behind the latest version here

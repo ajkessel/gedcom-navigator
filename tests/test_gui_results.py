@@ -1665,6 +1665,99 @@ def test_path_graph_expansion_keeps_same_generation_nodes_apart():
     ) >= 1.0
 
 
+def test_path_graph_child_spouse_expansion_keeps_siblings_apart():
+    """Child rows stay spaced after a child's spouse is expanded."""
+    base = [
+        {
+            'id': '@GRANDPARENT@',
+            'edge': None,
+            'generation': 0,
+            'column': 0,
+            'index': 0,
+            'is_path_node': True,
+            'is_endpoint': True,
+        },
+        {
+            'id': '@PARENT@',
+            'edge': 'child',
+            'generation': 1,
+            'column': 0,
+            'index': 1,
+            'is_path_node': True,
+            'is_endpoint': False,
+        },
+        {
+            'id': '@CHILD@',
+            'edge': 'child',
+            'generation': 2,
+            'column': 0,
+            'index': 2,
+            'is_path_node': True,
+            'is_endpoint': True,
+        },
+    ]
+    children = [
+        '@SIB_A@',
+        '@SIB_B@',
+        '@SIB_C@',
+        '@SIB_D@',
+        '@SIB_E@',
+        '@SIB_F@',
+        '@SIB_G@',
+        '@SIB_H@',
+    ]
+    families = {
+        '@PARENT@': {
+            'parents': [],
+            'siblings': [],
+            'spouses': ['@COPARENT@'],
+            'children': children,
+        },
+        '@COPARENT@': {
+            'parents': [],
+            'siblings': [],
+            'spouses': ['@PARENT@'],
+            'children': children,
+        },
+        '@SIB_B@': {
+            'parents': ['@PARENT@', '@COPARENT@'],
+            'siblings': ['@SIB_A@'],
+            'spouses': ['@SIB_B_SP@'],
+            'children': ['@SIB_B_CHILD@'],
+        },
+        '@SIB_B_SP@': {
+            'parents': [],
+            'siblings': [],
+            'spouses': ['@SIB_B@'],
+            'children': ['@SIB_B_CHILD@'],
+        },
+    }
+
+    def lookup(indi_id):
+        return families.get(indi_id, {
+            'parents': [],
+            'siblings': [],
+            'spouses': [],
+            'children': [],
+        })
+
+    def coparents(parent_id, child_ids):
+        return [
+            other_id for other_id, members in families.items()
+            if other_id != parent_id
+            and any(child_id in members.get('children', ())
+                    for child_id in child_ids)
+        ]
+
+    layout, _extra_edges = ResultsMixin._expanded_path_graph_layout(
+        base, [('@PARENT@', 'children'), ('@SIB_B@', 'spouses')],
+        lookup, coparents)
+    by_id = {node['id']: node for node in layout}
+
+    assert round(abs(
+        by_id['@SIB_A@']['column'] - by_id['@SIB_B@']['column']), 3) >= 1.0
+
+
 def test_path_graph_parent_expansion_adds_parent_spouse_edge():
     """Expanding parents links displayed co-parents as spouses."""
     base = ResultsMixin._path_graph_layout([
@@ -3315,6 +3408,19 @@ def test_wrap_canvas_label_preserves_explicit_graph_label_lines():
     assert ResultsMixin._wrap_canvas_label(
         'John Q.\nPublic\n1901-1982', FakeFont(), 200
     ) == 'John Q.\nPublic\n1901-1982'
+
+
+def test_split_graph_label_name_detail_separates_lifespan_line():
+    """Endpoint labels can bold names without bolding lifespan details."""
+    assert ResultsMixin._split_graph_label_name_detail(
+        'John Q.\nPublic\n1901-1982'
+    ) == ('John Q.\nPublic', '1901-1982')
+    assert ResultsMixin._split_graph_label_name_detail(
+        'Jane\nPublic\nb. 1901'
+    ) == ('Jane\nPublic', 'b. 1901')
+    assert ResultsMixin._split_graph_label_name_detail(
+        '(unknown)'
+    ) == ('(unknown)', '')
 
 
 def test_sibling_button_moves_right_when_spouse_is_left():

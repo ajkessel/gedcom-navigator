@@ -71,7 +71,7 @@ class GedcomNavigatorApp(
     RESULTS_MIN_WIDTH = 420
     _FONT_SIZES = {
         'small':  {'ui': 9,  'mono': 11},
-        'medium': {'ui': 11, 'mono': 14},
+        'medium': {'ui': 13, 'mono': 14},
         'large':  {'ui': 15, 'mono': 18},
     }
     _THEME_NAMES = THEME_NAMES
@@ -135,6 +135,7 @@ class GedcomNavigatorApp(
         self.fuzzy_search = tk.BooleanVar(value=False)
         self.married_name_search = tk.BooleanVar(value=False)
         self.show_ids = tk.BooleanVar(value=self._config.get_show_ids())
+        self.show_full_gedcom = tk.BooleanVar(value=self._config.get_show_full_gedcom())
         self._name_order = self._config.get_name_order()
         self._default_profile_view = self._config.get_profile_view_default()
 
@@ -325,11 +326,6 @@ class GedcomNavigatorApp(
         Tooltip(self.search_entry, TIP_FIND)
         # Search mode checkboxes
         ctk.CTkCheckBox(
-            search_frame, text=CHK_DNA_FLAGGED_ONLY,
-            variable=self.show_flagged_only, width=0,
-        ).pack(side='left', padx=(8, 0))
-        Tooltip(search_frame.winfo_children()[-1], TIP_DNA_FLAGGED_ONLY)
-        ctk.CTkCheckBox(
             search_frame, text=CHK_FUZZY,
             variable=self.fuzzy_search, width=0,
         ).pack(side='left', padx=(8, 0))
@@ -350,6 +346,11 @@ class GedcomNavigatorApp(
         self.filter_entry.pack(side='left', fill='x', expand=True)
         self.filter_entry.bind('<Return>', lambda *_: self._kb_focus_list())
         Tooltip(self.filter_entry, TIP_FILTER)
+        ctk.CTkCheckBox(
+            filter_frame, text=CHK_DNA_FLAGGED_ONLY,
+            variable=self.show_flagged_only, width=0,
+        ).pack(side='left', padx=(8, 0))
+        Tooltip(filter_frame.winfo_children()[-1], TIP_DNA_FLAGGED_ONLY)
 
         list_frame = ctk.CTkFrame(left, fg_color='transparent')
         list_frame.pack(fill='both', expand=True, pady=(4, 0))
@@ -561,6 +562,113 @@ class GedcomNavigatorApp(
 
         self._setup_keybindings()
 
+def _patch_ctk_scaling_for_tkinter_dpi():
+    """Patch CTk's per-window DPI detection to use winfo_fpixels instead of GetDpiForMonitor.
+
+    Problem: on some Windows machines the process runs in DPI-virtualized mode.
+    The OS presents a 96-DPI logical coordinate space to tkinter and silently
+    stretches the rendered window bitmap to the physical size (e.g. 1.75× at
+    175% scaling).  CTk detects the real DPI via GetDpiForMonitor() (168) and
+    scales every widget by 1.75×.  But the OS is ALSO stretching by 1.75×, so
+    the net result is 1.75² ≈ 3×: widgets are huge, winfo_reqheight() is
+    inflated, and windows overflow the screen.
+
+    Fix: replace ScalingTracker.get_window_dpi_scaling with a version that
+    calls window.winfo_fpixels('1i') instead.  winfo_fpixels reads from GDI
+    using the same code path Tk uses internally, so it is always consistent
+    with tkinter's coordinate space.  On a virtualised system it returns 96
+    (→ scale 1.0, OS handles the physical stretch).  On a genuinely DPI-aware
+    system where Tk also receives the real DPI it returns the same value as
+    GetDpiForMonitor would.  Either way, CTk's scale matches tkinter's
+    coordinate system and winfo_req*() / geometry() all agree.
+
+    Must be called BEFORE ctk.CTk() so that the patch is in place when CTk
+    registers the root window with ScalingTracker.add_window().
+    """
+    try:
+        original = ctk.ScalingTracker.__dict__.get('get_window_dpi_scaling')
+        if original is None:
+            return   # not present in this CTk build — leave it alone
+
+        orig_fn = original.__func__   # unwrap classmethod descriptor
+
+        @classmethod
+        def _winfo_consistent_scaling(cls, window) -> float:
+            try:
+                dpi = window.winfo_fpixels('1i')
+                return round(max(0.75, min(3.0, dpi / 96.0)), 2)
+            except Exception:
+                pass
+            try:
+                return orig_fn(cls, window)
+            except Exception:
+                return 1.0
+
+        ctk.ScalingTracker.get_window_dpi_scaling = _winfo_consistent_scaling
+    except Exception:
+        pass
+
+
+def _print_dpi_diagnostics(root):
+    """Print DPI, scaling, and font diagnostics to stderr."""
+    import tkinter.font as _tkf
+    lines = ['=== DPI/Scaling Diagnostics ===']
+
+    try:
+        dpi_fpix = root.winfo_fpixels('1i')
+        lines.append(f'  winfo_fpixels("1i"):    {dpi_fpix:.2f}'
+                     '  (96=100%, 120=125%, 144=150%, 192=200%)')
+    except Exception as e:
+        lines.append(f'  winfo_fpixels:          ERROR {e}')
+
+    if sys.platform == 'win32':
+        try:
+            import ctypes
+            lines.append(f'  GetDpiForSystem():      {ctypes.windll.user32.GetDpiForSystem()}')
+        except Exception as e:
+            lines.append(f'  GetDpiForSystem():      ERROR {e}')
+        try:
+            import ctypes
+            lines.append(f'  GetDpiForWindow(root):  {ctypes.windll.user32.GetDpiForWindow(root.winfo_id())}')
+        except Exception as e:
+            lines.append(f'  GetDpiForWindow():      ERROR {e}')
+
+    try:
+        lines.append(f'  CTk widget scaling:     {ctk.ScalingTracker.get_widget_scaling(root)}')
+    except Exception as e:
+        lines.append(f'  CTk widget scaling:     ERROR {e}')
+    try:
+        lines.append(f'  CTk window scaling:     {ctk.ScalingTracker.get_window_scaling(root)}')
+    except Exception as e:
+        lines.append(f'  CTk window scaling:     ERROR {e}')
+
+    try:
+        lines.append(f'  Screen (winfo):         {root.winfo_screenwidth()}x{root.winfo_screenheight()}')
+    except Exception as e:
+        lines.append(f'  Screen:                 ERROR {e}')
+
+    try:
+        df = _tkf.nametofont('TkDefaultFont')
+        lines.append(f'  TkDefaultFont:          size={df.cget("size")} (cget)  actual={df.actual("size")}')
+    except Exception as e:
+        lines.append(f'  TkDefaultFont:          ERROR {e}')
+
+    try:
+        cf = ctk.CTkFont()
+        lines.append(f'  CTkFont (default):      family={cf.cget("family")!r}'
+                     f'  size={cf.cget("size")} (cget)  actual={cf.actual("size")}')
+    except Exception as e:
+        lines.append(f'  CTkFont:                ERROR {e}')
+
+    try:
+        lines.append(f'  CTk theme CTkFont:      {ctk.ThemeManager.theme.get("CTkFont", "N/A")}')
+    except Exception as e:
+        lines.append(f'  CTk theme CTkFont:      ERROR {e}')
+
+    lines.append('================================')
+    print('\n'.join(lines), file=sys.stderr, flush=True)
+
+
 def main():
     """Parse command-line options, create the GUI, and start the event loop."""
     parser = argparse.ArgumentParser(
@@ -571,9 +679,26 @@ def main():
         'gedcom', nargs='?', default=None,
         help='Optional path to a .ged file to load automatically on startup.'
     )
+    parser.add_argument(
+        '--debug', action='store_true',
+        help='Print DPI/scaling diagnostics to stderr (for troubleshooting display issues).'
+    )
     args = parser.parse_args()
 
+    # Patch CTk's per-window DPI detection BEFORE creating any window.
+    # On some Windows environments the process is DPI-virtualised: tkinter
+    # sees 96 DPI but CTk's GetDpiForWindow() returns the real DPI, causing
+    # double-scaling.  The patch makes CTk use winfo_fpixels() instead, which
+    # is always consistent with tkinter's coordinate space.
+    # See _patch_ctk_scaling_for_tkinter_dpi() for the full explanation.
+    if sys.platform == 'win32':
+        _patch_ctk_scaling_for_tkinter_dpi()
+
     root = ctk.CTk()
+
+    if args.debug:
+        _print_dpi_diagnostics(root)
+
     # On macOS the window briefly appears at the default top-left position
     # before _fit_window_to_content centres it, so withdraw it first.
     # On Windows withdraw()/deiconify() causes the window to vanish; the
@@ -581,6 +706,7 @@ def main():
     if sys.platform == 'darwin':
         root.withdraw()
     app = GedcomNavigatorApp(root)
+    app._debug = args.debug
     if sys.platform == 'darwin':
         root.deiconify()
 

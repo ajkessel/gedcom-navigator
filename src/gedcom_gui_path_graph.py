@@ -48,6 +48,10 @@ class PathGraphMixin:
         label_font = tkfont.Font(
             family=ui_family,
             size=max(scale(ui_size), 7))
+        endpoint_label_font = tkfont.Font(
+            family=ui_family,
+            size=max(scale(ui_size), 7),
+            weight='bold')
         badge_font = tkfont.Font(
             family=ui_family,
             size=max(scale(ui_size - 2), 6),
@@ -56,17 +60,52 @@ class PathGraphMixin:
             family=ui_family,
             size=max(scale(ui_size - 2), 6),
             weight='bold')
-        longest = max((label_font.measure(label)
-                      for label in labels), default=0)
+        longest = 0
+        for index, label in enumerate(labels):
+            name_label, detail_label = (
+                self._split_graph_label_name_detail(label)
+                if layout[index].get('is_endpoint') else (label, '')
+            )
+            longest = max(
+                longest,
+                *(endpoint_label_font.measure(line)
+                  for line in name_label.splitlines()),
+                *(label_font.measure(line)
+                  for line in detail_label.splitlines()),
+            )
         node_w = min(max(longest + scale(24), scale(112)), scale(190))
-        wrapped_labels = [
-            self._wrap_canvas_label(label, label_font, node_w - scale(22))
-            for label in labels
-        ]
+        label_width = node_w - scale(22)
+        wrapped_label_blocks = []
+        for index, label in enumerate(labels):
+            if layout[index].get('is_endpoint'):
+                name_label, detail_label = (
+                    self._split_graph_label_name_detail(label))
+                wrapped_label_blocks.append((
+                    self._wrap_canvas_label(
+                        name_label, endpoint_label_font, label_width),
+                    self._wrap_canvas_label(
+                        detail_label, label_font, label_width)
+                    if detail_label else '',
+                ))
+            else:
+                wrapped_label_blocks.append((
+                    self._wrap_canvas_label(label, label_font, label_width),
+                    '',
+                ))
         line_space = label_font.metrics('linespace')
-        max_lines = max((label.count('\n') + 1 for label in wrapped_labels),
-                        default=1)
-        base_node_h = max(scale(82), max_lines * line_space + scale(26))
+        endpoint_line_space = endpoint_label_font.metrics('linespace')
+        block_heights = [
+            ((name_label.count('\n') + 1) * (
+                endpoint_line_space if layout[index].get('is_endpoint')
+                else line_space)
+             if name_label else 0)
+            + ((detail_label.count('\n') + 1) * line_space
+               if detail_label else 0)
+            for index, (name_label, detail_label)
+            in enumerate(wrapped_label_blocks)
+        ]
+        max_label_h = max(block_heights, default=line_space)
+        base_node_h = max(scale(82), max_label_h + scale(26))
         badge_h = badge_font.metrics('linespace') + scale(4)
         endpoint_header_h = badge_h + scale(14)
         node_heights = [
@@ -234,7 +273,8 @@ class PathGraphMixin:
                 fill=colors['parent'], width=scale(3), arrow='last',
                 arrowshape=(scale(12), scale(14), scale(5)))
 
-        for index, ((x, y), label) in enumerate(zip(positions, wrapped_labels)):
+        for index, ((x, y), label_block) in enumerate(
+                zip(positions, wrapped_label_blocks)):
             node_id = layout[index]['id']
             node_tag = f'path_node_{index}'
             node_h = node_heights[index]
@@ -267,13 +307,32 @@ class PathGraphMixin:
                     anchor='center', tags=('path_node', node_tag))
                 text_y = y1 + endpoint_header_h + (
                     node_h - endpoint_header_h) / 2
+                name_label, detail_label = label_block
+                name_lines = name_label.count('\n') + 1 if name_label else 0
+                detail_lines = (
+                    detail_label.count('\n') + 1 if detail_label else 0)
+                name_h = name_lines * endpoint_line_space
+                detail_h = detail_lines * line_space
+                text_top = text_y - (name_h + detail_h) / 2
+                if name_label:
+                    canvas.create_text(
+                        x, text_top + name_h / 2,
+                        text=name_label, fill=self.PERSON_BOX_TEXT,
+                        font=endpoint_label_font, width=label_width,
+                        justify='center', tags=('path_node', node_tag))
+                if detail_label:
+                    canvas.create_text(
+                        x, text_top + name_h + detail_h / 2,
+                        text=detail_label, fill=self.PERSON_BOX_TEXT,
+                        font=label_font, width=label_width,
+                        justify='center', tags=('path_node', node_tag))
             else:
-                text_y = y
-            canvas.create_text(
-                x, text_y, text=label, fill=self.PERSON_BOX_TEXT,
-                font=label_font,
-                width=node_w - scale(22), justify='center',
-                tags=('path_node', node_tag))
+                label, _ = label_block
+                canvas.create_text(
+                    x, y, text=label, fill=self.PERSON_BOX_TEXT,
+                    font=label_font,
+                    width=label_width, justify='center',
+                    tags=('path_node', node_tag))
 
             if node_id in self.individuals:
                 canvas.tag_bind(
@@ -287,7 +346,8 @@ class PathGraphMixin:
                     if (getattr(canvas, '_graph_dragged', False)
                             or getattr(canvas, '_family_tree_dragged', False)):
                         return 'break'
-                    menu = tk.Menu(canvas, tearoff=0)
+                    _menu_kw = {'font': tkfont.nametofont('TkMenuFont')} if sys.platform == 'win32' else {}
+                    menu = tk.Menu(canvas, tearoff=0, **_menu_kw)
                     menu.add_command(
                         label=PATH_GRAPH_MENU_SHOW_TREE,
                         command=(

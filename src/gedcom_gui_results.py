@@ -6,7 +6,9 @@ Result rendering, path reversal, person navigation, and family-summary helpers.
 """
 
 import re
+import sys
 import tkinter as tk
+import tkinter.font as tkfont
 from tkinter import filedialog, messagebox
 
 import customtkinter as ctk
@@ -336,7 +338,8 @@ class ResultsMixin(GraphRenderMixin, GraphLayoutMixin):
         indi_id = getattr(self, '_results_header_id', None)
         if not indi_id:
             return 'break'
-        menu = tk.Menu(self._results_header_label, tearoff=0)
+        _menu_kw = {'font': tkfont.nametofont('TkMenuFont')} if sys.platform == 'win32' else {}
+        menu = tk.Menu(self._results_header_label, tearoff=0, **_menu_kw)
 
         def _copy_name():
             self.root.clipboard_clear()

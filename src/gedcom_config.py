@@ -144,6 +144,14 @@ class ConfigManager:
         """Save whether individual IDs should be shown in the UI."""
         self.save_value('show_ids', bool(value))
 
+    def get_show_full_gedcom(self):
+        """Return whether the Full GEDCOM Record section should appear in the Profile window."""
+        return bool(self.load_value('show_full_gedcom', False))
+
+    def set_show_full_gedcom(self, value):
+        """Save whether the Full GEDCOM Record section should appear in the Profile window."""
+        self.save_value('show_full_gedcom', bool(value))
+
     def get_name_order(self):
         """Return the saved display name order, defaulting to first-name first."""
         val = self.load_value('name_order', 'first_last')

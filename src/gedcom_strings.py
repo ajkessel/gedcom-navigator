@@ -358,7 +358,17 @@ LBL_MAX_DEPTH_PREF = "Max Depth:"
 LBL_FUZZY_THRESHOLD = "Fuzzy threshold:"
 LBL_MAX_DISPLAY = "Max search results:"
 FRAME_DISPLAY = "Display"
-CHK_SHOW_IDS = "Show IDs (person and tag ID codes from GEDCOM)"
+CHK_SHOW_IDS = "Show GEDCOM IDs"
+TIP_SHOW_IDS = (
+    "When enabled, the GEDCOM ID for each person is shown in parentheses after their name. "
+    "This can help disambiguate people with the same name and allows you to access the raw IDs "
+    "for GEDCOM research with other tools."
+)
+CHK_SHOW_FULL_GEDCOM = "Show Full GEDCOM"
+TIP_SHOW_FULL_GEDCOM = (
+    "When enabled, the Full GEDCOM Record section is included at the bottom of "
+    "the Profile window, showing the raw GEDCOM data for the person."
+)
 LBL_NAME_FORMAT = "Name format:"
 NAME_FIRST_LAST = "First Last"
 NAME_LAST_FIRST = "Last, First"

@@ -5,6 +5,7 @@ gedcom_gui_family_tree_render.py
 Family-tree canvas rendering helpers for person detail windows.
 """
 
+import sys
 import tkinter as tk
 import tkinter.font as tkfont
 
@@ -314,7 +315,8 @@ class FamilyTreeRenderMixin:
                                     categories=hidden_categories):
                     if getattr(canvas, '_family_tree_dragged', False):
                         return 'break'
-                    menu = tk.Menu(canvas, tearoff=0)
+                    _menu_kw = {'font': tkfont.nametofont('TkMenuFont')} if sys.platform == 'win32' else {}
+                    menu = tk.Menu(canvas, tearoff=0, **_menu_kw)
                     menu.add_command(
                         label=TREE_MENU_RECENTER,
                         command=lambda: on_recenter(indi_id))

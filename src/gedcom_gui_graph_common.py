@@ -97,6 +97,18 @@ class GraphCommonMixin:
         return '\n'.join(lines)
 
     @staticmethod
+    def _split_graph_label_name_detail(label):
+        """Return graph label name lines and trailing lifespan/detail line."""
+        lines = label.splitlines()
+        if len(lines) <= 1:
+            return label, ''
+
+        detail = lines[-1].strip()
+        if re.match(r'^(?:\d+\s*-\s*\d+|b\. \d+|d\. \d+)$', detail):
+            return '\n'.join(lines[:-1]), lines[-1]
+        return label, ''
+
+    @staticmethod
     def _graph_ui_font():
         """Return the active UI font family and point size for graph labels."""
         default_font = tkfont.nametofont('TkDefaultFont')
