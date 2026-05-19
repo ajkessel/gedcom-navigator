@@ -847,13 +847,11 @@ class PersonDialogMixin:
             self._raise_window(win)
             return
 
+        win.update_idletasks()
         win.geometry(f"{int(_w)}x{int(_h)}+{int(_x)}+{int(_y)}")
         self._raise_window(win)
         if _twm:
-            if sys.platform == 'win32':
-                win.state('zoomed')
-            else:
-                win.attributes('-zoomed', True)
+            win.state('zoomed')
     @staticmethod
     def _reused_person_window_bindings():
         """Return Toplevel bindings that should not survive a view swap."""
