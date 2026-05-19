@@ -22,43 +22,82 @@ def build_family_tree_graph(center_id, expanded, family_lookup,
     edges = []
     edge_set = set()
     requests = list(expanded)
+    if not any(source_id == center_id for source_id, _category in requests):
+        requests = [
+            (center_id, category) for category in INITIAL_TREE_CATEGORIES
+        ] + requests
+
+    def add_visible(target_id):
+        if target_id not in visible_set:
+            visible.append(target_id)
+            visible_set.add(target_id)
+
+    def add_edge(source_id, target_id, category):
+        edge = (source_id, target_id, category)
+        if edge not in edge_set:
+            edges.append(edge)
+            edge_set.add(edge)
+
+    def reveal_source(source_id):
+        if source_id in visible_set:
+            return True
+        for visible_id in list(visible):
+            members = family_lookup(visible_id)
+            for category in EXPANDABLE_TREE_CATEGORIES:
+                if source_id not in members.get(category, ()):
+                    continue
+                add_visible(source_id)
+                add_edge(visible_id, source_id, category)
+                if category == 'parents' and coparent_lookup:
+                    for other_parent_id in coparent_lookup(
+                            source_id, (visible_id,)):
+                        if not other_parent_id or other_parent_id == source_id:
+                            continue
+                        add_visible(other_parent_id)
+                        if ((source_id, other_parent_id, 'spouses')
+                                not in edge_set
+                                and (other_parent_id, source_id, 'spouses')
+                                not in edge_set):
+                            add_edge(source_id, other_parent_id, 'spouses')
+                elif category == 'children' and coparent_lookup:
+                    for other_parent_id in coparent_lookup(
+                            visible_id, (source_id,)):
+                        if not other_parent_id or other_parent_id == visible_id:
+                            continue
+                        add_visible(other_parent_id)
+                        if ((visible_id, other_parent_id, 'spouses')
+                                not in edge_set
+                                and (other_parent_id, visible_id, 'spouses')
+                                not in edge_set):
+                            add_edge(visible_id, other_parent_id, 'spouses')
+                return True
+        return False
 
     for source_id, category in requests:
-        if source_id not in visible_set:
+        if not reveal_source(source_id):
             continue
         members = family_lookup(source_id).get(category, ())
         for target_id in members:
             if not target_id or target_id == source_id:
                 continue
-            if target_id not in visible_set:
-                visible.append(target_id)
-                visible_set.add(target_id)
-            edge = (source_id, target_id, category)
-            if edge not in edge_set:
-                edges.append(edge)
-                edge_set.add(edge)
+            add_visible(target_id)
+            add_edge(source_id, target_id, category)
         if category == 'children' and coparent_lookup:
             for parent_id in coparent_lookup(source_id, members):
                 if not parent_id or parent_id == source_id:
                     continue
-                if parent_id not in visible_set:
-                    visible.append(parent_id)
-                    visible_set.add(parent_id)
-                edge = (source_id, parent_id, 'spouses')
-                if edge not in edge_set:
-                    edges.append(edge)
-                    edge_set.add(edge)
+                add_visible(parent_id)
+                add_edge(source_id, parent_id, 'spouses')
         elif category == 'parents' and coparent_lookup:
             visible_parents = set(members)
             for parent_id in members:
                 for other_parent_id in coparent_lookup(parent_id, (source_id,)):
                     if other_parent_id not in visible_parents:
                         continue
-                    edge = (parent_id, other_parent_id, 'spouses')
-                    reverse_edge = (other_parent_id, parent_id, 'spouses')
-                    if edge not in edge_set and reverse_edge not in edge_set:
-                        edges.append(edge)
-                        edge_set.add(edge)
+                    if ((parent_id, other_parent_id, 'spouses') not in edge_set
+                            and (other_parent_id, parent_id, 'spouses')
+                            not in edge_set):
+                        add_edge(parent_id, other_parent_id, 'spouses')
 
     return visible, edges
 

@@ -3,7 +3,7 @@ if [[ "$OSTYPE" != "darwin"* ]]; then
 	echo 'This script is intended to be run on macOS.'
 	exit 1
 fi
-output_file="gedcom-dna-finder-mac.zip"
+output_file="gedcom-navigator-mac.zip"
 while getopts "hnco:" opt; do
 	case $opt in
 	h)
@@ -11,7 +11,7 @@ while getopts "hnco:" opt; do
 		echo "  -h  Show this help message and exit"
 		echo "  -n  Dry run: build the app but skip notarization and stapling"
 		echo "  -c  Clean build: remove virtual environment and pyenv versions before building"
-		echo "  -o  Specify output file name (default: gedcom-dna-finder-mac.zip)"
+		echo "  -o  Specify output file name (default: gedcom-navigator-mac.zip)"
 		exit 0
 		;;
 	n) DRY=true ;;
@@ -71,7 +71,7 @@ fi
 }
 [[ -e .venv/bin/activate ]] || {
 	echo 'Creating virtual environment...'
-	python3 -m venv .venv --prompt "gedcom-dna-finder" || {
+	python3 -m venv .venv --prompt "gedcom-navigator" || {
 		echo 'Failed to create virtual environment.'
 		exit 1
 	}
@@ -100,11 +100,11 @@ python3 ./dev/generate_icon.py ./icons/family_tree.png || {
 	echo 'Failed to generate ICO file.'
 	exit 1
 }
-pyinstaller --noconfirm ./dev/gedcom_dna_finder_cli.spec || {
+pyinstaller --noconfirm ./dev/gedcom_navigator_cli.spec || {
 	echo 'pyinstaller failed to build CLI.'
 	exit 1
 }
-pyinstaller --noconfirm ./dev/gedcom_dna_finder_gui.spec || {
+pyinstaller --noconfirm ./dev/gedcom_navigator_gui.spec || {
 	echo 'pyinstaller failed to build GUI.'
 	exit 1
 }
@@ -113,7 +113,7 @@ pyinstaller --noconfirm ./dev/gedcom_dna_finder_gui.spec || {
 	exit 1
 }
 [ "$DRY" ] && exit 0
-ditto -c -k --sequesterRsrc --keepParent "dist/gedcom-dna-finder.app" "${output_file}" || {
+ditto -c -k --sequesterRsrc --keepParent "dist/gedcom-navigator.app" "${output_file}" || {
 	echo 'Cannot build zip file.'
 	exit 1
 }
@@ -121,12 +121,12 @@ xcrun notarytool submit "${output_file}" --keychain-profile "notarytool-profile"
 	echo 'Notarytool failed.'
 	exit 1
 }
-xcrun stapler staple ./dist/gedcom-dna-finder.app || {
+xcrun stapler staple ./dist/gedcom-navigator.app || {
 	echo 'Stapler failed.'
 	exit 1
 }
 rm "${output_file}"
-ditto -c -k --sequesterRsrc --keepParent "dist/gedcom-dna-finder.app" "${output_file}" || {
+ditto -c -k --sequesterRsrc --keepParent "dist/gedcom-navigator.app" "${output_file}" || {
 	echo 'Cannot build notarized zip file.'
 	exit 1
 }

@@ -2,7 +2,7 @@
 gedcom_gui_dialogs.py
 
 DialogsMixin — person detail, tag picker, person picker, path finder,
-preferences, and documentation windows for DNAMatchFinderApp.
+preferences, and documentation windows for GedcomNavigatorApp.
 """
 
 import tkinter as tk
@@ -698,7 +698,7 @@ class DialogsMixin:
             win.bind(copy_shortcut, _copy_tree)
             win.bind(save_shortcut, _save_tree)
             graph_debug_enabled = (
-                os.environ.get('GEDCOM_DNA_FINDER_GRAPH_DEBUG') == '1')
+                os.environ.get('GEDCOM_NAVIGATOR_GRAPH_DEBUG') == '1')
             if graph_debug_enabled:
                 win.bind('<Control-Shift-D>', _save_tree_debug)
                 canvas.bind('<Control-Shift-D>', _save_tree_debug)

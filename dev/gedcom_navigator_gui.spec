@@ -10,7 +10,7 @@ if sys.platform == 'darwin':
    import certifi
 
 # Read version and release date from the single source of truth.
-_init_path = os.path.join(SPECPATH, '..', 'gedcom_dna_finder', '__init__.py')
+_init_path = os.path.join(SPECPATH, '..', 'gedcom_navigator', '__init__.py')
 with open(_init_path) as _f:
     _init_src = _f.read()
 _app_version = re.search(r'__version__\s*=\s*["\']([^"\']+)["\']', _init_src).group(1)
@@ -79,14 +79,14 @@ if sys.platform == 'win32':
 d=[('../docs/HELP.md', './docs'), ('../docs/LICENSE.md', './docs'),
    ('../docs/KEYBOARD_SHORTCUTS.md', './docs'), ('../docs/PRIVACY_POLICY.md', './docs'),
    ('../icons/family_tree.ico', './icons'), ('../icons/family_tree.png', './icons'),
-   ('../gedcom_dna_finder/__init__.py', 'gedcom_dna_finder')]
+   ('../gedcom_navigator/__init__.py', 'gedcom_navigator')]
 
 # package certificates for MacOS since python.org does not include them by default
 if sys.platform=='darwin':
    d.append((certifi.where(), 'certifi'))
 
 a = Analysis(
-    ['../src/gedcom_dna_finder_gui.py'],
+    ['../src/gedcom_navigator_gui.py'],
     datas=d,
     pathex=[],
     binaries=_extra_binaries,
@@ -106,7 +106,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name='gedcom-dna-finder',
+    name='gedcom-navigator',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -126,7 +126,7 @@ if sys.platform == 'darwin':
     exe = EXE(pyz,
               a.scripts,
               exclude_binaries=True,
-              name='gedcom-dna-finder',
+              name='gedcom-navigator',
               codesign_identity=check_codesigning_key(),
               entitlements_file=os.path.join(SPECPATH, 'entitlements.plist'),
               target_arch='universal2',
@@ -138,18 +138,18 @@ if sys.platform == 'darwin':
                    a.datas,
                    strip=False,
                    upx=True,
-                   name='gedcom-dna-finder.app')
+                   name='gedcom-navigator.app')
 
     app = BUNDLE(coll,
-                 name='gedcom-dna-finder.app',
+                 name='gedcom-navigator.app',
                  icon='../icons/family_tree.icns',
-                 bundle_identifier='com.ajkessel.gedcom-dna-finder',
+                 bundle_identifier='com.ajkessel.gedcom-navigator',
                  info_plist={
-                     'CFBundleName': 'GEDCOM DNA Finder',
-                     'CFBundleDisplayName': 'GEDCOM DNA Finder',
+                     'CFBundleName': 'GEDCOM Navigator',
+                     'CFBundleDisplayName': 'GEDCOM Navigator',
                      'CFBundleSupportedPlatforms': ['MacOSX'],
                      'LSMinimumSystemVersion': '10.13.0',
-                     'CFBundleIdentifier': 'com.ajkessel.gedcom-dna-finder',
+                     'CFBundleIdentifier': 'com.ajkessel.gedcom-navigator',
                      'CFBundleShortVersionString': _app_version,
                      'CFBundleVersion': _app_version,
                      'NSHumanReadableCopyright': f'Copyright {_app_release_date[:4]} Adam Kessel',

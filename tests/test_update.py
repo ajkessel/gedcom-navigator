@@ -31,7 +31,7 @@ class _FakeResponse:
 def _opener(payload):
     def _open(request, timeout):
         assert request.headers["Accept"] == "application/vnd.github+json"
-        assert request.headers["User-agent"] == "gedcom-dna-finder/1.2.3"
+        assert request.headers["User-agent"] == "gedcom-navigator/1.2.3"
         assert timeout == 8
         return _FakeResponse(payload)
 

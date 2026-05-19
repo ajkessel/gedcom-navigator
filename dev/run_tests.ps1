@@ -16,7 +16,7 @@ if ( -not ( Get-Command python -ErrorAction SilentlyContinue ) ) {
 }
 if ( -not ( Test-Path .\venv\scripts\activate.ps1)) {
     Write-Output "Creating and activating virtual environment, and installing dependencies..."
-    python -m venv .\venv --prompt "gedcom-dna-finder" 
+    python -m venv .\venv --prompt "gedcom-navigator" 
     python .\dev\find_ffi_dll.py
     .\venv\Scripts\activate.ps1
     pip install -r .\dev\requirements-dev.txt

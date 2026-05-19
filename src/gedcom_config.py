@@ -204,4 +204,4 @@ class ConfigManager:
             import os
             base = Path(os.environ.get(
                 'XDG_CONFIG_HOME', Path.home() / '.config'))
-        return base / 'gedcom-dna-finder' / 'settings.json'
+        return base / 'gedcom-navigator' / 'settings.json'

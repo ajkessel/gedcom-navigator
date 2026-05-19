@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-[ -e src/gedcom_dna_finder_gui.py ] || {
+[ -e src/gedcom_navigator_gui.py ] || {
 	echo 'Application file not found.'
 	exit 1
 }
@@ -14,4 +14,4 @@
 	source .venv/bin/activate || exit 1
 	pip install -r ./dev/requirements.txt || exit 1
 }
-python src/gedcom_dna_finder_gui.py
+python src/gedcom_navigator_gui.py

@@ -4,7 +4,7 @@ import argparse
 
 import pytest
 
-from gedcom_dna_finder_cli import find_target, positive_int, ratio_float
+from gedcom_navigator_cli import find_target, positive_int, ratio_float
 
 
 INDIVIDUALS = {

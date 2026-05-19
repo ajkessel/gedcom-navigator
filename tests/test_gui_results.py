@@ -159,6 +159,187 @@ def test_path_graph_child_expansion_adds_missing_coparent():
     assert ('@A@', '@SPOUSE@', 'spouses') in extra_edges
 
 
+def test_path_graph_no_expansion_keeps_compact_parent_child_path():
+    """Unexpanded relationship paths are not widened by family normalization."""
+    base = [
+        {
+            'id': '@START@',
+            'edge': None,
+            'generation': 0,
+            'column': 0,
+            'index': 0,
+            'is_path_node': True,
+            'is_endpoint': True,
+        },
+        {
+            'id': '@START_DAD@',
+            'edge': 'father',
+            'generation': -1,
+            'column': 0,
+            'index': 1,
+            'is_path_node': True,
+            'is_endpoint': False,
+        },
+        {
+            'id': '@ANCESTOR@',
+            'edge': 'father',
+            'generation': -2,
+            'column': 0,
+            'index': 2,
+            'is_path_node': True,
+            'is_endpoint': False,
+        },
+        {
+            'id': '@ANCESTOR_SIB@',
+            'edge': 'sibling',
+            'generation': -2,
+            'column': 1,
+            'index': 3,
+            'is_path_node': True,
+            'is_endpoint': False,
+        },
+        {
+            'id': '@ANCESTOR_SIB_SP@',
+            'edge': 'spouse',
+            'generation': -2,
+            'column': 2,
+            'index': 4,
+            'is_path_node': True,
+            'is_endpoint': False,
+        },
+        {
+            'id': '@PARENT1@',
+            'edge': 'father',
+            'generation': -3,
+            'column': 2,
+            'index': 5,
+            'is_path_node': True,
+            'is_endpoint': False,
+        },
+        {
+            'id': '@PARENT2@',
+            'edge': 'spouse',
+            'generation': -3,
+            'column': 3,
+            'index': 6,
+            'is_path_node': True,
+            'is_endpoint': False,
+        },
+        {
+            'id': '@CHILD@',
+            'edge': 'child',
+            'generation': -2,
+            'column': 3,
+            'index': 7,
+            'is_path_node': True,
+            'is_endpoint': False,
+        },
+        {
+            'id': '@DESC@',
+            'edge': 'child',
+            'generation': -1,
+            'column': 3,
+            'index': 8,
+            'is_path_node': True,
+            'is_endpoint': False,
+        },
+        {
+            'id': '@DESC_SP@',
+            'edge': 'spouse',
+            'generation': -1,
+            'column': 4,
+            'index': 9,
+            'is_path_node': True,
+            'is_endpoint': False,
+        },
+        {
+            'id': '@DESC_SP_MOM@',
+            'edge': 'mother',
+            'generation': -2,
+            'column': 4,
+            'index': 10,
+            'is_path_node': True,
+            'is_endpoint': False,
+        },
+        {
+            'id': '@DESC_SP_MOM_SIB@',
+            'edge': 'sibling',
+            'generation': -2,
+            'column': 5,
+            'index': 11,
+            'is_path_node': True,
+            'is_endpoint': False,
+        },
+        {
+            'id': '@END_DAD@',
+            'edge': 'child',
+            'generation': -1,
+            'column': 5,
+            'index': 12,
+            'is_path_node': True,
+            'is_endpoint': False,
+        },
+        {
+            'id': '@END@',
+            'edge': 'child',
+            'generation': 0,
+            'column': 5,
+            'index': 13,
+            'is_path_node': True,
+            'is_endpoint': True,
+        },
+    ]
+    families = {
+        '@PARENT1@': {
+            'parents': [],
+            'siblings': [],
+            'spouses': ['@PARENT2@'],
+            'children': ['@ANCESTOR_SIB_SP@', '@CHILD@'],
+        },
+        '@PARENT2@': {
+            'parents': [],
+            'siblings': [],
+            'spouses': ['@PARENT1@'],
+            'children': ['@ANCESTOR_SIB_SP@', '@CHILD@'],
+        },
+    }
+
+    def lookup(indi_id):
+        return families.get(indi_id, {
+            'parents': [],
+            'siblings': [],
+            'spouses': [],
+            'children': [],
+        })
+
+    def coparents(indi_id, child_ids):
+        child_ids = set(child_ids)
+        return [
+            candidate_id for candidate_id, members in families.items()
+            if candidate_id != indi_id
+            and child_ids.intersection(members.get('children', ()))
+        ]
+
+    layout, extra_edges = ResultsMixin._expanded_path_graph_layout(
+        base, [], lookup, coparents)
+    by_id = {node['id']: node for node in layout}
+
+    assert extra_edges == []
+    assert max(node['column'] for node in layout) - min(
+        node['column'] for node in layout) <= 5
+    for child_id, parent_id in (
+            ('@START@', '@START_DAD@'),
+            ('@START_DAD@', '@ANCESTOR@'),
+            ('@ANCESTOR_SIB_SP@', '@PARENT1@'),
+            ('@CHILD@', '@PARENT2@'),
+            ('@CHILD@', '@DESC@'),
+            ('@DESC_SP@', '@DESC_SP_MOM@'),
+            ('@DESC_SP_MOM_SIB@', '@END_DAD@'),
+            ('@END_DAD@', '@END@'),
+    ):
+        assert by_id[child_id]['column'] == by_id[parent_id]['column']
+
+
 def test_family_tree_child_edge_groups_keep_couples_separate():
     """Rendered child connectors are grouped by parent couple."""
     positions = {
@@ -3979,6 +4160,79 @@ def test_family_tree_compacts_drifted_sibling_after_expanded_branches():
     assert largest_gap <= 2.5
 
 
+def test_family_tree_shifted_child_group_connector_spans_parent_origin():
+    """A shifted child group still draws a connector back to its parents."""
+    visible = [
+        '@P1@',
+        '@P2@',
+        '@CENTER@',
+        '@SIB1@',
+        '@SIB2@',
+        '@SIB3@',
+        '@CENTER_SP1@',
+        '@CENTER_CH1@',
+        '@CENTER_CH2@',
+        '@CENTER_CH3@',
+        '@CENTER_CH4@',
+        '@CENTER_SP2@',
+        '@SIB1_SP@',
+        '@SIB1_CH1@',
+        '@SIB1_CH2@',
+        '@SIB1_CH3@',
+        '@SIB1_CH4@',
+        '@SIB1_CH5@',
+    ]
+    edges = [
+        ('@P1@', '@P2@', 'spouses'),
+        ('@CENTER@', '@P1@', 'parents'),
+        ('@CENTER@', '@P2@', 'parents'),
+        ('@CENTER@', '@SIB1@', 'siblings'),
+        ('@CENTER@', '@SIB2@', 'siblings'),
+        ('@CENTER@', '@SIB3@', 'siblings'),
+        ('@CENTER@', '@CENTER_SP1@', 'spouses'),
+        ('@CENTER@', '@CENTER_CH1@', 'children'),
+        ('@CENTER@', '@CENTER_CH2@', 'children'),
+        ('@CENTER@', '@CENTER_CH3@', 'children'),
+        ('@CENTER@', '@CENTER_CH4@', 'children'),
+        ('@CENTER@', '@CENTER_SP2@', 'spouses'),
+        ('@SIB1@', '@SIB1_SP@', 'spouses'),
+        ('@SIB1@', '@SIB1_CH1@', 'children'),
+        ('@SIB1@', '@SIB1_CH2@', 'children'),
+        ('@SIB1@', '@SIB1_CH3@', 'children'),
+        ('@SIB1@', '@SIB1_CH4@', 'children'),
+        ('@SIB1@', '@SIB1_CH5@', 'children'),
+    ]
+
+    layout = layout_family_tree('@CENTER@', visible, edges)
+    positions = {
+        node['id']: (node['column'], node['generation'])
+        for node in layout
+    }
+    groups = ResultsMixin._family_tree_child_edge_groups(
+        edges,
+        positions,
+        lambda _parent_id, _child_ids: [],
+        [('@P1@', '@P2@'), ('@CENTER@', '@CENTER_SP1@')],
+    )
+    child_group = next(
+        group for group in groups
+        if set(group['children']) == {
+            '@CENTER_CH1@',
+            '@CENTER_CH2@',
+            '@CENTER_CH3@',
+            '@CENTER_CH4@',
+        })
+    child_columns = [
+        positions[child_id][0] for child_id in child_group['children']
+    ]
+    bus_start, bus_end = ResultsMixin._family_tree_child_bus_span(
+        child_group['parent_x'], child_columns)
+
+    assert child_group['parent_x'] < min(child_columns)
+    assert bus_start <= child_group['parent_x']
+    assert bus_end >= max(child_columns)
+
+
 def test_family_tree_expanded_child_spouse_does_not_overlap_sibling_child():
     """A displayed spouse of one child reserves room before the next child."""
     visible = [
@@ -4332,9 +4586,9 @@ def test_expansion_button_text_reflects_next_toggle_action():
     assert ResultsMixin._expansion_button_text(
         expanded, '@A@', 'siblings', 'right') == '←'
     assert ResultsMixin._expansion_button_text(
-        set(), '@A@', 'spouses') == '⚭'
+        set(), '@A@', 'spouses') == '♥'
     assert ResultsMixin._expansion_button_text(
-        expanded, '@A@', 'spouses') == '⚭'
+        expanded, '@A@', 'spouses') == '♡'
 
 
 def test_expansion_button_tooltip_is_state_aware():

@@ -14,15 +14,15 @@ When performing imports or analyzing the codebase, please ensure that `src/` is 
 
 ```bash
 # GUI
-python src/gedcom_dna_finder_gui.py
-python src/gedcom_dna_finder_gui.py /path/to/tree.ged
+python src/gedcom_navigator_gui.py
+python src/gedcom_navigator_gui.py /path/to/tree.ged
 
 # CLI
-python src/gedcom_dna_finder_cli.py --help
-python src/gedcom_dna_finder_cli.py tree.ged "Jane Doe"
-python src/gedcom_dna_finder_cli.py tree.ged "Jane Doe" --top 5 --max-depth 80
-python src/gedcom_dna_finder_cli.py tree.ged --list-tags _
-python src/gedcom_dna_finder_cli.py tree.ged --list-flagged _
+python src/gedcom_navigator_cli.py --help
+python src/gedcom_navigator_cli.py tree.ged "Jane Doe"
+python src/gedcom_navigator_cli.py tree.ged "Jane Doe" --top 5 --max-depth 80
+python src/gedcom_navigator_cli.py tree.ged --list-tags _
+python src/gedcom_navigator_cli.py tree.ged --list-flagged _
 ```
 
 Third-party runtime dependencies (see `dev/requirements.txt`): `customtkinter`, `CTkToolTip`, `pillow`, plus platform-specific extras (`pyobjc-framework-Cocoa` and `certifi` on macOS, `pywin32-ctypes` on Windows).
@@ -42,7 +42,7 @@ Windows builds use `dev/build.ps1`. Build scripts create `.venv` and install dep
 
 ### Source layout
 
-The canonical implementation lives in `src/`. The `gedcom_dna_finder/` package contains thin forwarding entry points for PyPI installation that delegate to `src/`.
+The canonical implementation lives in `src/`. The `gedcom_navigator/` package contains thin forwarding entry points for PyPI installation that delegate to `src/`.
 
 ```
 src/
@@ -56,8 +56,8 @@ src/
   gedcom_family_tree.py     # Pure helpers for building/laying out immediate-family graphs
   gedcom_graph_export.py    # SVG and PNG export for relationship graph canvases
   gedcom_update.py          # GitHub release check for newer versions
-  gedcom_dna_finder_gui.py  # customtkinter GUI application (DNAMatchFinderApp)
-  gedcom_dna_finder_cli.py  # CLI interface
+  gedcom_navigator_gui.py  # customtkinter GUI application (GedcomNavigatorApp)
+  gedcom_navigator_cli.py  # CLI interface
   gedcom_gui_appearance.py  # AppearanceMixin: theming, fonts, menus, keybindings
   gedcom_gui_background.py  # BackgroundTaskMixin: worker threads, busy state, progress dialogs
   gedcom_gui_dialogs.py     # DialogsMixin: pop-up windows
@@ -71,10 +71,10 @@ src/
   gedcom_strings.py         # All user-facing string constants (imported via wildcard)
   gedcom_markdown.py        # Markdown renderer for help/about dialogs
 
-gedcom_dna_finder/
+gedcom_navigator/
   __init__.py   # Version: __version__ and __release_date__ (single source of truth)
-  cli.py        # Entry point → delegates to src/gedcom_dna_finder_cli.py
-  gui.py        # Entry point → delegates to src/gedcom_dna_finder_gui.py
+  cli.py        # Entry point → delegates to src/gedcom_navigator_cli.py
+  gui.py        # Entry point → delegates to src/gedcom_navigator_gui.py
 ```
 
 ### Data flow
@@ -91,7 +91,7 @@ gedcom_dna_finder/
 
 ### GUI structure
 
-`DNAMatchFinderApp` inherits from `DialogsMixin`, `AppearanceMixin`, `SearchMixin`, `ResultsMixin`, and `BackgroundTaskMixin`. All GUI state lives in `tk.StringVar`/`BooleanVar`/`IntVar` attributes. Long operations (file loading, BFS search) run in daemon threads via `BackgroundTaskMixin` and post results back via `root.after()`.
+`GedcomNavigatorApp` inherits from `DialogsMixin`, `AppearanceMixin`, `SearchMixin`, `ResultsMixin`, and `BackgroundTaskMixin`. All GUI state lives in `tk.StringVar`/`BooleanVar`/`IntVar` attributes. Long operations (file loading, BFS search) run in daemon threads via `BackgroundTaskMixin` and post results back via `root.after()`.
 
 ### DNA flag detection
 
@@ -102,6 +102,6 @@ Two formats recognized (both configurable via CLI flags or GUI fields):
 ### Settings persistence
 
 `ConfigManager` reads/writes `settings.json` in the platform config dir:
-- macOS: `~/Library/Application Support/gedcom-dna-finder/settings.json`
-- Windows: `%APPDATA%/gedcom-dna-finder/settings.json`
-- Linux: `$XDG_CONFIG_HOME/gedcom-dna-finder/settings.json`
+- macOS: `~/Library/Application Support/gedcom-navigator/settings.json`
+- Windows: `%APPDATA%/gedcom-navigator/settings.json`
+- Linux: `$XDG_CONFIG_HOME/gedcom-navigator/settings.json`

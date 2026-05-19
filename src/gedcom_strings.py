@@ -1,7 +1,7 @@
 """
 gedcom_strings.py
 
-All English-language strings displayed to the user by gedcom_dna_finder_gui.py.
+All English-language strings displayed to the user by gedcom_navigator_gui.py.
 
 To translate the application, copy this file (e.g. gedcom_strings_fr.py),
 replace the string values, and import that module instead of this one.
@@ -20,7 +20,7 @@ _MOD = '⌘' if sys.platform == 'darwin' else 'Ctrl+'
 # ---------------------------------------------------------------------------
 # Application
 # ---------------------------------------------------------------------------
-APP_TITLE = "GEDCOM DNA Match Finder"
+APP_TITLE = "GEDCOM Navigator"
 STATUS_NO_FILE = "No file loaded."
 
 # ---------------------------------------------------------------------------

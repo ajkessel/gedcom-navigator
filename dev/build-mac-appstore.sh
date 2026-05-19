@@ -23,12 +23,12 @@ done
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
 cd "${SCRIPT_DIR}/.."
 exec > >(sed 's/\x1b\[[0-9;]*m//g' | tee -a build-mac-appstore.log) 2>&1
-VERSION=$(grep __version__ gedcom_dna_finder/__init__.py | grep -o '[0-9]\+\.[0-9]\+\(\.[0-9]\+\)\+')
+VERSION=$(grep __version__ gedcom_navigator/__init__.py | grep -o '[0-9]\+\.[0-9]\+\(\.[0-9]\+\)\+')
 x=0
 while grep xcrun build-mac-appstore.log |grep -qF "${VERSION}"; do
   echo "Prior build found in build-mac-app-store.log; bumping version number."
   NEW_VERSION=$(echo $VERSION | awk -F. -v OFS=. '{$NF += 1 ; print}')
-  perl -p -i -e "s/${VERSION}/${NEW_VERSION}/g" gedcom_dna_finder/__init__.py
+  perl -p -i -e "s/${VERSION}/${NEW_VERSION}/g" gedcom_navigator/__init__.py
   VERSION="${NEW_VERSION}"
   x=$((x+1))
   if [ "${x}" -gt 20 ]; then
@@ -46,7 +46,7 @@ if nm -pa /Library/Frameworks/Python.framework/Versions/Current/Frameworks/Tk.fr
   exit 1
 fi
 security unlock-keychain -p "$(cat ~/.config/p)" ~/Library/Keychains/login.keychain-db
-if [[ ! -e 'dist/gedcom-dna-finder.app' ]]; then
+if [[ ! -e 'dist/gedcom-navigator.app' ]]; then
 	echo 'Built app not found, building now.'
 	./dev/build.sh
 fi
@@ -59,28 +59,28 @@ AS_INST_CERT=$(security find-identity -v 2>/dev/null |
 
 if [[ -n "${AS_APP_CERT}" && -n "${AS_INST_CERT}" ]]; then
 	echo "Building App Store package..."
-	APP_SRC="dist/gedcom-dna-finder.app"
-	APP_AS="dist/gedcom-dna-finder-appstore.app"
-	PKG="dist/gedcom-dna-finder.pkg"
+	APP_SRC="dist/gedcom-navigator.app"
+	APP_AS="dist/gedcom-navigator-appstore.app"
+	PKG="dist/gedcom-navigator.pkg"
 
 	# Work from a clean copy so the notarised Developer-ID build is untouched
 	rm -rf "${APP_AS}"
 	cp -R "${APP_SRC}" "${APP_AS}"
 
 	# Embed provisioning profile (required for TestFlight eligibility).
-	PROVISION_PROFILE="${HOME}/Library/MobileDevice/Provisioning Profiles/gedcom-dna-finder.provisionprofile"
+	PROVISION_PROFILE="${HOME}/Library/MobileDevice/Provisioning Profiles/gedcom-navigator.provisionprofile"
 	if [[ ! -f "${PROVISION_PROFILE}" ]]; then
-		PROVISION_PROFILE="$(dirname "$0")/gedcom-dna-finder.provisionprofile"
+		PROVISION_PROFILE="$(dirname "$0")/gedcom-navigator.provisionprofile"
 	fi
 	if [[ ! -f "${PROVISION_PROFILE}" ]]; then
-		PROVISION_PROFILE="dev/gedcom-dna-finder.provisionprofile"
+		PROVISION_PROFILE="dev/gedcom-navigator.provisionprofile"
 	fi
 	if [[ -f "${PROVISION_PROFILE}" ]]; then
 		cp "${PROVISION_PROFILE}" "${APP_AS}/Contents/embedded.provisionprofile"
 		echo "Embedded provisioning profile from: ${PROVISION_PROFILE}"
 	else
 		echo "WARNING: No provisioning profile found; app will not be TestFlight-eligible."
-		echo "  Place gedcom-dna-finder.provisionprofile in ~/Library/MobileDevice/Provisioning Profiles/ or dev/"
+		echo "  Place gedcom-navigator.provisionprofile in ~/Library/MobileDevice/Provisioning Profiles/ or dev/"
 	fi
 	#
 	# Ensure all files are readable by non-root users (App Store error 90255).
@@ -115,7 +115,7 @@ if [[ -n "${AS_APP_CERT}" && -n "${AS_INST_CERT}" ]]; then
 	codesign --force --verbose \
 		--sign "${AS_APP_CERT}" \
 		--entitlements "./dev/entitlements-appstore.plist" \
-		"${APP_AS}/Contents/MacOS/gedcom-dna-finder" || {
+		"${APP_AS}/Contents/MacOS/gedcom-navigator" || {
 		echo "App Store code-signing of main executable failed."
 		exit 1
 	}
@@ -153,7 +153,7 @@ appid=$(cat "${HOME}/.appstoreconnect/appid.txt")
 	exit 1
 }
 # optional steps - not use to submit to app store, just validate pkg
-#xcrun altool --validate-app -f dist/gedcom-dna-finder.pkg -t macos --apiKey "${apiKey}" --apiIssuer "${apiIssuer}"
+#xcrun altool --validate-app -f dist/gedcom-navigator.pkg -t macos --apiKey "${apiKey}" --apiIssuer "${apiIssuer}"
 echo 'Uploading with the following command:'
-echo xcrun altool --upload-package dist/gedcom-dna-finder.pkg --type osx --bundle-id "com.ajkessel.gedcom-dna-finder" --bundle-short-version-string "${VERSION}" --bundle-version "${VERSION}" --apiKey "${apiKey}" --apiIssuer "${apiIssuer}" --apple-id "${appid}"
-[ "${DRY}" ] || xcrun altool --upload-package dist/gedcom-dna-finder.pkg --type osx --bundle-id "com.ajkessel.gedcom-dna-finder" --bundle-short-version-string "${VERSION}" --bundle-version "${VERSION}" --apiKey "${apiKey}" --apiIssuer "${apiIssuer}" --apple-id "${appid}"
+echo xcrun altool --upload-package dist/gedcom-navigator.pkg --type osx --bundle-id "com.ajkessel.gedcom-navigator" --bundle-short-version-string "${VERSION}" --bundle-version "${VERSION}" --apiKey "${apiKey}" --apiIssuer "${apiIssuer}" --apple-id "${appid}"
+[ "${DRY}" ] || xcrun altool --upload-package dist/gedcom-navigator.pkg --type osx --bundle-id "com.ajkessel.gedcom-navigator" --bundle-short-version-string "${VERSION}" --bundle-version "${VERSION}" --apiKey "${apiKey}" --apiIssuer "${apiIssuer}" --apple-id "${appid}"

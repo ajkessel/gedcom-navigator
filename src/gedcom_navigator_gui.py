@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-gedcom_dna_finder_gui.py
+gedcom_navigator_gui.py
 
 customtkinter GUI for finding the nearest DNA-flagged relative(s) to a target
 person in a GEDCOM tree.
@@ -36,7 +36,7 @@ def _read_version():
     _bases.append(os.path.join(os.path.dirname(
         os.path.abspath(__file__)), '..'))
     for _base in _bases:
-        _path = os.path.join(_base, 'gedcom_dna_finder', '__init__.py')
+        _path = os.path.join(_base, 'gedcom_navigator', '__init__.py')
         if os.path.isfile(_path):
             with open(_path, encoding='utf-8') as f:
                 _src = f.read()
@@ -53,7 +53,7 @@ __version__, __release_date__ = _read_version()
 # GUI
 # ===========================================================================
 
-class DNAMatchFinderApp(
+class GedcomNavigatorApp(
     DialogsMixin,
     AppearanceMixin,
     SearchMixin,
@@ -564,7 +564,7 @@ class DNAMatchFinderApp(
 def main():
     """Parse command-line options, create the GUI, and start the event loop."""
     parser = argparse.ArgumentParser(
-        description='GEDCOM DNA Finder GUI. '
+        description='GEDCOM Navigator GUI. '
                     'Optionally pass a GEDCOM file path to load it on startup.'
     )
     parser.add_argument(
@@ -580,7 +580,7 @@ def main():
     # flash doesn't occur there, so skip it.
     if sys.platform == 'darwin':
         root.withdraw()
-    app = DNAMatchFinderApp(root)
+    app = GedcomNavigatorApp(root)
     if sys.platform == 'darwin':
         root.deiconify()
 

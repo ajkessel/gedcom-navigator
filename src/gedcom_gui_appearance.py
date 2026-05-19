@@ -2,7 +2,7 @@
 gedcom_gui_appearance.py
 
 AppearanceMixin — history/config, font, theme, keybindings, and menu methods
-for DNAMatchFinderApp.
+for GedcomNavigatorApp.
 """
 
 import tkinter as tk

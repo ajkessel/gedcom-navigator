@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- **Application renamed** - the app is now GEDCOM Navigator across source entry points, package metadata, build scripts, PyInstaller specs, macOS bundle metadata, release artifact names, and documentation.
+
 ## [1.3.0] - 2026-05-16
 
 ### Added
@@ -23,7 +29,7 @@
 - **Relationship classification structured internally** - relationship labeling now uses a `RelationshipClassification` data object so classified paths, in-law paths, spouse-anchored paths, and biological-label preferences are easier to handle consistently.
 - **Graph save/copy code simplified** - result rendering now delegates SVG and PNG generation to `gedcom_graph_export.py`, reducing duplication inside `ResultsMixin`.
 - **Keyboard shortcut help cleaned up** - keyboard shortcuts are now documented in a simpler Markdown table and the obsolete Alt-M menu shortcut has been removed from the shortcut rows.
-- **Documentation and install guidance updated** - the README now distinguishes the standard-library CLI from the GUI extra, documents Pillow and PyObjC Cocoa needs, and shows the `gedcom-dna-finder[gui]` install form.
+- **Documentation and install guidance updated** - the README now distinguishes the standard-library CLI from the GUI extra, documents Pillow and PyObjC Cocoa needs, and shows the `gedcom-navigator[gui]` install form.
 - **macOS build scripts hardened** - Mac build scripts now warn before destructive clean builds, detect a Tk framework symbol that can trigger App Store rejection, reuse the release version consistently during upload, and can auto-bump App Store build versions after prior submissions.
 - **Release metadata updated** - the package version is now `1.3.0` with release date `2026-05-16`.
 
@@ -147,7 +153,7 @@
 
 ### Architecture
 
-- **Modular GUI refactor** — the monolithic `gedcom_dna_finder_gui.py` has been split into focused modules: `gedcom_gui_appearance.py` (theming, fonts, menus, keybindings), `gedcom_gui_dialogs.py` (pop-up windows), `gedcom_markdown.py` (markdown renderer), `gedcom_relationship.py` (BFS ancestor/descendant helpers and plain-English labels), and `gedcom_theme.py` (theme constants, OS dark-mode detection, Tooltip widget).
+- **Modular GUI refactor** — the monolithic `gedcom_navigator_gui.py` has been split into focused modules: `gedcom_gui_appearance.py` (theming, fonts, menus, keybindings), `gedcom_gui_dialogs.py` (pop-up windows), `gedcom_markdown.py` (markdown renderer), `gedcom_relationship.py` (BFS ancestor/descendant helpers and plain-English labels), and `gedcom_theme.py` (theme constants, OS dark-mode detection, Tooltip widget).
 - **Comprehensive test suite** — a new `tests/` directory contains four test modules (`test_core.py`, `test_data_model.py`, `test_config.py`, `test_relationship.py`) with over 1,600 lines of pytest coverage for parsing, caching, configuration, and relationship labelling. Run via `pytest` or the included `run_tests.sh` / `run_tests.ps1` helpers.
 
 ### Added
@@ -188,8 +194,8 @@
 - **GEDCOM data model: surname and given name parsed separately** — the individual record now stores `surname` and `given_name` fields in addition to the combined `name`, extracted from the standard GEDCOM `/Surname/` slash notation. These fields drive the new Last, First name order display.
 - **GEDCOM data model: marriage date and place stored on families** — FAM records now capture `marr_date` and `marr_place` from their `MARR` sub-records. These fields are used by the Biography section to display full marriage details.
 - **Cache version bumped to 3** — the on-disk parse cache schema has changed. Existing cache files are automatically detected as stale and silently replaced on next load; no manual cache clearing is needed.
-- **Script filenames renamed to snake\_case** — `gedcom-dna-finder-cli.py`, `gedcom-dna-finder-gui.py`, `generate-icon.py`, and the two PyInstaller `.spec` files have been renamed to use underscores (`gedcom_dna_finder_cli.py`, `gedcom_dna_finder_gui.py`, `generate_icon.py`, `gedcom_dna_finder_cli.spec`, `gedcom_dna_finder_gui.spec`) for consistency with Python package conventions.
-- **PyPI GUI entry point renamed** — the console-script entry point in `pyproject.toml` was updated from `gedcom-dna-finder-gui` to `gedcom_dna_finder_gui` to match the renamed launcher.
+- **Script filenames renamed to snake\_case** — `gedcom-navigator-cli.py`, `gedcom-navigator-gui.py`, `generate-icon.py`, and the two PyInstaller `.spec` files have been renamed to use underscores (`gedcom_navigator_cli.py`, `gedcom_navigator_gui.py`, `generate_icon.py`, `gedcom_navigator_cli.spec`, `gedcom_navigator_gui.spec`) for consistency with Python package conventions.
+- **PyPI GUI entry point renamed** — the console-script entry point in `pyproject.toml` was updated from `gedcom-navigator-gui` to `gedcom_navigator_gui` to match the renamed launcher.
 - **Build scripts updated** — all shell and PowerShell build scripts (`build.sh`, `build.ps1`, `build-linux.sh`, `build-mac.sh`, `build-mac-appstore.sh`, `build-pypi.sh`, `build-pypi.ps1`, `build-and-release.sh`) updated to reference the renamed files and standardized to consistent tab indentation.
 
 ## [0.2.9] - 2026-05-04
@@ -245,7 +251,7 @@
 - **Top N and Max Depth persist across sessions** — the "Top N" and "Max Depth" spinboxes in the action bar are now also exposed in the Preferences dialog under a new "Search defaults" section. Values saved there are written to `settings.json` and restored on the next launch, so users no longer need to re-enter their preferred search depth after restarting the application.
 - **Clear Cache button in Preferences** — the Preferences dialog now includes a "Cache" section with a "Clear Cache…" button as an alternative to the existing Menu → Clear cache… entry, making it easier to find in the same place as other application settings.
 - **Privacy Policy menu item** — a new "Privacy Policy" entry at the bottom of the Menu opens a formatted window explaining what data the application stores locally, confirming that it makes no network requests, and describing the cache and its contents.
-- **PyPI packaging** — the project is now structured for distribution on PyPI as `gedcom-dna-finder`. A `pyproject.toml` with full metadata and entry points, a `gedcom_dna_finder/` Python package with `gedcom-dna-finder` (CLI) and `gedcom_dna_finder_gui` (GUI) console scripts, a `hatch_build.py` custom build hook that bundles `src/` scripts and assets into the wheel, and a `dev/build-pypi.ps1` build-and-upload script (supports `-TestPyPI` flag) are all included.
+- **PyPI packaging** — the project is now structured for distribution on PyPI as `gedcom-navigator`. A `pyproject.toml` with full metadata and entry points, a `gedcom_navigator/` Python package with `gedcom-navigator` (CLI) and `gedcom_navigator_gui` (GUI) console scripts, a `hatch_build.py` custom build hook that bundles `src/` scripts and assets into the wheel, and a `dev/build-pypi.ps1` build-and-upload script (supports `-TestPyPI` flag) are all included.
 
 ### Changed
 

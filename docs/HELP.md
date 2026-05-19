@@ -1,4 +1,4 @@
-# GEDCOM DNA Finder
+# GEDCOM Navigator
 
 This tool provides useful ways to rapidly explore a GEDCOM file exported from genealogy services like Ancestry, MyHeritage, Geni, and Family Tree Maker:
 

@@ -1795,6 +1795,53 @@ class ResultsMixin:
                     node['column'] = round(node['column'] - shift, 3)
                 rebuild_occupied()
 
+        def enforce_unexpanded_path_child_alignment():
+            """Center simple path children without rearranging other path nodes."""
+            for index in range(1, len(layout)):
+                previous_node = layout[index - 1]
+                current_node = layout[index]
+                if (not previous_node.get('is_path_node')
+                        or not current_node.get('is_path_node')):
+                    continue
+                edge = current_node.get('edge')
+                if edge in ('father', 'mother'):
+                    child_node = previous_node
+                elif edge == 'child':
+                    child_node = current_node
+                else:
+                    continue
+
+                parent_ids = visible_parent_ids(child_node['id'])
+                if len(parent_ids) < 2:
+                    continue
+                desired_column = round(
+                    sum(by_id[parent_id]['column']
+                        for parent_id in parent_ids) / len(parent_ids),
+                    3)
+                if abs(child_node['column'] - desired_column) < 0.001:
+                    continue
+
+                child_spouse_ids = set(same_row_spouse_ids(child_node['id']))
+                protected_ids = (
+                    {child_node['id']}
+                    | child_spouse_ids
+                    | set(parent_ids)
+                )
+                path_conflicts = [
+                    node for node in layout
+                    if (node['id'] not in protected_ids
+                        and node.get('is_path_node')
+                        and node['generation'] == child_node['generation']
+                        and abs(node['column'] - desired_column) < min_spacing)
+                ]
+                if path_conflicts:
+                    continue
+
+                reserve_same_row_slot(
+                    child_node['generation'], desired_column, protected_ids)
+                child_node['column'] = desired_column
+                rebuild_occupied()
+
         for source_id, category in expanded:
             source = by_id.get(source_id)
             if not source:
@@ -2040,12 +2087,26 @@ class ResultsMixin:
                     extra_edges.append(edge)
                     extra_edge_set.add(edge)
 
+        has_expanded_requests = bool(expanded)
+        if not has_expanded_requests:
+            path_generations = {
+                node['generation'] for node in layout
+                if node.get('is_path_node')
+            }
+            if len(path_generations) == 1:
+                enforce_sibling_adjacency()
+                enforce_spouse_adjacency()
+            enforce_unexpanded_path_child_alignment()
+            enforce_spouse_adjacency()
+            return layout, extra_edges
+
         for _ in range(10):
             before = {
                 node['id']: (node['generation'], node['column'])
                 for node in layout
             }
-            enforce_child_alignment()
+            if has_expanded_requests:
+                enforce_child_alignment()
             enforce_spouse_adjacency()
             enforce_sibling_adjacency()
             enforce_spouse_adjacency()
@@ -2059,7 +2120,8 @@ class ResultsMixin:
         enforce_parent_alignment()
         enforce_vertical_path_edges()
         enforce_spouse_adjacency()
-        enforce_child_alignment()
+        if has_expanded_requests:
+            enforce_child_alignment()
         enforce_vertical_path_edges()
         enforce_spouse_adjacency()
         enforce_sibling_adjacency()
@@ -2979,8 +3041,9 @@ class ResultsMixin:
                 start_y = from_y + (
                     from_h / 2 if y2 > from_y else -from_h / 2)
                 end_y = y2 - (to_h / 2 if y2 > from_y else -to_h / 2)
+                mid_y = (start_y + end_y) / 2
                 canvas.create_line(
-                    from_x, start_y, x2, end_y,
+                    from_x, start_y, from_x, mid_y, x2, mid_y, x2, end_y,
                     fill=colors['parent'], width=scale(3), arrow='last',
                     arrowshape=(scale(12), scale(14), scale(5)))
 
@@ -3340,6 +3403,12 @@ class ResultsMixin:
         ))
         return result
 
+    @staticmethod
+    def _family_tree_child_bus_span(parent_x, child_xs):
+        """Return the horizontal connector span for a parent-child group."""
+        xs = [parent_x] + list(child_xs)
+        return min(xs), max(xs)
+
     def _render_family_tree_canvas(self, canvas, center_id, expanded, colors,
                                    win, zoom, on_expand, on_recenter,
                                    on_profile=None, on_find_matches=None,
@@ -3450,11 +3519,13 @@ class ResultsMixin:
             mid_y = (start_y + end_y) / 2
             child_xs = [positions[child_id][0]
                         for child_id in group['children']]
+            bus_start_x, bus_end_x = self._family_tree_child_bus_span(
+                parent_x, child_xs)
             canvas.create_line(
                 parent_x, start_y, parent_x, mid_y,
                 fill=colors['parent'], width=scale(3))
             canvas.create_line(
-                min(child_xs), mid_y, max(child_xs), mid_y,
+                bus_start_x, mid_y, bus_end_x, mid_y,
                 fill=colors['parent'], width=scale(3))
             for child_id in group['children']:
                 child_x, child_y = positions[child_id]
@@ -3946,7 +4017,7 @@ class ResultsMixin:
         save_btn.pack(side='right', padx=(0, 8))
         Tooltip(save_btn, TIP_SAVE_GRAPH)
         graph_debug_enabled = (
-            os.environ.get('GEDCOM_DNA_FINDER_GRAPH_DEBUG') == '1')
+            os.environ.get('GEDCOM_NAVIGATOR_GRAPH_DEBUG') == '1')
         if graph_debug_enabled:
             debug_btn = ctk.CTkButton(
                 btn_frame, text=BTN_DEBUG_GRAPH, width=100,

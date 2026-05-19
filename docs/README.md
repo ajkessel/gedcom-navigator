@@ -1,4 +1,4 @@
-# GEDCOM DNA Finder
+# GEDCOM Navigator
 
 ## Who is this for?
 
@@ -20,13 +20,13 @@ The tool does not modify your GEDCOM file. It is only used for exploring connect
 In addition to the GUI, this application also includes a command-line tool for power users.
 
 Downloads:
-* [Mac App Store](https://apps.apple.com/app/gedcom-dna-finder/id6765485580) - easy install, may be behind the latest version here
-* [Mac ZIP Download](https://github.com/ajkessel/gedcom-dna-finder/releases/latest/download/gedcom-dna-finder-mac.zip) (see [security note](#macos-security))
-* [Windows](https://github.com/ajkessel/gedcom-dna-finder/releases/latest/download/gedcom-dna-finder-windows.zip) (see [security note](#windows-security))
-* [Linux](https://github.com/ajkessel/gedcom-dna-finder/releases/latest/download/gedcom-dna-finder-linux.zip)
+* [Mac App Store](https://apps.apple.com/app/gedcom-navigator/id6765485580) - easy install, may be behind the latest version here
+* [Mac ZIP Download](https://github.com/ajkessel/gedcom-navigator/releases/latest/download/gedcom-navigator-mac.zip) (see [security note](#macos-security))
+* [Windows](https://github.com/ajkessel/gedcom-navigator/releases/latest/download/gedcom-navigator-windows.zip) (see [security note](#windows-security))
+* [Linux](https://github.com/ajkessel/gedcom-navigator/releases/latest/download/gedcom-navigator-linux.zip)
 
 ![Main
-window](https://raw.githubusercontent.com/ajkessel/gedcom-dna-finder/main/docs/screenshots/screen_recording.gif)
+window](https://raw.githubusercontent.com/ajkessel/gedcom-navigator/main/docs/screenshots/screen_recording.gif)
 
 This is an alpha release. Only one person has tested it so far--me. If you are interested in experimenting with a "dummy" GEDCOM file rather than your own, several are available from [the FindMyPast Github Repository](https://github.com/findmypast/gedcom-samples). I used the [Game of Thrones family tree](https://github.com/findmypast/gedcom-samples/blob/main/GoT.ged) for the sample screenshots to avoid any privacy issues and also to show why it gets complicated when siblings marry one another.
 
@@ -49,7 +49,7 @@ I've also sought to make all actions accessible from the keyboard. See [the keyb
 ## How the DNA matching works
 
 ![Main
-window](https://raw.githubusercontent.com/ajkessel/gedcom-dna-finder/main/docs/screenshots/main-window.png)
+window](https://raw.githubusercontent.com/ajkessel/gedcom-navigator/main/docs/screenshots/main-window.png)
 
 Given a GEDCOM file and a target individual, the tool performs a breadth-first search through the tree's relationship graph (parents, children, siblings, spouses) and returns the closest individuals flagged as DNA matches, along with the relationship path connecting each match to the target.
 
@@ -91,27 +91,27 @@ The command-line interface uses only the Python standard library.
 
 ### Pre-built executables
 
-Download the [latest release for your operating system](https://github.com/ajkessel/gedcom-dna-finder/releases/latest). No Python installation required.
+Download the [latest release for your operating system](https://github.com/ajkessel/gedcom-navigator/releases/latest). No Python installation required.
 
 ### pip (PyPI)
 
-This application is also available on [PyPI via pip](https://pypi.org/project/gedcom-dna-finder/). For the command-line interface only, use:
+This application is also available on [PyPI via pip](https://pypi.org/project/gedcom-navigator/). For the command-line interface only, use:
 ```
-pip install gedcom-dna-finder
+pip install gedcom-navigator
 ```
 
 For the graphical interface, install the GUI extra:
 
 ```
-pip install "gedcom-dna-finder[gui]"
+pip install "gedcom-navigator[gui]"
 ```
 
 After installation two commands are available:
 
 | Command                 | Description            |
 | ----------------------- | ---------------------- |
-| `gedcom-dna-finder`     | Command-line interface |
-| `gedcom_dna_finder_gui` | Graphical interface    |
+| `gedcom-navigator`     | Command-line interface |
+| `gedcom_navigator_gui` | Graphical interface    |
 
 On Linux, install your distribution's tkinter package before using the GUI:
 
@@ -130,13 +130,13 @@ sudo pacman -S tk
 ### Run from source
 
 ```
-git clone https://github.com/ajkessel/gedcom-dna-finder.git
-cd gedcom-dna-finder
+git clone https://github.com/ajkessel/gedcom-navigator.git
+cd gedcom-navigator
 python -m venv .venv
 source .venv/bin/activate
 pip install -r dev/requirements.txt
-python src/gedcom_dna_finder_gui.py        # GUI
-python src/gedcom_dna_finder_cli.py --help # CLI
+python src/gedcom_navigator_gui.py        # GUI
+python src/gedcom_navigator_cli.py --help # CLI
 ```
 
 The CLI can run without these GUI dependencies. If you want to build distributable packages, swap `requirements-dev.txt` for `requirements.txt` above.
@@ -149,21 +149,21 @@ A [build-and-release.sh](../dev/build-and-release.sh) script is also available t
 
 ## Usage
 
-For pre-built binaries, just run the executable, or download directly from the [Mac App Store](https://apps.apple.com/app/gedcom-dna-finder/id6765485580). 
+For pre-built binaries, just run the executable, or download directly from the [Mac App Store](https://apps.apple.com/app/gedcom-navigator/id6765485580). 
 
 ### Relationship finder
 
 This is an alternate use of this tool. Select a person in the search panel, then click on "Find Relationship Path..." and select a second person. This tool will then show you the top three paths (if they exist) between those two people. You can change the number of paths to an arbitrary number by editing the "Top N" value in the bottom right. If the two people are very distantly related, you may need to increase the "Max Depth" setting to find the connection. The default max depth of 50 should find connections at least up to 4th cousins.
 
 ![Relationship
-window](https://raw.githubusercontent.com/ajkessel/gedcom-dna-finder/main/docs/screenshots/relationship-path.png)
+window](https://raw.githubusercontent.com/ajkessel/gedcom-navigator/main/docs/screenshots/relationship-path.png)
 
 
 ### GUI
 
 ```
-python gedcom_dna_finder_gui.py                  # opens with no file loaded
-python gedcom_dna_finder_gui.py /path/to/tree.ged   # auto-loads on startup
+python gedcom_navigator_gui.py                  # opens with no file loaded
+python gedcom_navigator_gui.py /path/to/tree.ged   # auto-loads on startup
 ```
 
 1. Click **Browse** and select your `.ged` file (or pass it on the command line as shown above). The tool will also find a `.ged` file inside a `.zip` file, since a tree downloaded from Ancestry will be zipped.
@@ -174,7 +174,7 @@ python gedcom_dna_finder_gui.py /path/to/tree.ged   # auto-loads on startup
 6. The right pane shows the closest flagged relative(s) and the relationship path from the selected person to each one.
 
 ![Results pane showing a relationship
-path](https://raw.githubusercontent.com/ajkessel/gedcom-dna-finder/main/docs/screenshots/results-pane.png)
+path](https://raw.githubusercontent.com/ajkessel/gedcom-navigator/main/docs/screenshots/results-pane.png)
 
 The **View tag definitions...** button opens a window listing every `_MTTAG` record in the file with its name, which is useful for deciding what tag-keyword filter to use.
 
@@ -182,33 +182,33 @@ The **View tag definitions...** button opens a window listing every `_MTTAG` rec
 
 ```
 # List all _MTTAG definitions in the file (use "_" as a placeholder for the target)
-python gedcom_dna_finder_cli.py tree.ged --list-tags _
+python gedcom_navigator_cli.py tree.ged --list-tags _
 
 # List every flagged individual
-python gedcom_dna_finder_cli.py tree.ged --list-flagged _
+python gedcom_navigator_cli.py tree.ged --list-flagged _
 
 # Find the three nearest DNA-flagged relatives by name
-python gedcom_dna_finder_cli.py tree.ged "Jane Doe"
+python gedcom_navigator_cli.py tree.ged "Jane Doe"
 
 # Names are matched by whitespace-separated tokens, in any order, each as
 # a case-insensitive substring. The middle name is not required:
 # this matches "John Adam Smith".
-python gedcom_dna_finder_cli.py tree.ged "John Smith"
+python gedcom_navigator_cli.py tree.ged "John Smith"
 
 # Fuzzy matching tolerates typos and spelling variants. The default
 # similarity threshold is 0.6; raise it for stricter matches.
-python gedcom_dna_finder_cli.py tree.ged "John Smth" --fuzzy
-python gedcom_dna_finder_cli.py tree.ged "John Smth" --fuzzy --fuzzy-threshold 0.75
+python gedcom_navigator_cli.py tree.ged "John Smth" --fuzzy
+python gedcom_navigator_cli.py tree.ged "John Smth" --fuzzy --fuzzy-threshold 0.75
 
 # Find by exact INDI ID
-python gedcom_dna_finder_cli.py tree.ged @I1234@
+python gedcom_navigator_cli.py tree.ged @I1234@
 
 # Restrict the tag filter to actual DNA matches only (excludes
 # "DNA Connection" or "Common DNA Ancestor" if you use those tags)
-python gedcom_dna_finder_cli.py tree.ged "Jane Doe" --tag-keyword "DNA Match"
+python gedcom_navigator_cli.py tree.ged "Jane Doe" --tag-keyword "DNA Match"
 
 # Return the top 5 nearest matches with a deeper search
-python gedcom_dna_finder_cli.py tree.ged "Jane Doe" --top 5 --max-depth 80
+python gedcom_navigator_cli.py tree.ged "Jane Doe" --top 5 --max-depth 80
 ```
 
 #### Full CLI options
@@ -276,14 +276,14 @@ The tool runs entirely locally on your machine. Nothing is uploaded. Be aware, h
 You may get a warning from Windows Defender that this is an unrecognized app from an unknown publisher. You can run the application by clicking first on "more info" and then "run anyway." It should only ask the first time you execute the software.
 
 ![Windows
-Screenshot](https://raw.githubusercontent.com/ajkessel/gedcom-dna-finder/main/docs/screenshots/windows-security.png)
+Screenshot](https://raw.githubusercontent.com/ajkessel/gedcom-navigator/main/docs/screenshots/windows-security.png)
 
 ## MacOS security
 
-If you install from the [Mac App Store](https://apps.apple.com/app/gedcom-dna-finder/id6765485580), this application should just work out of the box. If you are downloading the application from here and not running from the source code, you will have to tell the operating system manually to trust the program. As of 29 April 2026, I am testing a new build process that should only require one click to approve after downloading--just select "open" when presented with the box below the first time you run a new version of the application.
+If you install from the [Mac App Store](https://apps.apple.com/app/gedcom-navigator/id6765485580), this application should just work out of the box. If you are downloading the application from here and not running from the source code, you will have to tell the operating system manually to trust the program. As of 29 April 2026, I am testing a new build process that should only require one click to approve after downloading--just select "open" when presented with the box below the first time you run a new version of the application.
 
 ![Mac
-Screenshot](https://raw.githubusercontent.com/ajkessel/gedcom-dna-finder/main/docs/screenshots/downloaded-from-internet.png)
+Screenshot](https://raw.githubusercontent.com/ajkessel/gedcom-navigator/main/docs/screenshots/downloaded-from-internet.png)
 
 ### Old instructions
 
@@ -297,7 +297,7 @@ The instructions below apply to older versions of this application and hopefully
 If you follow these steps and are seeing an error along the lines of "This file is damaged and can't be opened" it is typically because a false positive from your security settings. This can be fixed by opening the Terminal application (via Applications->Utilities or Spotlight search), typing `xattr -cr ` (with a space after `cr`) and then dragging and dropping the application ito the Terminal window and hitting enter. This will remove the "quarantine" setting on the application and allow you to run it again.
 
 ![MacOS
-Screenshot](https://raw.githubusercontent.com/ajkessel/gedcom-dna-finder/main/docs/screenshots/open_anyway.png)
+Screenshot](https://raw.githubusercontent.com/ajkessel/gedcom-navigator/main/docs/screenshots/open_anyway.png)
 
 
 ## License

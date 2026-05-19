@@ -3,7 +3,7 @@ if [[ "$OSTYPE" != "linux-gnu"* ]]; then
 	echo 'This script is intended to be run on Linux.'
 	exit 1
 fi
-output_file="gedcom-dna-finder-linux.zip"
+output_file="gedcom-navigator-linux.zip"
 while getopts "hnco:" opt; do
 	case $opt in
 	h)
@@ -21,7 +21,7 @@ done
 [[ "$CLEAN" ]] && [[ -e ".venv" ]] && rm -r ".venv"
 [[ -e ".venv/bin/activate" ]] || {
 	echo 'Creating virtual environment...'
-	python3 -m venv .venv --prompt "gedcom-dna-finder" || {
+	python3 -m venv .venv --prompt "gedcom-navigator" || {
 		echo 'Failed to create virtual environment.'
 		exit 1
 	}
@@ -48,11 +48,11 @@ python3 ./dev/generate_icon.py ./icons/family_tree.png || {
 	echo 'Failed to generate ICO file.'
 	exit 1
 }
-pyinstaller --noconfirm ./dev/gedcom_dna_finder_cli.spec || {
+pyinstaller --noconfirm ./dev/gedcom_navigator_cli.spec || {
 	echo 'pyinstaller failed to build CLI.'
 	exit 1
 }
-pyinstaller --noconfirm ./dev/gedcom_dna_finder_gui.spec || {
+pyinstaller --noconfirm ./dev/gedcom_navigator_gui.spec || {
 	echo 'pyinstaller failed to build GUI.'
 	exit 1
 }

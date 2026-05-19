@@ -164,21 +164,25 @@ class TestCacheHit:
 # ===========================================================================
 
 class TestCacheInvalidation:
-    def test_changed_dna_keyword_invalidates_cache(self, tmp_path):
+    def test_changed_dna_keyword_reuses_cache(self, tmp_path):
+        # Raw parsed data is cached independently of DNA settings; flags are
+        # re-applied on every load, so a keyword change still hits the cache.
         cache_dir = str(tmp_path / "cache")
         p = _write_ged(tmp_path)
         GedcomDataModel().load(p, "DNA", "AncestryDNA", cache_dir)
         from_cache, _, _ = GedcomDataModel().load(p, "DIFFERENT", "AncestryDNA",
                                                    cache_dir)
-        assert from_cache is False
+        assert from_cache is True
 
-    def test_changed_page_marker_invalidates_cache(self, tmp_path):
+    def test_changed_page_marker_reuses_cache(self, tmp_path):
+        # Raw parsed data is cached independently of DNA settings; flags are
+        # re-applied on every load, so a marker change still hits the cache.
         cache_dir = str(tmp_path / "cache")
         p = _write_ged(tmp_path)
         GedcomDataModel().load(p, "DNA", "AncestryDNA", cache_dir)
         from_cache, _, _ = GedcomDataModel().load(p, "DNA", "OtherMarker",
                                                    cache_dir)
-        assert from_cache is False
+        assert from_cache is True
 
     def test_file_mtime_change_invalidates_cache(self, tmp_path):
         cache_dir = str(tmp_path / "cache")

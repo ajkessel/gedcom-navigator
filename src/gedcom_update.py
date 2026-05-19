@@ -18,10 +18,10 @@ from urllib.request import Request, urlopen
 
 
 GITHUB_LATEST_RELEASE_API = (
-    "https://api.github.com/repos/ajkessel/gedcom-dna-finder/releases/latest"
+    "https://api.github.com/repos/ajkessel/gedcom-navigator/releases/latest"
 )
 GITHUB_LATEST_RELEASE_PAGE = (
-    "https://github.com/ajkessel/gedcom-dna-finder/releases/latest"
+    "https://github.com/ajkessel/gedcom-navigator/releases/latest"
 )
 
 _SEMVER_RE = re.compile(r"^v?(\d+)\.(\d+)\.(\d+)$")
@@ -63,7 +63,7 @@ def check_for_updates(current_version, opener=urlopen, timeout=8):
         GITHUB_LATEST_RELEASE_API,
         headers={
             "Accept": "application/vnd.github+json",
-            "User-Agent": f"gedcom-dna-finder/{current_version}",
+            "User-Agent": f"gedcom-navigator/{current_version}",
         },
     )
     try:
