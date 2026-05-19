@@ -2462,7 +2462,7 @@ class ResultsMixin:
         if category == 'children':
             return TREE_BUTTON_CHILDREN_HIDE if is_expanded else TREE_BUTTON_CHILDREN
         if category == 'spouses':
-            return TREE_BUTTON_SPOUSES
+            return TREE_BUTTON_SPOUSES_HIDE if is_expanded else TREE_BUTTON_SPOUSES
         if side == 'right':
             return (TREE_BUTTON_SIBLINGS_LEFT if is_expanded
                     else TREE_BUTTON_SIBLINGS_RIGHT)
@@ -3610,8 +3610,45 @@ class ResultsMixin:
 
         graph_path = self._simplify_path_for_graph(path)
 
-        win = ctk.CTkToplevel(self.root)
-        win.withdraw()
+        existing_win = getattr(self, '_secondary_win', None)
+        if existing_win is not None:
+            try:
+                if not existing_win.winfo_exists():
+                    existing_win = None
+            except tk.TclError:
+                existing_win = None
+            if existing_win is None:
+                self._secondary_win = None
+                self._path_graph_win = None
+                self._path_graph_replace_fn = None
+
+        if existing_win is not None and existing_win is getattr(self, '_path_graph_win', None):
+            replace_fn = getattr(self, '_path_graph_replace_fn', None)
+            if replace_fn is not None:
+                replace_fn(list(path), relationship)
+            self._raise_window(existing_win)
+            return
+
+        repurpose_window = existing_win is not None
+        if repurpose_window:
+            win = existing_win
+            for sequence in self._reused_person_window_bindings():
+                try:
+                    win.unbind(sequence)
+                except tk.TclError:
+                    pass
+            try:
+                win.unbind('<Configure>')
+            except tk.TclError:
+                pass
+            for child in win.winfo_children():
+                child.destroy()
+        else:
+            win = ctk.CTkToplevel(self.root)
+            self._secondary_win = win
+            win.withdraw()
+
+        self._path_graph_win = win
         win.title(WIN_PATH_GRAPH)
         win.resizable(True, True)
         if sys.platform != 'win32':
@@ -3693,6 +3730,8 @@ class ResultsMixin:
                 text=RESULT_RELATIONSHIP.format(rel=new_relationship))
             _redraw_graph()
 
+        self._path_graph_replace_fn = _replace_graph_path
+
         _graph_geo_after = [None]
 
         def _remember_graph_geometry():
@@ -3713,10 +3752,11 @@ class ResultsMixin:
         def _destroy_graph_window(*_):
             _stop_graph_geometry_tracking()
             _remember_graph_geometry()
-            try:
-                win.grab_release()
-            except tk.TclError:
-                pass
+            if getattr(self, '_secondary_win', None) is win:
+                self._secondary_win = None
+            if getattr(self, '_path_graph_win', None) is win:
+                self._path_graph_win = None
+                self._path_graph_replace_fn = None
             win.destroy()
 
         def _on_graph_configure(event):
@@ -3729,26 +3769,16 @@ class ResultsMixin:
         def _close_graph_for(action):
             _stop_graph_geometry_tracking()
             _remember_graph_geometry()
-            try:
-                win.grab_release()
-            except tk.TclError:
-                pass
-            win.destroy()
+            _destroy_graph_window()
             self.root.after_idle(action)
 
         def _show_tree_from_graph(indi_id):
-            _stop_graph_geometry_tracking()
-            _remember_graph_geometry()
             self._select_person_in_main_tree(indi_id)
-            self._show_person_for(
-                indi_id, initial_view='tree', existing_window=win)
+            self._show_person_for(indi_id, initial_view='tree')
 
         def _show_profile_from_graph(indi_id):
-            _stop_graph_geometry_tracking()
-            _remember_graph_geometry()
             self._select_person_in_main_tree(indi_id)
-            self._show_person_for(
-                indi_id, initial_view='profile', existing_window=win)
+            self._show_person_for(indi_id, initial_view='profile')
 
         def _find_matches_from_graph(indi_id):
             def _find_matches():
@@ -3760,9 +3790,7 @@ class ResultsMixin:
         def _focus_graph_window():
             try:
                 if win.winfo_exists():
-                    win.grab_set()
-                    win.lift()
-                    win.focus_force()
+                    self._raise_window(win)
                     canvas.focus_set()
             except tk.TclError:
                 pass
@@ -3935,23 +3963,23 @@ class ResultsMixin:
             win.bind('<Control-Shift-D>', _save_graph_debug)
             canvas.bind('<Control-Shift-D>', _save_graph_debug)
         win.protocol('WM_DELETE_WINDOW', _destroy_graph_window)
-        win.grab_set()
-        win.update_idletasks()
-        screen_x, screen_y, screen_w, screen_h = (
-            self._window_display_bounds(self.root))
-        previous_geometry = None
-        if getattr(self, '_path_graph_opened_this_session', False):
-            previous_geometry = getattr(self, '_path_graph_geometry', None)
-        width, height, x, y = self._path_graph_window_geometry(
-            graph_state['canvas_w'], graph_state['canvas_h'],
-            screen_w, screen_h, screen_x, screen_y,
-            previous_geometry=previous_geometry)
-        win.geometry(f'{width}x{height}+{x}+{y}')
         self._path_graph_opened_this_session = True
         win.bind('<Configure>', _on_graph_configure)
-        win.deiconify()
-        win.lift()
-        win.focus_force()
+        if repurpose_window:
+            self._raise_window(win)
+        else:
+            win.update_idletasks()
+            screen_x, screen_y, screen_w, screen_h = (
+                self._window_display_bounds(self.root))
+            previous_geometry = None
+            if getattr(self, '_path_graph_opened_this_session', False):
+                previous_geometry = getattr(self, '_path_graph_geometry', None)
+            width, height, x, y = self._path_graph_window_geometry(
+                graph_state['canvas_w'], graph_state['canvas_h'],
+                screen_w, screen_h, screen_x, screen_y,
+                previous_geometry=previous_geometry)
+            win.geometry(f'{width}x{height}+{x}+{y}')
+            self._raise_window(win)
 
     def _reverse_results(self):
         """Toggle reversed display of the current results."""

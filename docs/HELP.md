@@ -2,20 +2,22 @@
 
 This tool provides useful ways to rapidly explore a GEDCOM file exported from genealogy services like Ancestry, MyHeritage, Geni, and Family Tree Maker:
 
-* Find the closest DNA-flagged person to any other person in a family tree
+* Find the closest tagged people (e.g. DNA match) to any other person in a family tree
 * Show multiple relationship paths between any two people in your tree
-* Search your tree for variations on names and filter on other information like
-  geographical locations or occupation
+* Search your tree for variations on names (maiden/married name, alternate names, fuzzy matching) and filter on other information like geographical locations or occupation
 * Rapidly explore names and connections, even in a very large tree with very distant connections
+* Generate custom images of parts of your tree, expanding or collapsing the connections you want to see
 * Visualize relationships between any two people graphically
 
 ## The problems this solves
 
-Many genealogists working with autosomal DNA add unfamiliar people to their family tree based on DNA matches and then build out those people's lines, hoping to find the most recent common ancestor between the match and themselves. After accumulating thousands of these speculative additions, you often end up looking at a person in your tree and thinking: *why is this person here? which DNA match did this branch come from?*
+Although there are many genealogy websites and desktop tools, they all have shortcomings when you are managing very large trees (thousands or tens of thousands of records).
 
-Ancestry, Family Tree Maker, and other standard GEDCOM viewers show you a flat list of everyone you've tagged as a DNA match, but none of them will, given an arbitrary person in the tree, walk outward through the relationship graph and tell you the nearest tagged relative. That is the main purpose of this tool.
+For example, many genealogists working with autosomal DNA add unfamiliar people to their family tree based on DNA matches and then build out those people's lines, hoping to find the most recent common ancestor between the match and themselves. After accumulating thousands of these speculative additions, you often end up looking at a person in your tree and thinking: *why is this person here? which DNA match did this branch come from?*
 
-You can also use this tool to find multiple paths between any two people in your tree and also view individual records from your tree. For example, if your grandfather's maternal cousin married your grandfather's paternal cousin, you will have multiple paths to their descendants. Most applications only show one path; this tool can find as many paths as you like. If you set the application to cast a wide net by setting the "max depth" to a high value, you can discover unexpected links between your relatives. This will take longer to process in a large tree but can yield interesting information.
+Ancestry, Family Tree Maker, and other standard GEDCOM viewers show you a flat list of everyone you've tagged as a DNA match, but none of them will, given an arbitrary person in the tree, walk outward through the relationship graph and tell you the nearest tagged relative. That is one purpose of this tool.
+
+You can also use this tool to find multiple paths between any two people in your tree and also view individual records from your tree. For example, if your grandfather's maternal cousin married your grandfather's paternal cousin, you will have multiple paths to their descendants. Most applications only show one path--the most direct; this tool can find as many paths as you like. If you set the application to cast a wide net by setting the "max depth" to a high value, you can discover unexpected links between your relatives. This will take longer to process in a large tree but can yield interesting information.
 
 Any relationship description can be clicked to see a graphical representation of that relationship, which you can then copy and use as you like.
 

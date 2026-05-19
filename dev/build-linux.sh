@@ -35,6 +35,10 @@ pip install -r ./dev/requirements-dev.txt || {
 	echo 'Failed to install dependencies.'
 	exit 1
 }
+echo 'Patching ctktooltip... (see https://github.com/Akascape/CTkToolTip/issues/20 for details)'
+patch -d "${VIRTUAL_ENV}/lib/site-packages/" -N -p1 < ./dev/ctk_tooltip.patch || {
+	echo 'Failed to patch ctktooltip, may have been applied already. Proceeding anyway...'
+}
 echo 'Running unit tests...'
 pytest -v --tb=short --disable-warnings || {
 	echo 'Unit tests failed. Exiting.'

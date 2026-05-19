@@ -170,6 +170,24 @@ class ConfigManager:
         """Save the default view for the profile window."""
         self.save_value('profile_view_default', value)
 
+    def get_tag_keyword(self, default="DNA"):
+        """Return the saved DNA tag keyword."""
+        val = self.load_value('tag_keyword', default)
+        return val if isinstance(val, str) else default
+
+    def set_tag_keyword(self, value):
+        """Save the DNA tag keyword."""
+        self.save_value('tag_keyword', str(value))
+
+    def get_page_marker(self, default="AncestryDNA Match"):
+        """Return the saved DNA page marker keyword."""
+        val = self.load_value('page_marker', default)
+        return val if isinstance(val, str) else default
+
+    def set_page_marker(self, value):
+        """Save the DNA page marker keyword."""
+        self.save_value('page_marker', str(value))
+
     # ------------------------------------------------------------------
     # Platform default path
     # ------------------------------------------------------------------

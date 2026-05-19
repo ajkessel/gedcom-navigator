@@ -45,6 +45,26 @@ _BG_TINTS = {
 class AppearanceMixin:
     """Mixin providing appearance, history, keybinding, and menu methods."""
 
+    @staticmethod
+    def _raise_window(win):
+        """Bring win to the front and give it keyboard focus.
+
+        On Windows, briefly sets -topmost to overcome the OS restriction that
+        prevents background windows from stealing focus via lift() alone.
+        """
+        win.deiconify()
+        if sys.platform == 'win32':
+            win.attributes('-topmost', True)
+        win.lift()
+        win.focus_force()
+        if sys.platform == 'win32':
+            def _clear():
+                try:
+                    win.attributes('-topmost', False)
+                except tk.TclError:
+                    pass
+            win.after(200, _clear)
+
     # ---------------------------------------------------------- History / config
     def _cache_dir(self):
         """Return the directory used for GEDCOM parse caches."""

@@ -70,9 +70,26 @@ class DialogsMixin:
     def _show_person_for(self, indi_id, initial_view=None,
                          existing_window=None):
         """Open a detail window for a specific individual ID."""
+        if existing_window is None:
+            existing = getattr(self, '_secondary_win', None)
+            if existing is not None:
+                try:
+                    if existing.winfo_exists():
+                        existing_window = existing
+                    else:
+                        self._secondary_win = None
+                        self._path_graph_win = None
+                        self._path_graph_replace_fn = None
+                except tk.TclError:
+                    self._secondary_win = None
+                    self._path_graph_win = None
+                    self._path_graph_replace_fn = None
         reuse_window = existing_window is not None
         if reuse_window:
             win = existing_window
+            if getattr(self, '_path_graph_win', None) is win:
+                self._path_graph_win = None
+                self._path_graph_replace_fn = None
             for sequence in self._reused_person_window_bindings():
                 try:
                     win.unbind(sequence)
@@ -86,11 +103,11 @@ class DialogsMixin:
                 child.destroy()
         else:
             win = ctk.CTkToplevel(self.root)
+            self._secondary_win = win
             win.withdraw()
         win.resizable(True, True)
         if sys.platform != 'win32':
             win.transient(self.root)
-        win.grab_set()
 
         _geo_after = [None]
 
@@ -102,8 +119,16 @@ class DialogsMixin:
             _geo_after[0] = win.after(
                 400, lambda: self._persist_show_person_geometry(win))
 
-        win.bind('<Escape>', lambda *_: win.destroy())
-        win.protocol('WM_DELETE_WINDOW', win.destroy)
+        def _on_destroy_person_win(*_):
+            if getattr(self, '_secondary_win', None) is win:
+                self._secondary_win = None
+            if getattr(self, '_path_graph_win', None) is win:
+                self._path_graph_win = None
+                self._path_graph_replace_fn = None
+            win.destroy()
+
+        win.bind('<Escape>', _on_destroy_person_win)
+        win.protocol('WM_DELETE_WINDOW', _on_destroy_person_win)
 
         content_frame = ctk.CTkFrame(win, fg_color='transparent')
         content_frame.pack(fill='both', expand=True)
@@ -614,11 +639,7 @@ class DialogsMixin:
 
             def _find_matches_from_tree(indi_id):
                 self._select_person_in_main_tree(indi_id)
-                try:
-                    win.grab_release()
-                except tk.TclError:
-                    pass
-                win.destroy()
+                _on_destroy_person_win()
                 self.root.after_idle(self._find_matches)
 
             def _expand_all_tree(indi_id, categories):
@@ -767,13 +788,11 @@ class DialogsMixin:
         win.minsize(400, 300)
         if reuse_window:
             win.update_idletasks()
-            win.lift()
-            win.focus_force()
+            self._raise_window(win)
             return
 
         win.geometry(f"{int(_w)}x{int(_h)}+{int(_x)}+{int(_y)}")
-        win.deiconify()
-        win.focus_force()
+        self._raise_window(win)
         if _twm:
             if sys.platform == 'win32':
                 win.state('zoomed')
@@ -1336,6 +1355,24 @@ class DialogsMixin:
         Tooltip(_pref_max_display_label, TIP_MAX_DISPLAY)
         Tooltip(_pref_max_display_spin, TIP_MAX_DISPLAY)
 
+        _pref_tag_keyword_label = ctk.CTkLabel(search_frame, text=LBL_TAG_KEYWORD)
+        _pref_tag_keyword_label.grid(row=2, column=0, sticky='w', padx=(0, 8), pady=(6, 0))
+        tag_keyword_var = tk.StringVar(value=self.tag_keyword.get())
+        _pref_tag_keyword_entry = ctk.CTkEntry(
+            search_frame, textvariable=tag_keyword_var, width=180)
+        _pref_tag_keyword_entry.grid(row=2, column=1, columnspan=3, sticky='ew', pady=(6, 0))
+        Tooltip(_pref_tag_keyword_label, TIP_TAG_KEYWORD)
+        Tooltip(_pref_tag_keyword_entry, TIP_TAG_KEYWORD)
+
+        _pref_page_marker_label = ctk.CTkLabel(search_frame, text=LBL_PAGE_MARKER)
+        _pref_page_marker_label.grid(row=3, column=0, sticky='w', padx=(0, 8), pady=(6, 0))
+        page_marker_var = tk.StringVar(value=self.page_marker.get())
+        _pref_page_marker_entry = ctk.CTkEntry(
+            search_frame, textvariable=page_marker_var, width=180)
+        _pref_page_marker_entry.grid(row=3, column=1, columnspan=3, sticky='ew', pady=(6, 0))
+        Tooltip(_pref_page_marker_label, TIP_PAGE_MARKER)
+        Tooltip(_pref_page_marker_entry, TIP_PAGE_MARKER)
+
         # Display section
         display_section = ctk.CTkFrame(outer, border_width=1)
         display_section.pack(fill='x', pady=(0, 8))
@@ -1418,6 +1455,10 @@ class DialogsMixin:
                 self._config.set_max_display(self.max_display.get())
             except (tk.TclError, ValueError):
                 pass
+            self.tag_keyword.set(tag_keyword_var.get())
+            self._config.set_tag_keyword(tag_keyword_var.get())
+            self.page_marker.set(page_marker_var.get())
+            self._config.set_page_marker(page_marker_var.get())
             self.show_ids.set(show_ids_var.get())
             self._config.set_show_ids(show_ids_var.get())
             self._name_order = name_order_var.get()

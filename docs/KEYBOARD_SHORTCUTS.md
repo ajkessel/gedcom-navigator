@@ -7,7 +7,7 @@
 | **F2** | **K**eyboard Shortcuts |
 | **Ctrl+F** | **F**ind Person |
 | **Ctrl+I** | F**i**lter Results |
-| **Ctrl+D** | Toggle the **D**NA filter |
+| **Ctrl+D** | Toggle the **D**NA (or other tag) filter |
 | **Ctrl+U** | Toggle f**u**zzy search mode |
 | **Ctrl+M** | Toggle **m**arried-name search mode |
 | **Ctrl+O** | **O**pen a new GEDCOM file |

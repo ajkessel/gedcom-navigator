@@ -120,8 +120,8 @@ class DNAMatchFinderApp(
 
         # UI state variables
         self.gedcom_path = tk.StringVar()
-        self.tag_keyword = tk.StringVar(value="DNA")
-        self.page_marker = tk.StringVar(value="AncestryDNA Match")
+        self.tag_keyword = tk.StringVar(value=self._config.get_tag_keyword())
+        self.page_marker = tk.StringVar(value=self._config.get_page_marker())
         self.search_text = tk.StringVar()
         self.filter_text = tk.StringVar()
         self.show_flagged_only = tk.BooleanVar(value=False)
@@ -166,6 +166,9 @@ class DNAMatchFinderApp(
         self._show_person_opened_this_session = False
         self._path_graph_geometry = None
         self._path_graph_opened_this_session = False
+        self._path_graph_win = None
+        self._path_graph_replace_fn = None
+        self._secondary_win = None
 
         self._mono_family = self._pick_mono_family()
         self._mono_size = self._FONT_SIZES['medium']['mono']
@@ -260,8 +263,6 @@ class DNAMatchFinderApp(
         # Settings row
         settings_group = ctk.CTkFrame(outer, border_width=1)
         settings_group.pack(fill='x', pady=(8, 0))
-        # ctk.CTkLabel(settings_group, text=FRAME_DNA_SETTINGS, anchor='w').pack(
-        #    anchor='nw', padx=10, pady=(6, 2))
         settings_frame = ctk.CTkFrame(settings_group, fg_color='transparent')
         settings_frame.pack(fill='x', padx=8, pady=(6, 8))
 

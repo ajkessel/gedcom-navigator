@@ -32,7 +32,6 @@ MENU_OPEN_RECENT = "Open Recent"
 MENU_NO_RECENT_FILES = "No Recent Files"
 MENU_MENU = "Help"
 MENU_PREFERENCES = "Settings…" if sys.platform == 'darwin' else "Preferences… (F3)"
-MENU_CLEAR_CACHE = "Clear cache…"
 MENU_HOW_TO_USE = (
     f"How to use ({_MOD}?)"
     if sys.platform == 'darwin'
@@ -51,14 +50,11 @@ MENU_QUIT = "Quit"
 # ---------------------------------------------------------------------------
 # File panel
 # ---------------------------------------------------------------------------
-FRAME_GEDCOM_FILE = "GEDCOM file"
-BTN_BROWSE = "Browse…"
 DLG_SELECT_GEDCOM = "Select GEDCOM file"
 
 # ---------------------------------------------------------------------------
 # DNA marker settings panel
 # ---------------------------------------------------------------------------
-FRAME_DNA_SETTINGS = "DNA marker settings"
 LBL_TAG_KEYWORD = "Tag keyword:"
 LBL_PAGE_MARKER = "Page marker:"
 BTN_SELECT_TAG = "Select Tag"
@@ -68,14 +64,14 @@ BTN_FIND_PATH = "Find Relationship Path"
 # People list
 # ---------------------------------------------------------------------------
 LBL_FIND = "Find:"
-CHK_DNA_FLAGGED_ONLY = "DNA"
+CHK_DNA_FLAGGED_ONLY = "Tagged"
 CHK_FUZZY = "Fuzzy"
 CHK_MARRIED_NAMES = "Married"
 LBL_FILTER = "Filter:"
 COL_NAME = "Name"
 COL_BIRTH = "Birth"
 COL_DEATH = "Death"
-COL_DNA = "DNA"
+COL_DNA = "Tagged"
 
 # ---------------------------------------------------------------------------
 # Action controls (main window)
@@ -119,14 +115,14 @@ TIP_FIND = (
     "Type to filter the list of people. Search by any name variation. Use the filter box "
     "to search by other information in a person's GEDCOM record, such as geographic location. "
     "Press Enter to jump directly to the first match. "
-    "Use the checkboxes to show only DNA-flagged people, allow fuzzy name matching, "
+    "Use the checkboxes to show only people matching tags, allow fuzzy name matching, "
     "or include married names."
 )
 TIP_FIND_MATCHES = (
     f"Find Nearest Matches ({_MOD}N)\n"
-    "Find the closest DNA matches to the selected person. "
+    "Find the closest tagged matches to the selected person. "
     "The results are ranked by proximity to the selected person, with ties broken by "
-    "the number of DNA markers (if any) associated with the match. "
+    "the number of tags (if any) associated with the match. "
     "Use the 'Results' and 'Max Depth' settings to adjust how many results are returned and " +
     "how far to search within the tree.\n\n"
     "Also triggered by pressing Enter when selecting a person."
@@ -172,12 +168,12 @@ TIP_FIND_PATH = (
 TIP_TOP_N = (
     "Number of Results\n"
     "Specify how many results to return when finding the closest"
-    " people who are DNA matches as well as the number of paths"
+    " people who are tagged as well as the number of paths"
     " between the selected person and the home person."
 )
 TIP_MAX_DEPTH = (
     "Maximum Depth For Finding Relationships\n"
-    "Specify how far to search within the tree for DNA matches"
+    "Specify how far to search within the tree for tagged matches"
     " and relationship paths between two people."
     " Higher values will find more distant connections but will"
     " take longer to find in large trees. Reasonable values are"
@@ -196,8 +192,10 @@ TIP_MAX_DISPLAY = (
     " Higher values may slow down filtering in very large trees."
 )
 TIP_DNA_FLAGGED_ONLY = (
-    f"Toggle DNA-flagged Only ({_MOD}D)\n"
-    "When checked, only people flagged as DNA matches will be shown in search results."
+    f"Toggle Tagged Only ({_MOD}D)\n"
+    "When checked, only people flagged as tagged will be shown in search results. "
+    "Default Tags are DNA-related, but you can set other tag terms. "
+    "Default is unchecked to show all people, but checking this focusses on tagged matches in large trees."
 )
 TIP_FUZZY = (
     f"Toggle Fuzzy Search ({_MOD}U)\n"
@@ -244,29 +242,25 @@ TIP_COPY_PROFILE = (f"Copy profile ({_MOD}C)\n"
                     "Copy this biographical profile to clipboard.")
 WIN_FAMILY_TREE = "Family Tree: {name}"
 DLG_SAVE_FAMILY_TREE = "Save family tree"
-TREE_LABEL_PARENT = "parent"
-TREE_LABEL_CHILD = "child"
-TREE_LABEL_SIBLING = "sibling"
-TREE_LABEL_SPOUSE = "spouse"
 TREE_MENU_RECENTER = "Center"
 TREE_MENU_EXPAND_ALL = "Expand All"
 TREE_BUTTON_PARENTS = "↑"
 TREE_BUTTON_PARENTS_HIDE = "↓"
 TREE_BUTTON_SIBLINGS_LEFT = "←"
 TREE_BUTTON_SIBLINGS_RIGHT = "→"
-TREE_BUTTON_SPOUSES = "⚭"
+TREE_BUTTON_SPOUSES = "♥"
+TREE_BUTTON_SPOUSES_HIDE = "♡"
 TREE_BUTTON_CHILDREN = "↓"
 TREE_BUTTON_CHILDREN_HIDE = "↑"
 
 # ---------------------------------------------------------------------------
 # DNA match results display
 # ---------------------------------------------------------------------------
-RESULT_CLOSEST_MATCHES = "Closest DNA Matches"
-RESULT_DNA_FLAGGED_NOTE = "  Note: this person is themselves DNA-flagged."
-RESULT_NO_DNA_FOUND = "No DNA-flagged relatives found within the search depth."
+RESULT_CLOSEST_MATCHES = "Closest Tagged Matches"
+RESULT_DNA_FLAGGED_NOTE = "  Note: this person has a matching tag."
+RESULT_NO_DNA_FOUND = "No tagged relatives found within the search depth."
 RESULT_RANK_PREFIX = "#{rank}: "
-RESULT_DISTANCE = " (distance: {dist} edges)"
-RESULT_DNA_MARKERS = "   DNA markers:"
+RESULT_DNA_MARKERS = "   Tags:"
 RESULT_RELATIONSHIP = "Relationship: {rel}"
 TIP_RELATIONSHIP = "Show relationship graphically"
 RESULT_COMMON_ANCESTOR = "Common ancestor: "
@@ -379,25 +373,24 @@ LBL_CACHE_NOTE = "Remove all cached GEDCOM data"
 # Search progress popup
 # ---------------------------------------------------------------------------
 PROGRESS_SEARCHING_TITLE = "Searching"
-PROGRESS_SEARCHING = "Searching for DNA matches…\n(reduce 'max depth' setting for faster search)"
+PROGRESS_SEARCHING = "Searching for tagged matches…\n(reduce 'max depth' setting for faster search)"
 PROGRESS_FINDING_PATH = "Finding relationship paths…\n(reduce 'max depth' setting for faster search)"
 
 # ---------------------------------------------------------------------------
 # Status bar messages  (use .format() to fill in placeholders)
 # ---------------------------------------------------------------------------
-STATUS_EXTRACTED_ZIP = "Extracted {name} from ZIP…"
 STATUS_LOADING = "Loading…"
 STATUS_LOAD_FAILED = "Load failed."
 STATUS_LOADED_CACHED = "Loaded {count:,} individuals (from cache)."
 STATUS_LOADED = "Loaded {count:,} individuals."
 STATUS_SHOWING_FIRST = (
     "Showing first {max_display:,} of {total_matches:,} matches. "
-    "Refine your search.  ({total:,} total, {flagged} DNA-flagged)"
+    "Refine your search.  ({total:,} total, {flagged} tagged)"
 )
-STATUS_MATCHES = "{shown:,} match{plural} shown.  ({total:,} total, {flagged} DNA-flagged)"
+STATUS_MATCHES = "{shown:,} match{plural} shown.  ({total:,} total, {flagged} tagged)"
 STATUS_OVERVIEW = (
     "{total:,} individuals, {families:,} families, "
-    "{flagged} DNA-flagged.  Type to search."
+    "{flagged} tagged.  Type to search."
 )
 STATUS_HOME_SET = "Home person set: {name}"
 
@@ -479,11 +472,11 @@ KEYBOARD_SHORTCUT_ROWS = [
     (f"{_MOD}K" if sys.platform == 'darwin' else "F2", "Keyboard Shortcuts"),
     (f"{_MOD}F",     "Find Person"),
     (f"{_MOD}I",     "Filter Results"),
-    (f"{_MOD}D",     "Toggle the DNA filter"),
+    (f"{_MOD}D",     "Toggle the tagged filter"),
     (f"{_MOD}U",     "Toggle fuzzy search mode"),
     (f"{_MOD}M",     "Toggle married-name search mode"),
     (f"{_MOD}O",     "Open a new GEDCOM file"),
-    (f"{_MOD}N",     "Find Nearest DNA Matches for the selected person"),
+    (f"{_MOD}N",     "Find Nearest Tagged Matches for the selected person"),
     (f"{_MOD}E",     "Show the full GEDCOM record for the selected person"),
     (f"{_MOD}H",     "Set Home person to the selected person"),
     (f"{_MOD}P",     "Open the Find Relationship Paths dialog"),
