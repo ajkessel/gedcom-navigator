@@ -601,7 +601,7 @@ def _patch_ctk_scaling_for_tkinter_dpi():
             except Exception:
                 pass
             try:
-                return orig_fn(cls, window)
+                return float(orig_fn(cls, window))
             except Exception:
                 return 1.0
 
