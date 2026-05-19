@@ -423,6 +423,13 @@ class GraphCommonMixin:
             return cls.PERSON_BOX_FILL_FEMALE
         return cls.PERSON_BOX_FILL_NEUTRAL
 
+    @classmethod
+    def _endpoint_person_box_fill(cls, base_fill, colors):
+        """Return a subtly darker endpoint fill that keeps the sex color cue."""
+        tinted_fill = cls._mix_hex_color(
+            base_fill, colors['endpoint_fill'], 0.25)
+        return cls._mix_hex_color(tinted_fill, cls.PERSON_BOX_TEXT, 0.08)
+
     @staticmethod
     def _toggle_expansion_request(expanded, request):
         """Toggle one graph expansion request in-place."""

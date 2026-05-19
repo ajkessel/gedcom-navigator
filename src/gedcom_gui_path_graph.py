@@ -13,7 +13,10 @@ from tkinter import messagebox
 
 import customtkinter as ctk
 
-from gedcom_family_tree import family_tree_expansion_options
+from gedcom_family_tree import (
+    EXPANDABLE_TREE_CATEGORIES,
+    family_tree_expansion_options,
+)
 from gedcom_relationship import (
     describe_relationship,
     get_ancestor_depths,
@@ -241,6 +244,8 @@ class PathGraphMixin:
             y2 = y + node_h / 2
             is_endpoint = layout[index].get('is_endpoint')
             fill = self._person_box_fill(self.individuals, node_id)
+            if is_endpoint:
+                fill = self._endpoint_person_box_fill(fill, colors)
             outline_width = scale(3) if is_endpoint else scale(2)
             canvas.create_rectangle(
                 x1, y1, x2, y2, fill=fill, outline=colors['node_outline'],

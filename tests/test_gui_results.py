@@ -3267,6 +3267,18 @@ def test_person_box_fill_follows_gedcom_sex_independent_of_theme():
         individuals, '@MISSING@') == ResultsMixin.PERSON_BOX_FILL_NEUTRAL
 
 
+def test_endpoint_person_box_fill_darkens_sex_fill_with_endpoint_tint():
+    """Endpoint graph boxes stand out while preserving the sex color cue."""
+    colors = ResultsMixin._path_graph_colors(False, 'Blue')
+
+    assert ResultsMixin._endpoint_person_box_fill(
+        ResultsMixin.PERSON_BOX_FILL_MALE, colors) == '#cbd9eb'
+    assert ResultsMixin._endpoint_person_box_fill(
+        ResultsMixin.PERSON_BOX_FILL_FEMALE, colors) == '#e4d2dd'
+    assert ResultsMixin._endpoint_person_box_fill(
+        ResultsMixin.PERSON_BOX_FILL_NEUTRAL, colors) == '#dbdee2'
+
+
 def test_compact_graph_label_uses_first_middle_initial_last_and_lifespan():
     """Graph labels use narrow three-line person names."""
     indi = {
