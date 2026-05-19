@@ -106,7 +106,7 @@ python3 ./dev/generate_icon.py ./icons/family_tree.png || {
 	echo 'Failed to generate ICO file.'
 	exit 1
 }
-[ "${DRY}" ] && target_arch="x86_64"
+[ "${DRY}" ] && export target_arch=$(uname -m)
 pyinstaller --noconfirm ./dev/gedcom_navigator_cli.spec || {
 	echo 'pyinstaller failed to build CLI.'
 	exit 1
