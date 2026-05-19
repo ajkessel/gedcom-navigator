@@ -642,15 +642,13 @@ class PersonDialogMixin:
                 if is_max:
                     return
                 try:
+                    win.update_idletasks()
                     tsw = self.root.winfo_screenwidth()
                     tsh = self.root.winfo_screenheight()
                     tnw = int(graph_state['canvas_w']) + 65
                     tnh = int(graph_state['canvas_h']) + 105
                     if tnw > int(tsw * 0.9) or tnh > int(tsh * 0.9):
-                        if sys.platform == 'win32':
-                            win.state('zoomed')
-                        else:
-                            win.attributes('-zoomed', True)
+                        win.state('zoomed')
                     else:
                         cur_w = win.winfo_width()
                         cur_h = win.winfo_height()

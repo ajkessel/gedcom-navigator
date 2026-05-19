@@ -734,14 +734,12 @@ class PathGraphMixin:
             if is_max:
                 return
             try:
+                win.update_idletasks()
                 _, _, screen_w, screen_h = self._window_display_bounds(self.root)
                 tnw = int(graph_state['canvas_w']) + 56
                 tnh = int(graph_state['canvas_h']) + 128
                 if tnw >= screen_w or tnh >= screen_h:
-                    if sys.platform == 'win32':
-                        win.state('zoomed')
-                    else:
-                        win.attributes('-zoomed', True)
+                    win.state('zoomed')
                 else:
                     cur_w = win.winfo_width()
                     cur_h = win.winfo_height()
