@@ -9,7 +9,7 @@ while getopts "hnco:" opt; do
 	h)
 		echo "Usage: $0 [-h] [-n] [-c] [-o]"
 		echo "  -h  Show this help message and exit"
-		echo "  -n  Dry run: build the app but skip notarization and stapling"
+		echo "  -n  Dry run: build the app but skip notarization, stapling, and cross-arch universal build steps"
 		echo "  -c  Clean build: remove virtual environment and pyenv versions before building"
 		echo "  -o  Specify output file name (default: gedcom-navigator-mac.zip)"
 		exit 0
@@ -106,11 +106,12 @@ python3 ./dev/generate_icon.py ./icons/family_tree.png || {
 	echo 'Failed to generate ICO file.'
 	exit 1
 }
-pyinstaller --noconfirm ./dev/gedcom_navigator_cli.spec || {
+[ "${DRY}" ] && arch="--target-arch x86_64"
+pyinstaller "${arch:-}" --noconfirm ./dev/gedcom_navigator_cli.spec || {
 	echo 'pyinstaller failed to build CLI.'
 	exit 1
 }
-pyinstaller --noconfirm ./dev/gedcom_navigator_gui.spec || {
+pyinstaller "${arch:-}" --noconfirm ./dev/gedcom_navigator_gui.spec || {
 	echo 'pyinstaller failed to build GUI.'
 	exit 1
 }
