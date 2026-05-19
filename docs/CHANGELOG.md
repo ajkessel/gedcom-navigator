@@ -1,10 +1,37 @@
 # Changelog
 
-## [Unreleased]
+## [1.9.0] - 2026-05-19
+
+- Final testing release before 2.0.0
+
+### Added
+
+- **Interactive family tree view** - the Show Person window now opens in an interactive canvas-based family tree by default, showing the selected person alongside their parents, siblings, spouses, and children. Nodes are expandable and clickable; clicking a person navigates to them in the main window. A Shift-click on the Show Person button switches to the raw GEDCOM profile view instead.
+- **Back/Forward navigation** - navigation history is tracked across all person views. Dedicated keyboard shortcuts (Alt+Left/Right on Windows/Linux, Cmd+[/] on macOS) and browser-style back/forward controls allow retracing navigation steps across DNA match searches, relationship paths, and person detail jumps.
+- **Married name search** - a new "Married names" checkbox in the search bar searches women under their husband's surname derived from GEDCOM family records, in addition to their recorded names. The derived names are indexed at load time without requiring extra GEDCOM `NAME` lines.
+- **Jumbo font size** - a new "Jumbo" option in Preferences sets the UI to 20 pt and the results pane to 23 pt monospace for high-DPI or accessibility use.
+- **Zoom in results pane** - the results pane now supports Ctrl+Plus/Minus/0 and Ctrl+scroll-wheel to zoom the text size independently of the global font setting.
+- **Zoom module** - `gedcom_zoom.py` centralizes keyboard and mouse-wheel zoom shortcut binding (`bind_zoom_shortcuts`) and a `TextZoomController` class used by the results pane and documentation windows.
+- **Tag collection in parser** - the parser now stores all `_MTTAG`-resolved tag names in `indi['tags']` in addition to DNA-flagged markers, making the full tag list available without a second parse pass.
 
 ### Changed
 
-- **Application renamed** - the app is now GEDCOM Navigator across source entry points, package metadata, build scripts, PyInstaller specs, macOS bundle metadata, release artifact names, and documentation.
+- **Application renamed** - the app is now GEDCOM Navigator across source entry points, package metadata, build scripts, PyInstaller specs, macOS bundle metadata, release artifact names, and documentation. The Python package directory has been renamed from `gedcom_dna_finder` to `gedcom_navigator`.
+- **DNA flags applied at load time, not cached** - `apply_dna_flags()` in `gedcom_parser.py` re-populates `dna_markers` and `tags` from already-parsed raw records. The cache no longer stores the DNA keyword or page marker, so changing these settings no longer invalidates the cache (cache version bumped to 5). `GedcomDataModel.reflag()` re-applies flags in-place without touching the cache or re-reading the file.
+- **DNA settings change is instant** - changing the Tag Keyword or Page Marker now calls `model.reflag()` and refreshes the people list in-place instead of reloading the entire GEDCOM file.
+- **GUI refactored into additional focused modules** - `gedcom_gui_dialogs.py` has been trimmed to tag picker, person picker, path finder, and preferences dialogs. Person detail logic now lives in `gedcom_gui_person_dialog.py`; help and documentation dialogs in `gedcom_gui_help_dialogs.py`; shared graph canvas helpers in `gedcom_gui_graph_common.py`; relationship path graph rendering in `gedcom_gui_path_graph.py`; graph layout computation in `gedcom_gui_graph_layout.py`; and family tree canvas rendering in `gedcom_gui_family_tree_render.py`.
+- **Family tree layout helpers extracted** - `gedcom_family_tree.py` provides pure functions for building a family graph from GEDCOM families, computing column/row layout for the tree canvas, and enumerating expandable relationship categories.
+- **Window focus/raise helper** - `AppearanceMixin._raise_window()` brings a Toplevel to the front and gives it keyboard focus reliably on Windows (where `lift()` alone cannot steal focus from background windows) with a retry scheduled after 150 ms.
+- **Font scaling corrected on Windows** - named fonts now use the negative-pixel size convention (`size=-abs(px)`) on Windows to stay in sync with CTkFont instances, eliminating inconsistent sizing in mixed Tk/CTk dialogs. All live CTkFont instances are walked and updated on font-size change, and the CTk theme default is updated so newly created fonts inherit the correct size.
+- **Name search supports extra name aliases** - `individual_names()`, `token_match()`, `fuzzy_score()`, and `individual_matches_query()` in `gedcom_name_search.py` accept an `extra_names` keyword argument so callers can inject derived names (such as married names) without modifying the underlying individual record.
+- **macOS build and runtime fixes** - multiple stability and compatibility fixes for macOS including tooltip rendering, window management, and build script hardening.
+
+### Tests
+
+- **DPI scaling patch tests** - `test_dpi_patch.py` verifies that the Windows DPI scaling patch replaces `ScalingTracker.get_window_dpi_scaling` and correctly maps common DPI values (96, 120, 144, 168, 192) to their expected scaling factors.
+- **GUI refactor import tests** - `test_gui_refactor_imports.py` statically checks all GUI mixin split modules for unresolved global references, catching moved callback helpers whose imports were not migrated with them.
+- **Name search extra-names tests** - `test_name_search.py` now covers token matching and fuzzy scoring with injected extra name aliases.
+- **Extended GUI results tests** - `test_gui_results.py` has been substantially expanded to cover navigation, result rendering, and graph interaction.
 
 ## [1.3.0] - 2026-05-16
 
