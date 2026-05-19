@@ -106,12 +106,12 @@ python3 ./dev/generate_icon.py ./icons/family_tree.png || {
 	echo 'Failed to generate ICO file.'
 	exit 1
 }
-[ "${DRY}" ] && arch="--target-arch x86_64"
-pyinstaller "${arch:-}" --noconfirm ./dev/gedcom_navigator_cli.spec || {
+[ "${DRY}" ] && target_arch="x86_64"
+pyinstaller --noconfirm ./dev/gedcom_navigator_cli.spec || {
 	echo 'pyinstaller failed to build CLI.'
 	exit 1
 }
-pyinstaller "${arch:-}" --noconfirm ./dev/gedcom_navigator_gui.spec || {
+pyinstaller --noconfirm ./dev/gedcom_navigator_gui.spec || {
 	echo 'pyinstaller failed to build GUI.'
 	exit 1
 }

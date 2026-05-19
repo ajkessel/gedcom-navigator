@@ -7,14 +7,16 @@ import subprocess
 import re
 from PyInstaller.utils.hooks import collect_data_files
 if sys.platform == 'darwin':
-   import certifi
+    import certifi
 
 # Read version and release date from the single source of truth.
 _init_path = os.path.join(SPECPATH, '..', 'gedcom_navigator', '__init__.py')
 with open(_init_path) as _f:
     _init_src = _f.read()
-_app_version = re.search(r'__version__\s*=\s*["\']([^"\']+)["\']', _init_src).group(1)
-_app_release_date = re.search(r'__release_date__\s*=\s*["\']([^"\']+)["\']', _init_src).group(1)
+_app_version = re.search(
+    r'__version__\s*=\s*["\']([^"\']+)["\']', _init_src).group(1)
+_app_release_date = re.search(
+    r'__release_date__\s*=\s*["\']([^"\']+)["\']', _init_src).group(1)
 
 
 def check_codesigning_key():
@@ -76,14 +78,15 @@ if sys.platform == 'win32':
     ]:
         _extra_binaries += [(p, '.') for p in glob.glob(_pat)]
 
-d=[('../docs/HELP.md', './docs'), ('../docs/LICENSE.md', './docs'),
-   ('../docs/KEYBOARD_SHORTCUTS.md', './docs'), ('../docs/PRIVACY_POLICY.md', './docs'),
-   ('../icons/family_tree.ico', './icons'), ('../icons/family_tree.png', './icons'),
-   ('../gedcom_navigator/__init__.py', 'gedcom_navigator')]
+d = [('../docs/HELP.md', './docs'), ('../docs/LICENSE.md', './docs'),
+     ('../docs/KEYBOARD_SHORTCUTS.md',
+     './docs'), ('../docs/PRIVACY_POLICY.md', './docs'),
+     ('../icons/family_tree.ico', './icons'), ('../icons/family_tree.png', './icons'),
+     ('../gedcom_navigator/__init__.py', 'gedcom_navigator')]
 
 # package certificates for MacOS since python.org does not include them by default
-if sys.platform=='darwin':
-   d.append((certifi.where(), 'certifi'))
+if sys.platform == 'darwin':
+    d.append((certifi.where(), 'certifi'))
 
 a = Analysis(
     ['../src/gedcom_navigator_gui.py'],
@@ -123,13 +126,14 @@ exe = EXE(
 )
 
 if sys.platform == 'darwin':
+    target_arch = os.environ.get('target_arch', 'universal2')
     exe = EXE(pyz,
               a.scripts,
               exclude_binaries=True,
               name='gedcom-navigator',
               codesign_identity=check_codesigning_key(),
               entitlements_file=os.path.join(SPECPATH, 'entitlements.plist'),
-              target_arch='universal2',
+              target_arch=target_arch,
               console=False)
 
     coll = COLLECT(exe,
