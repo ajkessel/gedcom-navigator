@@ -727,35 +727,37 @@ class PathGraphMixin:
         def _maybe_grow_graph_win():
             """Grow window to fit expanded content; skip if already maximized."""
             try:
-                if sys.platform == 'win32':
-                    if win.state() == 'zoomed':
-                        return
-                elif win.attributes('-zoomed'):
-                    return
+                is_max = (win.state() == 'zoomed' if sys.platform == 'win32'
+                          else bool(win.attributes('-zoomed')))
             except tk.TclError:
+                is_max = False
+            if is_max:
                 return
-            _, _, screen_w, screen_h = self._window_display_bounds(self.root)
-            tnw = int(graph_state['canvas_w']) + 56
-            tnh = int(graph_state['canvas_h']) + 128
-            if tnw >= screen_w or tnh >= screen_h:
-                if sys.platform == 'win32':
-                    win.state('zoomed')
+            try:
+                _, _, screen_w, screen_h = self._window_display_bounds(self.root)
+                tnw = int(graph_state['canvas_w']) + 56
+                tnh = int(graph_state['canvas_h']) + 128
+                if tnw >= screen_w or tnh >= screen_h:
+                    if sys.platform == 'win32':
+                        win.state('zoomed')
+                    else:
+                        win.attributes('-zoomed', True)
                 else:
-                    win.attributes('-zoomed', True)
-            else:
-                cur_w = win.winfo_width()
-                cur_h = win.winfo_height()
-                new_w = max(cur_w, tnw)
-                new_h = max(cur_h, tnh)
-                if new_w > cur_w or new_h > cur_h:
-                    tsw = self.root.winfo_screenwidth()
-                    tsh = self.root.winfo_screenheight()
-                    cx, cy = win.winfo_x(), win.winfo_y()
-                    win.geometry(
-                        f"{int(new_w)}x{int(new_h)}"
-                        f"+{max(0, min(cx, tsw - new_w))}"
-                        f"+{max(0, min(cy, tsh - new_h))}"
-                    )
+                    cur_w = win.winfo_width()
+                    cur_h = win.winfo_height()
+                    new_w = max(cur_w, tnw)
+                    new_h = max(cur_h, tnh)
+                    if new_w > cur_w or new_h > cur_h:
+                        tsw = self.root.winfo_screenwidth()
+                        tsh = self.root.winfo_screenheight()
+                        cx, cy = win.winfo_x(), win.winfo_y()
+                        win.geometry(
+                            f"{int(new_w)}x{int(new_h)}"
+                            f"+{max(0, min(cx, tsw - new_w))}"
+                            f"+{max(0, min(cy, tsh - new_h))}"
+                        )
+            except tk.TclError:
+                pass
 
         def _expand_graph_node(indi_id, category):
             request = (indi_id, category)

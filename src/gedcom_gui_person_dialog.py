@@ -631,35 +631,40 @@ class PersonDialogMixin:
 
             def _maybe_grow_tree_win():
                 """Grow window to fit expanded content; skip if already maximized."""
+                # Detect maximized state separately so a TclError from an
+                # unsupported attribute (e.g. -zoomed on macOS Aqua) is treated
+                # as "not maximized" rather than aborting the whole function.
                 try:
-                    if sys.platform == 'win32':
-                        if win.state() == 'zoomed':
-                            return
-                    elif win.attributes('-zoomed'):
-                        return
+                    is_max = (win.state() == 'zoomed' if sys.platform == 'win32'
+                              else bool(win.attributes('-zoomed')))
                 except tk.TclError:
+                    is_max = False
+                if is_max:
                     return
-                tsw = self.root.winfo_screenwidth()
-                tsh = self.root.winfo_screenheight()
-                tnw = int(graph_state['canvas_w']) + 65
-                tnh = int(graph_state['canvas_h']) + 105
-                if tnw > int(tsw * 0.9) or tnh > int(tsh * 0.9):
-                    if sys.platform == 'win32':
-                        win.state('zoomed')
+                try:
+                    tsw = self.root.winfo_screenwidth()
+                    tsh = self.root.winfo_screenheight()
+                    tnw = int(graph_state['canvas_w']) + 65
+                    tnh = int(graph_state['canvas_h']) + 105
+                    if tnw > int(tsw * 0.9) or tnh > int(tsh * 0.9):
+                        if sys.platform == 'win32':
+                            win.state('zoomed')
+                        else:
+                            win.attributes('-zoomed', True)
                     else:
-                        win.attributes('-zoomed', True)
-                else:
-                    cur_w = win.winfo_width()
-                    cur_h = win.winfo_height()
-                    new_w = max(cur_w, tnw)
-                    new_h = max(cur_h, tnh)
-                    if new_w > cur_w or new_h > cur_h:
-                        cx, cy = win.winfo_x(), win.winfo_y()
-                        win.geometry(
-                            f"{int(new_w)}x{int(new_h)}"
-                            f"+{max(0, min(cx, tsw - new_w))}"
-                            f"+{max(0, min(cy, tsh - new_h))}"
-                        )
+                        cur_w = win.winfo_width()
+                        cur_h = win.winfo_height()
+                        new_w = max(cur_w, tnw)
+                        new_h = max(cur_h, tnh)
+                        if new_w > cur_w or new_h > cur_h:
+                            cx, cy = win.winfo_x(), win.winfo_y()
+                            win.geometry(
+                                f"{int(new_w)}x{int(new_h)}"
+                                f"+{max(0, min(cx, tsw - new_w))}"
+                                f"+{max(0, min(cy, tsh - new_h))}"
+                            )
+                except tk.TclError:
+                    pass
 
             def _expand_tree(expand_id, category):
                 request = (expand_id, category)

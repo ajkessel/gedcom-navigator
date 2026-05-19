@@ -83,12 +83,18 @@ source .venv/bin/activate || {
 }
 # It's necessary to build from source and disable default-const-init-var-unsafe due to recent xcode changes
 # issue filed at https://github.com/ronaldoussoren/pyobjc/issues/673
-env CFLAGS="-Wno-error=default-const-init-var-unsafe" ARCHFLAGS="-arch arm64 -arch x86_64" pip install -r ./dev/requirements-dev.txt --no-binary :all: || {
+if clang --version | grep -q ' version 21'; then
+	echo 'Detected Xcode 26/CLang 21, adding -Wno-error=default-const-init-var-unsafe to CFLAGS.'
+	export myflags="-Wno-error=default-const-init-var-unsafe"
+else
+	echo 'Xcode less than 15, skipping -Wno-error=default-const-init-var-unsafe.'
+fi
+env CFLAGS="${myflags:-}" ARCHFLAGS="-arch arm64 -arch x86_64" pip install -r ./dev/requirements-dev.txt --no-binary :all: || {
 	echo 'Failed to install dependencies.'
 	exit 1
 }
 echo 'Patching ctktooltip... (see https://github.com/Akascape/CTkToolTip/issues/20 for details)'
-patch -d "${VIRTUAL_ENV}/lib/site-packages/" -N -p1 < ./dev/ctk_tooltip.patch || {
+patch -d "${VIRTUAL_ENV}/lib/site-packages/" -N -p1 <./dev/ctk_tooltip.patch || {
 	echo 'Failed to patch ctktooltip, may have been applied already. Proceeding anyway...'
 }
 echo 'Running unit tests...'
