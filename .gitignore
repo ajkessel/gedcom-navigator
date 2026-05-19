@@ -22,5 +22,7 @@ gedcom_dna_finder/icons/
 dev/old/
 dev/gedcom-dna-finder.provisionprofile
 *.ged
+?.json
+?.png
 .pytest_cache/
 .pytest_tmp_review/
