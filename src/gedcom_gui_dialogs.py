@@ -144,6 +144,8 @@ class DialogsMixin:
             'tree_expanded': [(indi_id, cat) for cat in INITIAL_TREE_CATEGORIES],
             'tree_zoom': 1.0,
             'zoom_controller': None,
+            'history': [],
+            'forward': [],
         }
 
         def _clear_content():
@@ -297,8 +299,25 @@ class DialogsMixin:
                 debug_btn.pack(side='right', padx=(0, 8))
                 Tooltip(debug_btn, TIP_DEBUG_GRAPH)
 
+        back_seq = '<Command-Left>' if sys.platform == 'darwin' else '<Alt-Left>'
+        fwd_seq = '<Command-Right>' if sys.platform == 'darwin' else '<Alt-Right>'
+
+        def _go_back():
+            if state['history']:
+                state['forward'].append(state['person_id'])
+                state['person_id'] = state['history'].pop()
+                _show_person_view()
+
+        def _go_forward():
+            if state['forward']:
+                state['history'].append(state['person_id'])
+                state['person_id'] = state['forward'].pop()
+                _show_person_view()
+
         def _show_person_view(iid=None):
             if iid is not None:
+                state['history'].append(state['person_id'])
+                state['forward'].clear()
                 state['person_id'] = iid
             current_id = state['person_id']
             state['mode'] = 'person'
@@ -334,6 +353,8 @@ class DialogsMixin:
                 text, self._mono_size, _apply_person_zoom,
                 targets=(text._textbox,))
             _bind_text_navigation(text)
+            win.bind(back_seq, lambda *_: _go_back() or 'break')
+            win.bind(fwd_seq, lambda *_: _go_forward() or 'break')
 
             indi = self.individuals[current_id]
             win.title(WIN_GEDCOM_RECORD.format(

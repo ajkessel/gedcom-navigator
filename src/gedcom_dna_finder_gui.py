@@ -157,6 +157,8 @@ class DNAMatchFinderApp(
         self._results_reversed = False
         self._active_id = None
         self._results_header_id = None
+        self._nav_history = []
+        self._nav_forward = []
         self._busy = False
         self._sort_col = 'name'
         self._sort_rev = False

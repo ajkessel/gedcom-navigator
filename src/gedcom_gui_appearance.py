@@ -552,6 +552,10 @@ class AppearanceMixin:
         bind(f'<{_MOD_KEY}-r>', self._reverse_results)
         bind(f'<{_MOD_KEY}-l>', self._clear_results)
         bind('<Escape>', self._clear_results)
+        back_seq = '<Command-Left>' if sys.platform == 'darwin' else '<Alt-Left>'
+        bind(back_seq, self._navigate_back)
+        fwd_seq = '<Command-Right>' if sys.platform == 'darwin' else '<Alt-Right>'
+        bind(fwd_seq, self._navigate_forward)
         # Only invoke _copy_results when a Text widget isn't focused
         self.root.bind(f'<{_MOD_KEY}-c>', self._kb_copy)
 

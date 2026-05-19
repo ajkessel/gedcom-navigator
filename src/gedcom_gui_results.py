@@ -4405,6 +4405,52 @@ class ResultsMixin:
             self.tree.selection_remove(*selection)
         return False
 
+    def _nav_snapshot(self):
+        """Return a snapshot of the current navigable state."""
+        return {
+            'last_result': dict(self._last_result) if self._last_result else None,
+            'active_id': self._active_id,
+            'results_reversed': self._results_reversed,
+        }
+
+    def _nav_restore(self, snapshot):
+        """Apply a navigation snapshot and re-render results."""
+        self._last_result = snapshot['last_result']
+        self._active_id = snapshot['active_id']
+        self._results_reversed = snapshot['results_reversed']
+        self._reverse_btn.configure(
+            text=BTN_REVERSE_RESTORE if self._results_reversed else BTN_REVERSE)
+        if self._active_id:
+            self._select_person_in_main_tree(self._active_id)
+        kind = self._last_result.get('type') if self._last_result else None
+        if kind == 'dna_matches':
+            self._render_results(
+                self._last_result['start_id'],
+                self._last_result.get('results', []),
+                home_paths=self._last_result.get('home_paths'),
+            )
+        elif kind == 'path':
+            self._render_path_results(
+                self._last_result['start_id'],
+                self._last_result['end_id'],
+                self._last_result.get('paths', []),
+                self._last_result.get('truncated', False),
+            )
+
+    def _navigate_back(self):
+        """Restore the previous navigation state, saving current state for forward."""
+        if self._busy or not self._nav_history:
+            return
+        self._nav_forward.append(self._nav_snapshot())
+        self._nav_restore(self._nav_history.pop())
+
+    def _navigate_forward(self):
+        """Restore the next navigation state, saving current state for back."""
+        if self._busy or not self._nav_forward:
+            return
+        self._nav_history.append(self._nav_snapshot())
+        self._nav_restore(self._nav_forward.pop())
+
     def _navigate_to(self, indi_id):
         """Select a person in the tree and refresh the results pane for them.
 
@@ -4414,6 +4460,10 @@ class ResultsMixin:
         """
         if self._busy:
             return
+
+        if self._last_result:
+            self._nav_history.append(self._nav_snapshot())
+            self._nav_forward.clear()
 
         # reset "reverse" button and pull in default search parameters
         self._results_reversed = False

@@ -485,6 +485,8 @@ KEYBOARD_SHORTCUT_ROWS = [
     (f"{_MOD}S",     "Save results to a text file"),
     (f"{_MOD}C",     "Copy result to clipboard"),
     (f"{_MOD}L",     "Clear the results"),
+    ("⌘←" if sys.platform == 'darwin' else "Alt+←", "Go back to the previous view"),
+    ("⌘→" if sys.platform == 'darwin' else "Alt+→", "Go forward to the next view"),
     (f"{_MOD}+Plus / {_MOD}+Minus", "Zoom the focused text or graph view"),
     (f"{_MOD}+0",     "Reset zoom in the focused text or graph view"),
 ]

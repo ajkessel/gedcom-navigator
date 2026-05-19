@@ -20,6 +20,8 @@
 | **Ctrl+S** | **S**ave results to a text file |
 | **Ctrl+C** | **C**opy result to clipboard |
 | **Ctrl+L** | C**l**ear the results |
+| **Alt+←** | Go back to the previous view |
+| **Alt+→** | Go forward to the next view |
 | **Ctrl+Plus / Ctrl+Minus** | Zoom the focused text or graph view |
 | **Ctrl+0** | Reset zoom in the focused text or graph view |
 | **F3** | Open Preferences |
@@ -31,3 +33,5 @@
 | **Ctrl+T** | **T**oggle between Profile View and Tree View |
 | **Ctrl+S** | **S**ave profile or tree to a file |
 | **Ctrl+C** | **C**opy profile or tree to clipboard |
+| **Alt+←** / **Cmd+←** | Go back to the previously viewed person |
+| **Alt+→** / **Cmd+→** | Go forward to the next viewed person |
