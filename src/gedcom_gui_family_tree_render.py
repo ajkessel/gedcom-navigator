@@ -1,0 +1,419 @@
+#!/usr/bin/env python3
+"""
+gedcom_gui_family_tree_render.py
+
+Family-tree canvas rendering helpers for person detail windows.
+"""
+
+import tkinter as tk
+import tkinter.font as tkfont
+
+from gedcom_display import lifespan
+from gedcom_family_tree import (
+    EXPANDABLE_TREE_CATEGORIES,
+    build_family_tree_graph,
+    family_tree_expansion_options,
+    layout_family_tree,
+)
+from gedcom_strings import *  # pylint: disable=unused-wildcard-import
+
+
+class FamilyTreeRenderMixin:
+    """Family tree graph rendering helpers."""
+
+    def _family_tree_members_for(self, indi_id):
+        """Return family tree relationship lists for one individual."""
+        if indi_id not in self.individuals:
+            return {
+                'parents': [],
+                'siblings': [],
+                'spouses': [],
+                'children': [],
+            }
+        parents, siblings, spouses, children = self._get_family_members(
+            indi_id)
+        return {
+            'parents': parents,
+            'siblings': siblings,
+            'spouses': spouses,
+            'children': children,
+        }
+
+    def _co_parents_for_children(self, indi_id, child_ids):
+        """Return the other parents for this person's displayed children."""
+        if indi_id not in self.individuals:
+            return []
+        wanted_children = set(child_ids)
+        parents = []
+        seen = set()
+        for fam_id in self.individuals[indi_id].get('fams', ()):
+            fam = self.families.get(fam_id)
+            if not fam:
+                continue
+            if not any(child_id in wanted_children
+                       for child_id in fam.get('chil', ())):
+                continue
+            parent_id = fam['wife'] if fam['husb'] == indi_id else fam['husb']
+            if (parent_id and parent_id in self.individuals
+                    and parent_id not in seen):
+                parents.append(parent_id)
+                seen.add(parent_id)
+        return parents
+
+    @staticmethod
+    def _visible_coparent_id(parent_id, child_id, positions,
+                             coparent_lookup, spouse_edges=()):
+        """Return a displayed co-parent for the parent and child."""
+        if parent_id not in positions:
+            return None
+        for coparent_id in coparent_lookup(parent_id, (child_id,)):
+            if coparent_id in positions:
+                return coparent_id
+        for left_id, right_id in spouse_edges:
+            if left_id == parent_id and right_id in positions:
+                return right_id
+            if right_id == parent_id and left_id in positions:
+                return left_id
+        return None
+
+    @classmethod
+    def _child_parent_midpoint(cls, parent_id, child_id, positions,
+                               coparent_lookup, spouse_edges=()):
+        """Return the midpoint between displayed parents for a child edge."""
+        coparent_id = cls._visible_coparent_id(
+            parent_id, child_id, positions, coparent_lookup, spouse_edges)
+        if not coparent_id:
+            return None
+        parent_x, parent_y = positions[parent_id]
+        coparent_x, coparent_y = positions[coparent_id]
+        return (
+            (parent_x + coparent_x) / 2,
+            (parent_y + coparent_y) / 2,
+        )
+
+    @classmethod
+    def _family_tree_child_edge_groups(cls, edges, positions, coparent_lookup,
+                                       spouse_edges=()):
+        """Group visible parent-child edges by displayed parent or couple."""
+        groups = {}
+        for source_id, target_id, category in edges:
+            if category == 'parents':
+                child_id = source_id
+                parent_id = target_id
+            elif category == 'children':
+                parent_id = source_id
+                child_id = target_id
+            else:
+                continue
+            if parent_id not in positions or child_id not in positions:
+                continue
+
+            coparent_id = cls._visible_coparent_id(
+                parent_id, child_id, positions, coparent_lookup, spouse_edges)
+            if coparent_id and coparent_id in positions:
+                parent_ids = tuple(sorted((parent_id, coparent_id)))
+                parent_x = (
+                    positions[parent_id][0] + positions[coparent_id][0]) / 2
+                parent_y = (
+                    positions[parent_id][1] + positions[coparent_id][1]) / 2
+                parent_h = 0
+            else:
+                parent_ids = (parent_id,)
+                parent_x, parent_y = positions[parent_id]
+                parent_h = None
+
+            child_generation_y = positions[child_id][1]
+            group_key = (parent_ids, child_generation_y)
+            group = groups.setdefault(group_key, {
+                'parent_ids': parent_ids,
+                'parent_x': parent_x,
+                'parent_y': parent_y,
+                'parent_h': parent_h,
+                'children': [],
+                'child_ids': set(),
+            })
+            if child_id not in group['child_ids']:
+                group['children'].append(child_id)
+                group['child_ids'].add(child_id)
+
+        result = []
+        for group in groups.values():
+            group['children'].sort(key=lambda child_id: positions[child_id][0])
+            del group['child_ids']
+            result.append(group)
+        result.sort(key=lambda group: (
+            group['parent_y'],
+            min(positions[child_id][0] for child_id in group['children']),
+        ))
+        return result
+
+    @staticmethod
+    def _family_tree_child_bus_span(parent_x, child_xs):
+        """Return the horizontal connector span for a parent-child group."""
+        xs = [parent_x] + list(child_xs)
+        return min(xs), max(xs)
+
+    def _render_family_tree_canvas(self, canvas, center_id, expanded, colors,
+                                   win, zoom, on_expand, on_recenter,
+                                   on_profile=None, on_find_matches=None,
+                                   on_expand_all=None):
+        """Draw an expandable immediate-family tree graph."""
+        zoom = max(0.5, min(2.5, float(zoom)))
+        visible_ids, edges = build_family_tree_graph(
+            center_id, expanded, self._family_tree_members_for,
+            self._co_parents_for_children)
+        layout = layout_family_tree(center_id, visible_ids, edges)
+        visible_set = set(visible_ids)
+        expanded_set = set(expanded)
+        self._clear_canvas_tag_tooltips(canvas)
+
+        def scale(value, minimum=1):
+            return max(minimum, int(round(value * zoom)))
+
+        ui_family, ui_size = self._graph_ui_font()
+        label_font = tkfont.Font(
+            family=ui_family,
+            size=max(scale(ui_size), 7))
+        button_font = tkfont.Font(
+            family=ui_family,
+            size=max(scale(ui_size - 2), 6),
+            weight='bold')
+
+        labels = [
+            self._compact_graph_label(self.individuals[node['id']])
+            if node['id'] in self.individuals else node['id']
+            for node in layout
+        ]
+        longest = max((label_font.measure(label)
+                      for label in labels), default=0)
+        node_w = min(max(longest + scale(24), scale(112)), scale(190))
+        wrapped_labels = [
+            self._wrap_canvas_label(label, label_font, node_w - scale(24))
+            for label in labels
+        ]
+        line_space = label_font.metrics('linespace')
+        max_lines = max((label.count('\n') + 1 for label in wrapped_labels),
+                        default=1)
+        node_h = max(scale(84), max_lines * line_space + scale(26))
+        h_gap = node_w + scale(48)
+        v_gap = max(node_h + scale(88), scale(150))
+        margin = scale(56)
+        button_size = scale(22)
+
+        min_generation = min(node['generation'] for node in layout)
+        max_generation = max(node['generation'] for node in layout)
+        min_column = min(node['column'] for node in layout)
+        max_column = max(node['column'] for node in layout)
+        positions = {}
+        for node in layout:
+            x = margin + node_w / 2 + (node['column'] - min_column) * h_gap
+            y = margin + node_h / 2 + (
+                node['generation'] - min_generation) * v_gap
+            positions[node['id']] = (x, y)
+        canvas._family_tree_center = positions.get(center_id, (0, 0))
+        spouse_edges = [
+            (source_id, target_id)
+            for source_id, target_id, category in edges
+            if category == 'spouses'
+        ]
+
+        canvas_w = margin * 2 + node_w + (max_column - min_column) * h_gap
+        canvas_h = margin * 2 + node_h + (
+            max_generation - min_generation) * v_gap
+        canvas._family_tree_debug_payload = self._family_tree_debug_payload(
+            center_id, expanded, zoom, canvas_w, canvas_h, visible_ids,
+            edges, layout, self._family_tree_members_for)
+
+        for generation in range(min_generation, max_generation + 1):
+            y = margin + node_h / 2 + (
+                generation - min_generation) * v_gap
+            canvas.create_line(
+                margin / 2, y, canvas_w - margin / 2, y,
+                fill=colors['guide'], dash=(scale(3), scale(8)))
+
+        for source_id, target_id, category in edges:
+            if source_id not in positions or target_id not in positions:
+                continue
+            sx, sy = positions[source_id]
+            tx, ty = positions[target_id]
+            if category == 'spouses':
+                start_x = sx + (node_w / 2 if tx >= sx else -node_w / 2)
+                end_x = tx - node_w / 2 if tx >= sx else tx + node_w / 2
+                self._draw_spouse_line(
+                    canvas, start_x, sy, end_x, ty, colors['spouse'], scale)
+                continue
+            if category == 'siblings':
+                start_x = sx + (-node_w / 2 if tx < sx else node_w / 2)
+                end_x = tx + (node_w / 2 if tx < sx else -node_w / 2)
+                self._draw_sibling_line(
+                    canvas, start_x, sy, end_x, ty,
+                    colors['sibling'], scale)
+        for group in self._family_tree_child_edge_groups(
+                edges, positions, self._co_parents_for_children,
+                spouse_edges):
+            parent_x = group['parent_x']
+            parent_y = group['parent_y']
+            parent_h = node_h if group['parent_h'] is None else group['parent_h']
+            start_y = parent_y + parent_h / 2
+            child_tops = [
+                positions[child_id][1] - node_h / 2
+                for child_id in group['children']
+            ]
+            end_y = min(child_tops)
+            mid_y = (start_y + end_y) / 2
+            child_xs = [positions[child_id][0]
+                        for child_id in group['children']]
+            bus_start_x, bus_end_x = self._family_tree_child_bus_span(
+                parent_x, child_xs)
+            canvas.create_line(
+                parent_x, start_y, parent_x, mid_y,
+                fill=colors['parent'], width=scale(3))
+            canvas.create_line(
+                bus_start_x, mid_y, bus_end_x, mid_y,
+                fill=colors['parent'], width=scale(3))
+            for child_id in group['children']:
+                child_x, child_y = positions[child_id]
+                canvas.create_line(
+                    child_x, mid_y, child_x, child_y - node_h / 2,
+                    fill=colors['parent'], width=scale(3), arrow='last',
+                    arrowshape=(scale(12), scale(14), scale(5)))
+
+        for index, (node, label) in enumerate(zip(layout, wrapped_labels)):
+            node_id = node['id']
+            x, y = positions[node_id]
+            x1 = x - node_w / 2
+            y1 = y - node_h / 2
+            x2 = x + node_w / 2
+            y2 = y + node_h / 2
+            node_tag = f'family_tree_node_{index}'
+            fill = self._person_box_fill(self.individuals, node_id)
+            outline_width = scale(3) if node['is_center'] else scale(2)
+            canvas.create_rectangle(
+                x1, y1, x2, y2, fill=fill, outline=colors['node_outline'],
+                width=outline_width, tags=('family_tree_node', node_tag))
+            canvas.create_text(
+                x, y, text=label, fill=self.PERSON_BOX_TEXT,
+                font=label_font,
+                width=node_w - scale(24), justify='center',
+                tags=('family_tree_node', node_tag))
+            options = family_tree_expansion_options(
+                node_id, visible_set, self._family_tree_members_for)
+            hidden_categories = tuple(
+                category for category in EXPANDABLE_TREE_CATEGORIES
+                if options.get(category))
+
+            if node_id in self.individuals:
+                canvas.tag_bind(
+                    node_tag, '<Enter>',
+                    lambda *_: canvas.configure(cursor='hand2'))
+                canvas.tag_bind(
+                    node_tag, '<Leave>',
+                    lambda *_: canvas.configure(cursor=''))
+
+                def _show_node_menu(event, indi_id=node_id,
+                                    categories=hidden_categories):
+                    if getattr(canvas, '_family_tree_dragged', False):
+                        return 'break'
+                    menu = tk.Menu(canvas, tearoff=0)
+                    menu.add_command(
+                        label=TREE_MENU_RECENTER,
+                        command=lambda: on_recenter(indi_id))
+                    menu.add_command(
+                        label=BTN_SHOW_PERSON,
+                        command=(
+                            lambda: on_profile(indi_id)
+                            if on_profile else None))
+                    menu.add_command(
+                        label=BTN_FIND_MATCHES,
+                        command=(
+                            lambda: on_find_matches(indi_id)
+                            if on_find_matches else None))
+                    menu.add_command(
+                        label=TREE_MENU_EXPAND_ALL,
+                        command=(
+                            lambda: on_expand_all(indi_id, categories)
+                            if on_expand_all else None))
+                    try:
+                        menu.tk_popup(event.x_root, event.y_root)
+                    finally:
+                        try:
+                            menu.grab_release()
+                        except tk.TclError:
+                            pass
+                    return 'break'
+
+                canvas.tag_bind(node_tag, '<ButtonRelease-1>', _show_node_menu)
+                canvas.tag_bind(node_tag, '<Button-3>', _show_node_menu)
+                canvas.tag_bind(
+                    node_tag, '<Control-Button-1>', _show_node_menu)
+
+            button_specs = {
+                'parents': (x, y1 - button_size / 2),
+                'siblings': (
+                    self._sibling_button_x(
+                        node_id, x, x1, x2, button_size, spouse_edges,
+                        positions),
+                    y,
+                ),
+                'spouses': (
+                    self._spouse_button_x(
+                        node_id, x, x1, x2, button_size, spouse_edges,
+                        positions),
+                    y,
+                ),
+                'children': (x, y2 + button_size / 2),
+            }
+            for category in EXPANDABLE_TREE_CATEGORIES:
+                if not self._show_expansion_button(
+                        options, expanded_set, node_id, category):
+                    continue
+                bx, by = button_specs[category]
+                button_side = 'right' if bx > x else 'left'
+                text = self._expansion_button_text(
+                    expanded_set, node_id, category, button_side)
+                tooltip_text = self._expansion_button_tooltip(
+                    expanded_set, node_id, category)
+                tooltip = (
+                    self._make_canvas_tag_tooltip(canvas, tooltip_text)
+                    if tooltip_text else None
+                )
+                is_active = (node_id, category) in expanded_set
+                button_fill = (
+                    colors['spouse']
+                    if category == 'spouses' and is_active
+                    else colors['badge_fill']
+                )
+                button_text = self._readable_text_color(button_fill)
+                button_tag = f'family_tree_expand_{index}_{category}'
+                canvas.create_rectangle(
+                    bx - button_size / 2, by - button_size / 2,
+                    bx + button_size / 2, by + button_size / 2,
+                    fill=button_fill, outline=button_fill,
+                    tags=('family_tree_button', button_tag))
+                canvas.create_text(
+                    bx, by, text=text, fill=button_text,
+                    font=button_font, anchor='center',
+                    tags=('family_tree_button', button_tag))
+
+                def _on_expand(_, indi_id=node_id, rel=category):
+                    on_expand(indi_id, rel)
+                    return 'break'
+
+                def _on_button_enter(event, tip=tooltip):
+                    canvas.configure(cursor='hand2')
+                    if tip:
+                        tip.on_enter(event)
+
+                def _on_button_leave(event, tip=tooltip):
+                    canvas.configure(cursor='')
+                    if tip:
+                        tip.on_leave(event)
+
+                canvas.tag_bind(button_tag, '<Enter>', _on_button_enter)
+                if tooltip:
+                    canvas.tag_bind(button_tag, '<Motion>', tooltip.on_enter)
+                canvas.tag_bind(button_tag, '<Leave>', _on_button_leave)
+                canvas.tag_bind(button_tag, '<Button-1>', _on_expand)
+
+        self._center_graph_canvas(canvas, canvas_w, canvas_h)
+        return canvas_w, canvas_h
