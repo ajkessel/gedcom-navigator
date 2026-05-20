@@ -5,49 +5,57 @@ param ( [Parameter(Mandatory = $false, HelpMessage = "clean build")][switch]$cle
 # New-SelfSignedCertificate -Type CodeSigningCert -Subject "gedcom-navigator" -CertStoreLocation Cert:\CurrentUser\My
 Set-Location -Path $PSScriptRoot/..
 Start-Transcript -Path "build-windows.log" -Append
-$searchPaths = ($env:ProgramData+"\miniforge3\scripts\"),($env:localappdata+"\miniconda3\scripts\"),($env:appdata+"\miniconda3\scripts\")
-$fileName = "conda.exe"
-$found_file = Get-ChildItem -Path $searchPaths -Filter $fileName -ErrorAction SilentlyContinue | Select-Object -First 1
-If ($found_file) {
-  write-output("Found conda at "+$found_file)
-  write-output("Activating base environment.")
-  (& $found_file "shell.powershell" "hook") | Out-String | Where-Object{$_} | Invoke-Expression
-} else {
-  write-output("Conda not found. Will attempt to use locally installed Python.")
+try {
+    write-Output("Starting build process for Windows...")
+    Get-Date
+    $searchPaths = ($env:ProgramData + "\miniforge3\scripts\"), ($env:localappdata + "\miniconda3\scripts\"), ($env:appdata + "\miniconda3\scripts\")
+    $fileName = "conda.exe"
+    $found_file = Get-ChildItem -Path $searchPaths -Filter $fileName -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($found_file) {
+        Write-Output("Found conda at " + $found_file)
+        Write-Output("Activating base environment.")
+        (& $found_file "shell.powershell" "hook") | Out-String | Where-Object { $_ } | Invoke-Expression
+    }
+    else {
+        Write-Output("Conda not found. Will attempt to use locally installed Python.")
+    }
+    $signTool = 'C:\Program Files (x86)\Windows Kits\10\App Certification Kit\SignTool.exe'
+    $certName = 'gedcom-navigator'
+    if ( -not ( Get-Command python -ErrorAction SilentlyContinue ) ) { 
+        Write-Output "Python is not installed or not in the PATH. Please install Python and ensure it is in the PATH before running this script." 
+        exit 1
+    }
+    if ( $clean -and ( Test-Path .\venv ) ) {
+        Write-Output "Clean build selected, re-creating venv from scratch."
+        Remove-Item -Force -Recurse .\venv
+    }
+    if ( -not ( Test-Path .\venv\scripts\activate.ps1)) {
+        Write-Output "Creating and activating virtual environment, and installing dependencies..."
+        python -m venv .\venv --prompt "gedcom-navigator" 
+        python .\dev\find_ffi_dll.py
+        .\venv\Scripts\activate.ps1
+        pip install -r .\dev\requirements-dev.txt
+    }
+    if ( -not ( Test-Path .\venv\scripts\activate.ps1)) {
+        Write-Output "Virtual environment activation script not found. Please ensure the virtual environment is set up correctly." 
+        exit 1
+    }
+    Write-Output "Applying ctktooltip patch... (see https://github.com/Akascape/CTkToolTip/issues/20 for details)"
+    git apply --unsafe-paths -p1 --directory=$ENV:VIRTUAL_ENV/lib/site-packages ./dev/ctk_tooltip.patch || {
+        Write-Output "Failed to apply ctktooltip patch, may have been applied already. Proceeding anyway..."
+    }
+    git pull
+    & ".\venv\Scripts\activate.ps1"
+    Remove-Item -Recurse -Force -Path dist\
+    python .\dev\generate_icon.py .\icons\family_tree.png
+    pyinstaller --noconfirm .\dev\gedcom_navigator_gui.spec
+    pyinstaller --noconfirm .\dev\gedcom_navigator_cli.spec
+    if ( ( Get-ChildItem -Path Cert:\CurrentUser\My | Where-Object { $_.Subject -like ("CN=" + $certName) } ) -and ( Test-Path $SignTool ) ) {
+        & $SignTool sign /n $certName /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 ".\dist\gedcom_navigator_cli.exe" 
+        & $SignTool sign /n $certName /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 ".\dist\gedcom-navigator.exe" 
+    }
+    Compress-Archive -Path dist\* -DestinationPath .\dist\gedcom-navigator-windows.zip -Force
 }
-$signTool = 'C:\Program Files (x86)\Windows Kits\10\App Certification Kit\SignTool.exe'
-$certName = 'gedcom-navigator'
-if ( -not ( Get-Command python -ErrorAction SilentlyContinue ) ) { 
-    Write-Output "Python is not installed or not in the PATH. Please install Python and ensure it is in the PATH before running this script." 
-    exit 1
+finally {
+    Stop-Transcript
 }
-if ( $clean -and ( test-path .\venv ) ) {
-    Write-Output "Clean build selected, re-creating venv from scratch."
-    Remove-Item -Force -Recurse .\venv
-}
-if ( -not ( Test-Path .\venv\scripts\activate.ps1)) {
-    Write-Output "Creating and activating virtual environment, and installing dependencies..."
-    python -m venv .\venv --prompt "gedcom-navigator" 
-    python .\dev\find_ffi_dll.py
-    .\venv\Scripts\activate.ps1
-    pip install -r .\dev\requirements-dev.txt
-}
-if ( -not ( Test-Path .\venv\scripts\activate.ps1)) {
-    Write-Output "Virtual environment activation script not found. Please ensure the virtual environment is set up correctly." 
-    exit 1
-}
-Write-Output "Applying ctktooltip patch... (see https://github.com/Akascape/CTkToolTip/issues/20 for details)"
-git apply --unsafe-paths -p1 --directory=$ENV:VIRTUAL_ENV/lib/site-packages ./dev/ctk_tooltip.patch || {
-    Write-Output "Failed to apply ctktooltip patch, may have been applied already. Proceeding anyway..."
-}
-git pull
-& ".\venv\Scripts\activate.ps1"
-Remove-Item -Recurse -Force -Path dist\
-python .\dev\generate_icon.py .\icons\family_tree.png
-pyinstaller --noconfirm .\dev\gedcom_navigator_gui.spec
-pyinstaller --noconfirm .\dev\gedcom_navigator_cli.spec
-if ( ( Get-ChildItem -Path Cert:\CurrentUser\My | Where-Object { $_.Subject -like ("CN=" + $certName) } ) -and ( Test-Path $SignTool ) ) {
-    & $SignTool sign /n $certName /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 ".\dist\gedcom_navigator_cli.exe" 
-    & $SignTool sign /n $certName /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 ".\dist\gedcom-navigator.exe" 
-}
-Compress-Archive -Path dist\* -DestinationPath .\dist\gedcom-navigator-windows.zip -Force
