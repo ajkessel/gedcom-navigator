@@ -54,11 +54,11 @@ For more details including the command-line tool, see [technical details](TECHNI
 
 ## License
 
-This project is released under the BSD 2-Clause License. See the [`LICENSE`](LICENSE.md) file for the full text.
+This project is released under the [BSD 2-Clause License](LICENSE.md).
 
 ## Recent changes
 
-See [`CHANGELOG`](CHANGELOG.md).
+[`CHANGELOG`](CHANGELOG.md).
 
 ## Contributing
 
