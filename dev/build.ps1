@@ -82,6 +82,48 @@ try {
         }
     }
 
+    # Build MSIX package if makeappx.exe is available
+    $makeappx = Get-Command makeappx.exe -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source
+    if (-not $makeappx) {
+        $sdkPaths = Get-ChildItem -Path "C:\Program Files (x86)\Windows Kits\10\bin" -Filter "makeappx.exe" -Recurse -ErrorAction SilentlyContinue | Where-Object { $_.FullName -like "*x64*" }
+        if ($sdkPaths) {
+            $makeappx = $sdkPaths[0].FullName
+        }
+    }
+
+    if ($makeappx) {
+        Write-Output "MakeAppx found at $makeappx. Building MSIX package..."
+        $initFile = Get-Content ".\gedcom_navigator\__init__.py" -Raw
+        if ($initFile -match '__version__\s*=\s*["'']([^"'']+)["'']') {
+            $version = $Matches[1]
+            $fourDigitVersion = "$version.0"
+            Write-Output "Building MSIX for version $fourDigitVersion"
+            
+            # Prepare staging directory
+            $stagingDir = ".\dist\msix_staging"
+            if (Test-Path $stagingDir) { Remove-Item -Recurse -Force $stagingDir }
+            New-Item -ItemType Directory -Path $stagingDir | Out-Null
+            New-Item -ItemType Directory -Path "$stagingDir\Assets" | Out-Null
+
+            # Generate Assets
+            python .\dev\generate_msix_assets.py .\icons\family_tree.png "$stagingDir\Assets"
+
+            # Copy Executable (using the one-file EXE for simplicity)
+            Copy-Item ".\dist\gedcom-navigator.exe" "$stagingDir\gedcom-navigator.exe"
+
+            # Fill Manifest
+            $manifestTemplate = Get-Content ".\dev\AppxManifest.xml.template" -Raw
+            $manifest = $manifestTemplate.Replace("{VERSION}", $fourDigitVersion)
+            $manifest | Out-File -FilePath "$stagingDir\AppxManifest.xml" -Encoding utf8
+
+            # Pack
+            & $makeappx pack /d "$stagingDir" /p ".\dist\gedcom-navigator.msix" /o
+            Write-Output "MSIX package created: .\dist\gedcom-navigator.msix"
+            
+            if (Test-Path $stagingDir) { Remove-Item -Recurse -Force $stagingDir }
+        }
+    }
+
     if ( ( Get-ChildItem -Path Cert:\CurrentUser\My | Where-Object { $_.Subject -like ("CN=" + $certName) } ) -and ( Test-Path $SignTool ) ) {
         & $SignTool sign /n $certName /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 ".\dist\gedcom_navigator_cli.exe" 
         & $SignTool sign /n $certName /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 ".\dist\gedcom-navigator.exe" 
