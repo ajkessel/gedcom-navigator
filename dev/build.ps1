@@ -6,7 +6,7 @@ param ( [Parameter(Mandatory = $false, HelpMessage = "clean build")][switch]$cle
 Set-Location -Path $PSScriptRoot/..
 Start-Transcript -Path "build-windows.log" -Append
 try {
-    write-Output("Starting build process for Windows...")
+    Write-Output("Starting build process for Windows...")
     Get-Date
     $searchPaths = ($env:ProgramData + "\miniforge3\scripts\"), ($env:localappdata + "\miniconda3\scripts\"), ($env:appdata + "\miniconda3\scripts\")
     $fileName = "conda.exe"
@@ -47,14 +47,53 @@ try {
     git pull
     & ".\venv\Scripts\activate.ps1"
     Remove-Item -Recurse -Force -Path dist\
+    New-Item -ItemType Directory -Path dist -Force | Out-Null
+
+    # Generate plain-text LICENSE.txt for Inno Setup (stripping markdown)
+    $licenseMd = Get-Content ".\docs\LICENSE.md" -Raw
+    $licenseTxt = $licenseMd -replace '^##+\s+', '' -replace '\[([^\]]+)\]\(([^\)]+)\)', '$1 ($2)'
+    $licenseTxt | Out-File -FilePath ".\dist\LICENSE.txt" -Encoding utf8
+
     python .\dev\generate_icon.py .\icons\family_tree.png
     pyinstaller --noconfirm .\dev\gedcom_navigator_gui.spec
     pyinstaller --noconfirm .\dev\gedcom_navigator_cli.spec
+
+    # Build Inno Setup installer if iscc.exe is available
+    $iscc = Get-Command iscc.exe -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source
+    if (-not $iscc) {
+        $isccPaths = "C:\Program Files (x86)\Inno Setup 6\iscc.exe", 
+        "C:\Program Files\Inno Setup 6\iscc.exe",
+        "$env:LOCALAPPDATA\Programs\Inno Setup 6\iscc.exe"
+        foreach ($p in $isccPaths) {
+            if (Test-Path $p) {
+                $iscc = $p
+                break
+            }
+        }
+    }
+
+    if ($iscc) {
+        Write-Output "Inno Setup found at $iscc. Building installer..."
+        $initFile = Get-Content ".\gedcom_navigator\__init__.py" -Raw
+        if ($initFile -match '__version__\s*=\s*["'']([^"'']+)["'']') {
+            $version = $Matches[1]
+            Write-Output "Building installer for version $version"
+            & $iscc /dMyAppVersion=$version ".\dev\gedcom-navigator.iss"
+        }
+    }
+
     if ( ( Get-ChildItem -Path Cert:\CurrentUser\My | Where-Object { $_.Subject -like ("CN=" + $certName) } ) -and ( Test-Path $SignTool ) ) {
         & $SignTool sign /n $certName /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 ".\dist\gedcom_navigator_cli.exe" 
         & $SignTool sign /n $certName /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 ".\dist\gedcom-navigator.exe" 
+        if (Test-Path ".\dist\gedcom-navigator-setup.exe") {
+            & $SignTool sign /n $certName /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 ".\dist\gedcom-navigator-setup.exe" 
+        }
     }
-    Compress-Archive -Path dist\* -DestinationPath .\dist\gedcom-navigator-windows.zip -Force
+    Compress-Archive -Path dist\* -DestinationPath .\dist\gedcom-navigator-windows-portable.zip -Force
+    if (Test-Path ".\dev\Output\gedcom-navigator-setup.exe") {
+        Move-Item -Force ".\dev\Output\gedcom-navigator-setup.exe" ".\dist\gedcom-navigator-windows-installer.exe"
+        Remove-Item -Recurse -Force ".\dev\Output"
+    }
 }
 finally {
     Stop-Transcript

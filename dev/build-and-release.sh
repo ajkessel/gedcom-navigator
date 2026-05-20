@@ -61,4 +61,4 @@ ssh mac "src/gedcom-navigator/dev/build.sh ${OPTIONS}" || die 'Error building fo
 echo 'Copying built ZIP files locally...'
 scp mac:src/gedcom-navigator/dist/*zip ./dist || die 'Error copying ZIP files.'
 cp /mnt/c/apps/src/gedcom-navigator/dist/*zip ./dist || die 'Error copying ZIP files.'
-[ -z "${DRY}" ] && echo 'Uploading to GitHub...' && gh release upload "${current}" ./dist/*zip --clobber
+[ -z "${DRY}" ] && echo 'Uploading to GitHub...' && gh release upload "${current}" ./dist/*zip ./dist/*exe --clobber

@@ -75,6 +75,9 @@ if sys.platform == 'win32':
         os.path.join(_conda_base, 'DLLs', 'tcl*.dll'),
         os.path.join(_conda_base, 'Library', 'bin', 'tk*.dll'),
         os.path.join(_conda_base, 'Library', 'bin', 'tcl*.dll'),
+        # OpenSSL DLLs — required for HTTPS (check for updates)
+        os.path.join(_conda_base, 'Library', 'bin', 'libssl*.dll'),
+        os.path.join(_conda_base, 'Library', 'bin', 'libcrypto*.dll'),
     ]:
         _extra_binaries += [(p, '.') for p in glob.glob(_pat)]
 
