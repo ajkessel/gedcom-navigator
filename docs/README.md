@@ -21,12 +21,12 @@ In addition to the GUI, this application also includes a command-line tool for f
 
 Downloads:
 * Mac
-** [App Store](https://apps.apple.com/app/gedcom-navigator/id6765485580) - easy install, may be behind the latest version here
-** [ZIP Download](https://github.com/ajkessel/gedcom-navigator/releases/latest/download/gedcom-navigator-mac.zip) (see [security note](#macos-security))
+ * [App Store](https://apps.apple.com/app/gedcom-navigator/id6765485580) - easy install, may be behind the latest version here
+ * [ZIP Download](https://github.com/ajkessel/gedcom-navigator/releases/latest/download/gedcom-navigator-mac.zip) (see [security note](#macos-security))
 * Windows
-** App Store (coming soon)
-** [Portable Version](https://github.com/ajkessel/gedcom-navigator/releases/latest/download/gedcom-navigator-windows-portable.zip) (see [security note](#windows-security))
-** [Installer](https://github.com/ajkessel/gedcom-navigator/releases/latest/download/gedcom-navigator-windows-installer.exe)
+ * App Store (coming soon)
+ * [Portable Version](https://github.com/ajkessel/gedcom-navigator/releases/latest/download/gedcom-navigator-windows-portable.zip) (see [security note](#windows-security))
+ * [Installer](https://github.com/ajkessel/gedcom-navigator/releases/latest/download/gedcom-navigator-windows-installer.exe)
 * [Linux](https://github.com/ajkessel/gedcom-navigator/releases/latest/download/gedcom-navigator-linux.zip)
 
 ![Main
