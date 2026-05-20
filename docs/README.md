@@ -30,12 +30,11 @@ In addition to the GUI, this application also includes a command-line tool for f
   * [Installer](https://github.com/ajkessel/gedcom-navigator/releases/latest/download/gedcom-navigator-windows-installer.exe)
 * [Linux](https://github.com/ajkessel/gedcom-navigator/releases/latest/download/gedcom-navigator-linux.zip)
 
-![Main
-window](https://raw.githubusercontent.com/ajkessel/gedcom-navigator/main/docs/screenshots/screen_recording.gif)
-
 This is a beta release. If you are interested in experimenting with a "dummy" GEDCOM file rather than your own, several are available from [the FindMyPast Github Repository](https://github.com/findmypast/gedcom-samples). I used the [Game of Thrones family tree](https://github.com/findmypast/gedcom-samples/blob/main/GoT.ged) for the sample screenshots to avoid any privacy issues and also to show why it gets complicated when siblings marry one another.
 
 ## The problems this solves
+
+![Main window](https://raw.githubusercontent.com/ajkessel/gedcom-navigator/main/docs/screenshots/screen_recording.gif)
 
 Many genealogists working with autosomal DNA add unfamiliar people to their family tree based on DNA matches and then build out those people's lines, hoping to find the most recent common ancestor between the match and themselves. After accumulating thousands of these speculative additions, you often end up looking at a person in your tree and thinking: *why is this person here? which DNA match did this branch come from?*
 
