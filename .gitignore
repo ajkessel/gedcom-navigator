@@ -9,8 +9,7 @@ build/
 debug/
 dist/
 *.zip
-build-and-release.log
-build-mac-appstore.log
+*.log
 .DS_Store
 icons/family_tree.ico
 icons/family_tree.icns

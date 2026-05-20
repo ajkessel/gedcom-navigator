@@ -1,6 +1,7 @@
 #!/bin/bash
 if [[ "$OSTYPE" != "darwin"* ]]; then
-	echo 'This script is intended to be run on macOS.'
+	echo "This script is intended to be run on macOS."
+	echo "${OSTYPE} detected, exiting."
 	exit 1
 fi
 output_file="gedcom-navigator-mac.zip"
@@ -23,6 +24,9 @@ while getopts "hnco:" opt; do
 		;;
 	esac
 done
+SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
+cd "${SCRIPT_DIR}/.." || exit 1
+exec > >(sed 's/\x1b\[[0-9;]*m//g' | tee -a build-mac.log) 2>&1
 echo 'Building for macOS...'
 [[ "$CLEAN" ]] && {
 	echo 'Warning: this will delete the current .venv and any .pyenv in your home folder.'
@@ -106,7 +110,11 @@ python3 ./dev/generate_icon.py ./icons/family_tree.png || {
 	echo 'Failed to generate ICO file.'
 	exit 1
 }
-[ "${DRY}" ] && export target_arch=$(uname -m)
+# dry-run mode does not need to compile universal2 binary
+[ "${DRY}" ] && {
+	target_arch=$(uname -m)
+	export target_arch
+}
 pyinstaller --noconfirm ./dev/gedcom_navigator_cli.spec || {
 	echo 'pyinstaller failed to build CLI.'
 	exit 1

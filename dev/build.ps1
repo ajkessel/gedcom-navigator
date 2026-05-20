@@ -1,7 +1,10 @@
+#Requires -version 5.1
+param ( [Parameter(Mandatory = $false, HelpMessage = "clean build")][switch]$clean)
 # optional configuration for signing executables
 # create self-signed certificate with powershell script like the following:
 # New-SelfSignedCertificate -Type CodeSigningCert -Subject "gedcom-navigator" -CertStoreLocation Cert:\CurrentUser\My
-# TODO - add argument for clean build
+Set-Location -Path $PSScriptRoot/..
+Start-Transcript -Path "build-windows.log" -Append
 $searchPaths = ($env:ProgramData+"\miniforge3\scripts\"),($env:localappdata+"\miniconda3\scripts\"),($env:appdata+"\miniconda3\scripts\")
 $fileName = "conda.exe"
 $found_file = Get-ChildItem -Path $searchPaths -Filter $fileName -ErrorAction SilentlyContinue | Select-Object -First 1
@@ -14,10 +17,13 @@ If ($found_file) {
 }
 $signTool = 'C:\Program Files (x86)\Windows Kits\10\App Certification Kit\SignTool.exe'
 $certName = 'gedcom-navigator'
-Set-Location -Path $PSScriptRoot/..
 if ( -not ( Get-Command python -ErrorAction SilentlyContinue ) ) { 
     Write-Output "Python is not installed or not in the PATH. Please install Python and ensure it is in the PATH before running this script." 
     exit 1
+}
+if ( $clean -and ( test-path .\venv ) ) {
+    Write-Output "Clean build selected, re-creating venv from scratch."
+    Remove-Item -Force -Recurse .\venv
 }
 if ( -not ( Test-Path .\venv\scripts\activate.ps1)) {
     Write-Output "Creating and activating virtual environment, and installing dependencies..."

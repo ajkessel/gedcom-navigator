@@ -1,6 +1,7 @@
 #!/bin/bash
 if [[ "$OSTYPE" != "linux-gnu"* ]]; then
 	echo 'This script is intended to be run on Linux.'
+	echo "${OSTYPE} detected, exiting."
 	exit 1
 fi
 output_file="gedcom-navigator-linux.zip"
@@ -18,6 +19,9 @@ while getopts "hnco:" opt; do
 		;;
 	esac
 done
+SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
+cd "${SCRIPT_DIR}/.." || exit 1
+exec > >(sed 's/\x1b\[[0-9;]*m//g' | tee -a build-linux.log) 2>&1
 [[ "$CLEAN" ]] && [[ -e ".venv" ]] && rm -r ".venv"
 [[ -e ".venv/bin/activate" ]] || {
 	echo 'Creating virtual environment...'

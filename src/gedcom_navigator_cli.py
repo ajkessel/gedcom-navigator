@@ -139,7 +139,7 @@ def print_result(start_id, individuals, results):
 # ---------------------------------------------------------------------------
 
 def main():
-    """Parse command-line options and execute the DNA finder."""
+    """Parse command-line options and execute the GEDCOM navigator."""
     parser = argparse.ArgumentParser(
         description='Find the nearest DNA-flagged relative(s) to a target person in a GEDCOM tree.'
     )
