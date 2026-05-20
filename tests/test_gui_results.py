@@ -1,5 +1,11 @@
 """Tests for result-pane path rendering helpers."""
 
+from gedcom_family_tree import (
+    _nearest_unblocked_column,
+    build_family_tree_graph,
+    family_tree_expansion_options,
+    layout_family_tree,
+)
 from gedcom_gui_results import ResultsMixin
 
 
@@ -40,22 +46,22 @@ def test_path_graph_layout_keeps_parent_child_edges_vertical():
 def test_path_graph_simplifies_parent_child_sibling_detours():
     """A path through a parent to another child graphs as a sibling hop."""
     path = [
-        ('@HERBERT@', None),
-        ('@ABRAHAM@', 'father'),
-        ('@HYMAN@', 'father'),
-        ('@HARRIS@', 'father'),
-        ('@LOUIS@', 'child'),
-        ('@ANNIE@', 'spouse'),
+        ('@COUSN@', None),
+        ('@ANCS1@', 'father'),
+        ('@ANCS2@', 'father'),
+        ('@ANCS3@', 'father'),
+        ('@REL1@', 'child'),
+        ('@REL1_SP@', 'spouse'),
     ]
 
     simplified = ResultsMixin._simplify_path_for_graph(path)
 
     assert simplified == [
-        ('@HERBERT@', None),
-        ('@ABRAHAM@', 'father'),
-        ('@HYMAN@', 'father'),
-        ('@LOUIS@', 'sibling'),
-        ('@ANNIE@', 'spouse'),
+        ('@COUSN@', None),
+        ('@ANCS1@', 'father'),
+        ('@ANCS2@', 'father'),
+        ('@REL1@', 'sibling'),
+        ('@REL1_SP@', 'spouse'),
     ]
 
 
@@ -71,6 +77,3188 @@ def test_path_graph_layout_avoids_duplicate_node_positions():
     positions = {(node['generation'], node['column']) for node in layout}
 
     assert len(positions) == len(layout)
+
+
+def test_path_graph_expansion_adds_hidden_family_without_moving_endpoints():
+    """Relationship graph expansion preserves path endpoints and adds relatives."""
+    base = ResultsMixin._path_graph_layout([
+        ('@A@', None),
+        ('@B@', 'father'),
+        ('@C@', 'sibling'),
+    ])
+    families = {
+        '@B@': {
+            'parents': ['@P1@'],
+            'siblings': ['@A@', '@S1@'],
+            'spouses': [],
+            'children': ['@A@', '@C@', '@N1@'],
+        },
+    }
+
+    def lookup(indi_id):
+        return families.get(indi_id, {
+            'parents': [],
+            'siblings': [],
+            'spouses': [],
+            'children': [],
+        })
+
+    layout, extra_edges = ResultsMixin._expanded_path_graph_layout(
+        base, [('@B@', 'parents'), ('@B@', 'children')], lookup)
+    by_id = {node['id']: node for node in layout}
+
+    assert [node['id'] for node in layout[:3]] == ['@A@', '@B@', '@C@']
+    assert layout[0]['is_endpoint'] is True
+    assert layout[2]['is_endpoint'] is True
+    assert by_id['@P1@']['generation'] == by_id['@B@']['generation'] - 1
+    assert by_id['@N1@']['generation'] == by_id['@B@']['generation'] + 1
+    assert '@A@' in by_id
+    assert len([node for node in layout if node['id'] == '@A@']) == 1
+    assert ('@B@', '@P1@', 'parents') in extra_edges
+    assert ('@B@', '@N1@', 'children') in extra_edges
+
+
+def test_path_graph_child_expansion_adds_missing_coparent():
+    """Expanding children also displays the children's other parent."""
+    base = ResultsMixin._path_graph_layout([
+        ('@A@', None),
+        ('@P@', 'father'),
+    ])
+    families = {
+        '@A@': {
+            'parents': ['@P@'],
+            'siblings': [],
+            'spouses': ['@SPOUSE@'],
+            'children': ['@C1@'],
+        },
+    }
+
+    def lookup(indi_id):
+        return families.get(indi_id, {
+            'parents': [],
+            'siblings': [],
+            'spouses': [],
+            'children': [],
+        })
+
+    def coparents(indi_id, child_ids):
+        if indi_id == '@A@' and '@C1@' in child_ids:
+            return ['@SPOUSE@']
+        return []
+
+    layout, extra_edges = ResultsMixin._expanded_path_graph_layout(
+        base, [('@A@', 'children')], lookup, coparents)
+    by_id = {node['id']: node for node in layout}
+
+    assert '@C1@' in by_id
+    assert '@SPOUSE@' in by_id
+    assert by_id['@SPOUSE@']['generation'] == by_id['@A@']['generation']
+    assert by_id['@C1@']['generation'] == by_id['@A@']['generation'] + 1
+    assert by_id['@C1@']['column'] == (
+        by_id['@A@']['column'] + by_id['@SPOUSE@']['column']) / 2
+    assert ('@A@', '@SPOUSE@', 'spouses') in extra_edges
+
+
+def test_path_graph_no_expansion_keeps_compact_parent_child_path():
+    """Unexpanded relationship paths are not widened by family normalization."""
+    base = [
+        {
+            'id': '@START@',
+            'edge': None,
+            'generation': 0,
+            'column': 0,
+            'index': 0,
+            'is_path_node': True,
+            'is_endpoint': True,
+        },
+        {
+            'id': '@START_DAD@',
+            'edge': 'father',
+            'generation': -1,
+            'column': 0,
+            'index': 1,
+            'is_path_node': True,
+            'is_endpoint': False,
+        },
+        {
+            'id': '@ANCESTOR@',
+            'edge': 'father',
+            'generation': -2,
+            'column': 0,
+            'index': 2,
+            'is_path_node': True,
+            'is_endpoint': False,
+        },
+        {
+            'id': '@ANCESTOR_SIB@',
+            'edge': 'sibling',
+            'generation': -2,
+            'column': 1,
+            'index': 3,
+            'is_path_node': True,
+            'is_endpoint': False,
+        },
+        {
+            'id': '@ANCESTOR_SIB_SP@',
+            'edge': 'spouse',
+            'generation': -2,
+            'column': 2,
+            'index': 4,
+            'is_path_node': True,
+            'is_endpoint': False,
+        },
+        {
+            'id': '@PARENT1@',
+            'edge': 'father',
+            'generation': -3,
+            'column': 2,
+            'index': 5,
+            'is_path_node': True,
+            'is_endpoint': False,
+        },
+        {
+            'id': '@PARENT2@',
+            'edge': 'spouse',
+            'generation': -3,
+            'column': 3,
+            'index': 6,
+            'is_path_node': True,
+            'is_endpoint': False,
+        },
+        {
+            'id': '@CHILD@',
+            'edge': 'child',
+            'generation': -2,
+            'column': 3,
+            'index': 7,
+            'is_path_node': True,
+            'is_endpoint': False,
+        },
+        {
+            'id': '@DESC@',
+            'edge': 'child',
+            'generation': -1,
+            'column': 3,
+            'index': 8,
+            'is_path_node': True,
+            'is_endpoint': False,
+        },
+        {
+            'id': '@DESC_SP@',
+            'edge': 'spouse',
+            'generation': -1,
+            'column': 4,
+            'index': 9,
+            'is_path_node': True,
+            'is_endpoint': False,
+        },
+        {
+            'id': '@DESC_SP_MOM@',
+            'edge': 'mother',
+            'generation': -2,
+            'column': 4,
+            'index': 10,
+            'is_path_node': True,
+            'is_endpoint': False,
+        },
+        {
+            'id': '@DESC_SP_MOM_SIB@',
+            'edge': 'sibling',
+            'generation': -2,
+            'column': 5,
+            'index': 11,
+            'is_path_node': True,
+            'is_endpoint': False,
+        },
+        {
+            'id': '@END_DAD@',
+            'edge': 'child',
+            'generation': -1,
+            'column': 5,
+            'index': 12,
+            'is_path_node': True,
+            'is_endpoint': False,
+        },
+        {
+            'id': '@END@',
+            'edge': 'child',
+            'generation': 0,
+            'column': 5,
+            'index': 13,
+            'is_path_node': True,
+            'is_endpoint': True,
+        },
+    ]
+    families = {
+        '@PARENT1@': {
+            'parents': [],
+            'siblings': [],
+            'spouses': ['@PARENT2@'],
+            'children': ['@ANCESTOR_SIB_SP@', '@CHILD@'],
+        },
+        '@PARENT2@': {
+            'parents': [],
+            'siblings': [],
+            'spouses': ['@PARENT1@'],
+            'children': ['@ANCESTOR_SIB_SP@', '@CHILD@'],
+        },
+    }
+
+    def lookup(indi_id):
+        return families.get(indi_id, {
+            'parents': [],
+            'siblings': [],
+            'spouses': [],
+            'children': [],
+        })
+
+    def coparents(indi_id, child_ids):
+        child_ids = set(child_ids)
+        return [
+            candidate_id for candidate_id, members in families.items()
+            if candidate_id != indi_id
+            and child_ids.intersection(members.get('children', ()))
+        ]
+
+    layout, extra_edges = ResultsMixin._expanded_path_graph_layout(
+        base, [], lookup, coparents)
+    by_id = {node['id']: node for node in layout}
+
+    assert extra_edges == []
+    assert max(node['column'] for node in layout) - min(
+        node['column'] for node in layout) <= 5
+    for child_id, parent_id in (
+            ('@START@', '@START_DAD@'),
+            ('@START_DAD@', '@ANCESTOR@'),
+            ('@ANCESTOR_SIB_SP@', '@PARENT1@'),
+            ('@CHILD@', '@PARENT2@'),
+            ('@CHILD@', '@DESC@'),
+            ('@DESC_SP@', '@DESC_SP_MOM@'),
+            ('@DESC_SP_MOM_SIB@', '@END_DAD@'),
+            ('@END_DAD@', '@END@'),
+    ):
+        assert by_id[child_id]['column'] == by_id[parent_id]['column']
+
+
+def test_family_tree_child_edge_groups_keep_couples_separate():
+    """Rendered child connectors are grouped by parent couple."""
+    positions = {
+        '@P1@': (0, 0),
+        '@P1_SP@': (100, 0),
+        '@P2@': (300, 0),
+        '@P2_SP@': (400, 0),
+        '@C1@': (-50, 200),
+        '@C2@': (50, 200),
+        '@N1@': (250, 200),
+        '@N2@': (350, 200),
+    }
+    edges = [
+        ('@P1@', '@P1_SP@', 'spouses'),
+        ('@P2@', '@P2_SP@', 'spouses'),
+        ('@P1@', '@C1@', 'children'),
+        ('@P1@', '@C2@', 'children'),
+        ('@P2@', '@N1@', 'children'),
+        ('@P2@', '@N2@', 'children'),
+    ]
+
+    def coparents(parent_id, child_ids):
+        child_ids = set(child_ids)
+        if parent_id == '@P1@' and child_ids & {'@C1@', '@C2@'}:
+            return ['@P1_SP@']
+        if parent_id == '@P2@' and child_ids & {'@N1@', '@N2@'}:
+            return ['@P2_SP@']
+        return []
+
+    groups = ResultsMixin._family_tree_child_edge_groups(
+        edges, positions, coparents,
+        [('@P1@', '@P1_SP@'), ('@P2@', '@P2_SP@')])
+
+    assert [group['children'] for group in groups] == [
+        ['@C1@', '@C2@'],
+        ['@N1@', '@N2@'],
+    ]
+    assert groups[0]['parent_ids'] == ('@P1@', '@P1_SP@')
+    assert groups[1]['parent_ids'] == ('@P2@', '@P2_SP@')
+
+
+def test_path_graph_child_expansion_keeps_coparent_adjacent():
+    """A new coparent takes the adjacent slot and pushes same-row nodes over."""
+    base = ResultsMixin._path_graph_layout([
+        ('@A@', None),
+        ('@SIB@', 'sibling'),
+    ])
+    families = {
+        '@A@': {
+            'parents': [],
+            'siblings': ['@SIB@'],
+            'spouses': ['@SPOUSE@'],
+            'children': ['@C1@'],
+        },
+    }
+
+    def lookup(indi_id):
+        return families.get(indi_id, {
+            'parents': [],
+            'siblings': [],
+            'spouses': [],
+            'children': [],
+        })
+
+    def coparents(indi_id, child_ids):
+        if indi_id == '@A@' and '@C1@' in child_ids:
+            return ['@SPOUSE@']
+        return []
+
+    layout, extra_edges = ResultsMixin._expanded_path_graph_layout(
+        base, [('@A@', 'children')], lookup, coparents)
+    by_id = {node['id']: node for node in layout}
+
+    assert by_id['@SPOUSE@']['column'] < by_id['@SIB@']['column']
+    assert by_id['@SPOUSE@']['column'] == 1.0
+    assert by_id['@SIB@']['column'] >= 2.0
+    assert by_id['@C1@']['column'] == (
+        by_id['@A@']['column'] + by_id['@SPOUSE@']['column']) / 2
+    assert ('@A@', '@SPOUSE@', 'spouses') in extra_edges
+
+
+def test_path_graph_spouse_expansion_keeps_spouse_adjacent():
+    """A directly expanded spouse takes the adjacent slot before siblings."""
+    base = ResultsMixin._path_graph_layout([
+        ('@A@', None),
+        ('@SIB@', 'sibling'),
+    ])
+    families = {
+        '@A@': {
+            'parents': [],
+            'siblings': ['@SIB@'],
+            'spouses': ['@SPOUSE@'],
+            'children': [],
+        },
+    }
+
+    def lookup(indi_id):
+        return families.get(indi_id, {
+            'parents': [],
+            'siblings': [],
+            'spouses': [],
+            'children': [],
+        })
+
+    layout, extra_edges = ResultsMixin._expanded_path_graph_layout(
+        base, [('@A@', 'spouses')], lookup)
+    by_id = {node['id']: node for node in layout}
+
+    assert by_id['@SPOUSE@']['generation'] == by_id['@A@']['generation']
+    assert by_id['@SPOUSE@']['column'] == by_id['@A@']['column'] + 1.0
+    assert by_id['@SIB@']['column'] >= by_id['@SPOUSE@']['column'] + 1.0
+    assert ('@A@', '@SPOUSE@', 'spouses') in extra_edges
+
+
+def test_path_graph_sibling_expansion_inserts_siblings_next_to_source():
+    """Expanded siblings displace unrelated same-row nodes as a group."""
+    base = [
+        {
+            'id': '@COUSIN@',
+            'edge': None,
+            'generation': 0,
+            'column': 0.0,
+            'index': 0,
+            'is_path_node': True,
+            'is_endpoint': False,
+        },
+        {
+            'id': '@BASE_SP@',
+            'edge': 'sibling',
+            'generation': 0,
+            'column': 1.0,
+            'index': 1,
+            'is_path_node': True,
+            'is_endpoint': False,
+        },
+        {
+            'id': '@BASE@',
+            'edge': 'spouse',
+            'generation': 0,
+            'column': 2.0,
+            'index': 2,
+            'is_path_node': True,
+            'is_endpoint': False,
+        },
+    ]
+    families = {
+        '@BASE_SP@': {
+            'parents': [],
+            'siblings': ['@SP_BRO2@', '@SP_BRO1@'],
+            'spouses': ['@BASE@'],
+            'children': [],
+        },
+    }
+
+    def lookup(indi_id):
+        return families.get(indi_id, {
+            'parents': [],
+            'siblings': [],
+            'spouses': [],
+            'children': [],
+        })
+
+    layout, extra_edges = ResultsMixin._expanded_path_graph_layout(
+        base, [('@BASE_SP@', 'siblings')], lookup)
+    by_id = {node['id']: node for node in layout}
+    brother_columns = sorted([
+        by_id['@SP_BRO2@']['column'],
+        by_id['@SP_BRO1@']['column'],
+        by_id['@BASE_SP@']['column'],
+    ])
+
+    assert brother_columns[2] == by_id['@BASE_SP@']['column']
+    assert brother_columns[1] <= by_id['@BASE_SP@']['column'] - 1.0
+    assert brother_columns[0] <= brother_columns[1] - 1.0
+    assert by_id['@COUSIN@']['column'] < brother_columns[0]
+    assert by_id['@BASE@']['column'] == by_id['@BASE_SP@']['column'] + 1.0
+    assert ('@BASE_SP@', '@SP_BRO2@', 'siblings') in extra_edges
+    assert ('@BASE_SP@', '@SP_BRO1@', 'siblings') in extra_edges
+
+
+def test_path_graph_sibling_expansion_restores_path_spouse_adjacency():
+    """Sibling expansion also treats path spouses as adjacency constraints."""
+    base = [
+        {
+            'id': '@COUSIN@',
+            'edge': None,
+            'generation': 0,
+            'column': 0.0,
+            'index': 0,
+            'is_path_node': True,
+            'is_endpoint': False,
+        },
+        {
+            'id': '@BASE_SP@',
+            'edge': 'sibling',
+            'generation': 0,
+            'column': 1.0,
+            'index': 1,
+            'is_path_node': True,
+            'is_endpoint': False,
+        },
+        {
+            'id': '@BASE@',
+            'edge': 'spouse',
+            'generation': 0,
+            'column': 4.0,
+            'index': 2,
+            'is_path_node': True,
+            'is_endpoint': False,
+        },
+    ]
+    families = {
+        '@BASE_SP@': {
+            'parents': [],
+            'siblings': ['@SP_BRO2@', '@SP_BRO1@'],
+            'spouses': ['@BASE@'],
+            'children': [],
+        },
+    }
+
+    def lookup(indi_id):
+        return families.get(indi_id, {
+            'parents': [],
+            'siblings': [],
+            'spouses': [],
+            'children': [],
+        })
+
+    layout, _extra_edges = ResultsMixin._expanded_path_graph_layout(
+        base, [('@BASE_SP@', 'siblings')], lookup)
+    by_id = {node['id']: node for node in layout}
+    brother_columns = sorted([
+        by_id['@SP_BRO2@']['column'],
+        by_id['@SP_BRO1@']['column'],
+        by_id['@BASE_SP@']['column'],
+    ])
+
+    assert brother_columns[2] == by_id['@BASE_SP@']['column']
+    assert brother_columns[1] <= by_id['@BASE_SP@']['column'] - 1.0
+    assert brother_columns[0] <= brother_columns[1] - 1.0
+    assert by_id['@BASE@']['column'] == by_id['@BASE_SP@']['column'] + 1.0
+    assert by_id['@COUSIN@']['column'] < brother_columns[0]
+
+
+def test_path_graph_sibling_expansion_evicts_cousin_from_sibling_slot():
+    """A cousin in the adjacent slot moves so siblings can stay next to source."""
+    base = [
+        {
+            'id': '@COUSIN@',
+            'edge': None,
+            'generation': 0,
+            'column': 2.0,
+            'index': 0,
+            'is_path_node': True,
+            'is_endpoint': False,
+        },
+        {
+            'id': '@BASE_SP@',
+            'edge': 'sibling',
+            'generation': 0,
+            'column': 3.0,
+            'index': 1,
+            'is_path_node': True,
+            'is_endpoint': False,
+        },
+        {
+            'id': '@BASE@',
+            'edge': 'spouse',
+            'generation': 0,
+            'column': 4.0,
+            'index': 2,
+            'is_path_node': True,
+            'is_endpoint': False,
+        },
+    ]
+    families = {
+        '@BASE_SP@': {
+            'parents': [],
+            'siblings': ['@SP_BRO2@', '@SP_BRO1@'],
+            'spouses': ['@BASE@'],
+            'children': [],
+        },
+    }
+
+    def lookup(indi_id):
+        return families.get(indi_id, {
+            'parents': [],
+            'siblings': [],
+            'spouses': [],
+            'children': [],
+        })
+
+    layout, _extra_edges = ResultsMixin._expanded_path_graph_layout(
+        base, [('@BASE_SP@', 'siblings')], lookup)
+    by_id = {node['id']: node for node in layout}
+    brother_columns = sorted([
+        by_id['@SP_BRO2@']['column'],
+        by_id['@SP_BRO1@']['column'],
+        by_id['@BASE_SP@']['column'],
+    ])
+
+    assert brother_columns[2] == by_id['@BASE_SP@']['column']
+    assert brother_columns[1] <= by_id['@BASE_SP@']['column'] - 1.0
+    assert brother_columns[0] <= brother_columns[1] - 1.0
+    assert by_id['@COUSIN@']['column'] < brother_columns[0]
+    assert by_id['@BASE@']['column'] == by_id['@BASE_SP@']['column'] + 1.0
+
+
+def test_path_graph_sibling_next_to_spouse_pair_gets_extra_clearance():
+    """A sibling beside a displayed spouse pair gets enough visual room."""
+    base = [
+        {
+            'id': '@COUSN_SP@',
+            'edge': None,
+            'generation': 0,
+            'column': 0.0,
+            'index': 0,
+            'is_path_node': True,
+            'is_endpoint': False,
+        },
+        {
+            'id': '@COUSN@',
+            'edge': 'spouse',
+            'generation': 0,
+            'column': 1.0,
+            'index': 1,
+            'is_path_node': True,
+            'is_endpoint': False,
+        },
+    ]
+    families = {
+        '@COUSN@': {
+            'parents': [],
+            'siblings': ['@COUSN_SIB@'],
+            'spouses': ['@COUSN_SP@'],
+            'children': [],
+        },
+    }
+
+    def lookup(indi_id):
+        return families.get(indi_id, {
+            'parents': [],
+            'siblings': [],
+            'spouses': [],
+            'children': [],
+        })
+
+    layout, _extra_edges = ResultsMixin._expanded_path_graph_layout(
+        base, [('@COUSN@', 'siblings')], lookup)
+    by_id = {node['id']: node for node in layout}
+
+    assert by_id['@COUSN@']['column'] - by_id['@COUSN_SP@']['column'] == 1.0
+    assert by_id['@COUSN_SIB@']['column'] - by_id['@COUSN@']['column'] >= 1.25
+
+
+def test_path_graph_expanded_siblings_include_visible_sibling_component():
+    """Visible path siblings move together past the selected person's spouse."""
+    base = [
+        {
+            'id': '@SIB_LEFT1@',
+            'edge': None,
+            'generation': 0,
+            'column': -3.0,
+            'index': 0,
+            'is_path_node': True,
+            'is_endpoint': False,
+        },
+        {
+            'id': '@SIB_LEFT2@',
+            'edge': 'sibling',
+            'generation': 0,
+            'column': -2.0,
+            'index': 1,
+            'is_path_node': True,
+            'is_endpoint': False,
+        },
+        {
+            'id': '@ANCHOR_SP@',
+            'edge': 'spouse',
+            'generation': 0,
+            'column': -1.0,
+            'index': 2,
+            'is_path_node': True,
+            'is_endpoint': False,
+        },
+        {
+            'id': '@ANCHOR@',
+            'edge': 'spouse',
+            'generation': 0,
+            'column': 0.0,
+            'index': 3,
+            'is_path_node': True,
+            'is_endpoint': False,
+        },
+    ]
+    families = {
+        '@ANCHOR@': {
+            'parents': [],
+            'siblings': ['@SIB_LEFT1@', '@SIB_LEFT2@', '@SIB_RIGHT1@'],
+            'spouses': ['@ANCHOR_SP@'],
+            'children': [],
+        },
+        '@ANCHOR_SP@': {
+            'parents': [],
+            'siblings': [],
+            'spouses': ['@ANCHOR@'],
+            'children': [],
+        },
+        '@SIB_LEFT2@': {
+            'parents': [],
+            'siblings': ['@SIB_LEFT1@', '@ANCHOR@', '@SIB_RIGHT1@'],
+            'spouses': [],
+            'children': [],
+        },
+        '@SIB_LEFT1@': {
+            'parents': [],
+            'siblings': ['@SIB_LEFT2@', '@ANCHOR@', '@SIB_RIGHT1@'],
+            'spouses': [],
+            'children': [],
+        },
+    }
+
+    def lookup(indi_id):
+        return families.get(indi_id, {
+            'parents': [],
+            'siblings': [],
+            'spouses': [],
+            'children': [],
+        })
+
+    layout, _extra_edges = ResultsMixin._expanded_path_graph_layout(
+        base, [('@ANCHOR@', 'siblings')], lookup)
+    by_id = {node['id']: node for node in layout}
+    sibling_columns = [
+        by_id['@SIB_LEFT1@']['column'],
+        by_id['@SIB_LEFT2@']['column'],
+        by_id['@SIB_RIGHT1@']['column'],
+    ]
+
+    assert by_id['@ANCHOR_SP@']['column'] == by_id['@ANCHOR@']['column'] - 1.0
+    assert all(
+        column > by_id['@ANCHOR@']['column']
+        for column in sibling_columns)
+    assert sorted(sibling_columns) == sibling_columns
+
+
+def test_path_graph_expanded_siblings_ignore_spouses_sibling_component():
+    """A spouse's visible siblings do not split the selected person's siblings."""
+    base = [
+        {
+            'id': '@ANCHOR2_SIB1@',
+            'edge': None,
+            'generation': 0,
+            'column': -4.0,
+            'index': 0,
+            'is_path_node': True,
+            'is_endpoint': False,
+        },
+        {
+            'id': '@SPOUSE_SIB1@',
+            'edge': 'sibling',
+            'generation': 0,
+            'column': -3.0,
+            'index': 1,
+            'is_path_node': True,
+            'is_endpoint': False,
+        },
+        {
+            'id': '@SPOUSE_SIB2@',
+            'edge': 'sibling',
+            'generation': 0,
+            'column': -2.0,
+            'index': 2,
+            'is_path_node': True,
+            'is_endpoint': False,
+        },
+        {
+            'id': '@ANCHOR2_SP@',
+            'edge': 'sibling',
+            'generation': 0,
+            'column': -1.0,
+            'index': 3,
+            'is_path_node': True,
+            'is_endpoint': False,
+        },
+        {
+            'id': '@ANCHOR2@',
+            'edge': 'spouse',
+            'generation': 0,
+            'column': 0.0,
+            'index': 4,
+            'is_path_node': True,
+            'is_endpoint': False,
+        },
+        {
+            'id': '@ANCHOR2_SIB2@',
+            'edge': 'sibling',
+            'generation': 0,
+            'column': 1.0,
+            'index': 5,
+            'is_path_node': True,
+            'is_endpoint': False,
+        },
+        {
+            'id': '@ANCHOR2_SIB3@',
+            'edge': 'sibling',
+            'generation': 0,
+            'column': 2.0,
+            'index': 6,
+            'is_path_node': True,
+            'is_endpoint': False,
+        },
+    ]
+    families = {
+        '@ANCHOR2@': {
+            'parents': [],
+            'siblings': ['@ANCHOR2_SIB1@', '@ANCHOR2_SIB2@', '@ANCHOR2_SIB3@', '@ANCHOR2_SIB4@'],
+            'spouses': ['@ANCHOR2_SP@'],
+            'children': [],
+        },
+        '@ANCHOR2_SP@': {
+            'parents': [],
+            'siblings': ['@SPOUSE_SIB1@', '@SPOUSE_SIB2@'],
+            'spouses': ['@ANCHOR2@'],
+            'children': [],
+        },
+        '@ANCHOR2_SIB1@': {
+            'parents': [],
+            'siblings': ['@ANCHOR2@', '@ANCHOR2_SIB2@', '@ANCHOR2_SIB3@', '@ANCHOR2_SIB4@'],
+            'spouses': [],
+            'children': [],
+        },
+        '@SPOUSE_SIB1@': {
+            'parents': [],
+            'siblings': ['@SPOUSE_SIB2@', '@ANCHOR2_SP@'],
+            'spouses': [],
+            'children': [],
+        },
+        '@SPOUSE_SIB2@': {
+            'parents': [],
+            'siblings': ['@SPOUSE_SIB1@', '@ANCHOR2_SP@'],
+            'spouses': [],
+            'children': [],
+        },
+        '@ANCHOR2_SIB2@': {
+            'parents': [],
+            'siblings': ['@ANCHOR2_SIB1@', '@ANCHOR2@', '@ANCHOR2_SIB3@', '@ANCHOR2_SIB4@'],
+            'spouses': [],
+            'children': [],
+        },
+        '@ANCHOR2_SIB3@': {
+            'parents': [],
+            'siblings': ['@ANCHOR2_SIB1@', '@ANCHOR2@', '@ANCHOR2_SIB2@', '@ANCHOR2_SIB4@'],
+            'spouses': [],
+            'children': [],
+        },
+    }
+
+    def lookup(indi_id):
+        return families.get(indi_id, {
+            'parents': [],
+            'siblings': [],
+            'spouses': [],
+            'children': [],
+        })
+
+    layout, _extra_edges = ResultsMixin._expanded_path_graph_layout(
+        base, [('@ANCHOR2@', 'siblings')], lookup)
+    by_id = {node['id']: node for node in layout}
+    sibling_columns = [
+        by_id['@ANCHOR2_SIB1@']['column'],
+        by_id['@ANCHOR2_SIB2@']['column'],
+        by_id['@ANCHOR2_SIB3@']['column'],
+        by_id['@ANCHOR2_SIB4@']['column'],
+    ]
+
+    assert by_id['@ANCHOR2_SP@']['column'] == by_id['@ANCHOR2@']['column'] - 1.0
+    assert all(
+        column > by_id['@ANCHOR2@']['column']
+        for column in sibling_columns)
+    assert sorted(sibling_columns) == [1.0, 2.0, 3.0, 4.0]
+
+
+def test_path_graph_visible_path_siblings_group_around_spouse_anchor():
+    """Path-only sibling groups stay together beside the visible spouse pair."""
+    base = [
+        {
+            'id': '@SIB_LEFT1@',
+            'edge': None,
+            'generation': 0,
+            'column': -3.0,
+            'index': 0,
+            'is_path_node': True,
+            'is_endpoint': False,
+        },
+        {
+            'id': '@SIB_LEFT2@',
+            'edge': 'sibling',
+            'generation': 0,
+            'column': -2.0,
+            'index': 1,
+            'is_path_node': True,
+            'is_endpoint': False,
+        },
+        {
+            'id': '@ANCHOR_SP@',
+            'edge': 'spouse',
+            'generation': 0,
+            'column': -1.0,
+            'index': 2,
+            'is_path_node': True,
+            'is_endpoint': False,
+        },
+        {
+            'id': '@ANCHOR@',
+            'edge': 'spouse',
+            'generation': 0,
+            'column': 0.0,
+            'index': 3,
+            'is_path_node': True,
+            'is_endpoint': False,
+        },
+        {
+            'id': '@SIB_RIGHT1@',
+            'edge': 'sibling',
+            'generation': 0,
+            'column': 1.0,
+            'index': 4,
+            'is_path_node': True,
+            'is_endpoint': False,
+        },
+    ]
+    families = {
+        '@ANCHOR@': {
+            'parents': [],
+            'siblings': ['@SIB_LEFT1@', '@SIB_LEFT2@', '@SIB_RIGHT1@'],
+            'spouses': ['@ANCHOR_SP@'],
+            'children': [],
+        },
+        '@ANCHOR_SP@': {
+            'parents': [],
+            'siblings': [],
+            'spouses': ['@ANCHOR@'],
+            'children': [],
+        },
+        '@SIB_LEFT1@': {
+            'parents': [],
+            'siblings': ['@SIB_LEFT2@', '@ANCHOR@', '@SIB_RIGHT1@'],
+            'spouses': [],
+            'children': [],
+        },
+        '@SIB_LEFT2@': {
+            'parents': [],
+            'siblings': ['@SIB_LEFT1@', '@ANCHOR@', '@SIB_RIGHT1@'],
+            'spouses': [],
+            'children': [],
+        },
+        '@SIB_RIGHT1@': {
+            'parents': [],
+            'siblings': ['@SIB_LEFT1@', '@SIB_LEFT2@', '@ANCHOR@'],
+            'spouses': [],
+            'children': [],
+        },
+    }
+
+    def lookup(indi_id):
+        return families.get(indi_id, {
+            'parents': [],
+            'siblings': [],
+            'spouses': [],
+            'children': [],
+        })
+
+    layout, _extra_edges = ResultsMixin._expanded_path_graph_layout(
+        base, [], lookup)
+    by_id = {node['id']: node for node in layout}
+    sibling_columns = sorted([
+        by_id['@SIB_LEFT1@']['column'],
+        by_id['@SIB_LEFT2@']['column'],
+        by_id['@SIB_RIGHT1@']['column'],
+    ])
+
+    assert by_id['@ANCHOR_SP@']['column'] == by_id['@ANCHOR@']['column'] - 1.0
+    assert sibling_columns == [
+        by_id['@ANCHOR@']['column'] + 1.0,
+        by_id['@ANCHOR@']['column'] + 2.0,
+        by_id['@ANCHOR@']['column'] + 3.0,
+    ]
+
+
+def test_path_graph_debug_payload_omits_display_names():
+    """Debug layout data captures graph state without person labels."""
+    base = ResultsMixin._path_graph_layout([
+        ('@A@', None),
+        ('@B@', 'sibling'),
+    ])
+    expanded = [('@A@', 'siblings')]
+    graph_state = {
+        'zoom': 1.0,
+        'canvas_w': 640,
+        'canvas_h': 480,
+        'expanded': expanded,
+        'base_layout': base,
+        'relationship': 'test relationship',
+        'start_id': '@A@',
+    }
+    families = {
+        '@A@': {
+            'parents': [],
+            'siblings': ['@B@', '@C@'],
+            'spouses': [],
+            'children': [],
+        },
+        '@B@': {
+            'parents': [],
+            'siblings': ['@A@', '@C@'],
+            'spouses': [],
+            'children': [],
+        },
+    }
+
+    def lookup(indi_id):
+        return families.get(indi_id, {
+            'parents': [],
+            'siblings': [],
+            'spouses': [],
+            'children': [],
+        })
+
+    layout, extra_edges = ResultsMixin._expanded_path_graph_layout(
+        base, expanded, lookup)
+    payload = ResultsMixin._graph_debug_payload(
+        graph_state, layout, extra_edges, lookup)
+
+    assert payload['version'] == 1
+    assert payload['graph_type'] == 'relationship_path'
+    assert payload['expanded'] == [
+        {'source': '@A@', 'category': 'siblings'},
+    ]
+    assert {'source': '@A@', 'target': '@C@', 'category': 'siblings'} in (
+        payload['extra_edges'])
+    assert payload['family_members']['@A@']['siblings'] == ['@B@', '@C@']
+    assert 'label' not in str(payload).lower()
+    assert 'name' not in str(payload).lower()
+
+
+def test_family_tree_debug_payload_omits_display_names():
+    """Tree View debug data captures layout state without person labels."""
+    families = {
+        '@A@': {
+            'parents': ['@P@'],
+            'siblings': ['@S@'],
+            'spouses': ['@W@'],
+            'children': ['@C@'],
+        },
+        '@W@': {
+            'parents': [],
+            'siblings': [],
+            'spouses': ['@A@'],
+            'children': ['@C@'],
+        },
+    }
+
+    def lookup(indi_id):
+        return families.get(indi_id, {
+            'parents': [],
+            'siblings': [],
+            'spouses': [],
+            'children': [],
+        })
+
+    def coparents(indi_id, child_ids):
+        if indi_id == '@A@' and '@C@' in child_ids:
+            return ['@W@']
+        return []
+
+    expanded = [('@A@', 'parents'), ('@A@', 'children')]
+    visible, edges = build_family_tree_graph(
+        '@A@', expanded, lookup, coparents)
+    layout = layout_family_tree('@A@', visible, edges)
+    payload = ResultsMixin._family_tree_debug_payload(
+        '@A@', expanded, 1.0, 640, 480, visible, edges, layout, lookup)
+
+    assert payload['version'] == 1
+    assert payload['graph_type'] == 'family_tree'
+    assert payload['center_id'] == '@A@'
+    assert payload['expanded'] == [
+        {'source': '@A@', 'category': 'parents'},
+        {'source': '@A@', 'category': 'children'},
+    ]
+    assert {'source': '@A@', 'target': '@C@', 'category': 'children'} in (
+        payload['edges'])
+    assert payload['family_members']['@A@']['spouses'] == ['@W@']
+    assert 'label' not in str(payload).lower()
+    assert 'name' not in str(payload).lower()
+
+
+def test_path_graph_sibling_expansion_overrides_child_alignment_blocker():
+    """Prior generations move so sibling groups do not create diagonal edges."""
+    base = [
+        {
+            'id': '@BASE@',
+            'edge': None,
+            'generation': 0,
+            'column': 0.0,
+            'index': 0,
+            'is_path_node': True,
+            'is_endpoint': False,
+        },
+        {
+            'id': '@BASE_SP@',
+            'edge': 'spouse',
+            'generation': 0,
+            'column': 1.0,
+            'index': 1,
+            'is_path_node': True,
+            'is_endpoint': False,
+        },
+        {
+            'id': '@SP_MOM@',
+            'edge': 'mother',
+            'generation': -1,
+            'column': 1.0,
+            'index': 2,
+            'is_path_node': True,
+            'is_endpoint': False,
+        },
+        {
+            'id': '@SP_AUNT@',
+            'edge': 'sibling',
+            'generation': -1,
+            'column': 2.0,
+            'index': 3,
+            'is_path_node': True,
+            'is_endpoint': False,
+        },
+        {
+            'id': '@COUSN@',
+            'edge': 'child',
+            'generation': 0,
+            'column': 2.0,
+            'index': 4,
+            'is_path_node': True,
+            'is_endpoint': False,
+        },
+        {
+            'id': '@COUSN2@',
+            'edge': 'child',
+            'generation': 1,
+            'column': 2.0,
+            'index': 5,
+            'is_path_node': True,
+            'is_endpoint': False,
+        },
+    ]
+    families = {
+        '@BASE_SP@': {
+            'parents': ['@SP_MOM@'],
+            'siblings': ['@SP_BRO1@', '@SP_BRO2@'],
+            'spouses': ['@BASE@'],
+            'children': [],
+        },
+    }
+
+    def lookup(indi_id):
+        return families.get(indi_id, {
+            'parents': [],
+            'siblings': [],
+            'spouses': [],
+            'children': [],
+        })
+
+    layout, _extra_edges = ResultsMixin._expanded_path_graph_layout(
+        base, [('@BASE_SP@', 'siblings')], lookup)
+    by_id = {node['id']: node for node in layout}
+    brother_columns = sorted([
+        by_id['@BASE_SP@']['column'],
+        by_id['@SP_BRO1@']['column'],
+        by_id['@SP_BRO2@']['column'],
+    ])
+
+    assert brother_columns == [
+        by_id['@BASE_SP@']['column'],
+        by_id['@BASE_SP@']['column'] + 1.0,
+        by_id['@BASE_SP@']['column'] + 2.0,
+    ]
+    assert by_id['@BASE@']['column'] == by_id['@BASE_SP@']['column'] - 1.0
+    assert by_id['@COUSN@']['column'] > brother_columns[-1]
+    assert by_id['@SP_MOM@']['column'] == by_id['@BASE_SP@']['column']
+    assert by_id['@SP_AUNT@']['column'] == by_id['@COUSN@']['column']
+    assert by_id['@COUSN2@']['column'] == by_id['@COUSN@']['column']
+
+
+def test_path_graph_child_expansion_does_not_repeatedly_push_cousin_branch():
+    """A sibling spouse reserves one local slot without repeatedly moving cousins."""
+    base = [
+        {
+            'id': '@BASE@',
+            'edge': None,
+            'generation': 0,
+            'column': 0.0,
+            'index': 0,
+            'is_path_node': True,
+            'is_endpoint': False,
+        },
+        {
+            'id': '@BASE_SP@',
+            'edge': 'spouse',
+            'generation': 0,
+            'column': 1.0,
+            'index': 1,
+            'is_path_node': True,
+            'is_endpoint': False,
+        },
+        {
+            'id': '@SP_MOM@',
+            'edge': 'mother',
+            'generation': -1,
+            'column': 1.0,
+            'index': 2,
+            'is_path_node': True,
+            'is_endpoint': False,
+        },
+        {
+            'id': '@SP_AUNT@',
+            'edge': 'sibling',
+            'generation': -1,
+            'column': 2.0,
+            'index': 3,
+            'is_path_node': True,
+            'is_endpoint': False,
+        },
+        {
+            'id': '@COUSN@',
+            'edge': 'child',
+            'generation': 0,
+            'column': 2.0,
+            'index': 4,
+            'is_path_node': True,
+            'is_endpoint': False,
+        },
+        {
+            'id': '@COUSN2@',
+            'edge': 'child',
+            'generation': 1,
+            'column': 2.0,
+            'index': 5,
+            'is_path_node': True,
+            'is_endpoint': False,
+        },
+    ]
+    families = {
+        '@BASE_SP@': {
+            'parents': ['@SP_MOM@'],
+            'siblings': ['@SP_BRO1@', '@SP_BRO2@'],
+            'spouses': ['@BASE@'],
+            'children': [],
+        },
+        '@SP_BRO1@': {
+            'parents': [],
+            'siblings': ['@BASE_SP@', '@SP_BRO2@'],
+            'spouses': ['@BRO1_SP@'],
+            'children': ['@BRO1_CH@'],
+        },
+    }
+
+    def lookup(indi_id):
+        return families.get(indi_id, {
+            'parents': [],
+            'siblings': [],
+            'spouses': [],
+            'children': [],
+        })
+
+    def coparents(indi_id, child_ids):
+        if indi_id == '@SP_BRO1@' and '@BRO1_CH@' in child_ids:
+            return ['@BRO1_SP@']
+        return []
+
+    layout, _extra_edges = ResultsMixin._expanded_path_graph_layout(
+        base, [('@BASE_SP@', 'siblings'), ('@SP_BRO1@', 'children')],
+        lookup, coparents)
+    by_id = {node['id']: node for node in layout}
+
+    assert by_id['@SP_BRO1@']['column'] == by_id['@BASE_SP@']['column'] + 1.0
+    assert by_id['@BRO1_SP@']['column'] == by_id['@SP_BRO1@']['column'] + 1.0
+    assert by_id['@SP_BRO2@']['column'] == by_id['@BRO1_SP@']['column'] + 1.0
+    assert by_id['@COUSN@']['column'] == by_id['@SP_BRO2@']['column'] + 1.0
+    assert by_id['@SP_AUNT@']['column'] == by_id['@COUSN@']['column']
+    assert by_id['@COUSN2@']['column'] == by_id['@COUSN@']['column']
+
+
+def test_path_graph_parent_expansion_after_child_expansion_does_not_drift_branch():
+    """Expanding a sibling spouse's parents does not push cousin branches away."""
+    base = [
+        {
+            'id': '@BASE@',
+            'edge': None,
+            'generation': 0,
+            'column': 0.0,
+            'index': 0,
+            'is_path_node': True,
+            'is_endpoint': False,
+        },
+        {
+            'id': '@BASE_SP@',
+            'edge': 'spouse',
+            'generation': 0,
+            'column': 1.0,
+            'index': 1,
+            'is_path_node': True,
+            'is_endpoint': False,
+        },
+        {
+            'id': '@SP_MOM@',
+            'edge': 'mother',
+            'generation': -1,
+            'column': 1.0,
+            'index': 2,
+            'is_path_node': True,
+            'is_endpoint': False,
+        },
+        {
+            'id': '@SP_AUNT@',
+            'edge': 'sibling',
+            'generation': -1,
+            'column': 5.0,
+            'index': 3,
+            'is_path_node': True,
+            'is_endpoint': False,
+        },
+        {
+            'id': '@COUSN@',
+            'edge': 'child',
+            'generation': 0,
+            'column': 5.0,
+            'index': 4,
+            'is_path_node': True,
+            'is_endpoint': False,
+        },
+        {
+            'id': '@COUSN2@',
+            'edge': 'child',
+            'generation': 1,
+            'column': 5.0,
+            'index': 5,
+            'is_path_node': True,
+            'is_endpoint': False,
+        },
+    ]
+    families = {
+        '@BASE_SP@': {
+            'parents': ['@SP_MOM@'],
+            'siblings': ['@SP_BRO1@', '@SP_BRO2@'],
+            'spouses': ['@BASE@'],
+            'children': [],
+        },
+        '@SP_BRO1@': {
+            'parents': [],
+            'siblings': ['@BASE_SP@', '@SP_BRO2@'],
+            'spouses': ['@BRO1_SP@'],
+            'children': ['@BRO1_CH@'],
+        },
+        '@BRO1_SP@': {
+            'parents': ['@BRO1_SP_DAD@', '@BRO1_SP_MOM@'],
+            'siblings': [],
+            'spouses': ['@SP_BRO1@'],
+            'children': ['@BRO1_CH@'],
+        },
+    }
+
+    def lookup(indi_id):
+        return families.get(indi_id, {
+            'parents': [],
+            'siblings': [],
+            'spouses': [],
+            'children': [],
+        })
+
+    def coparents(indi_id, child_ids):
+        if indi_id == '@SP_BRO1@' and '@BRO1_CH@' in child_ids:
+            return ['@BRO1_SP@']
+        return []
+
+    layout, _extra_edges = ResultsMixin._expanded_path_graph_layout(
+        base,
+        [
+            ('@BASE_SP@', 'siblings'),
+            ('@SP_BRO1@', 'children'),
+            ('@BRO1_SP@', 'parents'),
+        ],
+        lookup,
+        coparents,
+    )
+    by_id = {node['id']: node for node in layout}
+
+    assert by_id['@SP_BRO1@']['column'] == by_id['@BASE_SP@']['column'] + 1.0
+    assert by_id['@BRO1_SP@']['column'] == by_id['@SP_BRO1@']['column'] + 1.0
+    assert by_id['@SP_BRO2@']['column'] == by_id['@BRO1_SP@']['column'] + 1.0
+    assert by_id['@COUSN@']['column'] == by_id['@SP_BRO2@']['column'] + 1.0
+    assert by_id['@SP_AUNT@']['column'] == by_id['@COUSN@']['column']
+    assert by_id['@BRO1_CH@']['column'] < by_id['@COUSN@']['column']
+
+
+def test_path_graph_sibling_groups_are_enforced_once_per_component():
+    """Multiple sibling toggles in one set do not fight over row order."""
+    base = [
+        {
+            'id': '@SPOUSE_A@',
+            'edge': None,
+            'generation': 0,
+            'column': 0.0,
+            'index': 0,
+            'is_path_node': True,
+            'is_endpoint': False,
+        },
+        {
+            'id': '@A@',
+            'edge': 'spouse',
+            'generation': 0,
+            'column': 1.0,
+            'index': 1,
+            'is_path_node': True,
+            'is_endpoint': False,
+        },
+    ]
+    families = {
+        '@A@': {
+            'parents': [],
+            'siblings': ['@B@', '@C@'],
+            'spouses': ['@SPOUSE_A@'],
+            'children': [],
+        },
+        '@B@': {
+            'parents': [],
+            'siblings': ['@A@', '@C@'],
+            'spouses': ['@SPOUSE_B@'],
+            'children': ['@CHILD_B@'],
+        },
+    }
+
+    def lookup(indi_id):
+        return families.get(indi_id, {
+            'parents': [],
+            'siblings': [],
+            'spouses': [],
+            'children': [],
+        })
+
+    def coparents(indi_id, child_ids):
+        if indi_id == '@B@' and '@CHILD_B@' in child_ids:
+            return ['@SPOUSE_B@']
+        return []
+
+    layout, _extra_edges = ResultsMixin._expanded_path_graph_layout(
+        base,
+        [('@A@', 'siblings'), ('@B@', 'children'), ('@B@', 'siblings')],
+        lookup,
+        coparents,
+    )
+    by_id = {node['id']: node for node in layout}
+
+    assert by_id['@B@']['column'] == by_id['@A@']['column'] + 1.0
+    assert by_id['@SPOUSE_B@']['column'] == by_id['@B@']['column'] + 1.0
+    assert by_id['@C@']['column'] == by_id['@SPOUSE_B@']['column'] + 1.0
+
+
+def test_path_graph_parent_pair_children_stay_under_parent_pair():
+    """Unrelated spouse pairs do not push a child group away from its parents."""
+    base = [
+        {
+            'id': '@BASE@',
+            'edge': None,
+            'generation': 0,
+            'column': 0.0,
+            'index': 0,
+            'is_path_node': True,
+            'is_endpoint': False,
+        },
+        {
+            'id': '@BASE_SP@',
+            'edge': 'spouse',
+            'generation': 0,
+            'column': 1.0,
+            'index': 1,
+            'is_path_node': True,
+            'is_endpoint': False,
+        },
+        {
+            'id': '@SP_MOM@',
+            'edge': 'mother',
+            'generation': -1,
+            'column': 1.0,
+            'index': 2,
+            'is_path_node': True,
+            'is_endpoint': False,
+        },
+        {
+            'id': '@SP_AUNT@',
+            'edge': 'sibling',
+            'generation': -1,
+            'column': 4.0,
+            'index': 3,
+            'is_path_node': True,
+            'is_endpoint': False,
+        },
+        {
+            'id': '@COUSN@',
+            'edge': 'child',
+            'generation': 0,
+            'column': 4.0,
+            'index': 4,
+            'is_path_node': True,
+            'is_endpoint': False,
+        },
+        {
+            'id': '@COUSN2@',
+            'edge': 'child',
+            'generation': 1,
+            'column': 4.0,
+            'index': 5,
+            'is_path_node': True,
+            'is_endpoint': False,
+        },
+        {
+            'id': '@COUSN2_SP@',
+            'edge': 'spouse',
+            'generation': 1,
+            'column': 3.0,
+            'index': 6,
+            'is_path_node': False,
+            'is_endpoint': False,
+        },
+    ]
+    families = {
+        '@BASE_SP@': {
+            'parents': ['@SP_MOM@'],
+            'siblings': ['@COUSN@'],
+            'spouses': ['@BASE@'],
+            'children': ['@BASE_CH1@', '@BASE_CH2@', '@BASE_CH3@', '@BASE_CH4@'],
+        },
+        '@BASE@': {
+            'parents': [],
+            'siblings': [],
+            'spouses': ['@BASE_SP@'],
+            'children': ['@BASE_CH1@', '@BASE_CH2@', '@BASE_CH3@', '@BASE_CH4@'],
+        },
+        '@COUSN2@': {
+            'parents': ['@COUSN@'],
+            'siblings': [],
+            'spouses': ['@COUSN2_SP@'],
+            'children': [],
+        },
+        '@COUSN2_SP@': {
+            'parents': [],
+            'siblings': [],
+            'spouses': ['@COUSN2@'],
+            'children': [],
+        },
+    }
+
+    def lookup(indi_id):
+        return families.get(indi_id, {
+            'parents': [],
+            'siblings': [],
+            'spouses': [],
+            'children': [],
+        })
+
+    layout, _extra_edges = ResultsMixin._expanded_path_graph_layout(
+        base, [('@BASE_SP@', 'children')], lookup)
+    by_id = {node['id']: node for node in layout}
+    parent_midpoint = (
+        by_id['@BASE@']['column'] + by_id['@BASE_SP@']['column']) / 2
+    child_columns = [
+        by_id['@BASE_CH1@']['column'],
+        by_id['@BASE_CH2@']['column'],
+        by_id['@BASE_CH3@']['column'],
+        by_id['@BASE_CH4@']['column'],
+    ]
+
+    assert sum(child_columns) / len(child_columns) == parent_midpoint
+    assert max(child_columns) - min(child_columns) <= 4.2
+    assert sorted(child_columns) == child_columns
+    assert by_id['@COUSN@']['column'] > max(child_columns)
+    assert by_id['@SP_AUNT@']['column'] == by_id['@COUSN@']['column']
+
+
+def test_path_graph_expansion_keeps_same_generation_nodes_apart():
+    """Expanded relationship nodes move when an existing row position is occupied."""
+    base = ResultsMixin._path_graph_layout([
+        ('@A@', None),
+        ('@B@', 'father'),
+    ])
+    families = {
+        '@A@': {
+            'parents': ['@B@', '@P2@'],
+            'siblings': [],
+            'spouses': [],
+            'children': [],
+        },
+    }
+
+    def lookup(indi_id):
+        return families.get(indi_id, {
+            'parents': [],
+            'siblings': [],
+            'spouses': [],
+            'children': [],
+        })
+
+    layout, _extra_edges = ResultsMixin._expanded_path_graph_layout(
+        base, [('@A@', 'parents')], lookup)
+    same_row = [
+        node['column'] for node in layout
+        if node['generation'] == -1
+    ]
+
+    assert min(
+        abs(left - right)
+        for index, left in enumerate(same_row)
+        for right in same_row[index + 1:]
+    ) >= 1.0
+
+
+def test_path_graph_child_spouse_expansion_keeps_siblings_apart():
+    """Child rows stay spaced after a child's spouse is expanded."""
+    base = [
+        {
+            'id': '@GRANDPARENT@',
+            'edge': None,
+            'generation': 0,
+            'column': 0,
+            'index': 0,
+            'is_path_node': True,
+            'is_endpoint': True,
+        },
+        {
+            'id': '@PARENT@',
+            'edge': 'child',
+            'generation': 1,
+            'column': 0,
+            'index': 1,
+            'is_path_node': True,
+            'is_endpoint': False,
+        },
+        {
+            'id': '@CHILD@',
+            'edge': 'child',
+            'generation': 2,
+            'column': 0,
+            'index': 2,
+            'is_path_node': True,
+            'is_endpoint': True,
+        },
+    ]
+    children = [
+        '@SIB_A@',
+        '@SIB_B@',
+        '@SIB_C@',
+        '@SIB_D@',
+        '@SIB_E@',
+        '@SIB_F@',
+        '@SIB_G@',
+        '@SIB_H@',
+    ]
+    families = {
+        '@PARENT@': {
+            'parents': [],
+            'siblings': [],
+            'spouses': ['@COPARENT@'],
+            'children': children,
+        },
+        '@COPARENT@': {
+            'parents': [],
+            'siblings': [],
+            'spouses': ['@PARENT@'],
+            'children': children,
+        },
+        '@SIB_B@': {
+            'parents': ['@PARENT@', '@COPARENT@'],
+            'siblings': ['@SIB_A@'],
+            'spouses': ['@SIB_B_SP@'],
+            'children': ['@SIB_B_CHILD@'],
+        },
+        '@SIB_B_SP@': {
+            'parents': [],
+            'siblings': [],
+            'spouses': ['@SIB_B@'],
+            'children': ['@SIB_B_CHILD@'],
+        },
+    }
+
+    def lookup(indi_id):
+        return families.get(indi_id, {
+            'parents': [],
+            'siblings': [],
+            'spouses': [],
+            'children': [],
+        })
+
+    def coparents(parent_id, child_ids):
+        return [
+            other_id for other_id, members in families.items()
+            if other_id != parent_id
+            and any(child_id in members.get('children', ())
+                    for child_id in child_ids)
+        ]
+
+    layout, _extra_edges = ResultsMixin._expanded_path_graph_layout(
+        base, [('@PARENT@', 'children'), ('@SIB_B@', 'spouses')],
+        lookup, coparents)
+    by_id = {node['id']: node for node in layout}
+
+    assert round(abs(
+        by_id['@SIB_A@']['column'] - by_id['@SIB_B@']['column']), 3) >= 1.0
+
+
+def test_path_graph_parent_expansion_adds_parent_spouse_edge():
+    """Expanding parents links displayed co-parents as spouses."""
+    base = ResultsMixin._path_graph_layout([
+        ('@A@', None),
+    ])
+    families = {
+        '@A@': {
+            'parents': ['@P1@', '@P2@'],
+            'siblings': [],
+            'spouses': [],
+            'children': [],
+        },
+    }
+
+    def lookup(indi_id):
+        return families.get(indi_id, {
+            'parents': [],
+            'siblings': [],
+            'spouses': [],
+            'children': [],
+        })
+
+    def coparents(indi_id, child_ids):
+        if indi_id == '@P1@' and '@A@' in child_ids:
+            return ['@P2@']
+        if indi_id == '@P2@' and '@A@' in child_ids:
+            return ['@P1@']
+        return []
+
+    _layout, extra_edges = ResultsMixin._expanded_path_graph_layout(
+        base, [('@A@', 'parents')], lookup, coparents)
+
+    assert ('@P1@', '@P2@', 'spouses') in extra_edges
+
+
+def test_path_graph_parent_expansion_centers_parents_over_child():
+    """A visible parent moves aside so parent pairs center over their child."""
+    base = ResultsMixin._path_graph_layout([
+        ('@A@', None),
+        ('@P1@', 'father'),
+    ])
+    families = {
+        '@A@': {
+            'parents': ['@P1@', '@P2@'],
+            'siblings': [],
+            'spouses': [],
+            'children': [],
+        },
+    }
+
+    def lookup(indi_id):
+        return families.get(indi_id, {
+            'parents': [],
+            'siblings': [],
+            'spouses': [],
+            'children': [],
+        })
+
+    def coparents(indi_id, child_ids):
+        if indi_id == '@P1@' and '@A@' in child_ids:
+            return ['@P2@']
+        if indi_id == '@P2@' and '@A@' in child_ids:
+            return ['@P1@']
+        return []
+
+    layout, _extra_edges = ResultsMixin._expanded_path_graph_layout(
+        base, [('@A@', 'parents')], lookup, coparents)
+    by_id = {node['id']: node for node in layout}
+
+    parent_midpoint = (
+        by_id['@P1@']['column'] + by_id['@P2@']['column']) / 2
+    assert parent_midpoint == by_id['@A@']['column']
+    assert by_id['@P1@']['column'] == -0.5
+    assert by_id['@P2@']['column'] == 0.5
+
+
+def test_path_graph_parent_expansion_reserves_parent_pair_over_child():
+    """Parent expansion moves upper-row blockers so parents stay over child."""
+    base = [
+        {
+            'id': '@BASE@',
+            'edge': None,
+            'generation': 0,
+            'column': 0.0,
+            'index': 0,
+            'is_path_node': True,
+            'is_endpoint': False,
+        },
+        {
+            'id': '@BASE_SP@',
+            'edge': 'spouse',
+            'generation': 0,
+            'column': 1.0,
+            'index': 1,
+            'is_path_node': True,
+            'is_endpoint': False,
+        },
+        {
+            'id': '@SP_MOM@',
+            'edge': 'mother',
+            'generation': -1,
+            'column': 1.0,
+            'index': 2,
+            'is_path_node': True,
+            'is_endpoint': False,
+        },
+        {
+            'id': '@SP_AUNT@',
+            'edge': 'sibling',
+            'generation': -1,
+            'column': 2.0,
+            'index': 3,
+            'is_path_node': True,
+            'is_endpoint': False,
+        },
+        {
+            'id': '@COUSN@',
+            'edge': 'child',
+            'generation': 0,
+            'column': 2.0,
+            'index': 4,
+            'is_path_node': True,
+            'is_endpoint': False,
+        },
+    ]
+    families = {
+        '@BASE@': {
+            'parents': ['@BASE_DAD@', '@BASE_MOM@'],
+            'siblings': [],
+            'spouses': ['@BASE_SP@'],
+            'children': [],
+        },
+    }
+
+    def lookup(indi_id):
+        return families.get(indi_id, {
+            'parents': [],
+            'siblings': [],
+            'spouses': [],
+            'children': [],
+        })
+
+    def coparents(indi_id, child_ids):
+        if indi_id == '@BASE_DAD@' and '@BASE@' in child_ids:
+            return ['@BASE_MOM@']
+        if indi_id == '@BASE_MOM@' and '@BASE@' in child_ids:
+            return ['@BASE_DAD@']
+        return []
+
+    layout, _extra_edges = ResultsMixin._expanded_path_graph_layout(
+        base, [('@BASE@', 'parents')], lookup, coparents)
+    by_id = {node['id']: node for node in layout}
+    parent_midpoint = (
+        by_id['@BASE_DAD@']['column'] + by_id['@BASE_MOM@']['column']) / 2
+
+    assert parent_midpoint == by_id['@BASE@']['column']
+    assert abs(by_id['@BASE_DAD@']['column'] - by_id['@BASE_MOM@']['column']) == 1.0
+    assert by_id['@SP_MOM@']['column'] > by_id['@BASE_MOM@']['column']
+    assert by_id['@SP_AUNT@']['column'] > by_id['@SP_MOM@']['column']
+
+
+def test_path_graph_parent_expansion_preserves_existing_parent_vertical_edge():
+    """Expanded parents do not force an existing parent-child edge diagonal."""
+    base = [
+        {
+            'id': '@BASE@',
+            'edge': None,
+            'generation': 0,
+            'column': 0.0,
+            'index': 0,
+            'is_path_node': True,
+            'is_endpoint': False,
+        },
+        {
+            'id': '@BASE_SP@',
+            'edge': 'spouse',
+            'generation': 0,
+            'column': 1.0,
+            'index': 1,
+            'is_path_node': True,
+            'is_endpoint': False,
+        },
+        {
+            'id': '@SP_MOM@',
+            'edge': 'mother',
+            'generation': -1,
+            'column': 7.0,
+            'index': 2,
+            'is_path_node': True,
+            'is_endpoint': False,
+        },
+        {
+            'id': '@SP_AUNT@',
+            'edge': 'sibling',
+            'generation': -1,
+            'column': 5.0,
+            'index': 3,
+            'is_path_node': True,
+            'is_endpoint': False,
+        },
+        {
+            'id': '@COUSN@',
+            'edge': 'child',
+            'generation': 0,
+            'column': 5.0,
+            'index': 4,
+            'is_path_node': True,
+            'is_endpoint': False,
+        },
+        {
+            'id': '@COUSN2@',
+            'edge': 'child',
+            'generation': 1,
+            'column': 5.0,
+            'index': 5,
+            'is_path_node': True,
+            'is_endpoint': False,
+        },
+    ]
+    families = {
+        '@BASE@': {
+            'parents': ['@BASE_DAD@', '@BASE_MOM@'],
+            'siblings': [],
+            'spouses': ['@BASE_SP@'],
+            'children': [],
+        },
+        '@BASE_SP@': {
+            'parents': ['@SP_MOM@'],
+            'siblings': [],
+            'spouses': ['@BASE@'],
+            'children': [],
+        },
+    }
+
+    def lookup(indi_id):
+        return families.get(indi_id, {
+            'parents': [],
+            'siblings': [],
+            'spouses': [],
+            'children': [],
+        })
+
+    def coparents(indi_id, child_ids):
+        if indi_id == '@BASE_DAD@' and '@BASE@' in child_ids:
+            return ['@BASE_MOM@']
+        if indi_id == '@BASE_MOM@' and '@BASE@' in child_ids:
+            return ['@BASE_DAD@']
+        return []
+
+    layout, _extra_edges = ResultsMixin._expanded_path_graph_layout(
+        base, [('@BASE@', 'parents')], lookup, coparents)
+    by_id = {node['id']: node for node in layout}
+    parent_midpoint = (
+        by_id['@BASE_DAD@']['column'] + by_id['@BASE_MOM@']['column']) / 2
+
+    assert parent_midpoint == by_id['@BASE@']['column']
+    assert by_id['@BASE_SP@']['column'] == by_id['@SP_MOM@']['column']
+    assert 1.0 < abs(by_id['@BASE@']['column'] - by_id['@BASE_SP@']['column']) <= 2.0
+
+
+def test_path_graph_child_with_spouse_stays_centered_under_parents():
+    """A child's spouse does not pull the child away from displayed parents."""
+    base = ResultsMixin._path_graph_layout([
+        ('@COUSN@', None),
+        ('@COUSN_SP@', 'spouse'),
+        ('@COUSN2@', 'child'),
+        ('@COUSN2_SP@', 'spouse'),
+    ])
+    families = {
+        '@COUSN2@': {
+            'parents': ['@COUSN@', '@COUSN_SP@'],
+            'siblings': [],
+            'spouses': ['@COUSN2_SP@'],
+            'children': [],
+        },
+        '@COUSN@': {
+            'parents': [],
+            'siblings': [],
+            'spouses': ['@COUSN_SP@'],
+            'children': ['@COUSN2@'],
+        },
+        '@COUSN_SP@': {
+            'parents': [],
+            'siblings': [],
+            'spouses': ['@COUSN@'],
+            'children': ['@COUSN2@'],
+        },
+        '@COUSN2_SP@': {
+            'parents': [],
+            'siblings': [],
+            'spouses': ['@COUSN2@'],
+            'children': [],
+        },
+    }
+
+    def lookup(indi_id):
+        return families.get(indi_id, {
+            'parents': [],
+            'siblings': [],
+            'spouses': [],
+            'children': [],
+        })
+
+    def coparents(indi_id, child_ids):
+        if indi_id == '@COUSN@' and '@COUSN2@' in child_ids:
+            return ['@COUSN_SP@']
+        if indi_id == '@COUSN_SP@' and '@COUSN2@' in child_ids:
+            return ['@COUSN@']
+        return []
+
+    layout, _extra_edges = ResultsMixin._expanded_path_graph_layout(
+        base, [], lookup, coparents)
+    by_id = {node['id']: node for node in layout}
+    parent_midpoint = (
+        by_id['@COUSN@']['column'] + by_id['@COUSN_SP@']['column']) / 2
+
+    assert by_id['@COUSN2@']['column'] == parent_midpoint
+    assert by_id['@COUSN2_SP@']['column'] == by_id['@COUSN2@']['column'] + 1.0
+
+
+def test_path_graph_two_parent_path_child_recovers_after_row_conflict():
+    """A path child returns under both parents after child-row conflicts move."""
+    base = [
+        {
+            'id': '@COUSN@',
+            'edge': None,
+            'generation': 0,
+            'column': 0.0,
+            'index': 0,
+            'is_path_node': True,
+            'is_endpoint': False,
+        },
+        {
+            'id': '@COUSN_SP@',
+            'edge': 'spouse',
+            'generation': 0,
+            'column': 1.0,
+            'index': 1,
+            'is_path_node': True,
+            'is_endpoint': False,
+        },
+        {
+            'id': '@COUSN2@',
+            'edge': 'child',
+            'generation': 1,
+            'column': 5.0,
+            'index': 2,
+            'is_path_node': True,
+            'is_endpoint': False,
+        },
+        {
+            'id': '@COUSN2_SIB2@',
+            'edge': 'sibling',
+            'generation': 1,
+            'column': 0.5,
+            'index': 3,
+            'is_path_node': False,
+            'is_endpoint': False,
+        },
+    ]
+    families = {
+        '@COUSN@': {
+            'parents': [],
+            'siblings': [],
+            'spouses': ['@COUSN_SP@'],
+            'children': ['@COUSN2@'],
+        },
+        '@COUSN_SP@': {
+            'parents': [],
+            'siblings': [],
+            'spouses': ['@COUSN@'],
+            'children': ['@COUSN2@'],
+        },
+        '@COUSN2@': {
+            'parents': ['@COUSN@', '@COUSN_SP@'],
+            'siblings': ['@COUSN2_SIB2@'],
+            'spouses': [],
+            'children': [],
+        },
+    }
+
+    def lookup(indi_id):
+        return families.get(indi_id, {
+            'parents': [],
+            'siblings': [],
+            'spouses': [],
+            'children': [],
+        })
+
+    def coparents(indi_id, child_ids):
+        if indi_id == '@COUSN@' and '@COUSN2@' in child_ids:
+            return ['@COUSN_SP@']
+        if indi_id == '@COUSN_SP@' and '@COUSN2@' in child_ids:
+            return ['@COUSN@']
+        return []
+
+    layout, _extra_edges = ResultsMixin._expanded_path_graph_layout(
+        base, [], lookup, coparents)
+    by_id = {node['id']: node for node in layout}
+    parent_midpoint = (
+        by_id['@COUSN@']['column'] + by_id['@COUSN_SP@']['column']) / 2
+
+    assert by_id['@COUSN2@']['column'] == parent_midpoint
+    assert by_id['@COUSN2_SIB2@']['column'] != by_id['@COUSN2@']['column']
+
+
+def test_path_graph_parent_shift_keeps_expanded_children_under_parents():
+    """Expanded children follow a parent pair after final path alignment."""
+    base = ResultsMixin._path_graph_layout([
+        ('@BASE@', None),
+        ('@BASE_SP@', 'spouse'),
+        ('@SP_MOM@', 'mother'),
+        ('@SP_AUNT@', 'sibling'),
+        ('@COUSN@', 'child'),
+        ('@COUSN2@', 'child'),
+    ])
+    families = {
+        '@BASE@': {
+            'parents': [],
+            'siblings': [],
+            'spouses': ['@BASE_SP@'],
+            'children': ['@BASE_CH1@', '@BASE_CH2@', '@BASE_CH3@', '@BASE_CH4@'],
+        },
+        '@BASE_SP@': {
+            'parents': ['@SP_MOM@'],
+            'siblings': [],
+            'spouses': ['@BASE@'],
+            'children': ['@BASE_CH1@', '@BASE_CH2@', '@BASE_CH3@', '@BASE_CH4@'],
+        },
+        '@COUSN2@': {
+            'parents': ['@COUSN@'],
+            'siblings': [],
+            'spouses': ['@COUSN2_SP@'],
+            'children': ['@SIB2_CH1@', '@SIB2_CH2@'],
+        },
+        '@COUSN2_SP@': {
+            'parents': [],
+            'siblings': [],
+            'spouses': ['@COUSN2@'],
+            'children': ['@SIB2_CH1@', '@SIB2_CH2@'],
+        },
+    }
+
+    def lookup(indi_id):
+        return families.get(indi_id, {
+            'parents': [],
+            'siblings': [],
+            'spouses': [],
+            'children': [],
+        })
+
+    def coparents(indi_id, child_ids):
+        if indi_id == '@BASE_SP@' and any(
+                child_id in child_ids
+                for child_id in ('@BASE_CH1@', '@BASE_CH2@',
+                                 '@BASE_CH3@', '@BASE_CH4@')):
+            return ['@BASE@']
+        if indi_id == '@BASE@' and any(
+                child_id in child_ids
+                for child_id in ('@BASE_CH1@', '@BASE_CH2@',
+                                 '@BASE_CH3@', '@BASE_CH4@')):
+            return ['@BASE_SP@']
+        if indi_id == '@COUSN2@' and any(
+                child_id in child_ids for child_id in ('@SIB2_CH1@', '@SIB2_CH2@')):
+            return ['@COUSN2_SP@']
+        if indi_id == '@COUSN2_SP@' and any(
+                child_id in child_ids for child_id in ('@SIB2_CH1@', '@SIB2_CH2@')):
+            return ['@COUSN2@']
+        return []
+
+    layout, _extra_edges = ResultsMixin._expanded_path_graph_layout(
+        base,
+        [('@BASE_SP@', 'children'), ('@COUSN2@', 'spouses'),
+         ('@COUSN2@', 'children')],
+        lookup,
+        coparents,
+    )
+    by_id = {node['id']: node for node in layout}
+    parent_midpoint = (
+        by_id['@BASE@']['column'] + by_id['@BASE_SP@']['column']) / 2
+    child_columns = [
+        by_id['@BASE_CH1@']['column'],
+        by_id['@BASE_CH2@']['column'],
+        by_id['@BASE_CH3@']['column'],
+        by_id['@BASE_CH4@']['column'],
+    ]
+
+    assert sum(child_columns) / len(child_columns) == parent_midpoint
+    assert sorted(child_columns) == child_columns
+
+
+def test_path_graph_expanded_children_do_not_split_vertical_path_branch():
+    """Expanded child groups move a path branch as one vertical component."""
+    base = ResultsMixin._path_graph_layout([
+        ('@BASE@', None),
+        ('@BASE_SP@', 'spouse'),
+        ('@SP_MOM@', 'mother'),
+        ('@SP_AUNT@', 'sibling'),
+        ('@COUSN@', 'child'),
+        ('@COUSN2@', 'child'),
+    ])
+    families = {
+        '@BASE@': {
+            'parents': [],
+            'siblings': [],
+            'spouses': ['@BASE_SP@'],
+            'children': ['@BASE_CH1@', '@BASE_CH2@', '@BASE_CH3@', '@BASE_CH4@'],
+        },
+        '@BASE_SP@': {
+            'parents': ['@SP_MOM@'],
+            'siblings': ['@COUSN@'],
+            'spouses': ['@BASE@'],
+            'children': ['@BASE_CH1@', '@BASE_CH2@', '@BASE_CH3@', '@BASE_CH4@'],
+        },
+        '@COUSN2@': {
+            'parents': ['@COUSN@'],
+            'siblings': [],
+            'spouses': [],
+            'children': [],
+        },
+    }
+
+    def lookup(indi_id):
+        return families.get(indi_id, {
+            'parents': [],
+            'siblings': [],
+            'spouses': [],
+            'children': [],
+        })
+
+    layout, _extra_edges = ResultsMixin._expanded_path_graph_layout(
+        base, [('@BASE_SP@', 'children')], lookup)
+    by_id = {node['id']: node for node in layout}
+    parent_midpoint = (
+        by_id['@BASE@']['column'] + by_id['@BASE_SP@']['column']) / 2
+    child_columns = [
+        by_id['@BASE_CH1@']['column'],
+        by_id['@BASE_CH2@']['column'],
+        by_id['@BASE_CH3@']['column'],
+        by_id['@BASE_CH4@']['column'],
+    ]
+
+    assert sum(child_columns) / len(child_columns) == parent_midpoint
+    assert by_id['@SP_AUNT@']['column'] == by_id['@COUSN@']['column']
+    assert by_id['@COUSN@']['column'] == by_id['@COUSN2@']['column']
+    assert by_id['@COUSN2@']['column'] > max(child_columns)
+
+
+def test_path_graph_two_parent_branch_does_not_split_expanded_children():
+    """A two-parent path branch moves aside instead of splitting siblings."""
+    base = ResultsMixin._path_graph_layout([
+        ('@BASE@', None),
+        ('@BASE_SP@', 'spouse'),
+        ('@SP_MOM@', 'mother'),
+        ('@SP_AUNT@', 'sibling'),
+        ('@COUSN@', 'child'),
+        ('@COUSN2@', 'child'),
+    ])
+    families = {
+        '@BASE@': {
+            'parents': [],
+            'siblings': [],
+            'spouses': ['@BASE_SP@'],
+            'children': ['@BASE_CH1@', '@BASE_CH2@', '@BASE_CH3@', '@BASE_CH4@'],
+        },
+        '@BASE_SP@': {
+            'parents': ['@SP_MOM@'],
+            'siblings': ['@COUSN@'],
+            'spouses': ['@BASE@'],
+            'children': ['@BASE_CH1@', '@BASE_CH2@', '@BASE_CH3@', '@BASE_CH4@'],
+        },
+        '@COUSN@': {
+            'parents': ['@SP_AUNT@'],
+            'siblings': [],
+            'spouses': ['@COUSN_SP@'],
+            'children': ['@COUSN2@'],
+        },
+        '@COUSN_SP@': {
+            'parents': [],
+            'siblings': [],
+            'spouses': ['@COUSN@'],
+            'children': ['@COUSN2@'],
+        },
+        '@COUSN2@': {
+            'parents': ['@COUSN@', '@COUSN_SP@'],
+            'siblings': [],
+            'spouses': [],
+            'children': [],
+        },
+    }
+
+    def lookup(indi_id):
+        return families.get(indi_id, {
+            'parents': [],
+            'siblings': [],
+            'spouses': [],
+            'children': [],
+        })
+
+    def coparents(indi_id, child_ids):
+        if indi_id == '@COUSN@' and '@COUSN2@' in child_ids:
+            return ['@COUSN_SP@']
+        if indi_id == '@COUSN_SP@' and '@COUSN2@' in child_ids:
+            return ['@COUSN@']
+        return []
+
+    layout, _extra_edges = ResultsMixin._expanded_path_graph_layout(
+        base, [('@BASE_SP@', 'children'), ('@COUSN@', 'spouses')],
+        lookup, coparents)
+    by_id = {node['id']: node for node in layout}
+    parent_midpoint = (
+        by_id['@BASE@']['column'] + by_id['@BASE_SP@']['column']) / 2
+    child_columns = [
+        by_id['@BASE_CH1@']['column'],
+        by_id['@BASE_CH2@']['column'],
+        by_id['@BASE_CH3@']['column'],
+        by_id['@BASE_CH4@']['column'],
+    ]
+    adam_parent_midpoint = (
+        by_id['@COUSN@']['column'] + by_id['@COUSN_SP@']['column']) / 2
+
+    assert sum(child_columns) / len(child_columns) == parent_midpoint
+    assert sorted(child_columns) == child_columns
+    assert max(child_columns) - min(child_columns) == 4.2
+    assert by_id['@COUSN2@']['column'] == adam_parent_midpoint
+    assert by_id['@COUSN2@']['column'] > max(child_columns)
+    assert by_id['@SP_AUNT@']['column'] == by_id['@COUSN@']['column']
+
+
+def test_path_graph_two_parent_branch_with_spouse_and_siblings_stays_aligned():
+    """A fuller branch keeps displayed children under displayed parents."""
+    base = ResultsMixin._path_graph_layout([
+        ('@BASE@', None),
+        ('@BASE_SP@', 'spouse'),
+        ('@SP_MOM@', 'mother'),
+        ('@SP_AUNT@', 'sibling'),
+        ('@COUSN@', 'child'),
+        ('@COUSN2@', 'child'),
+    ])
+    families = {
+        '@BASE@': {
+            'parents': [],
+            'siblings': [],
+            'spouses': ['@BASE_SP@'],
+            'children': ['@BASE_CH1@', '@BASE_CH2@', '@BASE_CH3@', '@BASE_CH4@'],
+        },
+        '@BASE_SP@': {
+            'parents': ['@SP_MOM@'],
+            'siblings': [],
+            'spouses': ['@BASE@'],
+            'children': ['@BASE_CH1@', '@BASE_CH2@', '@BASE_CH3@', '@BASE_CH4@'],
+        },
+        '@SP_AUNT@': {
+            'parents': [],
+            'siblings': ['@SP_MOM@'],
+            'spouses': [],
+            'children': ['@COUSN@'],
+        },
+        '@COUSN@': {
+            'parents': ['@SP_AUNT@'],
+            'siblings': [],
+            'spouses': ['@COUSN_SP@'],
+            'children': ['@COUSN2@', '@COUSN2_SIB1@', '@COUSN2_SIB2@'],
+        },
+        '@COUSN_SP@': {
+            'parents': [],
+            'siblings': [],
+            'spouses': ['@COUSN@'],
+            'children': ['@COUSN2@', '@COUSN2_SIB1@', '@COUSN2_SIB2@'],
+        },
+        '@COUSN2@': {
+            'parents': ['@COUSN@', '@COUSN_SP@'],
+            'siblings': ['@COUSN2_SIB1@', '@COUSN2_SIB2@'],
+            'spouses': ['@COUSN2_SP@'],
+            'children': [],
+        },
+        '@COUSN2_SIB1@': {
+            'parents': ['@COUSN@', '@COUSN_SP@'],
+            'siblings': ['@COUSN2@', '@COUSN2_SIB2@'],
+            'spouses': [],
+            'children': [],
+        },
+        '@COUSN2_SIB2@': {
+            'parents': ['@COUSN@', '@COUSN_SP@'],
+            'siblings': ['@COUSN2@', '@COUSN2_SIB1@'],
+            'spouses': [],
+            'children': [],
+        },
+        '@COUSN2_SP@': {
+            'parents': [],
+            'siblings': [],
+            'spouses': ['@COUSN2@'],
+            'children': [],
+        },
+    }
+
+    def lookup(indi_id):
+        return families.get(indi_id, {
+            'parents': [],
+            'siblings': [],
+            'spouses': [],
+            'children': [],
+        })
+
+    def coparents(indi_id, child_ids):
+        child_ids = set(child_ids)
+        if indi_id == '@COUSN@' and child_ids & {
+                '@COUSN2@', '@COUSN2_SIB1@', '@COUSN2_SIB2@'}:
+            return ['@COUSN_SP@']
+        if indi_id == '@COUSN_SP@' and child_ids & {
+                '@COUSN2@', '@COUSN2_SIB1@', '@COUSN2_SIB2@'}:
+            return ['@COUSN@']
+        return []
+
+    layout, _extra_edges = ResultsMixin._expanded_path_graph_layout(
+        base,
+        [
+            ('@BASE_SP@', 'children'),
+            ('@COUSN@', 'spouses'),
+            ('@COUSN2@', 'siblings'),
+            ('@COUSN2@', 'spouses'),
+        ],
+        lookup,
+        coparents,
+    )
+    by_id = {node['id']: node for node in layout}
+    steven_child_columns = [
+        by_id['@BASE_CH1@']['column'],
+        by_id['@BASE_CH2@']['column'],
+        by_id['@BASE_CH3@']['column'],
+        by_id['@BASE_CH4@']['column'],
+    ]
+    adam_parent_midpoint = (
+        by_id['@COUSN@']['column'] + by_id['@COUSN_SP@']['column']) / 2
+
+    assert sorted(steven_child_columns) == steven_child_columns
+    assert max(steven_child_columns) - min(steven_child_columns) == 4.2
+    assert by_id['@COUSN2@']['column'] == adam_parent_midpoint
+    assert by_id['@COUSN2@']['column'] > max(steven_child_columns)
+    assert by_id['@COUSN2_SP@']['column'] == by_id['@COUSN2@']['column'] + 1.0
+    assert by_id['@SP_AUNT@']['column'] == by_id['@COUSN@']['column']
+
+
+def test_path_graph_cousin_child_does_not_split_expanded_siblings():
+    """A cousin branch moves aside instead of splitting a child group."""
+    base = ResultsMixin._path_graph_layout([
+        ('@BASE@', None),
+        ('@BASE_SP@', 'spouse'),
+        ('@SP_MOM@', 'mother'),
+        ('@SP_AUNT@', 'sibling'),
+        ('@COUSN@', 'child'),
+        ('@COUSN2@', 'child'),
+    ])
+    families = {
+        '@BASE@': {
+            'parents': [],
+            'siblings': [],
+            'spouses': ['@BASE_SP@'],
+            'children': ['@BASE_CH1@', '@BASE_CH2@', '@BASE_CH3@', '@BASE_CH4@'],
+        },
+        '@BASE_SP@': {
+            'parents': ['@SP_MOM@'],
+            'siblings': ['@SP_BRO1@', '@SP_BRO2@'],
+            'spouses': ['@BASE@'],
+            'children': ['@BASE_CH1@', '@BASE_CH2@', '@BASE_CH3@', '@BASE_CH4@'],
+        },
+        '@SP_BRO1@': {
+            'parents': ['@SP_MOM@'],
+            'siblings': ['@BASE_SP@', '@SP_BRO2@'],
+            'spouses': ['@BRO1_SP@'],
+            'children': ['@BRO1_CH@'],
+        },
+        '@BRO1_SP@': {
+            'parents': [],
+            'siblings': [],
+            'spouses': ['@SP_BRO1@'],
+            'children': ['@BRO1_CH@'],
+        },
+        '@SP_BRO2@': {
+            'parents': ['@SP_MOM@'],
+            'siblings': ['@BASE_SP@', '@SP_BRO1@'],
+            'spouses': [],
+            'children': [],
+        },
+        '@BRO1_CH@': {
+            'parents': ['@SP_BRO1@', '@BRO1_SP@'],
+            'siblings': [],
+            'spouses': [],
+            'children': [],
+        },
+    }
+
+    def lookup(indi_id):
+        return families.get(indi_id, {
+            'parents': [],
+            'siblings': [],
+            'spouses': [],
+            'children': [],
+        })
+
+    def coparents(indi_id, child_ids):
+        child_ids = set(child_ids)
+        if indi_id == '@BASE_SP@' and child_ids & {
+                '@BASE_CH1@', '@BASE_CH2@', '@BASE_CH3@', '@BASE_CH4@'}:
+            return ['@BASE@']
+        if indi_id == '@BASE@' and child_ids & {
+                '@BASE_CH1@', '@BASE_CH2@', '@BASE_CH3@', '@BASE_CH4@'}:
+            return ['@BASE_SP@']
+        if indi_id == '@SP_BRO1@' and '@BRO1_CH@' in child_ids:
+            return ['@BRO1_SP@']
+        if indi_id == '@BRO1_SP@' and '@BRO1_CH@' in child_ids:
+            return ['@SP_BRO1@']
+        return []
+
+    layout, _extra_edges = ResultsMixin._expanded_path_graph_layout(
+        base,
+        [
+            ('@BASE_SP@', 'siblings'),
+            ('@SP_BRO1@', 'spouses'),
+            ('@BASE_SP@', 'children'),
+            ('@SP_BRO1@', 'children'),
+        ],
+        lookup,
+        coparents,
+    )
+    by_id = {node['id']: node for node in layout}
+    steven_child_columns = [
+        by_id['@BASE_CH1@']['column'],
+        by_id['@BASE_CH2@']['column'],
+        by_id['@BASE_CH3@']['column'],
+        by_id['@BASE_CH4@']['column'],
+    ]
+
+    assert sorted(steven_child_columns) == steven_child_columns
+    assert max(steven_child_columns) - min(steven_child_columns) == 4.2
+    assert by_id['@BRO1_CH@']['column'] > max(steven_child_columns)
+    assert by_id['@BRO1_CH@']['column'] == (
+        by_id['@SP_BRO1@']['column'] + by_id['@BRO1_SP@']['column']) / 2
+
+
+def test_path_graph_compacts_large_sibling_only_gap():
+    """Large sibling-only gaps are closed after expanded branches settle."""
+    base = ResultsMixin._path_graph_layout([
+        ('@BASE@', None),
+        ('@BASE_SP@', 'spouse'),
+        ('@SP_MOM@', 'mother'),
+        ('@SP_AUNT@', 'sibling'),
+        ('@COUSN@', 'child'),
+        ('@COUSN2@', 'child'),
+    ])
+    families = {
+        '@BASE@': {
+            'parents': [],
+            'siblings': [],
+            'spouses': ['@BASE_SP@'],
+            'children': ['@BASE_CH1@', '@BASE_CH2@', '@BASE_CH3@', '@BASE_CH4@'],
+        },
+        '@BASE_SP@': {
+            'parents': ['@SP_MOM@'],
+            'siblings': ['@SP_BRO1@', '@SP_BRO2@'],
+            'spouses': ['@BASE@'],
+            'children': ['@BASE_CH1@', '@BASE_CH2@', '@BASE_CH3@', '@BASE_CH4@'],
+        },
+        '@SP_BRO1@': {
+            'parents': ['@SP_MOM@'],
+            'siblings': ['@BASE_SP@', '@SP_BRO2@'],
+            'spouses': ['@BRO1_SP@'],
+            'children': ['@BRO1_CH@'],
+        },
+        '@BRO1_SP@': {
+            'parents': [],
+            'siblings': [],
+            'spouses': ['@SP_BRO1@'],
+            'children': ['@BRO1_CH@'],
+        },
+        '@SP_BRO2@': {
+            'parents': ['@SP_MOM@'],
+            'siblings': ['@BASE_SP@', '@SP_BRO1@'],
+            'spouses': ['@BRO2_SP@'],
+            'children': ['@BRO2_CH1@', '@BRO2_CH2@'],
+        },
+        '@BRO2_SP@': {
+            'parents': [],
+            'siblings': [],
+            'spouses': ['@SP_BRO2@'],
+            'children': ['@BRO2_CH1@', '@BRO2_CH2@'],
+        },
+        '@SP_MOM@': {
+            'parents': [],
+            'siblings': ['@SP_AUNT@'],
+            'spouses': [],
+            'children': ['@BASE_SP@', '@SP_BRO1@', '@SP_BRO2@'],
+        },
+        '@SP_AUNT@': {
+            'parents': [],
+            'siblings': ['@SP_MOM@'],
+            'spouses': [],
+            'children': ['@COUSN@'],
+        },
+        '@COUSN@': {
+            'parents': ['@SP_AUNT@'],
+            'siblings': [],
+            'spouses': ['@COUSN_SP@'],
+            'children': ['@COUSN2@'],
+        },
+        '@COUSN_SP@': {
+            'parents': [],
+            'siblings': [],
+            'spouses': ['@COUSN@'],
+            'children': ['@COUSN2@'],
+        },
+        '@COUSN2@': {
+            'parents': ['@COUSN@', '@COUSN_SP@'],
+            'siblings': ['@COUSN2_SIB1@', '@COUSN2_SIB2@'],
+            'spouses': ['@COUSN2_SP@'],
+            'children': ['@COUSN2_CH1@', '@COUSN2_CH2@'],
+        },
+        '@COUSN2_SIB1@': {
+            'parents': ['@COUSN@', '@COUSN_SP@'],
+            'siblings': ['@COUSN2@', '@COUSN2_SIB2@'],
+            'spouses': ['@SIB1_SP@'],
+            'children': ['@SIB1_CH@'],
+        },
+        '@SIB1_SP@': {
+            'parents': [],
+            'siblings': [],
+            'spouses': ['@COUSN2_SIB1@'],
+            'children': ['@SIB1_CH@'],
+        },
+        '@COUSN2_SIB2@': {
+            'parents': ['@COUSN@', '@COUSN_SP@'],
+            'siblings': ['@COUSN2@', '@COUSN2_SIB1@'],
+            'spouses': ['@SIB2_SP@'],
+            'children': ['@SIB2_CH1@', '@SIB2_CH2@'],
+        },
+        '@SIB2_SP@': {
+            'parents': [],
+            'siblings': [],
+            'spouses': ['@COUSN2_SIB2@'],
+            'children': ['@SIB2_CH1@', '@SIB2_CH2@'],
+        },
+        '@COUSN2_SP@': {
+            'parents': [],
+            'siblings': [],
+            'spouses': ['@COUSN2@'],
+            'children': ['@COUSN2_CH1@', '@COUSN2_CH2@'],
+        },
+    }
+
+    def lookup(indi_id):
+        return families.get(indi_id, {
+            'parents': [],
+            'siblings': [],
+            'spouses': [],
+            'children': [],
+        })
+
+    def coparents(indi_id, child_ids):
+        child_ids = set(child_ids)
+        pairs = (
+            ('@BASE_SP@', '@BASE@',
+             {'@BASE_CH1@', '@BASE_CH2@', '@BASE_CH3@', '@BASE_CH4@'}),
+            ('@SP_BRO1@', '@BRO1_SP@', {'@BRO1_CH@'}),
+            ('@SP_BRO2@', '@BRO2_SP@', {'@BRO2_CH1@', '@BRO2_CH2@'}),
+            ('@COUSN@', '@COUSN_SP@', {'@COUSN2@', '@COUSN2_SIB1@', '@COUSN2_SIB2@'}),
+            ('@COUSN2@', '@COUSN2_SP@', {'@COUSN2_CH1@', '@COUSN2_CH2@'}),
+            ('@COUSN2_SIB1@', '@SIB1_SP@', {'@SIB1_CH@'}),
+            ('@COUSN2_SIB2@', '@SIB2_SP@', {'@SIB2_CH1@', '@SIB2_CH2@'}),
+        )
+        for parent_id, other_parent_id, children in pairs:
+            if indi_id == parent_id and child_ids & children:
+                return [other_parent_id]
+            if indi_id == other_parent_id and child_ids & children:
+                return [parent_id]
+        return []
+
+    layout, _extra_edges = ResultsMixin._expanded_path_graph_layout(
+        base,
+        [
+            ('@BASE_SP@', 'siblings'),
+            ('@SP_BRO1@', 'spouses'),
+            ('@SP_BRO2@', 'spouses'),
+            ('@BASE_SP@', 'children'),
+            ('@SP_BRO1@', 'children'),
+            ('@SP_BRO2@', 'children'),
+            ('@COUSN@', 'spouses'),
+            ('@COUSN2@', 'siblings'),
+            ('@COUSN2_SIB1@', 'spouses'),
+            ('@COUSN2_SIB2@', 'spouses'),
+            ('@COUSN2@', 'spouses'),
+            ('@COUSN2_SIB1@', 'children'),
+            ('@COUSN2_SIB2@', 'children'),
+            ('@COUSN2@', 'children'),
+        ],
+        lookup,
+        coparents,
+    )
+    by_id = {node['id']: node for node in layout}
+    columns = sorted({node['column'] for node in layout})
+    largest_gap = max(
+        columns[index + 1] - columns[index]
+        for index in range(len(columns) - 1))
+
+    assert largest_gap <= 3.0
+    assert by_id['@SP_AUNT@']['column'] == by_id['@COUSN@']['column']
+    assert by_id['@COUSN2@']['column'] == (
+        by_id['@COUSN@']['column'] + by_id['@COUSN_SP@']['column']) / 2
+
+
+def test_path_graph_parent_expansion_after_dense_branches_does_not_oscillate():
+    """Showing parents after dense child branches does not hang the layout."""
+    base = ResultsMixin._path_graph_layout([
+        ('@BASE@', None),
+        ('@BASE_SP@', 'spouse'),
+        ('@SP_MOM@', 'mother'),
+        ('@SP_AUNT@', 'sibling'),
+        ('@COUSN@', 'child'),
+        ('@COUSN2@', 'child'),
+    ])
+    families = {
+        '@BASE@': {
+            'parents': [],
+            'siblings': [],
+            'spouses': ['@BASE_SP@'],
+            'children': ['@BASE_CH1@', '@BASE_CH2@', '@BASE_CH3@', '@BASE_CH4@'],
+        },
+        '@BASE_SP@': {
+            'parents': ['@SP_MOM@', '@SP_DAD@'],
+            'siblings': ['@SP_BRO1@', '@SP_BRO2@'],
+            'spouses': ['@BASE@'],
+            'children': ['@BASE_CH1@', '@BASE_CH2@', '@BASE_CH3@', '@BASE_CH4@'],
+        },
+        '@SP_BRO1@': {
+            'parents': ['@SP_MOM@', '@SP_DAD@'],
+            'siblings': ['@BASE_SP@', '@SP_BRO2@'],
+            'spouses': ['@BRO1_SP@'],
+            'children': ['@BRO1_CH@'],
+        },
+        '@SP_DAD@': {
+            'parents': [],
+            'siblings': [],
+            'spouses': ['@SP_MOM@'],
+            'children': ['@BASE_SP@', '@SP_BRO1@', '@SP_BRO2@'],
+        },
+        '@BRO1_SP@': {
+            'parents': [],
+            'siblings': [],
+            'spouses': ['@SP_BRO1@'],
+            'children': ['@BRO1_CH@'],
+        },
+        '@SP_BRO2@': {
+            'parents': ['@SP_MOM@', '@SP_DAD@'],
+            'siblings': ['@BASE_SP@', '@SP_BRO1@'],
+            'spouses': ['@BRO2_SP@'],
+            'children': ['@BRO2_CH1@', '@BRO2_CH2@'],
+        },
+        '@BRO2_SP@': {
+            'parents': [],
+            'siblings': [],
+            'spouses': ['@SP_BRO2@'],
+            'children': ['@BRO2_CH1@', '@BRO2_CH2@'],
+        },
+        '@SP_MOM@': {
+            'parents': [],
+            'siblings': ['@SP_AUNT@'],
+            'spouses': ['@SP_DAD@'],
+            'children': ['@BASE_SP@', '@SP_BRO1@', '@SP_BRO2@'],
+        },
+        '@SP_AUNT@': {
+            'parents': [],
+            'siblings': ['@SP_MOM@'],
+            'spouses': [],
+            'children': ['@COUSN@'],
+        },
+        '@COUSN@': {
+            'parents': ['@SP_AUNT@'],
+            'siblings': [],
+            'spouses': ['@COUSN_SP@'],
+            'children': ['@COUSN2@'],
+        },
+        '@COUSN_SP@': {
+            'parents': [],
+            'siblings': [],
+            'spouses': ['@COUSN@'],
+            'children': ['@COUSN2@'],
+        },
+        '@COUSN2@': {
+            'parents': ['@COUSN@', '@COUSN_SP@'],
+            'siblings': ['@COUSN2_SIB1@', '@COUSN2_SIB2@'],
+            'spouses': ['@COUSN2_SP@'],
+            'children': ['@COUSN2_CH1@', '@COUSN2_CH2@'],
+        },
+        '@COUSN2_SIB1@': {
+            'parents': ['@COUSN@', '@COUSN_SP@'],
+            'siblings': ['@COUSN2@', '@COUSN2_SIB2@'],
+            'spouses': ['@SIB1_SP@'],
+            'children': ['@SIB1_CH@'],
+        },
+        '@SIB1_SP@': {
+            'parents': [],
+            'siblings': [],
+            'spouses': ['@COUSN2_SIB1@'],
+            'children': ['@SIB1_CH@'],
+        },
+        '@COUSN2_SIB2@': {
+            'parents': ['@COUSN@', '@COUSN_SP@'],
+            'siblings': ['@COUSN2@', '@COUSN2_SIB1@'],
+            'spouses': ['@SIB2_SP@'],
+            'children': ['@SIB2_CH1@', '@SIB2_CH2@'],
+        },
+        '@SIB2_SP@': {
+            'parents': [],
+            'siblings': [],
+            'spouses': ['@COUSN2_SIB2@'],
+            'children': ['@SIB2_CH1@', '@SIB2_CH2@'],
+        },
+        '@COUSN2_SP@': {
+            'parents': [],
+            'siblings': [],
+            'spouses': ['@COUSN2@'],
+            'children': ['@COUSN2_CH1@', '@COUSN2_CH2@'],
+        },
+    }
+
+    def lookup(indi_id):
+        return families.get(indi_id, {
+            'parents': [],
+            'siblings': [],
+            'spouses': [],
+            'children': [],
+        })
+
+    def coparents(indi_id, child_ids):
+        child_ids = set(child_ids)
+        pairs = (
+            ('@BASE_SP@', '@BASE@',
+             {'@BASE_CH1@', '@BASE_CH2@', '@BASE_CH3@', '@BASE_CH4@'}),
+            ('@SP_BRO1@', '@BRO1_SP@', {'@BRO1_CH@'}),
+            ('@SP_BRO2@', '@BRO2_SP@', {'@BRO2_CH1@', '@BRO2_CH2@'}),
+            ('@COUSN@', '@COUSN_SP@', {'@COUSN2@', '@COUSN2_SIB1@', '@COUSN2_SIB2@'}),
+            ('@COUSN2@', '@COUSN2_SP@', {'@COUSN2_CH1@', '@COUSN2_CH2@'}),
+            ('@COUSN2_SIB1@', '@SIB1_SP@', {'@SIB1_CH@'}),
+            ('@COUSN2_SIB2@', '@SIB2_SP@', {'@SIB2_CH1@', '@SIB2_CH2@'}),
+            ('@SP_MOM@', '@SP_DAD@',
+             {'@BASE_SP@', '@SP_BRO1@', '@SP_BRO2@'}),
+        )
+        for parent_id, other_parent_id, children in pairs:
+            if indi_id == parent_id and child_ids & children:
+                return [other_parent_id]
+            if indi_id == other_parent_id and child_ids & children:
+                return [parent_id]
+        return []
+
+    layout, _extra_edges = ResultsMixin._expanded_path_graph_layout(
+        base,
+        [
+            ('@BASE_SP@', 'siblings'),
+            ('@SP_BRO1@', 'spouses'),
+            ('@SP_BRO2@', 'spouses'),
+            ('@BASE_SP@', 'children'),
+            ('@SP_BRO1@', 'children'),
+            ('@SP_BRO2@', 'children'),
+            ('@COUSN@', 'spouses'),
+            ('@COUSN2@', 'siblings'),
+            ('@COUSN2_SIB1@', 'spouses'),
+            ('@COUSN2_SIB2@', 'spouses'),
+            ('@COUSN2@', 'spouses'),
+            ('@COUSN2_SIB1@', 'children'),
+            ('@COUSN2_SIB2@', 'children'),
+            ('@COUSN2@', 'children'),
+            ('@SP_BRO1@', 'parents'),
+        ],
+        lookup,
+        coparents,
+    )
+    by_id = {node['id']: node for node in layout}
+
+    assert '@SP_DAD@' in by_id
+    assert abs(by_id['@BASE@']['column'] - by_id['@BASE_SP@']['column']) == 1.0
+    assert abs(by_id['@BRO1_CH@']['column'] - (
+        by_id['@SP_BRO1@']['column'] + by_id['@BRO1_SP@']['column']) / 2) < 0.001
+
+
+def test_path_graph_parent_then_child_expansion_keeps_spouses_adjacent():
+    """Expanding a parent's children keeps the parent pair adjacent."""
+    base = ResultsMixin._path_graph_layout([
+        ('@A@', None),
+    ])
+    families = {
+        '@A@': {
+            'parents': ['@P1@', '@P2@'],
+            'siblings': [],
+            'spouses': [],
+            'children': [],
+        },
+        '@P1@': {
+            'parents': [],
+            'siblings': [],
+            'spouses': [],
+            'children': ['@A@', '@SIB@'],
+        },
+        '@P2@': {
+            'parents': [],
+            'siblings': [],
+            'spouses': [],
+            'children': ['@A@', '@SIB@'],
+        },
+    }
+
+    def lookup(indi_id):
+        return families.get(indi_id, {
+            'parents': [],
+            'siblings': [],
+            'spouses': [],
+            'children': [],
+        })
+
+    def coparents(indi_id, child_ids):
+        if indi_id == '@P1@' and any(
+                child_id in child_ids for child_id in ('@A@', '@SIB@')):
+            return ['@P2@']
+        if indi_id == '@P2@' and any(
+                child_id in child_ids for child_id in ('@A@', '@SIB@')):
+            return ['@P1@']
+        return []
+
+    layout, _extra_edges = ResultsMixin._expanded_path_graph_layout(
+        base, [('@A@', 'parents'), ('@P1@', 'children')], lookup, coparents)
+    by_id = {node['id']: node for node in layout}
+
+    assert abs(by_id['@P1@']['column'] - by_id['@P2@']['column']) == 1.0
+    parent_midpoint = (
+        by_id['@P1@']['column'] + by_id['@P2@']['column']) / 2
+    child_midpoint = (
+        by_id['@A@']['column'] + by_id['@SIB@']['column']) / 2
+    assert child_midpoint == parent_midpoint
+
+
+def test_path_graph_grandparent_child_expansion_keeps_child_spouse_adjacent():
+    """Moving a child under grandparents keeps that child's spouse adjacent."""
+    base = ResultsMixin._path_graph_layout([
+        ('@A@', None),
+    ])
+    families = {
+        '@A@': {
+            'parents': ['@P1@', '@P2@'],
+            'siblings': [],
+            'spouses': [],
+            'children': [],
+        },
+        '@P1@': {
+            'parents': ['@GP1@', '@GM1@'],
+            'siblings': [],
+            'spouses': ['@P2@'],
+            'children': ['@A@'],
+        },
+        '@GP1@': {
+            'parents': [],
+            'siblings': [],
+            'spouses': ['@GM1@'],
+            'children': ['@P1@', '@AUNT@'],
+        },
+    }
+
+    def lookup(indi_id):
+        return families.get(indi_id, {
+            'parents': [],
+            'siblings': [],
+            'spouses': [],
+            'children': [],
+        })
+
+    def coparents(indi_id, child_ids):
+        if indi_id == '@P1@' and '@A@' in child_ids:
+            return ['@P2@']
+        if indi_id == '@GP1@' and any(
+                child_id in child_ids for child_id in ('@P1@', '@AUNT@')):
+            return ['@GM1@']
+        if indi_id == '@GM1@' and any(
+                child_id in child_ids for child_id in ('@P1@', '@AUNT@')):
+            return ['@GP1@']
+        return []
+
+    layout, _extra_edges = ResultsMixin._expanded_path_graph_layout(
+        base,
+        [('@A@', 'parents'), ('@P1@', 'parents'), ('@GP1@', 'children')],
+        lookup,
+        coparents,
+    )
+    by_id = {node['id']: node for node in layout}
+
+    assert abs(by_id['@P1@']['column'] - by_id['@P2@']['column']) == 1.0
+
+
+def test_path_graph_uncle_child_expansion_keeps_child_groups_centered():
+    """Expanding an uncle's children preserves each parent's child alignment."""
+    base = ResultsMixin._path_graph_layout([
+        ('@P1@', None),
+        ('@P2@', 'father'),
+    ])
+    families = {
+        '@P1@': {
+            'parents': ['@P2@'],
+            'siblings': [],
+            'spouses': [],
+            'children': [],
+        },
+        '@P2@': {
+            'parents': ['@P3@', '@P5@'],
+            'siblings': ['@P4@'],
+            'spouses': [],
+            'children': ['@P1@'],
+        },
+        '@P3@': {
+            'parents': [],
+            'siblings': [],
+            'spouses': ['@P5@'],
+            'children': ['@P2@', '@P4@'],
+        },
+        '@P5@': {
+            'parents': [],
+            'siblings': [],
+            'spouses': ['@P3@'],
+            'children': ['@P2@', '@P4@'],
+        },
+        '@P4@': {
+            'parents': ['@P3@', '@P5@'],
+            'siblings': ['@P2@'],
+            'spouses': [],
+            'children': ['@P4C@'],
+        },
+    }
+
+    def lookup(indi_id):
+        return families.get(indi_id, {
+            'parents': [],
+            'siblings': [],
+            'spouses': [],
+            'children': [],
+        })
+
+    def coparents(indi_id, child_ids):
+        if indi_id == '@P3@' and any(
+                child_id in child_ids for child_id in ('@P2@', '@P4@')):
+            return ['@P5@']
+        if indi_id == '@P5@' and any(
+                child_id in child_ids for child_id in ('@P2@', '@P4@')):
+            return ['@P3@']
+        return []
+
+    layout, _extra_edges = ResultsMixin._expanded_path_graph_layout(
+        base,
+        [('@P2@', 'parents'), ('@P3@', 'children'), ('@P4@', 'children')],
+        lookup,
+        coparents,
+    )
+    by_id = {node['id']: node for node in layout}
+
+    assert by_id['@P1@']['column'] == by_id['@P2@']['column']
+    assert by_id['@P4C@']['column'] == by_id['@P4@']['column']
+
+
+def test_path_graph_parent_sibling_child_expansion_keeps_center_children():
+    """Expanding an uncle's children does not shift the center person's children."""
+    base = ResultsMixin._path_graph_layout([
+        ('@P1@', None),
+        ('@P2@', 'father'),
+    ])
+    families = {
+        '@P1@': {
+            'parents': ['@P2@', '@M2@'],
+            'siblings': [],
+            'spouses': ['@SP@'],
+            'children': ['@C1@'],
+        },
+        '@SP@': {
+            'parents': [],
+            'siblings': [],
+            'spouses': ['@P1@'],
+            'children': ['@C1@'],
+        },
+        '@P2@': {
+            'parents': ['@GP@', '@GM@'],
+            'siblings': ['@UNC@'],
+            'spouses': ['@M2@'],
+            'children': ['@P1@'],
+        },
+        '@GP@': {
+            'parents': [],
+            'siblings': [],
+            'spouses': ['@GM@'],
+            'children': ['@P2@', '@UNC@'],
+        },
+        '@GM@': {
+            'parents': [],
+            'siblings': [],
+            'spouses': ['@GP@'],
+            'children': ['@P2@', '@UNC@'],
+        },
+        '@UNC@': {
+            'parents': ['@GP@', '@GM@'],
+            'siblings': ['@P2@'],
+            'spouses': [],
+            'children': ['@UC1@'],
+        },
+    }
+
+    def lookup(indi_id):
+        return families.get(indi_id, {
+            'parents': [],
+            'siblings': [],
+            'spouses': [],
+            'children': [],
+        })
+
+    def coparents(indi_id, child_ids):
+        if indi_id == '@P1@' and '@C1@' in child_ids:
+            return ['@SP@']
+        if indi_id == '@GP@' and any(
+                child_id in child_ids for child_id in ('@P2@', '@UNC@')):
+            return ['@GM@']
+        if indi_id == '@GM@' and any(
+                child_id in child_ids for child_id in ('@P2@', '@UNC@')):
+            return ['@GP@']
+        return []
+
+    layout, _extra_edges = ResultsMixin._expanded_path_graph_layout(
+        base,
+        [
+            ('@P1@', 'children'),
+            ('@P2@', 'parents'),
+            ('@P2@', 'siblings'),
+            ('@UNC@', 'children'),
+        ],
+        lookup,
+        coparents,
+    )
+    by_id = {node['id']: node for node in layout}
+
+    assert by_id['@C1@']['column'] == (
+        by_id['@P1@']['column'] + by_id['@SP@']['column']) / 2
+    assert by_id['@UC1@']['column'] == by_id['@UNC@']['column']
+
+
+def test_path_graph_parent_sibling_child_short_path_keeps_center_children():
+    """Showing a parent's sibling then children keeps center children aligned."""
+    base = ResultsMixin._path_graph_layout([
+        ('@P1@', None),
+        ('@P2@', 'father'),
+    ])
+    families = {
+        '@P1@': {
+            'parents': ['@P2@', '@M2@'],
+            'siblings': [],
+            'spouses': ['@SP@'],
+            'children': ['@C1@'],
+        },
+        '@SP@': {
+            'parents': [],
+            'siblings': [],
+            'spouses': ['@P1@'],
+            'children': ['@C1@'],
+        },
+        '@P2@': {
+            'parents': [],
+            'siblings': ['@UNC@'],
+            'spouses': ['@M2@'],
+            'children': ['@P1@'],
+        },
+        '@UNC@': {
+            'parents': [],
+            'siblings': ['@P2@'],
+            'spouses': [],
+            'children': ['@UC1@'],
+        },
+    }
+
+    def lookup(indi_id):
+        return families.get(indi_id, {
+            'parents': [],
+            'siblings': [],
+            'spouses': [],
+            'children': [],
+        })
+
+    def coparents(indi_id, child_ids):
+        if indi_id == '@P1@' and '@C1@' in child_ids:
+            return ['@SP@']
+        return []
+
+    layout, _extra_edges = ResultsMixin._expanded_path_graph_layout(
+        base,
+        [('@P1@', 'children'), ('@P2@', 'siblings'), ('@UNC@', 'children')],
+        lookup,
+        coparents,
+    )
+    by_id = {node['id']: node for node in layout}
+
+    assert by_id['@C1@']['column'] == (
+        by_id['@P1@']['column'] + by_id['@SP@']['column']) / 2
+    assert by_id['@UC1@']['column'] == by_id['@UNC@']['column']
 
 
 def test_path_graph_window_geometry_centers_when_graph_fits():
@@ -95,6 +3283,50 @@ def test_path_graph_window_geometry_uses_display_when_graph_is_too_large():
     assert geometry == (1600, 900, 100, 50)
 
 
+def test_path_graph_window_geometry_restores_previous_location():
+    """Later graph windows keep content sizing but reuse the last location."""
+    geometry = ResultsMixin._path_graph_window_geometry(
+        content_w=500, content_h=300,
+        screen_w=1600, screen_h=900,
+        screen_x=100, screen_y=50,
+        previous_geometry='700x520+240+140',
+    )
+
+    assert geometry == (640, 428, 240, 140)
+
+
+def test_path_graph_window_geometry_clamps_restored_location():
+    """Restored graph windows stay within the current display bounds."""
+    geometry = ResultsMixin._path_graph_window_geometry(
+        content_w=500, content_h=300,
+        screen_w=1600, screen_h=900,
+        screen_x=100, screen_y=50,
+        previous_geometry='700x520+2000+1000',
+    )
+
+    assert geometry == (640, 428, 1060, 522)
+
+
+def test_centered_graph_scrollregion_pads_smaller_content():
+    """A larger viewport centers graph content without changing item coords."""
+    scrollregion = ResultsMixin._centered_graph_scrollregion(
+        content_w=400, content_h=300,
+        view_w=900, view_h=700,
+    )
+
+    assert scrollregion == (-250, -200, 650, 500)
+
+
+def test_centered_graph_scrollregion_leaves_larger_content_at_origin():
+    """Content larger than the viewport keeps a normal scroll origin."""
+    scrollregion = ResultsMixin._centered_graph_scrollregion(
+        content_w=1200, content_h=900,
+        view_w=900, view_h=700,
+    )
+
+    assert scrollregion == (0, 0, 1200, 900)
+
+
 def test_path_graph_colors_follow_selected_theme():
     """Graph colors derive from the selected theme palette."""
     blue = ResultsMixin._path_graph_colors(False, 'Blue')
@@ -105,3 +3337,1451 @@ def test_path_graph_colors_follow_selected_theme():
     assert blue['parent'] == '#1155bb'
     assert green['parent'] == '#2e8b57'
     assert blue['node_fill'] != green['node_fill']
+
+
+def test_person_box_fill_follows_gedcom_sex_independent_of_theme():
+    """Person graph boxes use fixed sex colors from GEDCOM sex values."""
+    individuals = {
+        '@M@': {'sex': 'M'},
+        '@F@': {'sex': 'f'},
+        '@U@': {'sex': ''},
+        '@X@': {'sex': 'X'},
+    }
+
+    assert ResultsMixin._person_box_fill(
+        individuals, '@M@') == ResultsMixin.PERSON_BOX_FILL_MALE
+    assert ResultsMixin._person_box_fill(
+        individuals, '@F@') == ResultsMixin.PERSON_BOX_FILL_FEMALE
+    assert ResultsMixin._person_box_fill(
+        individuals, '@U@') == ResultsMixin.PERSON_BOX_FILL_NEUTRAL
+    assert ResultsMixin._person_box_fill(
+        individuals, '@X@') == ResultsMixin.PERSON_BOX_FILL_NEUTRAL
+    assert ResultsMixin._person_box_fill(
+        individuals, '@MISSING@') == ResultsMixin.PERSON_BOX_FILL_NEUTRAL
+
+
+def test_endpoint_person_box_fill_darkens_sex_fill_with_endpoint_tint():
+    """Endpoint graph boxes stand out while preserving the sex color cue."""
+    colors = ResultsMixin._path_graph_colors(False, 'Blue')
+
+    assert ResultsMixin._endpoint_person_box_fill(
+        ResultsMixin.PERSON_BOX_FILL_MALE, colors) == '#cbd9eb'
+    assert ResultsMixin._endpoint_person_box_fill(
+        ResultsMixin.PERSON_BOX_FILL_FEMALE, colors) == '#e4d2dd'
+    assert ResultsMixin._endpoint_person_box_fill(
+        ResultsMixin.PERSON_BOX_FILL_NEUTRAL, colors) == '#dbdee2'
+
+
+def test_compact_graph_label_uses_first_middle_initial_last_and_lifespan():
+    """Graph labels use narrow three-line person names."""
+    indi = {
+        'name': 'John Quincy Public',
+        'given_name': 'John Quincy',
+        'surname': 'Public',
+        'birth_year': 1901,
+        'death_year': 1982,
+    }
+
+    assert ResultsMixin._compact_graph_label(indi) == 'John Q.\nPublic\n1901-1982'
+
+
+def test_compact_graph_label_falls_back_to_unsplit_name():
+    """Graph labels still render usable text for records without parsed names."""
+    indi = {
+        'name': 'Cher',
+        'given_name': '',
+        'surname': '',
+        'birth_year': None,
+        'death_year': None,
+    }
+
+    assert ResultsMixin._compact_graph_label(indi) == 'Cher'
+
+
+def test_wrap_canvas_label_preserves_explicit_graph_label_lines():
+    """Graph label wrapping keeps the compact name lines intact."""
+    class FakeFont:
+        @staticmethod
+        def measure(text):
+            return len(text) * 8
+
+    assert ResultsMixin._wrap_canvas_label(
+        'John Q.\nPublic\n1901-1982', FakeFont(), 200
+    ) == 'John Q.\nPublic\n1901-1982'
+
+
+def test_split_graph_label_name_detail_separates_lifespan_line():
+    """Endpoint labels can bold names without bolding lifespan details."""
+    assert ResultsMixin._split_graph_label_name_detail(
+        'John Q.\nPublic\n1901-1982'
+    ) == ('John Q.\nPublic', '1901-1982')
+    assert ResultsMixin._split_graph_label_name_detail(
+        'Jane\nPublic\nb. 1901'
+    ) == ('Jane\nPublic', 'b. 1901')
+    assert ResultsMixin._split_graph_label_name_detail(
+        '(unknown)'
+    ) == ('(unknown)', '')
+
+
+def test_sibling_button_moves_right_when_spouse_is_left():
+    """Sibling expansion control avoids an existing spouse on the left."""
+    positions = {
+        '@A@': (100, 50),
+        '@SPOUSE@': (40, 50),
+        '@OTHER@': (180, 50),
+    }
+
+    assert ResultsMixin._sibling_button_x(
+        '@A@', 100, 70, 130, 20, [('@A@', '@SPOUSE@')], positions) == 140
+    assert ResultsMixin._sibling_button_x(
+        '@A@', 100, 70, 130, 20, [('@A@', '@OTHER@')], positions) == 60
+    assert ResultsMixin._sibling_button_x(
+        '@A@', 100, 70, 130, 20, [('@SPOUSE@', '@A@')], positions) == 140
+
+
+def test_child_parent_midpoint_uses_visible_coparent():
+    """Child connectors start between displayed parents."""
+    positions = {
+        '@A@': (100, 50),
+        '@SPOUSE@': (220, 50),
+        '@C1@': (160, 170),
+    }
+
+    def coparents(parent_id, child_ids):
+        if parent_id == '@A@' and '@C1@' in child_ids:
+            return ['@SPOUSE@']
+        return []
+
+    assert ResultsMixin._child_parent_midpoint(
+        '@A@', '@C1@', positions, coparents) == (160, 50)
+
+
+def test_child_parent_midpoint_uses_visible_spouse_edge_fallback():
+    """Displayed spouse edges can identify the other parent for connectors."""
+    positions = {
+        '@A@': (100, 50),
+        '@SPOUSE@': (220, 50),
+        '@C1@': (160, 170),
+    }
+
+    def coparents(_parent_id, _child_ids):
+        return []
+
+    assert ResultsMixin._child_parent_midpoint(
+        '@A@', '@C1@', positions, coparents,
+        [('@A@', '@SPOUSE@')]) == (160, 50)
+
+
+def test_child_parent_midpoint_requires_displayed_coparent():
+    """Child connectors keep the single-parent origin without a visible coparent."""
+    positions = {
+        '@A@': (100, 50),
+        '@C1@': (160, 170),
+    }
+
+    def coparents(parent_id, child_ids):
+        if parent_id == '@A@' and '@C1@' in child_ids:
+            return ['@SPOUSE@']
+        return []
+
+    assert ResultsMixin._child_parent_midpoint(
+        '@A@', '@C1@', positions, coparents) is None
+
+
+def test_family_tree_layout_places_immediate_family_by_generation():
+    """Immediate family renders around the selected person."""
+    visible = ['@A@', '@P1@', '@P2@', '@S1@', '@W@', '@C1@', '@C2@']
+    edges = [
+        ('@A@', '@P1@', 'parents'),
+        ('@A@', '@P2@', 'parents'),
+        ('@A@', '@S1@', 'siblings'),
+        ('@A@', '@W@', 'spouses'),
+        ('@A@', '@C1@', 'children'),
+        ('@A@', '@C2@', 'children'),
+    ]
+
+    layout = layout_family_tree('@A@', visible, edges)
+    by_id = {node['id']: node for node in layout}
+
+    assert by_id['@A@']['generation'] == 0
+    assert by_id['@P1@']['generation'] == -1
+    assert by_id['@P2@']['generation'] == -1
+    assert by_id['@S1@']['generation'] == 0
+    assert by_id['@W@']['generation'] == 0
+    assert by_id['@C1@']['generation'] == 1
+    assert by_id['@C2@']['generation'] == 1
+    positions = {(node['generation'], node['column']) for node in layout}
+    assert len(positions) == len(layout)
+
+
+def test_family_tree_layout_keeps_spouse_adjacent_before_siblings():
+    """A spouse uses the adjacent slot even when siblings are also visible."""
+    visible = ['@A@', '@SIB@', '@SPOUSE@']
+    edges = [
+        ('@A@', '@SIB@', 'siblings'),
+        ('@A@', '@SPOUSE@', 'spouses'),
+    ]
+
+    layout = layout_family_tree('@A@', visible, edges)
+    by_id = {node['id']: node for node in layout}
+
+    assert by_id['@SPOUSE@']['column'] == 1.0
+    assert by_id['@SIB@']['column'] == -1.4
+
+
+def test_family_tree_layout_keeps_auto_coparent_adjacent_to_sibling():
+    """A sibling's auto-added spouse takes the adjacent slot."""
+    visible = ['@ME@', '@BRO@', '@CHILD@', '@WIFE@']
+    edges = [
+        ('@ME@', '@BRO@', 'siblings'),
+        ('@BRO@', '@CHILD@', 'children'),
+        ('@BRO@', '@WIFE@', 'spouses'),
+    ]
+
+    layout = layout_family_tree('@ME@', visible, edges)
+    by_id = {node['id']: node for node in layout}
+
+    assert by_id['@WIFE@']['column'] == by_id['@BRO@']['column'] + 1.0
+    assert by_id['@CHILD@']['column'] == (
+        by_id['@BRO@']['column'] + by_id['@WIFE@']['column']) / 2
+    assert by_id['@ME@']['column'] > by_id['@WIFE@']['column']
+
+
+def test_family_tree_layout_keeps_reflowed_boxes_from_overlapping():
+    """Expanded relatives on an occupied row get a clear adjacent slot."""
+    visible = ['@A@', '@C@', '@P2@']
+    edges = [
+        ('@A@', '@C@', 'children'),
+        ('@C@', '@P2@', 'parents'),
+    ]
+
+    layout = layout_family_tree('@A@', visible, edges)
+    same_row = [
+        node['column'] for node in layout
+        if node['generation'] == 0
+    ]
+
+    assert min(
+        abs(left - right)
+        for index, left in enumerate(same_row)
+        for right in same_row[index + 1:]
+    ) >= 1.0
+
+
+def test_family_tree_graph_adds_expanded_nodes_without_duplicates():
+    """Expansions keep existing tree nodes and do not duplicate shared people."""
+    families = {
+        '@A@': {
+            'parents': ['@P1@'],
+            'siblings': ['@S1@'],
+            'spouses': ['@W@'],
+            'children': ['@C1@'],
+        },
+        '@S1@': {
+            'parents': ['@P1@'],
+            'siblings': ['@A@'],
+            'spouses': [],
+            'children': ['@N1@'],
+        },
+    }
+
+    def lookup(indi_id):
+        return families.get(indi_id, {
+            'parents': [],
+            'siblings': [],
+            'spouses': [],
+            'children': [],
+        })
+
+    visible, edges = build_family_tree_graph(
+        '@A@', [('@S1@', 'parents'), ('@S1@', 'children')], lookup)
+
+    assert visible.count('@P1@') == 1
+    assert visible.count('@S1@') == 1
+    assert '@N1@' in visible
+    assert ('@S1@', '@P1@', 'parents') in edges
+    assert ('@S1@', '@N1@', 'children') in edges
+
+
+def test_family_tree_child_expansion_adds_missing_coparent():
+    """Tree View child expansion brings in the children's other parent."""
+    families = {
+        '@A@': {
+            'parents': [],
+            'siblings': [],
+            'spouses': [],
+            'children': ['@C1@'],
+        },
+    }
+
+    def lookup(indi_id):
+        return families.get(indi_id, {
+            'parents': [],
+            'siblings': [],
+            'spouses': [],
+            'children': [],
+        })
+
+    def coparents(indi_id, child_ids):
+        if indi_id == '@A@' and '@C1@' in child_ids:
+            return ['@SPOUSE@']
+        return []
+
+    visible, edges = build_family_tree_graph(
+        '@A@', [('@A@', 'children')], lookup, coparents)
+
+    assert '@C1@' in visible
+    assert '@SPOUSE@' in visible
+    assert ('@A@', '@SPOUSE@', 'spouses') in edges
+
+
+def test_family_tree_spouse_expansion_adds_hidden_spouse():
+    """Tree View spouse expansion can reveal a non-center person's spouse."""
+    families = {
+        '@A@': {
+            'parents': [],
+            'siblings': ['@S1@'],
+            'spouses': [],
+            'children': [],
+        },
+        '@S1@': {
+            'parents': [],
+            'siblings': ['@A@'],
+            'spouses': ['@SPOUSE@'],
+            'children': [],
+        },
+    }
+
+    def lookup(indi_id):
+        return families.get(indi_id, {
+            'parents': [],
+            'siblings': [],
+            'spouses': [],
+            'children': [],
+        })
+
+    visible, edges = build_family_tree_graph(
+        '@A@', [('@S1@', 'spouses')], lookup)
+
+    assert '@S1@' in visible
+    assert '@SPOUSE@' in visible
+    assert ('@S1@', '@SPOUSE@', 'spouses') in edges
+
+
+def test_family_tree_parent_expansion_adds_parent_spouse_edge():
+    """Tree View parent expansion links displayed co-parents as spouses."""
+    families = {
+        '@A@': {
+            'parents': ['@P1@', '@P2@'],
+            'siblings': [],
+            'spouses': [],
+            'children': [],
+        },
+    }
+
+    def lookup(indi_id):
+        return families.get(indi_id, {
+            'parents': [],
+            'siblings': [],
+            'spouses': [],
+            'children': [],
+        })
+
+    def coparents(indi_id, child_ids):
+        if indi_id == '@P1@' and '@A@' in child_ids:
+            return ['@P2@']
+        if indi_id == '@P2@' and '@A@' in child_ids:
+            return ['@P1@']
+        return []
+
+    _visible, edges = build_family_tree_graph(
+        '@A@', [('@A@', 'parents')], lookup, coparents)
+
+    assert ('@P1@', '@P2@', 'spouses') in edges
+
+
+def test_family_tree_parent_expansion_centers_parents_over_child():
+    """Tree View parent expansion keeps the child below the parent pair."""
+    families = {
+        '@P1@': {
+            'parents': [],
+            'siblings': [],
+            'spouses': [],
+            'children': ['@A@'],
+        },
+        '@A@': {
+            'parents': ['@P1@', '@P2@'],
+            'siblings': [],
+            'spouses': [],
+            'children': [],
+        },
+    }
+
+    def lookup(indi_id):
+        return families.get(indi_id, {
+            'parents': [],
+            'siblings': [],
+            'spouses': [],
+            'children': [],
+        })
+
+    def coparents(indi_id, child_ids):
+        if indi_id == '@P1@' and '@A@' in child_ids:
+            return ['@P2@']
+        if indi_id == '@P2@' and '@A@' in child_ids:
+            return ['@P1@']
+        return []
+
+    visible, edges = build_family_tree_graph(
+        '@P1@', [('@A@', 'parents')], lookup, coparents)
+    layout = layout_family_tree('@P1@', visible, edges)
+    by_id = {node['id']: node for node in layout}
+
+    parent_midpoint = (
+        by_id['@P1@']['column'] + by_id['@P2@']['column']) / 2
+    assert by_id['@A@']['column'] == parent_midpoint
+    assert by_id['@P1@']['generation'] == by_id['@P2@']['generation']
+    assert by_id['@A@']['generation'] == by_id['@P1@']['generation'] + 1
+
+
+def test_family_tree_parent_then_child_expansion_keeps_spouses_adjacent():
+    """Tree View keeps co-parents adjacent after expanding their children."""
+    families = {
+        '@A@': {
+            'parents': ['@P1@', '@P2@'],
+            'siblings': [],
+            'spouses': [],
+            'children': [],
+        },
+        '@P1@': {
+            'parents': [],
+            'siblings': [],
+            'spouses': [],
+            'children': ['@A@', '@SIB@'],
+        },
+        '@P2@': {
+            'parents': [],
+            'siblings': [],
+            'spouses': [],
+            'children': ['@A@', '@SIB@'],
+        },
+    }
+
+    def lookup(indi_id):
+        return families.get(indi_id, {
+            'parents': [],
+            'siblings': [],
+            'spouses': [],
+            'children': [],
+        })
+
+    def coparents(indi_id, child_ids):
+        if indi_id == '@P1@' and any(
+                child_id in child_ids for child_id in ('@A@', '@SIB@')):
+            return ['@P2@']
+        if indi_id == '@P2@' and any(
+                child_id in child_ids for child_id in ('@A@', '@SIB@')):
+            return ['@P1@']
+        return []
+
+    visible, edges = build_family_tree_graph(
+        '@A@', [('@A@', 'parents'), ('@P1@', 'children')], lookup, coparents)
+    layout = layout_family_tree('@A@', visible, edges)
+    by_id = {node['id']: node for node in layout}
+
+    assert abs(by_id['@P1@']['column'] - by_id['@P2@']['column']) == 1.0
+    parent_midpoint = (
+        by_id['@P1@']['column'] + by_id['@P2@']['column']) / 2
+    child_midpoint = (
+        by_id['@A@']['column'] + by_id['@SIB@']['column']) / 2
+    assert child_midpoint == parent_midpoint
+
+
+def test_family_tree_grandparent_child_expansion_keeps_child_spouse_adjacent():
+    """Moving a child under grandparents keeps that child's spouse adjacent."""
+    families = {
+        '@A@': {
+            'parents': ['@P1@', '@P2@'],
+            'siblings': [],
+            'spouses': [],
+            'children': [],
+        },
+        '@P1@': {
+            'parents': ['@GP1@', '@GM1@'],
+            'siblings': [],
+            'spouses': ['@P2@'],
+            'children': ['@A@'],
+        },
+        '@GP1@': {
+            'parents': [],
+            'siblings': [],
+            'spouses': ['@GM1@'],
+            'children': ['@P1@', '@AUNT@'],
+        },
+    }
+
+    def lookup(indi_id):
+        return families.get(indi_id, {
+            'parents': [],
+            'siblings': [],
+            'spouses': [],
+            'children': [],
+        })
+
+    def coparents(indi_id, child_ids):
+        if indi_id == '@P1@' and '@A@' in child_ids:
+            return ['@P2@']
+        if indi_id == '@GP1@' and any(
+                child_id in child_ids for child_id in ('@P1@', '@AUNT@')):
+            return ['@GM1@']
+        if indi_id == '@GM1@' and any(
+                child_id in child_ids for child_id in ('@P1@', '@AUNT@')):
+            return ['@GP1@']
+        return []
+
+    visible, edges = build_family_tree_graph(
+        '@A@',
+        [('@P1@', 'parents'), ('@GP1@', 'children')],
+        lookup,
+        coparents,
+    )
+    layout = layout_family_tree('@A@', visible, edges)
+    by_id = {node['id']: node for node in layout}
+
+    assert abs(by_id['@P1@']['column'] - by_id['@P2@']['column']) == 1.0
+
+
+def test_family_tree_uncle_child_expansion_keeps_child_groups_centered():
+    """Expanding an uncle's children preserves each parent's child alignment."""
+    families = {
+        '@P1@': {
+            'parents': ['@P2@'],
+            'siblings': [],
+            'spouses': [],
+            'children': [],
+        },
+        '@P2@': {
+            'parents': ['@P3@', '@P5@'],
+            'siblings': ['@P4@'],
+            'spouses': [],
+            'children': ['@P1@'],
+        },
+        '@P3@': {
+            'parents': [],
+            'siblings': [],
+            'spouses': ['@P5@'],
+            'children': ['@P2@', '@P4@'],
+        },
+        '@P5@': {
+            'parents': [],
+            'siblings': [],
+            'spouses': ['@P3@'],
+            'children': ['@P2@', '@P4@'],
+        },
+        '@P4@': {
+            'parents': ['@P3@', '@P5@'],
+            'siblings': ['@P2@'],
+            'spouses': [],
+            'children': ['@P4C@'],
+        },
+    }
+
+    def lookup(indi_id):
+        return families.get(indi_id, {
+            'parents': [],
+            'siblings': [],
+            'spouses': [],
+            'children': [],
+        })
+
+    def coparents(indi_id, child_ids):
+        if indi_id == '@P3@' and any(
+                child_id in child_ids for child_id in ('@P2@', '@P4@')):
+            return ['@P5@']
+        if indi_id == '@P5@' and any(
+                child_id in child_ids for child_id in ('@P2@', '@P4@')):
+            return ['@P3@']
+        return []
+
+    visible, edges = build_family_tree_graph(
+        '@P1@',
+        [('@P2@', 'parents'), ('@P3@', 'children'), ('@P4@', 'children')],
+        lookup,
+        coparents,
+    )
+    layout = layout_family_tree('@P1@', visible, edges)
+    by_id = {node['id']: node for node in layout}
+
+    assert by_id['@P1@']['column'] == by_id['@P2@']['column']
+    assert by_id['@P4C@']['column'] == by_id['@P4@']['column']
+
+
+def test_family_tree_parent_sibling_child_expansion_keeps_center_children():
+    """Expanding an uncle's children does not shift the center person's children."""
+    families = {
+        '@P1@': {
+            'parents': ['@P2@', '@M2@'],
+            'siblings': [],
+            'spouses': ['@SP@'],
+            'children': ['@C1@'],
+        },
+        '@SP@': {
+            'parents': [],
+            'siblings': [],
+            'spouses': ['@P1@'],
+            'children': ['@C1@'],
+        },
+        '@P2@': {
+            'parents': ['@GP@', '@GM@'],
+            'siblings': ['@UNC@'],
+            'spouses': ['@M2@'],
+            'children': ['@P1@'],
+        },
+        '@GP@': {
+            'parents': [],
+            'siblings': [],
+            'spouses': ['@GM@'],
+            'children': ['@P2@', '@UNC@'],
+        },
+        '@GM@': {
+            'parents': [],
+            'siblings': [],
+            'spouses': ['@GP@'],
+            'children': ['@P2@', '@UNC@'],
+        },
+        '@UNC@': {
+            'parents': ['@GP@', '@GM@'],
+            'siblings': ['@P2@'],
+            'spouses': [],
+            'children': ['@UC1@'],
+        },
+    }
+
+    def lookup(indi_id):
+        return families.get(indi_id, {
+            'parents': [],
+            'siblings': [],
+            'spouses': [],
+            'children': [],
+        })
+
+    def coparents(indi_id, child_ids):
+        if indi_id == '@P1@' and '@C1@' in child_ids:
+            return ['@SP@']
+        if indi_id == '@GP@' and any(
+                child_id in child_ids for child_id in ('@P2@', '@UNC@')):
+            return ['@GM@']
+        if indi_id == '@GM@' and any(
+                child_id in child_ids for child_id in ('@P2@', '@UNC@')):
+            return ['@GP@']
+        return []
+
+    visible, edges = build_family_tree_graph(
+        '@P1@',
+        [('@P2@', 'parents'), ('@P2@', 'siblings'), ('@UNC@', 'children')],
+        lookup,
+        coparents,
+    )
+    layout = layout_family_tree('@P1@', visible, edges)
+    by_id = {node['id']: node for node in layout}
+
+    assert by_id['@C1@']['column'] == (
+        by_id['@P1@']['column'] + by_id['@SP@']['column']) / 2
+    assert by_id['@UC1@']['column'] == by_id['@UNC@']['column']
+
+
+def test_family_tree_parent_sibling_child_short_path_keeps_center_children():
+    """Showing a parent's sibling then children keeps center children aligned."""
+    families = {
+        '@P1@': {
+            'parents': ['@P2@', '@M2@'],
+            'siblings': [],
+            'spouses': ['@SP@'],
+            'children': ['@C1@'],
+        },
+        '@SP@': {
+            'parents': [],
+            'siblings': [],
+            'spouses': ['@P1@'],
+            'children': ['@C1@'],
+        },
+        '@P2@': {
+            'parents': [],
+            'siblings': ['@UNC@'],
+            'spouses': ['@M2@'],
+            'children': ['@P1@'],
+        },
+        '@UNC@': {
+            'parents': [],
+            'siblings': ['@P2@'],
+            'spouses': [],
+            'children': ['@UC1@'],
+        },
+    }
+
+    def lookup(indi_id):
+        return families.get(indi_id, {
+            'parents': [],
+            'siblings': [],
+            'spouses': [],
+            'children': [],
+        })
+
+    def coparents(indi_id, child_ids):
+        if indi_id == '@P1@' and '@C1@' in child_ids:
+            return ['@SP@']
+        return []
+
+    visible, edges = build_family_tree_graph(
+        '@P1@',
+        [('@P2@', 'siblings'), ('@UNC@', 'children')],
+        lookup,
+        coparents,
+    )
+    layout = layout_family_tree('@P1@', visible, edges)
+    by_id = {node['id']: node for node in layout}
+
+    assert by_id['@C1@']['column'] == (
+        by_id['@P1@']['column'] + by_id['@SP@']['column']) / 2
+    assert by_id['@UC1@']['column'] == by_id['@UNC@']['column']
+
+
+def test_family_tree_child_group_avoids_visible_spouse_pair_slots():
+    """New child groups do not split another displayed spouse pair."""
+    visible = ['@A@', '@S@', '@C@', '@J@', '@G@', '@N1@', '@N2@']
+    edges = [
+        ('@A@', '@S@', 'spouses'),
+        ('@A@', '@C@', 'children'),
+        ('@A@', '@J@', 'siblings'),
+        ('@J@', '@G@', 'spouses'),
+        ('@J@', '@N1@', 'children'),
+        ('@J@', '@N2@', 'children'),
+    ]
+
+    layout = layout_family_tree('@A@', visible, edges)
+    by_id = {node['id']: node for node in layout}
+
+    assert abs(by_id['@A@']['column'] - by_id['@S@']['column']) == 1.0
+    assert by_id['@C@']['column'] == (
+        by_id['@A@']['column'] + by_id['@S@']['column']) / 2
+
+
+def test_family_tree_parent_siblings_stay_on_spouse_opposite_sides():
+    """Expanded siblings of both parents stay grouped beside each parent."""
+    visible = [
+        '@CENTER@',
+        '@CENTER_SP@',
+        '@CH1@',
+        '@CH2@',
+        '@PARENT_L@',
+        '@PARENT_R@',
+        '@CENTER_SIB1@',
+        '@CENTER_SIB2@',
+        '@PARENT_L_SIB1@',
+        '@PARENT_L_SIB2@',
+        '@PARENT_R_SIB1@',
+        '@PARENT_R_SIB2@',
+        '@PARENT_R_SIB3@',
+        '@PARENT_R_SIB4@',
+    ]
+    edges = [
+        ('@CENTER@', '@CENTER_SP@', 'spouses'),
+        ('@CENTER@', '@CH1@', 'children'),
+        ('@CENTER@', '@CH2@', 'children'),
+        ('@CENTER@', '@PARENT_L@', 'parents'),
+        ('@CENTER@', '@PARENT_R@', 'parents'),
+        ('@CENTER@', '@CENTER_SIB1@', 'siblings'),
+        ('@CENTER@', '@CENTER_SIB2@', 'siblings'),
+        ('@PARENT_L@', '@PARENT_R@', 'spouses'),
+        ('@PARENT_L@', '@PARENT_L_SIB1@', 'siblings'),
+        ('@PARENT_L@', '@PARENT_L_SIB2@', 'siblings'),
+        ('@PARENT_R@', '@PARENT_R_SIB1@', 'siblings'),
+        ('@PARENT_R@', '@PARENT_R_SIB2@', 'siblings'),
+        ('@PARENT_R@', '@PARENT_R_SIB3@', 'siblings'),
+        ('@PARENT_R@', '@PARENT_R_SIB4@', 'siblings'),
+    ]
+
+    layout = layout_family_tree('@CENTER@', visible, edges)
+    by_id = {node['id']: node for node in layout}
+    left_siblings = [
+        by_id['@PARENT_L_SIB1@']['column'],
+        by_id['@PARENT_L_SIB2@']['column'],
+    ]
+    right_siblings = [
+        by_id['@PARENT_R_SIB1@']['column'],
+        by_id['@PARENT_R_SIB2@']['column'],
+        by_id['@PARENT_R_SIB3@']['column'],
+        by_id['@PARENT_R_SIB4@']['column'],
+    ]
+
+    assert by_id['@PARENT_L@']['column'] < by_id['@PARENT_R@']['column']
+    assert all(column < by_id['@PARENT_L@']['column']
+               for column in left_siblings)
+    assert all(column > by_id['@PARENT_R@']['column']
+               for column in right_siblings)
+    assert sorted(right_siblings) == right_siblings
+
+
+def test_family_tree_child_alignment_keeps_adjusted_siblings_separate():
+    """Children shifted around spouse boxes do not collapse into one column."""
+    visible = [
+        '@CENTER@',
+        '@CENTER_SP@',
+        '@CHILD1@',
+        '@CHILD2@',
+        '@CHILD3@',
+        '@CHILD4@',
+        '@CHILD1_SP@',
+        '@CHILD2_SP@',
+        '@G1@',
+        '@G2@',
+        '@G3@',
+        '@G4@',
+        '@H1@',
+        '@H2@',
+        '@H3@',
+        '@H4@',
+        '@H5@',
+    ]
+    edges = [
+        ('@CENTER@', '@CENTER_SP@', 'spouses'),
+        ('@CENTER@', '@CHILD1@', 'children'),
+        ('@CENTER@', '@CHILD2@', 'children'),
+        ('@CENTER@', '@CHILD3@', 'children'),
+        ('@CENTER@', '@CHILD4@', 'children'),
+        ('@CHILD1@', '@CHILD1_SP@', 'spouses'),
+        ('@CHILD2@', '@CHILD2_SP@', 'spouses'),
+        ('@CHILD1@', '@G1@', 'children'),
+        ('@CHILD1@', '@G2@', 'children'),
+        ('@CHILD1@', '@G3@', 'children'),
+        ('@CHILD1@', '@G4@', 'children'),
+        ('@CHILD2@', '@H1@', 'children'),
+        ('@CHILD2@', '@H2@', 'children'),
+        ('@CHILD2@', '@H3@', 'children'),
+        ('@CHILD2@', '@H4@', 'children'),
+        ('@CHILD2@', '@H5@', 'children'),
+    ]
+
+    layout = layout_family_tree('@CENTER@', visible, edges)
+    by_id = {node['id']: node for node in layout}
+    child_columns = [
+        by_id['@CHILD1@']['column'],
+        by_id['@CHILD2@']['column'],
+        by_id['@CHILD3@']['column'],
+        by_id['@CHILD4@']['column'],
+    ]
+
+    assert len(set(child_columns)) == len(child_columns)
+    assert all(
+        abs(left - right) >= 1.0
+        for index, left in enumerate(child_columns)
+        for right in child_columns[index + 1:])
+    assert by_id['@CHILD2@']['column'] != by_id['@CHILD3@']['column']
+
+
+def test_family_tree_spouse_next_to_center_does_not_overlap_sibling():
+    """Final center protection keeps adjacent spouse pairs from overlapping."""
+    visible = [
+        '@P1@',
+        '@P2@',
+        '@CH1@',
+        '@CENTER@',
+        '@CH2@',
+        '@CH1_SP@',
+        '@GC1@',
+        '@GC2@',
+        '@GC3@',
+        '@CH3@',
+    ]
+    edges = [
+        ('@P2@', '@P1@', 'spouses'),
+        ('@P2@', '@CH1@', 'children'),
+        ('@P2@', '@CENTER@', 'children'),
+        ('@P2@', '@CH2@', 'children'),
+        ('@P2@', '@CH3@', 'children'),
+        ('@CH1@', '@CH1_SP@', 'spouses'),
+        ('@CH1@', '@GC1@', 'children'),
+        ('@CH1@', '@GC2@', 'children'),
+        ('@CH1@', '@GC3@', 'children'),
+        ('@CENTER@', '@P1@', 'parents'),
+        ('@CENTER@', '@P2@', 'parents'),
+    ]
+
+    layout = layout_family_tree('@CENTER@', visible, edges)
+
+    assert all(
+        abs(left['column'] - right['column']) >= 1.0
+        for index, left in enumerate(layout)
+        for right in layout[index + 1:]
+        if left['generation'] == right['generation'])
+
+
+def test_family_tree_child_alignment_avoids_unrelated_spouse_pair_slots():
+    """Expanded children avoid a spouse pair already displayed on their row."""
+    visible = [
+        '@CENTER@',
+        '@CENTER_SP1@',
+        '@CENTER_SP2@',
+        '@SIB@',
+        '@SIB_SP@',
+        '@SIB_CH1@',
+        '@SIB_CH2@',
+        '@SIB_CH3@',
+        '@SIB_CH4@',
+        '@CENTER_CH1@',
+        '@CENTER_CH2@',
+        '@CENTER_CH3@',
+        '@CENTER_CH3_SP@',
+        '@CENTER_CH4@',
+        '@GRANDCHILD@',
+    ]
+    edges = [
+        ('@CENTER@', '@CENTER_SP1@', 'spouses'),
+        ('@CENTER@', '@CENTER_SP2@', 'spouses'),
+        ('@CENTER@', '@SIB@', 'siblings'),
+        ('@CENTER@', '@CENTER_CH1@', 'children'),
+        ('@CENTER@', '@CENTER_CH2@', 'children'),
+        ('@CENTER@', '@CENTER_CH3@', 'children'),
+        ('@CENTER@', '@CENTER_CH4@', 'children'),
+        ('@SIB@', '@SIB_SP@', 'spouses'),
+        ('@SIB@', '@SIB_CH1@', 'children'),
+        ('@SIB@', '@SIB_CH2@', 'children'),
+        ('@SIB@', '@SIB_CH3@', 'children'),
+        ('@SIB@', '@SIB_CH4@', 'children'),
+        ('@CENTER_CH3@', '@CENTER_CH3_SP@', 'spouses'),
+        ('@CENTER_CH1@', '@GRANDCHILD@', 'children'),
+    ]
+
+    layout = layout_family_tree('@CENTER@', visible, edges)
+    by_id = {node['id']: node for node in layout}
+
+    assert abs(
+        by_id['@SIB_CH3@']['column']
+        - by_id['@CENTER_CH3_SP@']['column']) >= 1.0
+
+
+def test_family_tree_compacts_drifted_sibling_after_expanded_branches():
+    """Expanded descendant branches do not leave siblings far off row edge."""
+    visible = [
+        '@CENTER@',
+        '@PARENT1@',
+        '@PARENT2@',
+        '@SIB1@',
+        '@SIB2@',
+        '@SIB3@',
+        '@CENTER_SP1@',
+        '@CENTER_SP2@',
+        '@SIB2_SP@',
+        '@CENTER_CH1@',
+        '@CENTER_CH2@',
+        '@CENTER_CH3@',
+        '@CENTER_CH4@',
+        '@SIB2_CH1@',
+        '@SIB2_CH2@',
+        '@SIB2_CH3@',
+        '@SIB2_CH4@',
+        '@GRANDCHILD@',
+    ]
+    edges = [
+        ('@CENTER@', '@PARENT1@', 'parents'),
+        ('@CENTER@', '@PARENT2@', 'parents'),
+        ('@CENTER@', '@SIB1@', 'siblings'),
+        ('@CENTER@', '@SIB2@', 'siblings'),
+        ('@CENTER@', '@SIB3@', 'siblings'),
+        ('@CENTER@', '@CENTER_SP1@', 'spouses'),
+        ('@CENTER@', '@CENTER_CH1@', 'children'),
+        ('@CENTER@', '@CENTER_CH2@', 'children'),
+        ('@CENTER@', '@CENTER_CH3@', 'children'),
+        ('@CENTER@', '@CENTER_CH4@', 'children'),
+        ('@CENTER@', '@CENTER_SP2@', 'spouses'),
+        ('@SIB2@', '@SIB2_SP@', 'spouses'),
+        ('@SIB2@', '@SIB2_CH1@', 'children'),
+        ('@SIB2@', '@SIB2_CH2@', 'children'),
+        ('@SIB2@', '@SIB2_CH3@', 'children'),
+        ('@SIB2@', '@SIB2_CH4@', 'children'),
+        ('@CENTER_CH1@', '@GRANDCHILD@', 'children'),
+    ]
+
+    layout = layout_family_tree('@CENTER@', visible, edges)
+    by_id = {node['id']: node for node in layout}
+    same_row_columns = sorted(
+        node['column'] for node in layout
+        if node['generation'] == by_id['@CENTER@']['generation'])
+    largest_gap = max(
+        same_row_columns[index + 1] - same_row_columns[index]
+        for index in range(len(same_row_columns) - 1))
+
+    assert by_id['@SIB1@']['column'] < 10.0
+    assert largest_gap <= 2.5
+
+
+def test_family_tree_shifted_child_group_connector_spans_parent_origin():
+    """A shifted child group still draws a connector back to its parents."""
+    visible = [
+        '@P1@',
+        '@P2@',
+        '@CENTER@',
+        '@SIB1@',
+        '@SIB2@',
+        '@SIB3@',
+        '@CENTER_SP1@',
+        '@CENTER_CH1@',
+        '@CENTER_CH2@',
+        '@CENTER_CH3@',
+        '@CENTER_CH4@',
+        '@CENTER_SP2@',
+        '@SIB1_SP@',
+        '@SIB1_CH1@',
+        '@SIB1_CH2@',
+        '@SIB1_CH3@',
+        '@SIB1_CH4@',
+        '@SIB1_CH5@',
+    ]
+    edges = [
+        ('@P1@', '@P2@', 'spouses'),
+        ('@CENTER@', '@P1@', 'parents'),
+        ('@CENTER@', '@P2@', 'parents'),
+        ('@CENTER@', '@SIB1@', 'siblings'),
+        ('@CENTER@', '@SIB2@', 'siblings'),
+        ('@CENTER@', '@SIB3@', 'siblings'),
+        ('@CENTER@', '@CENTER_SP1@', 'spouses'),
+        ('@CENTER@', '@CENTER_CH1@', 'children'),
+        ('@CENTER@', '@CENTER_CH2@', 'children'),
+        ('@CENTER@', '@CENTER_CH3@', 'children'),
+        ('@CENTER@', '@CENTER_CH4@', 'children'),
+        ('@CENTER@', '@CENTER_SP2@', 'spouses'),
+        ('@SIB1@', '@SIB1_SP@', 'spouses'),
+        ('@SIB1@', '@SIB1_CH1@', 'children'),
+        ('@SIB1@', '@SIB1_CH2@', 'children'),
+        ('@SIB1@', '@SIB1_CH3@', 'children'),
+        ('@SIB1@', '@SIB1_CH4@', 'children'),
+        ('@SIB1@', '@SIB1_CH5@', 'children'),
+    ]
+
+    layout = layout_family_tree('@CENTER@', visible, edges)
+    positions = {
+        node['id']: (node['column'], node['generation'])
+        for node in layout
+    }
+    groups = ResultsMixin._family_tree_child_edge_groups(
+        edges,
+        positions,
+        lambda _parent_id, _child_ids: [],
+        [('@P1@', '@P2@'), ('@CENTER@', '@CENTER_SP1@')],
+    )
+    child_group = next(
+        group for group in groups
+        if set(group['children']) == {
+            '@CENTER_CH1@',
+            '@CENTER_CH2@',
+            '@CENTER_CH3@',
+            '@CENTER_CH4@',
+        })
+    child_columns = [
+        positions[child_id][0] for child_id in child_group['children']
+    ]
+    bus_start, bus_end = ResultsMixin._family_tree_child_bus_span(
+        child_group['parent_x'], child_columns)
+
+    assert child_group['parent_x'] < min(child_columns)
+    assert bus_start <= child_group['parent_x']
+    assert bus_end >= max(child_columns)
+
+
+def test_family_tree_expanded_child_spouse_does_not_overlap_sibling_child():
+    """A displayed spouse of one child reserves room before the next child."""
+    visible = [
+        '@CENTER@',
+        '@PARENT1@',
+        '@PARENT2@',
+        '@SIB1@',
+        '@SIB2@',
+        '@SIB3@',
+        '@CENTER_SP1@',
+        '@CENTER_SP2@',
+        '@CH1@',
+        '@CH2@',
+        '@CH3@',
+        '@CH4@',
+        '@GRANDCHILD@',
+        '@CH3_SP@',
+    ]
+    edges = [
+        ('@CENTER@', '@PARENT1@', 'parents'),
+        ('@CENTER@', '@PARENT2@', 'parents'),
+        ('@CENTER@', '@SIB1@', 'siblings'),
+        ('@CENTER@', '@SIB2@', 'siblings'),
+        ('@CENTER@', '@SIB3@', 'siblings'),
+        ('@CENTER@', '@CENTER_SP1@', 'spouses'),
+        ('@CENTER@', '@CH1@', 'children'),
+        ('@CENTER@', '@CH2@', 'children'),
+        ('@CENTER@', '@CH3@', 'children'),
+        ('@CENTER@', '@CH4@', 'children'),
+        ('@CENTER@', '@CENTER_SP2@', 'spouses'),
+        ('@CH1@', '@GRANDCHILD@', 'children'),
+        ('@CH3@', '@CH3_SP@', 'spouses'),
+    ]
+
+    layout = layout_family_tree('@CENTER@', visible, edges)
+    by_id = {node['id']: node for node in layout}
+    same_row_nodes = [
+        node for node in layout
+        if node['generation'] == by_id['@CH4@']['generation']
+    ]
+
+    assert abs(by_id['@CH3@']['column']
+               - by_id['@CH3_SP@']['column']) >= 1.0
+    assert abs(by_id['@CH4@']['column']
+               - by_id['@CH3_SP@']['column']) >= 1.0
+    assert all(
+        abs(left['column'] - right['column']) >= 1.0
+        for index, left in enumerate(same_row_nodes)
+        for right in same_row_nodes[index + 1:])
+
+
+def test_family_tree_unrelated_child_groups_do_not_interleave():
+    """Children from adjacent couples stay in distinct row bands."""
+    visible = [
+        '@CENTER@',
+        '@CENTER_SP1@',
+        '@CENTER_SP2@',
+        '@SIB@',
+        '@SIB_SP@',
+        '@SIB_CH1@',
+        '@SIB_CH2@',
+        '@SIB_CH3@',
+        '@SIB_CH4@',
+        '@SIB_CH5@',
+        '@CENTER_CH1@',
+        '@CENTER_CH2@',
+        '@CENTER_CH3@',
+        '@CENTER_CH4@',
+        '@CENTER_CH3_SP@',
+        '@GRANDCHILD@',
+    ]
+    edges = [
+        ('@CENTER@', '@SIB@', 'siblings'),
+        ('@CENTER@', '@CENTER_SP1@', 'spouses'),
+        ('@CENTER@', '@CENTER_SP2@', 'spouses'),
+        ('@CENTER@', '@CENTER_CH1@', 'children'),
+        ('@CENTER@', '@CENTER_CH2@', 'children'),
+        ('@CENTER@', '@CENTER_CH3@', 'children'),
+        ('@CENTER@', '@CENTER_CH4@', 'children'),
+        ('@SIB@', '@SIB_SP@', 'spouses'),
+        ('@SIB@', '@SIB_CH1@', 'children'),
+        ('@SIB@', '@SIB_CH2@', 'children'),
+        ('@SIB@', '@SIB_CH3@', 'children'),
+        ('@SIB@', '@SIB_CH4@', 'children'),
+        ('@SIB@', '@SIB_CH5@', 'children'),
+        ('@CENTER_CH1@', '@GRANDCHILD@', 'children'),
+        ('@CENTER_CH3@', '@CENTER_CH3_SP@', 'spouses'),
+    ]
+
+    layout = layout_family_tree('@CENTER@', visible, edges)
+    by_id = {node['id']: node for node in layout}
+    sibling_child_columns = sorted(
+        by_id[child_id]['column']
+        for child_id in (
+            '@SIB_CH1@',
+            '@SIB_CH2@',
+            '@SIB_CH3@',
+            '@SIB_CH4@',
+            '@SIB_CH5@',
+        ))
+    center_child_columns = sorted(
+        by_id[child_id]['column']
+        for child_id in (
+            '@CENTER_CH1@',
+            '@CENTER_CH2@',
+            '@CENTER_CH3@',
+            '@CENTER_CH4@',
+        ))
+
+    assert (
+        sibling_child_columns[-1] < center_child_columns[0]
+        or center_child_columns[-1] < sibling_child_columns[0]
+    )
+
+
+def test_family_tree_expand_all_uses_only_hidden_categories():
+    """Expand All matches the visible expansion buttons for a sibling node."""
+    families = {
+        '@COUSN2@': {
+            'parents': ['@COUSN@', '@COUSN_SP@'],
+            'siblings': ['@COUSN2_SIB2@', '@COUSN2_SIB1@'],
+            'spouses': ['@COUSN2_SP@'],
+            'children': ['@COUSN2_CH1@', '@COUSN2_CH2@'],
+        },
+        '@COUSN2_SIB2@': {
+            'parents': ['@COUSN@', '@COUSN_SP@'],
+            'siblings': ['@COUSN2@', '@COUSN2_SIB1@'],
+            'spouses': ['@SIB2_SP@'],
+            'children': ['@SIB2_CH1@', '@SIB2_CH2@'],
+        },
+        '@COUSN2_SIB1@': {
+            'parents': ['@COUSN@', '@COUSN_SP@'],
+            'siblings': ['@COUSN2@', '@COUSN2_SIB2@'],
+            'spouses': [],
+            'children': [],
+        },
+        '@COUSN@': {
+            'parents': [],
+            'siblings': [],
+            'spouses': ['@COUSN_SP@'],
+            'children': ['@COUSN2_SIB2@', '@COUSN2_SIB1@', '@COUSN2@'],
+        },
+        '@COUSN_SP@': {
+            'parents': [],
+            'siblings': [],
+            'spouses': ['@COUSN@'],
+            'children': ['@COUSN2_SIB2@', '@COUSN2_SIB1@', '@COUSN2@'],
+        },
+        '@COUSN2_SP@': {
+            'parents': [],
+            'siblings': [],
+            'spouses': ['@COUSN2@'],
+            'children': ['@COUSN2_CH1@', '@COUSN2_CH2@'],
+        },
+        '@SIB2_SP@': {
+            'parents': [],
+            'siblings': [],
+            'spouses': ['@COUSN2_SIB2@'],
+            'children': ['@SIB2_CH1@', '@SIB2_CH2@'],
+        },
+    }
+
+    def lookup(indi_id):
+        return families.get(indi_id, {
+            'parents': [],
+            'siblings': [],
+            'spouses': [],
+            'children': [],
+        })
+
+    def coparents(indi_id, child_ids):
+        child_ids = set(child_ids)
+        if indi_id == '@COUSN2@' and child_ids & {'@COUSN2_CH1@', '@COUSN2_CH2@'}:
+            return ['@COUSN2_SP@']
+        if indi_id == '@COUSN2_SP@' and child_ids & {'@COUSN2_CH1@', '@COUSN2_CH2@'}:
+            return ['@COUSN2@']
+        if indi_id == '@COUSN2_SIB2@' and child_ids & {'@SIB2_CH1@', '@SIB2_CH2@'}:
+            return ['@SIB2_SP@']
+        if indi_id == '@SIB2_SP@' and child_ids & {'@SIB2_CH1@', '@SIB2_CH2@'}:
+            return ['@COUSN2_SIB2@']
+        if indi_id == '@COUSN@' and child_ids & {
+                '@COUSN2_SIB2@', '@COUSN2_SIB1@', '@COUSN2@'}:
+            return ['@COUSN_SP@']
+        if indi_id == '@COUSN_SP@' and child_ids & {
+                '@COUSN2_SIB2@', '@COUSN2_SIB1@', '@COUSN2@'}:
+            return ['@COUSN@']
+        return []
+
+    visible, _edges = build_family_tree_graph(
+        '@COUSN2@', [], lookup, coparents)
+    options = family_tree_expansion_options(
+        '@COUSN2_SIB2@', set(visible), lookup)
+    hidden_categories = tuple(
+        category for category in ('parents', 'siblings', 'spouses', 'children')
+        if options.get(category))
+
+    expanded = []
+    ResultsMixin._expand_all_requests(
+        expanded, '@COUSN2_SIB2@', hidden_categories)
+
+    children_visible, children_edges = build_family_tree_graph(
+        '@COUSN2@', [('@COUSN2_SIB2@', 'children')], lookup, coparents)
+    expand_all_visible, expand_all_edges = build_family_tree_graph(
+        '@COUSN2@', expanded, lookup, coparents)
+
+    assert hidden_categories == ('spouses', 'children')
+    assert expanded == [
+        ('@COUSN2_SIB2@', 'spouses'),
+        ('@COUSN2_SIB2@', 'children'),
+    ]
+    assert set(expand_all_visible) == set(children_visible)
+    assert {
+        node['id']: (node['generation'], node['column'])
+        for node in layout_family_tree(
+            '@COUSN2@', expand_all_visible, expand_all_edges)
+    } == {
+        node['id']: (node['generation'], node['column'])
+        for node in layout_family_tree(
+            '@COUSN2@', children_visible, children_edges)
+    }
+
+
+def test_nearest_unblocked_column_does_not_oscillate_between_spouses():
+    """Column conflict resolution chooses a finite clear slot."""
+    column = _nearest_unblocked_column(0.75, [0.0, 1.5])
+
+    assert all(abs(column - blocked) >= 1.0 for blocked in (0.0, 1.5))
+
+
+def test_family_tree_expansion_options_only_include_hidden_relatives():
+    """Expansion controls are omitted when all relatives are already visible."""
+    families = {
+        '@A@': {
+            'parents': ['@P1@'],
+            'siblings': ['@S1@'],
+            'spouses': ['@W@'],
+            'children': ['@C1@'],
+        },
+        '@P1@': {
+            'parents': ['@GP1@'],
+            'siblings': [],
+            'spouses': [],
+            'children': ['@A@', '@S1@', '@HALF@'],
+        },
+    }
+
+    def lookup(indi_id):
+        return families.get(indi_id, {
+            'parents': [],
+            'siblings': [],
+            'spouses': [],
+            'children': [],
+        })
+
+    center_options = family_tree_expansion_options(
+        '@A@', {'@A@', '@P1@', '@S1@', '@W@', '@C1@'}, lookup)
+    parent_options = family_tree_expansion_options(
+        '@P1@', {'@A@', '@P1@', '@S1@', '@W@', '@C1@'}, lookup)
+
+    assert center_options == {
+        'parents': [],
+        'siblings': [],
+        'spouses': [],
+        'children': [],
+    }
+    assert parent_options['parents'] == ['@GP1@']
+    assert parent_options['children'] == ['@HALF@']
+    assert parent_options['spouses'] == []
+
+
+def test_toggle_expansion_request_adds_and_removes_request():
+    """Expansion buttons behave as toggles."""
+    expanded = []
+    request = ('@A@', 'children')
+
+    ResultsMixin._toggle_expansion_request(expanded, request)
+    assert expanded == [request]
+
+    ResultsMixin._toggle_expansion_request(expanded, request)
+    assert expanded == []
+
+
+def test_expand_all_requests_adds_missing_categories_without_toggling():
+    """Expand All leaves active categories visible and enables the rest."""
+    expanded = [('@A@', 'parents'), ('@B@', 'children')]
+
+    changed = ResultsMixin._expand_all_requests(expanded, '@A@')
+
+    assert changed is True
+    assert expanded == [
+        ('@A@', 'parents'),
+        ('@B@', 'children'),
+        ('@A@', 'siblings'),
+        ('@A@', 'spouses'),
+        ('@A@', 'children'),
+    ]
+
+    assert ResultsMixin._expand_all_requests(expanded, '@A@') is False
+    assert expanded == [
+        ('@A@', 'parents'),
+        ('@B@', 'children'),
+        ('@A@', 'siblings'),
+        ('@A@', 'spouses'),
+        ('@A@', 'children'),
+    ]
+
+
+def test_show_expansion_button_keeps_active_category_visible():
+    """Expanded categories keep their button so a second click can hide them."""
+    options = {
+        'parents': [],
+        'siblings': ['@S1@'],
+        'spouses': [],
+        'children': [],
+    }
+    expanded = {('@A@', 'parents'), ('@A@', 'spouses')}
+
+    assert ResultsMixin._show_expansion_button(
+        options, expanded, '@A@', 'parents') is True
+    assert ResultsMixin._show_expansion_button(
+        options, expanded, '@A@', 'siblings') is True
+    assert ResultsMixin._show_expansion_button(
+        options, expanded, '@A@', 'children') is False
+    assert ResultsMixin._show_expansion_button(
+        options, expanded, '@A@', 'spouses') is True
+
+
+def test_expansion_button_text_reflects_next_toggle_action():
+    """Expansion arrows reverse when a category is already visible."""
+    expanded = {
+        ('@A@', 'parents'),
+        ('@A@', 'children'),
+        ('@A@', 'siblings'),
+        ('@A@', 'spouses'),
+    }
+
+    assert ResultsMixin._expansion_button_text(
+        set(), '@A@', 'parents') == '↑'
+    assert ResultsMixin._expansion_button_text(
+        expanded, '@A@', 'parents') == '↓'
+    assert ResultsMixin._expansion_button_text(
+        set(), '@A@', 'children') == '↓'
+    assert ResultsMixin._expansion_button_text(
+        expanded, '@A@', 'children') == '↑'
+    assert ResultsMixin._expansion_button_text(
+        set(), '@A@', 'siblings', 'left') == '←'
+    assert ResultsMixin._expansion_button_text(
+        expanded, '@A@', 'siblings', 'left') == '→'
+    assert ResultsMixin._expansion_button_text(
+        set(), '@A@', 'siblings', 'right') == '→'
+    assert ResultsMixin._expansion_button_text(
+        expanded, '@A@', 'siblings', 'right') == '←'
+    assert ResultsMixin._expansion_button_text(
+        set(), '@A@', 'spouses') == '♥'
+    assert ResultsMixin._expansion_button_text(
+        expanded, '@A@', 'spouses') == '♡'
+
+
+def test_expansion_button_tooltip_is_state_aware():
+    """Relationship expansion toggles describe the next click action."""
+    expanded = {
+        ('@A@', 'parents'),
+        ('@A@', 'siblings'),
+        ('@A@', 'spouses'),
+        ('@A@', 'children'),
+    }
+
+    assert ResultsMixin._expansion_button_tooltip(
+        set(), '@A@', 'parents') == 'Show parents'
+    assert ResultsMixin._expansion_button_tooltip(
+        expanded, '@A@', 'parents') == 'Hide parents'
+    assert ResultsMixin._expansion_button_tooltip(
+        set(), '@A@', 'siblings') == 'Show siblings'
+    assert ResultsMixin._expansion_button_tooltip(
+        expanded, '@A@', 'siblings') == 'Hide siblings'
+    assert ResultsMixin._expansion_button_tooltip(
+        set(), '@A@', 'spouses') == 'Show spouses'
+    assert ResultsMixin._expansion_button_tooltip(
+        expanded, '@A@', 'spouses') == 'Hide spouses'
+    assert ResultsMixin._expansion_button_tooltip(
+        set(), '@A@', 'children') == 'Show children'
+    assert ResultsMixin._expansion_button_tooltip(
+        expanded, '@A@', 'children') == 'Hide children'
+    assert ResultsMixin._expansion_button_tooltip(
+        set(), '@A@', 'unknown') is None
+
+
+def test_spouse_button_uses_spouse_side_or_right_default():
+    """The spouse toggle sits on the visible spouse side, or right by default."""
+    assert ResultsMixin._spouse_button_x(
+        '@A@', 100, 70, 130, 20, [], {}) == 140
+    assert ResultsMixin._spouse_button_x(
+        '@A@', 100, 70, 130, 20, [('@A@', '@S@')], {'@S@': (60, 100)}
+    ) == 60
+    assert ResultsMixin._spouse_button_x(
+        '@A@', 100, 70, 130, 20, [('@A@', '@S@')], {'@S@': (140, 100)}
+    ) == 140

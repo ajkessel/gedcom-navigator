@@ -93,6 +93,11 @@ class _SizedToolTip(_CTkToolTip):
             pass
 
     def _show(self):
+        try:
+            if not self.widget.winfo_exists():
+                return
+        except tk.TclError:
+            return
         self.x_offset = self.original_x_offset
         self.y_offset = self.original_y_offset
         (pointer_x, pointer_y) = self.winfo_pointerxy()
@@ -216,6 +221,10 @@ class Tooltip(metaclass=_TooltipMeta):
             self._impl.hide()
         Tooltip._instances.append(self)
 
+    def update_text(self, text: str) -> None:
+        """Update the tooltip message text."""
+        self._impl._full_message = text
+
 
 class TextTagTooltip:
     """Hover tooltip for a specific tag inside a Tk Text widget."""
@@ -251,6 +260,52 @@ class TextTagTooltip:
         self._impl.on_leave(event)
 
     def _on_destroy(self, _event=None) -> None:
+        self._destroyed = True
+        try:
+            Tooltip._instances.remove(self)
+        except ValueError:
+            pass
+        try:
+            self._impl.destroy()
+        except tk.TclError:
+            pass
+
+
+class CanvasTagTooltip:
+    """Hover tooltip for a specific item tag inside a Tk Canvas widget."""
+
+    def __init__(self, canvas, text: str):
+        self.canvas = canvas
+        self._destroyed = False
+        self._anchor = tk.Frame(canvas)
+        self._impl = _SizedToolTip(
+            self._anchor, message=text, wraplength=360, justify='left',
+            follow=True
+        )
+        if not Tooltip._enabled:
+            self._impl.hide()
+        Tooltip._instances.append(self)
+        canvas.bind("<Destroy>", self._on_destroy, add="+")
+
+    def on_enter(self, event) -> None:
+        """Show or move the tooltip from a Canvas tag event."""
+        if self._destroyed:
+            return
+        self._impl.on_enter(event)
+
+    def on_leave(self, event=None) -> None:
+        """Hide the tooltip when the pointer leaves the Canvas tag."""
+        if self._destroyed:
+            return
+        self._impl.on_leave(event)
+
+    def destroy(self) -> None:
+        """Destroy this tooltip and remove it from the global tooltip list."""
+        self._on_destroy()
+
+    def _on_destroy(self, _event=None) -> None:
+        if self._destroyed:
+            return
         self._destroyed = True
         try:
             Tooltip._instances.remove(self)

@@ -16,6 +16,6 @@ def configure_process_identity():
         import ctypes  # pylint: disable=import-outside-toplevel
 
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(
-            "com.ajkessel.gedcom-dna-finder")
+            "com.ajkessel.gedcom-navigator")
     except Exception:  # pylint: disable=broad-exception-caught
         pass

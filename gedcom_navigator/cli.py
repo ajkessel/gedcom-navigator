@@ -1,7 +1,7 @@
 """
-Entry point for the GEDCOM DNA Finder GUI.
+Entry point for the GEDCOM Navigator CLI.
 
-When installed via pip the actual GUI script lives in _scripts/ (placed there
+When installed via pip the actual CLI script lives in _scripts/ (placed there
 by hatch_build.py during the wheel build).  When running from a source
 checkout the script is found in the sibling src/ directory instead.
 """
@@ -13,11 +13,9 @@ import sys
 
 def _scripts_dir():
     pkg = os.path.dirname(os.path.abspath(__file__))
-    # Installed wheel: scripts are bundled inside the package.
     installed = os.path.join(pkg, "_scripts")
     if os.path.isdir(installed):
         return installed
-    # Source checkout: scripts live in src/ next to the repo root.
     dev = os.path.join(os.path.dirname(pkg), "src")
     if os.path.isdir(dev):
         return dev
@@ -25,19 +23,18 @@ def _scripts_dir():
 
 
 def main():
-    """Wrapper used only for pypi build to launch the GUI."""
+    """Wrapper used only for pypi build to launch the CLI."""
     sd = _scripts_dir()
     if sd is None:
         raise RuntimeError(
-            "Cannot locate gedcom_dna_finder_gui.py. "
+            "Cannot locate gedcom_navigator_cli.py. "
             "Re-install the package or run from the source tree."
         )
     if sd not in sys.path:
         sys.path.insert(0, sd)
-    script = os.path.join(sd, "gedcom_dna_finder_gui.py")
-    spec = importlib.util.spec_from_file_location(
-        "gedcom_dna_finder_gui", script)
+    script = os.path.join(sd, "gedcom_navigator_cli.py")
+    spec = importlib.util.spec_from_file_location("gedcom_navigator_cli", script)
     mod = importlib.util.module_from_spec(spec)
-    sys.modules["gedcom_dna_finder_gui"] = mod
+    sys.modules["gedcom_navigator_cli"] = mod
     spec.loader.exec_module(mod)
     mod.main()

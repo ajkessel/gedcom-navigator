@@ -312,4 +312,4 @@ class TestDefaultPath:
 
     def test_parent_dir_contains_app_name(self):
         p = ConfigManager.default_path()
-        assert "gedcom-dna-finder" in str(p)
+        assert "gedcom-navigator" in str(p)

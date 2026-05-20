@@ -1,9 +1,10 @@
 #!/bin/bash
 if [[ "$OSTYPE" != "linux-gnu"* ]]; then
 	echo 'This script is intended to be run on Linux.'
+	echo "${OSTYPE} detected, exiting."
 	exit 1
 fi
-output_file="gedcom-dna-finder-linux.zip"
+output_file="gedcom-navigator-linux.zip"
 while getopts "hnco:" opt; do
 	case $opt in
 	h)
@@ -18,10 +19,13 @@ while getopts "hnco:" opt; do
 		;;
 	esac
 done
+SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
+cd "${SCRIPT_DIR}/.." || exit 1
+exec > >(sed 's/\x1b\[[0-9;]*m//g' | tee -a build-linux.log) 2>&1
 [[ "$CLEAN" ]] && [[ -e ".venv" ]] && rm -r ".venv"
 [[ -e ".venv/bin/activate" ]] || {
 	echo 'Creating virtual environment...'
-	python3 -m venv .venv --prompt "gedcom-dna-finder" || {
+	python3 -m venv .venv --prompt "gedcom-navigator" || {
 		echo 'Failed to create virtual environment.'
 		exit 1
 	}
@@ -35,6 +39,10 @@ pip install -r ./dev/requirements-dev.txt || {
 	echo 'Failed to install dependencies.'
 	exit 1
 }
+echo 'Patching ctktooltip... (see https://github.com/Akascape/CTkToolTip/issues/20 for details)'
+patch -d "${VIRTUAL_ENV}/lib/site-packages/" -N -p1 < ./dev/ctk_tooltip.patch || {
+	echo 'Failed to patch ctktooltip, may have been applied already. Proceeding anyway...'
+}
 echo 'Running unit tests...'
 pytest -v --tb=short --disable-warnings || {
 	echo 'Unit tests failed. Exiting.'
@@ -44,11 +52,11 @@ python3 ./dev/generate_icon.py ./icons/family_tree.png || {
 	echo 'Failed to generate ICO file.'
 	exit 1
 }
-pyinstaller --noconfirm ./dev/gedcom_dna_finder_cli.spec || {
+pyinstaller --noconfirm ./dev/gedcom_navigator_cli.spec || {
 	echo 'pyinstaller failed to build CLI.'
 	exit 1
 }
-pyinstaller --noconfirm ./dev/gedcom_dna_finder_gui.spec || {
+pyinstaller --noconfirm ./dev/gedcom_navigator_gui.spec || {
 	echo 'pyinstaller failed to build GUI.'
 	exit 1
 }

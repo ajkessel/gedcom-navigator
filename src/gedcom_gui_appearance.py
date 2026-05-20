@@ -2,7 +2,7 @@
 gedcom_gui_appearance.py
 
 AppearanceMixin — history/config, font, theme, keybindings, and menu methods
-for DNAMatchFinderApp.
+for GedcomNavigatorApp.
 """
 
 import tkinter as tk
@@ -44,6 +44,40 @@ _BG_TINTS = {
 
 class AppearanceMixin:
     """Mixin providing appearance, history, keybinding, and menu methods."""
+
+    @staticmethod
+    def _raise_window(win):
+        """Bring win to the front and give it keyboard focus.
+
+        On Windows, briefly sets -topmost to overcome the OS restriction that
+        prevents background windows from stealing focus via lift() alone.
+        A second attempt is scheduled after 150 ms so that windows that are
+        not yet fully rendered at the time of the first call still reliably
+        come to the foreground.
+        """
+        win.deiconify()
+        if sys.platform == 'win32':
+            win.attributes('-topmost', True)
+        win.lift()
+        win.focus_force()
+
+        def _retry_and_clear():
+            try:
+                if not win.winfo_exists():
+                    return
+                win.lift()
+                win.focus_force()
+                if sys.platform == 'win32':
+                    def _clear():
+                        try:
+                            win.attributes('-topmost', False)
+                        except tk.TclError:
+                            pass
+                    win.after(100, _clear)
+            except tk.TclError:
+                pass
+
+        win.after(150, _retry_and_clear)
 
     # ---------------------------------------------------------- History / config
     def _cache_dir(self):
@@ -139,9 +173,39 @@ class AppearanceMixin:
 
         for fname in ('TkDefaultFont', 'TkTextFont', 'TkMenuFont', 'TkSmallCaptionFont'):
             try:
-                tkfont.nametofont(fname).configure(size=ui_sz)
+                # CTkFont stores sizes as negative pixels (size=-abs(px)).  On
+                # Windows with DPI virtualisation, Tk point sizes diverge from
+                # CTkFont pixel sizes, making mixed dialogs inconsistent.  Use
+                # the same negative-pixel convention so named fonts stay in sync.
+                sz = -ui_sz if sys.platform == 'win32' else ui_sz
+                tkfont.nametofont(fname).configure(size=sz)
             except tk.TclError:
                 pass
+
+        # Update the CTk theme default so that CTkFont() instances created later
+        # (e.g. when a dialog is re-opened) inherit the new size.
+        try:
+            ctk.ThemeManager.theme["CTkFont"]["size"] = ui_sz
+        except Exception:  # pylint: disable=broad-except
+            pass
+
+        # Walk the live widget tree and update every existing CTkFont so that
+        # open windows update immediately.  The results-header override below
+        # runs after this and stamps mono_sz onto that specific font.
+        def _update_ctk_fonts(w):
+            for child in w.winfo_children():
+                try:
+                    fnt = getattr(child, '_font', None)
+                    if isinstance(fnt, ctk.CTkFont):
+                        fnt.configure(size=ui_sz)
+                except Exception:  # pylint: disable=broad-except
+                    pass
+                _update_ctk_fonts(child)
+
+        try:
+            _update_ctk_fonts(self.root)
+        except Exception:  # pylint: disable=broad-except
+            pass
 
         self._apply_styles()
 
@@ -150,9 +214,12 @@ class AppearanceMixin:
 
         if hasattr(self, 'results'):
             # CTkTextbox fonts are passed as tuples; update on size change.
-            self.results.configure(font=(self._mono_family, mono_sz))
-            self.results._textbox.tag_configure(
-                'bold', font=(self._mono_family, mono_sz, 'bold'))
+            if hasattr(self, '_results_zoom'):
+                self._results_zoom.set_base_size(mono_sz)
+            else:
+                self.results.configure(font=(self._mono_family, mono_sz))
+                self.results._textbox.tag_configure(
+                    'bold', font=(self._mono_family, mono_sz, 'bold'))
             if hasattr(self, '_results_header_label'):
                 self._results_header_label.configure(
                     font=ctk.CTkFont(size=mono_sz, weight='bold'))
@@ -208,6 +275,17 @@ class AppearanceMixin:
         x = max(0, min(x, screen_w - w))
         y = max(0, min(y, screen_h - h))
         win.geometry(f"{w}x{h}+{x}+{y}")
+
+        if getattr(self, '_debug', False):
+            import sys as _sys
+            print(
+                f'[debug] fit_window {win.title()!r}: '
+                f'req={req_w}x{req_h}  preferred={preferred_w}x{preferred_h}  '
+                f'min={min_w}x{min_h}  screen={screen_w}x{screen_h}  '
+                f'max={max_w}x{max_h}  -> {w}x{h}',
+                file=_sys.stderr, flush=True,
+            )
+
         return w, h
 
     def _refit_windows(self):
@@ -259,7 +337,12 @@ class AppearanceMixin:
         hbg = t['heading_bg']
         tr = t['trough']
 
-        style.configure('.', background=bg, foreground=fg)
+        # Setting font on the root ttk style ensures all ttk widgets (Spinbox,
+        # Radiobutton, etc.) use TkDefaultFont, which _apply_font_size keeps in
+        # sync with the user's font-size preference.  Without this, ttk widgets
+        # fall through to the native system font (typically 9pt on Windows) and
+        # appear smaller than CTk widgets in the same dialog.
+        style.configure('.', background=bg, foreground=fg, font='TkDefaultFont')
         style.configure('TFrame', background=bg)
         style.configure('TLabelframe', background=bg, foreground=fg)
         style.configure('TLabelframe.Label', background=bg, foreground=fg)
@@ -363,6 +446,15 @@ class AppearanceMixin:
         self._theme_pref = theme_name
         mode, color_theme = CTK_THEME_MAP.get(theme_name, ('system', 'blue'))
         ctk.set_default_color_theme(color_theme)
+        # set_default_color_theme reloads the theme JSON, resetting
+        # CTkFont["size"] back to 13.  Re-stamp our preference so that
+        # CTkFont() instances created afterwards use the right size.
+        try:
+            ui_sz = self._FONT_SIZES.get(
+                self._font_size_pref, self._FONT_SIZES['medium'])['ui']
+            ctk.ThemeManager.theme["CTkFont"]["size"] = ui_sz
+        except Exception:  # pylint: disable=broad-except
+            pass
         self._inject_theme_backgrounds(theme_name)
         ctk.set_appearance_mode(mode)
         self._apply_window_background(self.root)
@@ -396,6 +488,11 @@ class AppearanceMixin:
         # CTkEntry/CTkComboBox register write-traces on their textvariables that
         # survive Tkinter cascade-destroy (Python trace not removed, Tcl widget gone).
         # Clear every trace on the affected vars now; re-add our own below.
+        # CTkCheckBox DOES properly remove its own trace in destroy(), so BooleanVars
+        # (show_flagged_only, fuzzy_search, married_name_search) must NOT be listed
+        # here — pre-removing their traces causes CTkCheckBox.destroy() to raise
+        # TclError, which aborts the parent frame's cascade destroy and leaves a zombie
+        # Tk widget that causes the main window to appear duplicated.
         _app_traces = [
             (self.search_text,  'write', self._on_search_change),
             (self.filter_text,  'write', self._on_search_change),
@@ -470,11 +567,17 @@ class AppearanceMixin:
     def _persist_show_person_geometry(self, win):
         """Persist the current person detail window geometry."""
         try:
+            if win.state() == 'zoomed':
+                # On Windows, geometry() in zoomed state returns the full-screen
+                # dimensions.  Persisting those would cause every subsequent small
+                # tree to open at maximum size.  Skip — the pre-zoom geometry
+                # already saved from the previous Configure event is correct.
+                return
             geo = win.geometry()
             self._show_person_geometry = geo
             self._config.set_window_geometry('show_person_geometry', geo)
         except Exception as e:  # pylint: disable=broad-except
-            print(f"Error persisting show person geometry: {e}")
+            print(f"Error persisting profile geometry: {e}")
 
     def _set_home_person(self):
         """Save the selected person as the home person for the active GEDCOM."""
@@ -512,6 +615,8 @@ class AppearanceMixin:
             not self.show_flagged_only.get()))
         bind(f'<{_MOD_KEY}-u>', lambda: self.fuzzy_search.set(
             not self.fuzzy_search.get()))
+        bind(f'<{_MOD_KEY}-m>', lambda: self.married_name_search.set(
+            not self.married_name_search.get()))
         bind(f'<{_MOD_KEY}-p>', self._find_path)
         bind(f'<{_MOD_KEY}-t>', self._view_tags)
         bind(f'<{_MOD_KEY}-o>', self._browse)
@@ -522,8 +627,29 @@ class AppearanceMixin:
         bind(f'<{_MOD_KEY}-r>', self._reverse_results)
         bind(f'<{_MOD_KEY}-l>', self._clear_results)
         bind('<Escape>', self._clear_results)
+        back_seq = '<Command-Left>' if sys.platform == 'darwin' else '<Alt-Left>'
+        bind(back_seq, self._navigate_back)
+        fwd_seq = '<Command-Right>' if sys.platform == 'darwin' else '<Alt-Right>'
+        bind(fwd_seq, self._navigate_forward)
         # Only invoke _copy_results when a Text widget isn't focused
         self.root.bind(f'<{_MOD_KEY}-c>', self._kb_copy)
+
+        self.root.bind(
+            '<KeyPress-Shift_L>',
+            lambda *_: self._update_show_person_btn_for_shift(True), add='+')
+        self.root.bind(
+            '<KeyPress-Shift_R>',
+            lambda *_: self._update_show_person_btn_for_shift(True), add='+')
+        self.root.bind(
+            '<KeyRelease-Shift_L>',
+            lambda *_: self._update_show_person_btn_for_shift(False), add='+')
+        self.root.bind(
+            '<KeyRelease-Shift_R>',
+            lambda *_: self._update_show_person_btn_for_shift(False), add='+')
+        self.root.bind(
+            '<FocusOut>',
+            lambda e: self._update_show_person_btn_for_shift(False)
+            if e.widget is self.root else None, add='+')
 
         # Explicit tab chain via the internal tk widgets for CTk widgets:
         # tree → results_text → top_n_spin → max_depth_spin →
@@ -622,6 +748,16 @@ class AppearanceMixin:
     # ---------------------------------------------------------- Menu
     def _setup_menu(self):
         """Build the application menu and connect menu commands."""
+        # On Windows, popup menus use Win32's native system font by default,
+        # ignoring TkMenuFont and appearing smaller than the menu bar cascade
+        # labels (which Windows renders at physical DPI).  Passing an explicit
+        # font object switches Tk to OwnerDraw mode so the configured UI size
+        # is honoured.  The named-font reference means font-size preference
+        # changes propagate automatically without rebuilding the menus.
+        _popup_kw: dict = {}
+        if sys.platform == 'win32':
+            _popup_kw['font'] = tkfont.nametofont('TkMenuFont')
+
         menubar = tk.Menu(self.root)
         if sys.platform == 'darwin':
             apple_menu = tk.Menu(menubar, name='apple')
@@ -631,13 +767,13 @@ class AppearanceMixin:
         self.root.config(menu=menubar)
         self._menubar = menubar
 
-        file_menu = tk.Menu(menubar, tearoff=0)
+        file_menu = tk.Menu(menubar, tearoff=0, **_popup_kw)
         self._file_menu = file_menu
         menubar.add_cascade(label=MENU_FILE, underline=0, menu=file_menu)
         _accel = 'Cmd+O' if sys.platform == 'darwin' else 'Ctrl+O'
         file_menu.add_command(label=MENU_OPEN_GEDCOM, underline=0,
                               accelerator=_accel, command=self._browse)
-        self._recent_menu = tk.Menu(file_menu, tearoff=0)
+        self._recent_menu = tk.Menu(file_menu, tearoff=0, **_popup_kw)
         file_menu.add_cascade(label=MENU_OPEN_RECENT, underline=5,
                               menu=self._recent_menu)
         self._rebuild_recent_menu()
@@ -649,7 +785,7 @@ class AppearanceMixin:
             file_menu.add_command(label=MENU_QUIT, underline=0,
                                   command=self.root.quit)
 
-        app_menu = tk.Menu(menubar, tearoff=0)
+        app_menu = tk.Menu(menubar, tearoff=0, **_popup_kw)
         self._app_menu = app_menu
         menubar.add_cascade(label=MENU_MENU, underline=0, menu=app_menu)
         if sys.platform == 'darwin':

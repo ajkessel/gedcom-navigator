@@ -1,7 +1,7 @@
 """
 gedcom_strings.py
 
-All English-language strings displayed to the user by gedcom_dna_finder_gui.py.
+All English-language strings displayed to the user by gedcom_navigator_gui.py.
 
 To translate the application, copy this file (e.g. gedcom_strings_fr.py),
 replace the string values, and import that module instead of this one.
@@ -20,7 +20,7 @@ _MOD = '⌘' if sys.platform == 'darwin' else 'Ctrl+'
 # ---------------------------------------------------------------------------
 # Application
 # ---------------------------------------------------------------------------
-APP_TITLE = "GEDCOM DNA Match Finder"
+APP_TITLE = "GEDCOM Navigator"
 STATUS_NO_FILE = "No file loaded."
 
 # ---------------------------------------------------------------------------
@@ -32,7 +32,6 @@ MENU_OPEN_RECENT = "Open Recent"
 MENU_NO_RECENT_FILES = "No Recent Files"
 MENU_MENU = "Help"
 MENU_PREFERENCES = "Settings…" if sys.platform == 'darwin' else "Preferences… (F3)"
-MENU_CLEAR_CACHE = "Clear cache…"
 MENU_HOW_TO_USE = (
     f"How to use ({_MOD}?)"
     if sys.platform == 'darwin'
@@ -51,14 +50,11 @@ MENU_QUIT = "Quit"
 # ---------------------------------------------------------------------------
 # File panel
 # ---------------------------------------------------------------------------
-FRAME_GEDCOM_FILE = "GEDCOM file"
-BTN_BROWSE = "Browse…"
 DLG_SELECT_GEDCOM = "Select GEDCOM file"
 
 # ---------------------------------------------------------------------------
 # DNA marker settings panel
 # ---------------------------------------------------------------------------
-FRAME_DNA_SETTINGS = "DNA marker settings"
 LBL_TAG_KEYWORD = "Tag keyword:"
 LBL_PAGE_MARKER = "Page marker:"
 BTN_SELECT_TAG = "Select Tag"
@@ -68,13 +64,14 @@ BTN_FIND_PATH = "Find Relationship Path"
 # People list
 # ---------------------------------------------------------------------------
 LBL_FIND = "Find:"
-CHK_DNA_FLAGGED_ONLY = "DNA-flagged only"
+CHK_DNA_FLAGGED_ONLY = "Tagged"
 CHK_FUZZY = "Fuzzy"
+CHK_MARRIED_NAMES = "Married"
 LBL_FILTER = "Filter:"
 COL_NAME = "Name"
 COL_BIRTH = "Birth"
 COL_DEATH = "Death"
-COL_DNA = "DNA"
+COL_DNA = "Tagged"
 
 # ---------------------------------------------------------------------------
 # Action controls (main window)
@@ -82,7 +79,8 @@ COL_DNA = "DNA"
 LBL_TOP_N = "Results:"
 LBL_MAX_DEPTH = "Max Depth:"
 BTN_FIND_MATCHES = "Find Matches"
-BTN_SHOW_PERSON = "Show Person"
+BTN_SHOW_PERSON = "Profile"
+BTN_SHOW_PERSON_TREE = "Tree"
 BTN_SET_HOME = "Set Home"
 
 # ---------------------------------------------------------------------------
@@ -117,13 +115,14 @@ TIP_FIND = (
     "Type to filter the list of people. Search by any name variation. Use the filter box "
     "to search by other information in a person's GEDCOM record, such as geographic location. "
     "Press Enter to jump directly to the first match. "
-    "Use the checkboxes to show only DNA-flagged people and to allow fuzzy name matching."
+    "Use the checkboxes to show only people matching tags, allow fuzzy name matching, "
+    "or include married names."
 )
 TIP_FIND_MATCHES = (
     f"Find Nearest Matches ({_MOD}N)\n"
-    "Find the closest DNA matches to the selected person. "
+    "Find the closest tagged matches to the selected person. "
     "The results are ranked by proximity to the selected person, with ties broken by "
-    "the number of DNA markers (if any) associated with the match. "
+    "the number of tags (if any) associated with the match. "
     "Use the 'Results' and 'Max Depth' settings to adjust how many results are returned and " +
     "how far to search within the tree.\n\n"
     "Also triggered by pressing Enter when selecting a person."
@@ -146,9 +145,13 @@ TIP_SET_HOME = (
     "Set the selected person as the home person for finding relationship paths."
 )
 TIP_SHOW_PERSON = (
-    f"Show Person ({_MOD}E)\n"
+    f"Profile ({_MOD}E)\n"
     "View the full GEDCOM record for the selected person, along with a summary "
-    "of biographical and family information."
+    "of biographical and family information. Shift-Click for Tree View."
+)
+TIP_SHOW_PERSON_TREE = (
+    f"Tree View ({_MOD}E)\n"
+    "Open the family tree view for the selected person. Shift-Click for Profile View."
 )
 TIP_SELECT_TAG = (
     f"Select Tag for Finding Paths ({_MOD}T)\n"
@@ -165,12 +168,12 @@ TIP_FIND_PATH = (
 TIP_TOP_N = (
     "Number of Results\n"
     "Specify how many results to return when finding the closest"
-    " people who are DNA matches as well as the number of paths"
+    " people who are tagged as well as the number of paths"
     " between the selected person and the home person."
 )
 TIP_MAX_DEPTH = (
     "Maximum Depth For Finding Relationships\n"
-    "Specify how far to search within the tree for DNA matches"
+    "Specify how far to search within the tree for tagged matches"
     " and relationship paths between two people."
     " Higher values will find more distant connections but will"
     " take longer to find in large trees. Reasonable values are"
@@ -189,8 +192,10 @@ TIP_MAX_DISPLAY = (
     " Higher values may slow down filtering in very large trees."
 )
 TIP_DNA_FLAGGED_ONLY = (
-    f"Toggle DNA-flagged Only ({_MOD}D)\n"
-    "When checked, only people flagged as DNA matches will be shown in search results."
+    f"Toggle Tagged Only ({_MOD}D)\n"
+    "When checked, only people flagged as tagged will be shown in search results. "
+    "Default Tags are DNA-related, but you can set other tag terms. "
+    "Default is unchecked to show all people, but checking this focusses on tagged matches in large trees."
 )
 TIP_FUZZY = (
     f"Toggle Fuzzy Search ({_MOD}U)\n"
@@ -198,9 +203,14 @@ TIP_FUZZY = (
     "Fuzzy matching uses a similarity ratio to find names similar to the search term, "
     "which can help find matches when names are misspelled or have minor variations."
 )
+TIP_MARRIED_NAMES = (
+    f"Toggle Married Names ({_MOD}M)\n"
+    "Include women's married names in Find searches by combining each woman's given "
+    "name with the last names of her husbands."
+)
 
 # ---------------------------------------------------------------------------
-# Show Person window
+# Profile window
 # ---------------------------------------------------------------------------
 WIN_GEDCOM_RECORD = "GEDCOM Record: {name}"
 BIO_SECTION = "Biography"
@@ -216,18 +226,41 @@ FAM_SPOUSE = "  Spouse:"
 FAM_SPOUSES = "  Spouses:"
 FAM_CHILDREN = "  Children:"
 FAM_NO_INFO = "  (no family information found)"
+TAGS_SECTION = "Tags"
 GEDCOM_SECTION = "Full GEDCOM Record"
 BTN_CLOSE = "Close"
+BTN_TREE_VIEW = "Tree View"
+BTN_PERSON_VIEW = "Profile View"
+TIP_TREE_VIEW_BTN = (f"Tree View ({_MOD}T)\n"
+                     "Switch to the interactive family tree for this person.")
+TIP_PERSON_VIEW_BTN = (f"Profile View ({_MOD}T)\n"
+                       "Switch to the biographical profile for this person.")
+DLG_SAVE_PROFILE = "Save profile"
+TIP_SAVE_PROFILE = (f"Save profile ({_MOD}S)\n"
+                    "Save this biographical profile to a text file.")
+TIP_COPY_PROFILE = (f"Copy profile ({_MOD}C)\n"
+                    "Copy this biographical profile to clipboard.")
+WIN_FAMILY_TREE = "Family Tree: {name}"
+DLG_SAVE_FAMILY_TREE = "Save family tree"
+TREE_MENU_RECENTER = "Center"
+TREE_MENU_EXPAND_ALL = "Expand All"
+TREE_BUTTON_PARENTS = "↑"
+TREE_BUTTON_PARENTS_HIDE = "↓"
+TREE_BUTTON_SIBLINGS_LEFT = "←"
+TREE_BUTTON_SIBLINGS_RIGHT = "→"
+TREE_BUTTON_SPOUSES = "♥"
+TREE_BUTTON_SPOUSES_HIDE = "♡"
+TREE_BUTTON_CHILDREN = "↓"
+TREE_BUTTON_CHILDREN_HIDE = "↑"
 
 # ---------------------------------------------------------------------------
 # DNA match results display
 # ---------------------------------------------------------------------------
-RESULT_CLOSEST_MATCHES = "Closest DNA Matches"
-RESULT_DNA_FLAGGED_NOTE = "  Note: this person is themselves DNA-flagged."
-RESULT_NO_DNA_FOUND = "No DNA-flagged relatives found within the search depth."
+RESULT_CLOSEST_MATCHES = "Closest Tagged Matches"
+RESULT_DNA_FLAGGED_NOTE = "  Note: this person has a matching tag."
+RESULT_NO_DNA_FOUND = "No tagged relatives found within the search depth."
 RESULT_RANK_PREFIX = "#{rank}: "
-RESULT_DISTANCE = " (distance: {dist} edges)"
-RESULT_DNA_MARKERS = "   DNA markers:"
+RESULT_DNA_MARKERS = "   Tags:"
 RESULT_RELATIONSHIP = "Relationship: {rel}"
 TIP_RELATIONSHIP = "Show relationship graphically"
 RESULT_COMMON_ANCESTOR = "Common ancestor: "
@@ -247,12 +280,29 @@ EDGE_LABELS = {
 WIN_PATH_GRAPH = "Relationship Graph"
 DLG_SAVE_RESULTS = "Save results"
 DLG_SAVE_GRAPH = "Save relationship graph"
+DLG_SAVE_GRAPH_DEBUG = "Save graph layout debug data"
+PATH_GRAPH_MENU_SHOW_TREE = "Show Tree"
+PATH_GRAPH_MENU_FIND_PATH = "Find Path"
+RESULTS_HEADER_MENU_COPY_NAME = "Copy Name"
+RESULTS_HEADER_MENU_SHOW_PROFILE = "Show Profile"
+RESULTS_HEADER_MENU_SHOW_TREE = "Show Tree"
 BTN_SAVE_GRAPH = "Save"
 BTN_COPY_GRAPH = "Copy"
+BTN_DEBUG_GRAPH = "Debug JSON"
 TIP_SAVE_GRAPH = (f"Save graphic ({_MOD}S)\n"
                   "Save this graphical representation to a file.")
 TIP_COPY_GRAPH = (f"Copy graphic ({_MOD}C)\n"
                   "Copy this graphical representation to clipboard.")
+TIP_DEBUG_GRAPH = ("Save layout debug JSON (Ctrl+Shift+D)\n"
+                   "Export graph layout data without person names.")
+TIP_SHOW_PARENTS = "Show parents"
+TIP_HIDE_PARENTS = "Hide parents"
+TIP_SHOW_SIBLINGS = "Show siblings"
+TIP_HIDE_SIBLINGS = "Hide siblings"
+TIP_SHOW_SPOUSES = "Show spouses"
+TIP_HIDE_SPOUSES = "Hide spouses"
+TIP_SHOW_CHILDREN = "Show children"
+TIP_HIDE_CHILDREN = "Hide children"
 PATH_GRAPH_START = "START"
 PATH_GRAPH_END = "END"
 
@@ -299,6 +349,7 @@ FRAME_FONT_SIZE = "Font size"
 FONT_SMALL = "Small"
 FONT_MEDIUM = "Medium"
 FONT_LARGE = "Large"
+FONT_JUMBO = "Jumbo"
 FRAME_THEME = "Theme"
 CHK_HIDE_TOOLTIPS = "Hide Tooltips"
 TIP_HIDE_TOOLTIPS = "Hide popup explanations like this one."
@@ -308,10 +359,23 @@ LBL_MAX_DEPTH_PREF = "Max Depth:"
 LBL_FUZZY_THRESHOLD = "Fuzzy threshold:"
 LBL_MAX_DISPLAY = "Max search results:"
 FRAME_DISPLAY = "Display"
-CHK_SHOW_IDS = "Show IDs (person and tag ID codes from GEDCOM)"
+CHK_SHOW_IDS = "Show GEDCOM IDs"
+TIP_SHOW_IDS = (
+    "When enabled, the GEDCOM ID for each person is shown in parentheses after their name. "
+    "This can help disambiguate people with the same name and allows you to access the raw IDs "
+    "for GEDCOM research with other tools."
+)
+CHK_SHOW_FULL_GEDCOM = "Show Full GEDCOM"
+TIP_SHOW_FULL_GEDCOM = (
+    "When enabled, the Full GEDCOM Record section is included at the bottom of "
+    "the Profile window, showing the raw GEDCOM data for the person."
+)
 LBL_NAME_FORMAT = "Name format:"
 NAME_FIRST_LAST = "First Last"
 NAME_LAST_FIRST = "Last, First"
+LBL_DEFAULT_PROFILE_VIEW = "Default profile view:"
+PROFILE_VIEW_PROFILE = "Profile View"
+PROFILE_VIEW_TREE = "Tree View"
 FRAME_CACHE = "Cache"
 BTN_CLEAR_CACHE = "Clear Cache…"
 LBL_CACHE_NOTE = "Remove all cached GEDCOM data"
@@ -320,25 +384,24 @@ LBL_CACHE_NOTE = "Remove all cached GEDCOM data"
 # Search progress popup
 # ---------------------------------------------------------------------------
 PROGRESS_SEARCHING_TITLE = "Searching"
-PROGRESS_SEARCHING = "Searching for DNA matches…\n(reduce 'max depth' setting for faster search)"
+PROGRESS_SEARCHING = "Searching for tagged matches…\n(reduce 'max depth' setting for faster search)"
 PROGRESS_FINDING_PATH = "Finding relationship paths…\n(reduce 'max depth' setting for faster search)"
 
 # ---------------------------------------------------------------------------
 # Status bar messages  (use .format() to fill in placeholders)
 # ---------------------------------------------------------------------------
-STATUS_EXTRACTED_ZIP = "Extracted {name} from ZIP…"
 STATUS_LOADING = "Loading…"
 STATUS_LOAD_FAILED = "Load failed."
 STATUS_LOADED_CACHED = "Loaded {count:,} individuals (from cache)."
 STATUS_LOADED = "Loaded {count:,} individuals."
 STATUS_SHOWING_FIRST = (
     "Showing first {max_display:,} of {total_matches:,} matches. "
-    "Refine your search.  ({total:,} total, {flagged} DNA-flagged)"
+    "Refine your search.  ({total:,} total, {flagged} tagged)"
 )
-STATUS_MATCHES = "{shown:,} match{plural} shown.  ({total:,} total, {flagged} DNA-flagged)"
+STATUS_MATCHES = "{shown:,} match{plural} shown.  ({total:,} total, {flagged} tagged)"
 STATUS_OVERVIEW = (
     "{total:,} individuals, {families:,} families, "
-    "{flagged} DNA-flagged.  Type to search."
+    "{flagged} tagged.  Type to search."
 )
 STATUS_HOME_SET = "Home person set: {name}"
 
@@ -366,7 +429,9 @@ ERR_FILE_NOT_FOUND_TITLE = "File not found"
 ERR_FILE_NOT_FOUND_MSG = "Could not open:\n{path}\n\n{error}"
 ERR_SAVE_GRAPH_TITLE = "Save error"
 ERR_SAVE_GRAPH_MSG = "Could not save relationship graph:\n\n{error}"
+ERR_SAVE_GRAPH_DEBUG_MSG = "Could not save graph layout debug data:\n\n{error}"
 ERR_SAVE_RESULTS_MSG = "Could not save results:\n\n{error}"
+ERR_SAVE_PROFILE_MSG = "Could not save profile:\n\n{error}"
 ERR_GEDCOM_NOT_FOUND_MSG = (
     "GEDCOM file not found:\n{path}\n\n"
     "Use Browse… to choose a different file."
@@ -418,10 +483,11 @@ KEYBOARD_SHORTCUT_ROWS = [
     (f"{_MOD}K" if sys.platform == 'darwin' else "F2", "Keyboard Shortcuts"),
     (f"{_MOD}F",     "Find Person"),
     (f"{_MOD}I",     "Filter Results"),
-    (f"{_MOD}D",     "Toggle the DNA-flagged only filter"),
+    (f"{_MOD}D",     "Toggle the tagged filter"),
     (f"{_MOD}U",     "Toggle fuzzy search mode"),
+    (f"{_MOD}M",     "Toggle married-name search mode"),
     (f"{_MOD}O",     "Open a new GEDCOM file"),
-    (f"{_MOD}N",     "Find Nearest DNA Matches for the selected person"),
+    (f"{_MOD}N",     "Find Nearest Tagged Matches for the selected person"),
     (f"{_MOD}E",     "Show the full GEDCOM record for the selected person"),
     (f"{_MOD}H",     "Set Home person to the selected person"),
     (f"{_MOD}P",     "Open the Find Relationship Paths dialog"),
@@ -430,6 +496,10 @@ KEYBOARD_SHORTCUT_ROWS = [
     (f"{_MOD}S",     "Save results to a text file"),
     (f"{_MOD}C",     "Copy result to clipboard"),
     (f"{_MOD}L",     "Clear the results"),
+    ("⌘←" if sys.platform == 'darwin' else "Alt+←", "Go back to the previous view"),
+    ("⌘→" if sys.platform == 'darwin' else "Alt+→", "Go forward to the next view"),
+    (f"{_MOD}+Plus / {_MOD}+Minus", "Zoom the focused text or graph view"),
+    (f"{_MOD}+0",     "Reset zoom in the focused text or graph view"),
 ]
 
 if sys.platform == 'win32':

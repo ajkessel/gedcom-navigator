@@ -2,7 +2,7 @@
 
 # cSpell:disable
 a = Analysis(
-    ['../src/gedcom_dna_finder_cli.py'],
+    ['../src/gedcom_navigator_cli.py'],
     pathex=[],
     binaries=[],
     datas=[],
@@ -22,7 +22,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name='gedcom_dna_finder_cli',
+    name='gedcom_navigator_cli',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

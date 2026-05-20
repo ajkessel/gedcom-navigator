@@ -11,7 +11,7 @@ import json
 import os
 from pathlib import Path
 
-from gedcom_parser import build_model
+from gedcom_parser import apply_dna_flags, build_model
 from gedcom_relationship import find_common_ancestors
 from gedcom_search import bfs_find_all_paths, bfs_find_dna_matches
 
@@ -32,12 +32,13 @@ class GedcomDataModel:
 
     # Bump this whenever the cached individual/family schema changes so that
     # stale cache files are automatically discarded and reparsed.
-    _CACHE_VERSION = 3
+    _CACHE_VERSION = 5
 
     def __init__(self):
         self.individuals = {}
         self.families = {}
         self.tag_records = {}
+        self.married_name_index = {}
 
     # ------------------------------------------------------------------
     # Public API
@@ -50,10 +51,11 @@ class GedcomDataModel:
         encoding_warning is a string or None; always None when loaded from cache.
         model_error is a string or None when parsing did not produce a usable model.
         """
-        cached = self._load_from_cache(
-            gedcom_path, dna_keyword, page_marker, cache_dir)
+        cached = self._load_from_cache(gedcom_path, cache_dir)
         if cached is not None:
             self.individuals, self.families, self.tag_records = cached
+            apply_dna_flags(self.individuals, self.tag_records, dna_keyword, page_marker)
+            self.married_name_index = self._build_married_name_index()
             return True, None, None
 
         (
@@ -71,9 +73,15 @@ class GedcomDataModel:
             self.individuals = {}
             self.families = {}
             self.tag_records = {}
+            self.married_name_index = {}
             return False, warning, model_error
-        self._save_to_cache(gedcom_path, dna_keyword, page_marker, cache_dir)
+        self.married_name_index = self._build_married_name_index()
+        self._save_to_cache(gedcom_path, cache_dir)
         return False, warning, None
+
+    def reflag(self, dna_keyword, page_marker):
+        """Re-apply DNA flags in-place without re-parsing or touching the cache."""
+        apply_dna_flags(self.individuals, self.tag_records, dna_keyword, page_marker)
 
     def find_dna_matches(self, start_id, top_n, max_depth, cancel_event=None):
         """Find the nearest DNA-flagged people to a given individual."""
@@ -112,6 +120,36 @@ class GedcomDataModel:
             pass
         return deleted
 
+    def _build_married_name_index(self):
+        """Return derived married-name aliases keyed by wife individual ID."""
+        index = {}
+        for fam in self.families.values():
+            wife_id = fam.get('wife')
+            husb_id = fam.get('husb')
+            if not wife_id or not husb_id:
+                continue
+
+            wife = self.individuals.get(wife_id)
+            husband = self.individuals.get(husb_id)
+            if not wife or not husband:
+                continue
+
+            given_name = wife.get('given_name', '').strip()
+            husband_surname = husband.get('surname', '').strip()
+            if not given_name or not husband_surname:
+                continue
+
+            married_name = f"{given_name} {husband_surname}".strip()
+            if not married_name:
+                continue
+
+            existing_names = set(wife.get('alt_names') or [wife.get('name', '')])
+            existing_names.update(index.get(wife_id, ()))
+            if married_name not in existing_names:
+                index.setdefault(wife_id, []).append(married_name)
+
+        return index
+
     # ------------------------------------------------------------------
     # Cache internals
     # ------------------------------------------------------------------
@@ -121,7 +159,7 @@ class GedcomDataModel:
         key = os.path.normcase(os.path.abspath(gedcom_path)).encode()
         return Path(cache_dir) / (hashlib.md5(key).hexdigest() + '.json')
 
-    def _load_from_cache(self, gedcom_path, dna_keyword, page_marker, cache_dir):
+    def _load_from_cache(self, gedcom_path, cache_dir):
         try:
             cache_file = self._cache_path(gedcom_path, cache_dir)
             if not cache_file.exists():
@@ -130,9 +168,7 @@ class GedcomDataModel:
             with cache_file.open('r', encoding='utf-8') as f:
                 data = json.load(f)
             if (data.get('cache_version') != self._CACHE_VERSION
-                    or data.get('mtime') != file_mtime
-                    or data.get('dna_keyword') != dna_keyword
-                    or data.get('page_marker') != page_marker):
+                    or data.get('mtime') != file_mtime):
                 return None
             if not data.get('individuals'):
                 return None
@@ -140,7 +176,7 @@ class GedcomDataModel:
         except Exception: # pylint: disable=broad-exception-caught
             return None
 
-    def _save_to_cache(self, gedcom_path, dna_keyword, page_marker, cache_dir):
+    def _save_to_cache(self, gedcom_path, cache_dir):
         try:
             cache_dir_path = Path(cache_dir)
             cache_dir_path.mkdir(parents=True, exist_ok=True)
@@ -148,8 +184,6 @@ class GedcomDataModel:
             payload = {
                 'cache_version': self._CACHE_VERSION,
                 'mtime': os.path.getmtime(gedcom_path),
-                'dna_keyword': dna_keyword,
-                'page_marker': page_marker,
                 'individuals': self.individuals,
                 'families': self.families,
                 'tag_records': self.tag_records,

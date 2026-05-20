@@ -10,6 +10,7 @@ from gedcom_display import describe, lifespan
 from gedcom_parser import (
     LINE_RE,
     ZIP_MAX_BYTES,
+    apply_dna_flags,
     build_model,
     extract_ged_from_zip,
     extract_year,
@@ -27,6 +28,7 @@ __all__ = [
     'LINE_RE',
     'SearchCancelled',
     'ZIP_MAX_BYTES',
+    'apply_dna_flags',
     'bfs_find_all_paths',
     'bfs_find_dna_matches',
     'build_model',

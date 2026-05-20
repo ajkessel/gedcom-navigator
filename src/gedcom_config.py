@@ -144,6 +144,14 @@ class ConfigManager:
         """Save whether individual IDs should be shown in the UI."""
         self.save_value('show_ids', bool(value))
 
+    def get_show_full_gedcom(self):
+        """Return whether the Full GEDCOM Record section should appear in the Profile window."""
+        return bool(self.load_value('show_full_gedcom', False))
+
+    def set_show_full_gedcom(self, value):
+        """Save whether the Full GEDCOM Record section should appear in the Profile window."""
+        self.save_value('show_full_gedcom', bool(value))
+
     def get_name_order(self):
         """Return the saved display name order, defaulting to first-name first."""
         val = self.load_value('name_order', 'first_last')
@@ -161,6 +169,33 @@ class ConfigManager:
         """Save whether tooltips should be suppressed."""
         self.save_value('hide_tooltips', bool(value))
 
+    def get_profile_view_default(self):
+        """Return the default view for the profile window ('profile' or 'tree')."""
+        val = self.load_value('profile_view_default', 'profile')
+        return val if val in ('profile', 'tree') else 'profile'
+
+    def set_profile_view_default(self, value):
+        """Save the default view for the profile window."""
+        self.save_value('profile_view_default', value)
+
+    def get_tag_keyword(self, default="DNA"):
+        """Return the saved DNA tag keyword."""
+        val = self.load_value('tag_keyword', default)
+        return val if isinstance(val, str) else default
+
+    def set_tag_keyword(self, value):
+        """Save the DNA tag keyword."""
+        self.save_value('tag_keyword', str(value))
+
+    def get_page_marker(self, default="AncestryDNA Match"):
+        """Return the saved DNA page marker keyword."""
+        val = self.load_value('page_marker', default)
+        return val if isinstance(val, str) else default
+
+    def set_page_marker(self, value):
+        """Save the DNA page marker keyword."""
+        self.save_value('page_marker', str(value))
+
     # ------------------------------------------------------------------
     # Platform default path
     # ------------------------------------------------------------------
@@ -177,4 +212,4 @@ class ConfigManager:
             import os
             base = Path(os.environ.get(
                 'XDG_CONFIG_HOME', Path.home() / '.config'))
-        return base / 'gedcom-dna-finder' / 'settings.json'
+        return base / 'gedcom-navigator' / 'settings.json'

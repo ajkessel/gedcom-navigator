@@ -28,7 +28,7 @@ while getopts "hnci" opt; do # spell:disable-line
 		;;
 	esac
 done
-printf -- "---------------------------------\ngedcom-dna-finder build\n%s\n---------------------------------\n" "$(date)"
+printf -- "---------------------------------\ngedcom-navigator build\n%s\n---------------------------------\n" "$(date)"
 [ -n "$CLEAN" ] && echo 'Running clean builds.' && OPTIONS="-c"
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
 cd "${SCRIPT_DIR}/.." || die "Could not change to ${SCRIPT_DIR} parent directory."
@@ -36,7 +36,7 @@ cd "${SCRIPT_DIR}/.." || die "Could not change to ${SCRIPT_DIR} parent directory
   GH_FORCE_TTY=true gh release create || die "gh release create failed"
 }
 exec > >(sed 's/\x1b\[[0-9;]*m//g' | tee -a build-and-release.log) 2>&1
-printf -- "---------------------------------\ngedcom-dna-finder build log\n%s\n---------------------------------\n" "$(date)"
+printf -- "---------------------------------\ngedcom-navigator build log\n%s\n---------------------------------\n" "$(date)"
 current=$(gh release list --json tagName,isLatest --jq '.[] | select(.isLatest) | .tagName')
 [ -n "${current}" ] || die 'Error finding current release number.'
 echo "Building for release target ${current}."
@@ -53,12 +53,12 @@ source .venv/bin/activate || die 'Error activating venv.'
 echo 'Building for Linux platform...'
 ./dev/build.sh "${OPTIONS}" || die 'Error building for Linux.'
 echo 'Building for Windows platform...'
-pwsh -command 'c:/apps/src/gedcom-dna-finder/dev/build.ps1' || die 'Error building for Windows.'
+pwsh -command 'c:/apps/src/gedcom-navigator/dev/build.ps1' || die 'Error building for Windows.'
 echo 'Building for Mac platform...'
 # ${OPTIONS} should be expanded locally, not remotely
 # shellcheck disable=SC2029
-ssh mac "src/gedcom-dna-finder/dev/build.sh ${OPTIONS}" || die 'Error building for Mac.'
+ssh mac "src/gedcom-navigator/dev/build.sh ${OPTIONS}" || die 'Error building for Mac.'
 echo 'Copying built ZIP files locally...'
-scp mac:src/gedcom-dna-finder/dist/*zip ./dist || die 'Error copying ZIP files.'
-cp /mnt/c/apps/src/gedcom-dna-finder/dist/*zip ./dist || die 'Error copying ZIP files.'
-[ -z "${DRY}" ] && echo 'Uploading to GitHub...' && gh release upload "${current}" ./dist/*zip --clobber
+scp mac:src/gedcom-navigator/dist/*zip ./dist || die 'Error copying ZIP files.'
+cp /mnt/c/apps/src/gedcom-navigator/dist/*zip /mnt/c/apps/src/gedcom-navigator/dist/*exe ./dist || die 'Error copying ZIP files.'
+[ -z "${DRY}" ] && echo 'Uploading to GitHub...' && gh release upload "${current}" ./dist/*zip ./dist/*installer.exe --clobber

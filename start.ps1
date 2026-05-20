@@ -10,4 +10,4 @@ if ( -not ($env:virtual_env)) {
     & "./venv/scripts/activate"
     pip install -r dev/requirements.txt
 }
-python src/gedcom_dna_finder_gui.py
+python src/gedcom_navigator_gui.py

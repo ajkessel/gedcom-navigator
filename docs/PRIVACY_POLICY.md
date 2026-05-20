@@ -1,6 +1,6 @@
 # Privacy Policy
 
-**GEDCOM DNA Match Finder**
+**GEDCOM Navigator**
 
 *Last updated: May 2026*
 
@@ -8,7 +8,7 @@
 
 ## Overview
 
-GEDCOM DNA Match Finder is a desktop application that processes your GEDCOM data entirely on your local computer. It does not transmit GEDCOM data to any server and does not collect any personal information.
+GEDCOM Navigator is a desktop application that processes your GEDCOM data entirely on your local computer. It does not transmit GEDCOM data to any server and does not collect any personal information. It does not modify your GEDCOM file.
 
 ---
 
@@ -36,7 +36,7 @@ All local storage is confined to your device and is never shared externally.
 
 This application has no analytics, no telemetry, no crash reporting, and no automatic update checks. With the one exception below, it never accesses the network.
 
-If you choose **Help → Check for updates…**, the application makes a network request to GitHub to ask for the latest public release of GEDCOM DNA Match Finder. This request does not include your GEDCOM file, your settings, your recent files list, or your cache contents. GitHub receives the normal technical information involved in any web request, such as your IP address and user agent.
+If you choose **Help → Check for updates…**, the application makes a network request to GitHub to ask for the latest public release of GEDCOM Navigator. This request does not include your GEDCOM file, your settings, your recent files list, or your cache contents. GitHub receives the normal technical information involved in any web request, such as your IP address and user agent.
 
 ---
 
@@ -60,4 +60,4 @@ This privacy policy may be updated with new releases of the application. The cur
 
 ## Contact
 
-For questions, feedback, or concerns, please open an issue at the [project's source repository](https://github.com/ajkessel/gedcom-dna-finder).
+For questions, feedback, or concerns, please open an issue at the [project's source repository](https://github.com/ajkessel/gedcom-navigator).

@@ -1,0 +1,26 @@
+From 3f127dcf8823db84efaa24de155b37373fc48a02 Mon Sep 17 00:00:00 2001
+From: saschabuehrle <sascha.buehrle@gmail.com>
+Date: Mon, 6 Apr 2026 13:19:15 +0200
+Subject: [PATCH] fix: define block_update_dimensions_event on tooltip window
+ (fixes #20)
+
+---
+ CTkToolTip/ctk_tooltip.py | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/CTkToolTip/ctk_tooltip.py b/CTkToolTip/ctk_tooltip.py
+index 7464003..f631b7f 100644
+--- a/CTkToolTip/ctk_tooltip.py
++++ b/CTkToolTip/ctk_tooltip.py
+@@ -63,6 +63,11 @@ def __init__(
+ 
+         self.resizable(width=True, height=True)
+ 
++        # customtkinter's scaling callback checks this flag on toplevel windows.
++        # Keep it defined on plain tkinter.Toplevel-based tooltips to avoid
++        # AttributeError when DPI/scaling events fire (e.g. moving across monitors).
++        self.block_update_dimensions_event = False
++
+         # Make the background transparent
+         # Ensure background color is a string, not a tuple
+         bg_for_config = self.transparent_color[0] if isinstance(self.transparent_color, (tuple, list)) else self.transparent_color

@@ -1,208 +1,33 @@
+#!/usr/bin/env python3
 """
 gedcom_gui_dialogs.py
 
-DialogsMixin — person detail, tag picker, person picker, path finder,
-preferences, and documentation windows for DNAMatchFinderApp.
+DialogsMixin - tag picker, person picker, path finder, and preferences dialogs
+for GedcomNavigatorApp.
 """
 
-import tkinter as tk
-import tkinter.font as tkfont
-from tkinter import ttk, messagebox
-import os
 import sys
-import threading
-import webbrowser
+import tkinter as tk
+from tkinter import messagebox, ttk
+
 import customtkinter as ctk
 
 from gedcom_display import describe
+from gedcom_gui_help_dialogs import HelpDialogsMixin
+from gedcom_gui_person_dialog import PersonDialogMixin
 from gedcom_name_search import individual_matches_query
 from gedcom_relationship import (
-    _extract_event, get_ancestor_depths, get_descendant_depths,
     describe_relationship,
+    get_ancestor_depths,
+    get_descendant_depths,
 )
-from gedcom_markdown import render_markdown
-from gedcom_strings import *  # noqa: F401,F403
+from gedcom_strings import *  # pylint: disable=unused-wildcard-import
 from gedcom_theme import get_flag_bg
 from gedcom_tooltip import Tooltip
-from gedcom_update import check_for_updates
 
 
-class DialogsMixin:
-    """Mixin providing dialog and documentation window methods."""
-
-    def _show_person(self):
-        """Open the GEDCOM record viewer for the selected person."""
-        if not self.individuals:
-            messagebox.showwarning(ERR_NO_DATA_TITLE, ERR_NO_DATA_MSG)
-            return
-        sel = self.tree.selection()
-        indi_id = sel[0] if sel else self._active_id
-        if not indi_id:
-            messagebox.showwarning(ERR_NO_SEL_TITLE, ERR_NO_SEL_MSG)
-            return
-        self._show_person_for(indi_id)
-
-    def _show_person_for(self, indi_id):
-        """Open a detail window for a specific individual ID."""
-        win = ctk.CTkToplevel(self.root)
-        win.withdraw()
-        win.transient(self.root)
-        win.grab_set()
-
-        _geo_after = [None]
-
-        def _on_win_configure(event):
-            if event.widget is not win:
-                return
-            if _geo_after[0]:
-                win.after_cancel(_geo_after[0])
-            _geo_after[0] = win.after(
-                400, lambda: self._persist_show_person_geometry(win))
-
-        win.bind('<Escape>', lambda *_: win.destroy())
-
-        text = ctk.CTkTextbox(
-            win, font=(self._mono_family, self._mono_size), wrap='none')
-        text._textbox.configure(padx=8, pady=8)
-        text.pack(fill='both', expand=True)
-        text._textbox.tag_configure(
-            'bold', font=(self._mono_family, self._mono_size, 'bold'))
-        text._textbox.tag_configure('person_link')
-        text._textbox.tag_bind('person_link', '<Enter>',
-                               lambda *_: text._textbox.config(cursor='hand2'))
-        text._textbox.tag_bind('person_link', '<Leave>',
-                               lambda *_: text._textbox.config(cursor=''))
-
-        win.bind('<Up>', lambda *_: text.yview_scroll(-1, 'units') or 'break')
-        win.bind('<Down>', lambda *_: text.yview_scroll(1, 'units') or 'break')
-        win.bind('<Prior>', lambda *_: text.yview_scroll(-1, 'pages') or 'break')
-        win.bind('<Next>', lambda *_: text.yview_scroll(1, 'pages') or 'break')
-        win.bind('<Home>', lambda *_: text.yview_moveto(0) or 'break')
-        win.bind('<End>', lambda *_: text.yview_moveto(1) or 'break')
-
-        def populate(iid):
-            indi = self.individuals[iid]
-            win.title(WIN_GEDCOM_RECORD.format(name=indi['name'] or iid))
-            text.configure(state='normal')
-            text.delete('1.0', 'end')
-            self._clear_person_tags(text)
-
-            def add(line, bold=False):
-                text.insert('end', line + '\n', ('bold',) if bold else ())
-
-            def person(pid, prefix=''):
-                if prefix:
-                    text.insert('end', prefix)
-                tag = f'pers_{pid.strip("@")}'
-                text.insert('end', describe(self.individuals[pid],
-                                            show_id=self.show_ids.get()),
-                            ('person_link', tag))
-                text._textbox.tag_configure(tag, foreground=self._link_color)
-                text._textbox.tag_bind(tag, '<Button-1>',
-                                       lambda _, p=pid: populate(p))
-                text.insert('end', '\n')
-
-            add(BIO_SECTION, bold=True)
-            bio_found = False
-
-            def fmt_event(date, place):
-                parts = [p for p in (date, place) if p]
-                return ', '.join(parts)
-
-            b_date, b_place = _extract_event(indi['_raw'], 'BIRT')
-            if b_date or b_place:
-                bio_found = True
-                add(BIO_BORN.format(event=fmt_event(b_date, b_place)))
-
-            for fam_id in indi['fams']:
-                fam = self.families.get(fam_id)
-                if not fam:
-                    continue
-                m_date = fam.get('marr_date', '')
-                m_place = fam.get('marr_place', '')
-                spouse_id = fam['wife'] if fam['husb'] == iid else fam['husb']
-                spouse_name = (self._display_name(self.individuals[spouse_id])
-                               if spouse_id and spouse_id in self.individuals else '')
-                if spouse_name or m_date or m_place:
-                    bio_found = True
-                    parts = [p for p in (spouse_name, m_date, m_place) if p]
-                    add(BIO_MARRIED.format(spouses=', '.join(parts)))
-
-            d_date, d_place = _extract_event(indi['_raw'], 'DEAT')
-            if d_date or d_place:
-                bio_found = True
-                add(BIO_DIED.format(event=fmt_event(d_date, d_place)))
-
-            bu_date, bu_place = _extract_event(indi['_raw'], 'BURI')
-            if bu_date or bu_place:
-                bio_found = True
-                add(BIO_BURIED.format(event=fmt_event(bu_date, bu_place)))
-
-            if not bio_found:
-                add(BIO_NO_INFO)
-            add("")
-
-            add(FAM_SECTION, bold=True)
-            family_found = False
-            parents, siblings, spouses, children = self._get_family_members(iid)
-
-            if parents:
-                family_found = True
-                add(FAM_PARENTS)
-                for pid in parents:
-                    person(pid, prefix="    ")
-            if siblings:
-                family_found = True
-                add(FAM_SIBLINGS)
-                for sib_id in siblings:
-                    person(sib_id, prefix="    ")
-            if spouses:
-                family_found = True
-                add(FAM_SPOUSES if len(spouses) > 1 else FAM_SPOUSE)
-                for sid in spouses:
-                    person(sid, prefix="    ")
-            if children:
-                family_found = True
-                add(FAM_CHILDREN)
-                for child_id in children:
-                    person(child_id, prefix="    ")
-            if not family_found:
-                add(FAM_NO_INFO)
-            add("")
-            add(GEDCOM_SECTION, bold=True)
-
-            for level, xref, tag, value in indi.get('_raw', []):
-                parts = [str(level)]
-                if xref and self.show_ids.get():
-                    parts.append(xref)
-                parts.append(tag)
-                if value:
-                    parts.append(value)
-                add(' '.join(parts))
-
-            text.configure(state='disabled')
-
-        populate(indi_id)
-
-        btn_frame = ctk.CTkFrame(win, fg_color='transparent')
-        btn_frame.pack(fill='x', pady=(4, 8))
-        ctk.CTkButton(btn_frame, text=BTN_CLOSE, width=80,
-                      command=win.destroy).pack(side='right', padx=8)
-
-        if self._show_person_geometry:
-            win.minsize(400, 300)
-            win.geometry(self._show_person_geometry)
-        else:
-            self._fit_window_to_content(
-                win,
-                min_w=400,
-                min_h=300,
-                preferred_w=700,
-                preferred_h=520,
-            )
-        win.bind('<Configure>', _on_win_configure)
-        win.deiconify()
-        win.focus_force()
+class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
+    """Mixin providing picker, path finder, and preferences dialogs."""
 
     def _view_tags(self):
         """Show tag-record definitions and allow choosing the DNA tag keyword."""
@@ -306,7 +131,8 @@ class DialogsMixin:
 
         search_frame = ctk.CTkFrame(dialog, fg_color='transparent')
         search_frame.pack(fill='x', padx=8, pady=8)
-        ctk.CTkLabel(search_frame, text=LBL_FIND).pack(side='left', padx=(0, 4))
+        ctk.CTkLabel(search_frame, text=LBL_FIND).pack(
+            side='left', padx=(0, 4))
         search_var = tk.StringVar()
         search_entry = ctk.CTkEntry(search_frame, textvariable=search_var)
         search_entry.pack(side='left', fill='x', expand=True)
@@ -329,7 +155,8 @@ class DialogsMixin:
         picker_tree.column('death', width=55, anchor='w', stretch=False)
         picker_tree.column('flagged', width=50, anchor='center', stretch=False)
         is_dark = ctk.get_appearance_mode() == 'Dark'
-        picker_tree.tag_configure('flagged_row', background=get_flag_bg(is_dark))
+        picker_tree.tag_configure(
+            'flagged_row', background=get_flag_bg(is_dark))
 
         ysb = ctk.CTkScrollbar(list_frame, orientation='vertical',
                                command=picker_tree.yview)
@@ -563,7 +390,8 @@ class DialogsMixin:
 
         if self._results_reversed:
             disp_start, disp_end = end_id, start_id
-            disp_paths = [self._reverse_path(p, self.individuals) for p in paths]
+            disp_paths = [self._reverse_path(
+                p, self.individuals) for p in paths]
         else:
             disp_start, disp_end = start_id, end_id
             disp_paths = paths
@@ -647,6 +475,17 @@ class DialogsMixin:
         # classic widget) does respect it, so we use that instead.
         _rb_style = ttk.Style()
 
+        # Match ttk.Radiobutton font to CTkFont pixel sizing.  CTkFont.cget('size')
+        # returns the positive pixel count; negate on Windows to use Tk's pixel
+        # notation so the radiobutton text renders at the same size as CTkLabel.
+        try:
+            _ctk_font_obj = ctk.CTkFont()
+            _size = _ctk_font_obj.cget('size')
+            _rb_font = (_ctk_font_obj.cget('family'),
+                        -_size if sys.platform == 'win32' else _size)
+        except Exception:
+            _rb_font = None
+
         def _radiobutton(parent, *, text, variable, value):
             if sys.platform == 'darwin':
                 bg = _section_bg(parent)
@@ -654,16 +493,21 @@ class DialogsMixin:
                                       value=value, background=bg,
                                       activebackground=bg, highlightthickness=0)
             if sys.platform != 'darwin':
-                _rb_style.configure('Pref.TRadiobutton', background=_section_bg(parent))
+                style_kw = {'background': _section_bg(parent)}
+                if _rb_font:
+                    style_kw['font'] = _rb_font
+                _rb_style.configure('Pref.TRadiobutton', **style_kw)
             return ttk.Radiobutton(parent, text=text, variable=variable,
                                    value=value, style='Pref.TRadiobutton')
 
         # Font size row
         font_row = ctk.CTkFrame(appearance_section, fg_color='transparent')
         font_row.pack(fill='x', padx=12, pady=(0, 4))
-        ctk.CTkLabel(font_row, text=FRAME_FONT_SIZE + ':').pack(side='left', padx=(0, 8))
+        ctk.CTkLabel(font_row, text=FRAME_FONT_SIZE +
+                     ':').pack(side='left', padx=(0, 8))
         size_var = tk.StringVar(value=self._font_size_pref)
-        for label, key in ((FONT_SMALL, "small"), (FONT_MEDIUM, "medium"), (FONT_LARGE, "large")):
+        for label, key in ((FONT_SMALL, "small"), (FONT_MEDIUM, "medium"),
+                           (FONT_LARGE, "large"), (FONT_JUMBO, "jumbo")):
             _radiobutton(
                 font_row, text=label, variable=size_var, value=key,
             ).pack(side='left', padx=8)
@@ -671,7 +515,8 @@ class DialogsMixin:
         # Theme row
         theme_row = ctk.CTkFrame(appearance_section, fg_color='transparent')
         theme_row.pack(fill='x', padx=12, pady=(0, 4))
-        ctk.CTkLabel(theme_row, text=FRAME_THEME + ':').pack(side='left', padx=(0, 8))
+        ctk.CTkLabel(theme_row, text=FRAME_THEME +
+                     ':').pack(side='left', padx=(0, 8))
         theme_var = tk.StringVar(value=self._theme_pref)
         for name in self._THEME_NAMES:
             _radiobutton(
@@ -704,7 +549,8 @@ class DialogsMixin:
         _pref_top_n_spin.grid(row=0, column=1, sticky='w', padx=(0, 24))
         Tooltip(_pref_top_n_label, TIP_TOP_N)
         Tooltip(_pref_top_n_spin, TIP_TOP_N)
-        _pref_max_depth_label = ctk.CTkLabel(search_frame, text=LBL_MAX_DEPTH_PREF)
+        _pref_max_depth_label = ctk.CTkLabel(
+            search_frame, text=LBL_MAX_DEPTH_PREF)
         _pref_max_depth_label.grid(row=0, column=2, sticky='w', padx=(0, 8))
         max_depth_var = tk.IntVar(value=self.max_depth.get())
         _pref_max_depth_spin = ttk.Spinbox(
@@ -712,8 +558,10 @@ class DialogsMixin:
         _pref_max_depth_spin.grid(row=0, column=3, sticky='w')
         Tooltip(_pref_max_depth_label, TIP_MAX_DEPTH)
         Tooltip(_pref_max_depth_spin, TIP_MAX_DEPTH)
-        _pref_fuzzy_label = ctk.CTkLabel(search_frame, text=LBL_FUZZY_THRESHOLD)
-        _pref_fuzzy_label.grid(row=1, column=0, sticky='w', padx=(0, 8), pady=(6, 0))
+        _pref_fuzzy_label = ctk.CTkLabel(
+            search_frame, text=LBL_FUZZY_THRESHOLD)
+        _pref_fuzzy_label.grid(
+            row=1, column=0, sticky='w', padx=(0, 8), pady=(6, 0))
         fuzzy_threshold_var = tk.DoubleVar(
             value=round(float(self.fuzzy_threshold.get()), 2))
         _pref_fuzzy_spin = ttk.Spinbox(
@@ -723,8 +571,10 @@ class DialogsMixin:
         Tooltip(_pref_fuzzy_label, TIP_FUZZY_THRESHOLD)
         Tooltip(_pref_fuzzy_spin, TIP_FUZZY_THRESHOLD)
 
-        _pref_max_display_label = ctk.CTkLabel(search_frame, text=LBL_MAX_DISPLAY)
-        _pref_max_display_label.grid(row=1, column=2, sticky='w', padx=(0, 8), pady=(6, 0))
+        _pref_max_display_label = ctk.CTkLabel(
+            search_frame, text=LBL_MAX_DISPLAY)
+        _pref_max_display_label.grid(
+            row=1, column=2, sticky='w', padx=(0, 8), pady=(6, 0))
         max_display_var = tk.IntVar(value=self.max_display.get())
         _pref_max_display_spin = ttk.Spinbox(
             search_frame, from_=100, to=100000, increment=500,
@@ -732,6 +582,30 @@ class DialogsMixin:
         _pref_max_display_spin.grid(row=1, column=3, sticky='w', pady=(6, 0))
         Tooltip(_pref_max_display_label, TIP_MAX_DISPLAY)
         Tooltip(_pref_max_display_spin, TIP_MAX_DISPLAY)
+
+        _pref_tag_keyword_label = ctk.CTkLabel(
+            search_frame, text=LBL_TAG_KEYWORD)
+        _pref_tag_keyword_label.grid(
+            row=2, column=0, sticky='w', padx=(0, 8), pady=(6, 0))
+        tag_keyword_var = tk.StringVar(value=self.tag_keyword.get())
+        _pref_tag_keyword_entry = ctk.CTkEntry(
+            search_frame, textvariable=tag_keyword_var, width=180)
+        _pref_tag_keyword_entry.grid(
+            row=2, column=1, columnspan=3, sticky='ew', pady=(6, 0))
+        Tooltip(_pref_tag_keyword_label, TIP_TAG_KEYWORD)
+        Tooltip(_pref_tag_keyword_entry, TIP_TAG_KEYWORD)
+
+        _pref_page_marker_label = ctk.CTkLabel(
+            search_frame, text=LBL_PAGE_MARKER)
+        _pref_page_marker_label.grid(
+            row=3, column=0, sticky='w', padx=(0, 8), pady=(6, 0))
+        page_marker_var = tk.StringVar(value=self.page_marker.get())
+        _pref_page_marker_entry = ctk.CTkEntry(
+            search_frame, textvariable=page_marker_var, width=180)
+        _pref_page_marker_entry.grid(
+            row=3, column=1, columnspan=3, sticky='ew', pady=(6, 0))
+        Tooltip(_pref_page_marker_label, TIP_PAGE_MARKER)
+        Tooltip(_pref_page_marker_entry, TIP_PAGE_MARKER)
 
         # Display section
         display_section = ctk.CTkFrame(outer, border_width=1)
@@ -743,8 +617,17 @@ class DialogsMixin:
         display_frame.pack(fill='x', padx=12, pady=(0, 10))
 
         show_ids_var = tk.BooleanVar(value=self.show_ids.get())
-        ctk.CTkCheckBox(display_frame, text=CHK_SHOW_IDS,
-                        variable=show_ids_var).pack(anchor='w')
+        _show_ids_chk = ctk.CTkCheckBox(display_frame, text=CHK_SHOW_IDS,
+                                        variable=show_ids_var)
+        _show_ids_chk.pack(anchor='w')
+        Tooltip(_show_ids_chk, TIP_SHOW_IDS)
+
+        show_full_gedcom_var = tk.BooleanVar(value=self.show_full_gedcom.get())
+        _show_full_gedcom_chk = ctk.CTkCheckBox(
+            display_frame, text=CHK_SHOW_FULL_GEDCOM,
+            variable=show_full_gedcom_var)
+        _show_full_gedcom_chk.pack(anchor='w', pady=(4, 0))
+        Tooltip(_show_full_gedcom_chk, TIP_SHOW_FULL_GEDCOM)
 
         name_order_row = ctk.CTkFrame(display_frame, fg_color='transparent')
         name_order_row.pack(anchor='w', pady=(6, 0))
@@ -755,6 +638,17 @@ class DialogsMixin:
                      variable=name_order_var, value='first_last').pack(side='left', padx=(0, 8))
         _radiobutton(name_order_row, text=NAME_LAST_FIRST,
                      variable=name_order_var, value='last_first').pack(side='left')
+
+        profile_view_row = ctk.CTkFrame(display_frame, fg_color='transparent')
+        profile_view_row.pack(anchor='w', pady=(6, 0))
+        ctk.CTkLabel(profile_view_row, text=LBL_DEFAULT_PROFILE_VIEW).pack(
+            side='left', padx=(0, 8))
+        profile_view_var = tk.StringVar(
+            value=getattr(self, '_default_profile_view', 'profile'))
+        _radiobutton(profile_view_row, text=PROFILE_VIEW_PROFILE,
+                     variable=profile_view_var, value='profile').pack(side='left', padx=(0, 8))
+        _radiobutton(profile_view_row, text=PROFILE_VIEW_TREE,
+                     variable=profile_view_var, value='tree').pack(side='left')
 
         # Cache section
         cache_section = ctk.CTkFrame(outer, border_width=1)
@@ -804,10 +698,24 @@ class DialogsMixin:
                 self._config.set_max_display(self.max_display.get())
             except (tk.TclError, ValueError):
                 pass
+            self.tag_keyword.set(tag_keyword_var.get())
+            self._config.set_tag_keyword(tag_keyword_var.get())
+            self.page_marker.set(page_marker_var.get())
+            self._config.set_page_marker(page_marker_var.get())
             self.show_ids.set(show_ids_var.get())
             self._config.set_show_ids(show_ids_var.get())
+            self.show_full_gedcom.set(show_full_gedcom_var.get())
+            self._config.set_show_full_gedcom(show_full_gedcom_var.get())
             self._name_order = name_order_var.get()
             self._config.set_name_order(self._name_order)
+            self._default_profile_view = profile_view_var.get()
+            self._config.set_profile_view_default(self._default_profile_view)
+            if self._default_profile_view == 'tree':
+                self.show_person_btn.configure(text=BTN_SHOW_PERSON_TREE)
+                self._show_person_tooltip.update_text(TIP_SHOW_PERSON_TREE)
+            else:
+                self.show_person_btn.configure(text=BTN_SHOW_PERSON)
+                self._show_person_tooltip.update_text(TIP_SHOW_PERSON)
             self._pop_sort_key = None
             self._populate_tree()
             self._refresh_result()
@@ -824,306 +732,38 @@ class DialogsMixin:
         ctk.CTkButton(btn_frame, text=BTN_CANCEL, width=80,
                       command=on_cancel).pack(side='right')
 
+        if getattr(self, '_debug', False):
+            import sys as _sys
+            import tkinter.font as _tkf
+            win.update_idletasks()
+            print('[debug] --- Preferences dialog before fit ---',
+                  file=_sys.stderr, flush=True)
+            print(f'[debug]   win req: {win.winfo_reqwidth()}x{win.winfo_reqheight()}',
+                  file=_sys.stderr, flush=True)
+            try:
+                cf = ctk.CTkFont()
+                print(f'[debug]   CTkFont: family={cf.cget("family")!r}'
+                      f'  size={cf.cget("size")} (cget)  actual={cf.actual("size")}',
+                      file=_sys.stderr, flush=True)
+            except Exception as e:
+                print(f'[debug]   CTkFont: ERROR {e}',
+                      file=_sys.stderr, flush=True)
+            try:
+                df = _tkf.nametofont('TkDefaultFont')
+                print(f'[debug]   TkDefaultFont: size={df.cget("size")} (cget)'
+                      f'  actual={df.actual("size")}',
+                      file=_sys.stderr, flush=True)
+            except Exception as e:
+                print(
+                    f'[debug]   TkDefaultFont: ERROR {e}', file=_sys.stderr, flush=True)
+            try:
+                theme_font = ctk.ThemeManager.theme.get('CTkFont', 'N/A')
+                print(f'[debug]   CTk theme CTkFont: {theme_font}',
+                      file=_sys.stderr, flush=True)
+            except Exception as e:
+                print(
+                    f'[debug]   CTk theme: ERROR {e}', file=_sys.stderr, flush=True)
+
         self._fit_window_to_content(win, min_w=500, min_h=420)
         win.deiconify()
         win.after(50, win.focus_force)
-
-    def _resource_path(self, filename):
-        """Locate a bundled resource whether running from source or PyInstaller."""
-        if getattr(sys, 'frozen', False):
-            base = sys._MEIPASS
-        else:
-            base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        return os.path.join(base, filename)
-
-    def _show_how_to_use(self):
-        """Open the help documentation window."""
-        self._show_file_window(
-            WIN_HOW_TO_USE, self._resource_path('docs/HELP.md'), markdown=True)
-
-    def _show_keyboard_shortcuts(self):
-        """Open the keyboard shortcuts reference window."""
-        win = ctk.CTkToplevel(self.root)
-        win.withdraw()
-        win.title(WIN_KEYBOARD_SHORTCUTS)
-        win.transient(self.root)
-        win.grab_set()
-        win.resizable(True, True)
-        win.bind('<Escape>', lambda *_: win.destroy())
-
-        outer = ctk.CTkFrame(win, fg_color='transparent')
-        outer.pack(fill='both', expand=True, padx=16, pady=(16, 8))
-
-        tree_frame = ctk.CTkFrame(outer, fg_color='transparent')
-        tree_frame.pack(fill='both', expand=True)
-
-        tree = ttk.Treeview(tree_frame, columns=('key', 'action'),
-                            show='headings', selectmode='browse',
-                            height=len(KEYBOARD_SHORTCUT_ROWS))
-        tree.heading('key', text=COL_SHORTCUT)
-        tree.heading('action', text=COL_ACTION)
-        tree.column('key', width=90, minwidth=70, stretch=False, anchor='center')
-        tree.column('action', width=420, minwidth=200, stretch=True, anchor='w')
-
-        is_dark = ctk.get_appearance_mode() == 'Dark'
-        odd_bg  = '#2f2f2f' if is_dark else '#f5f5f5'
-        tree.tag_configure('odd', background=odd_bg)
-
-        for idx, (key, action) in enumerate(KEYBOARD_SHORTCUT_ROWS):
-            tree.insert('', 'end', values=(key, action),
-                        tags=('odd',) if idx % 2 else ())
-
-        vsb = ctk.CTkScrollbar(tree_frame, orientation='vertical',
-                               command=tree.yview)
-        tree.configure(yscrollcommand=vsb.set)
-        tree.pack(side='left', fill='both', expand=True)
-        vsb.pack(side='right', fill='y')
-        ctk.CTkFrame(win, height=1,
-                     fg_color=('gray70', 'gray30')).pack(fill='x')
-        btn_frame = ctk.CTkFrame(win, fg_color='transparent')
-        btn_frame.pack(fill='x', padx=16, pady=8)
-        ctk.CTkButton(btn_frame, text=BTN_CLOSE, width=80,
-                      command=win.destroy).pack(side='right')
-
-        self._fit_window_to_content(win, min_w=540, min_h=420)
-        win.deiconify()
-        win.after(50, win.focus_force)
-
-    def _show_about(self):
-        """Open the about window with version and license information."""
-        self._show_file_window(
-            WIN_ABOUT,
-            self._resource_path('docs/LICENSE.md'), markdown=True,
-            preamble=f"# {APP_TITLE}  v{self._version} ({self._release_date})\n\n",
-        )
-
-    def _show_privacy_policy(self):
-        """Open the privacy policy documentation window."""
-        self._show_file_window(
-            WIN_PRIVACY_POLICY,
-            self._resource_path('docs/PRIVACY_POLICY.md'), markdown=True,
-        )
-
-    def _check_for_updates(self):
-        """Check GitHub for a newer release and report the result."""
-        if getattr(self, '_update_check_in_progress', False):
-            return
-        self._update_check_in_progress = True
-        progress = self._show_update_check_progress()
-
-        def _worker():
-            result = check_for_updates(self._version)
-            self.root.after(
-                0, lambda: self._finish_update_check(result, progress))
-
-        threading.Thread(target=_worker, daemon=True).start()
-
-    def _show_update_check_progress(self):
-        """Show a small progress dialog while the GitHub request runs."""
-        popup = tk.Toplevel(self.root)
-        popup.withdraw()
-        popup.title(WIN_CHECKING_FOR_UPDATES)
-        popup.resizable(False, False)
-        popup.transient(self.root)
-        popup.protocol("WM_DELETE_WINDOW", lambda: None)
-
-        frame = ttk.Frame(popup, padding=(20, 14))
-        frame.pack(fill='both', expand=True)
-        ttk.Label(frame, text=UPDATE_CHECKING_MSG).pack(pady=(0, 10))
-        bar = ttk.Progressbar(frame, mode='indeterminate', length=260)
-        bar.pack(pady=(0, 4))
-        bar.start(10)
-
-        self._fit_window_to_content(popup, min_w=320, min_h=90)
-        popup.deiconify()
-        popup.lift()
-        return popup
-
-    def _finish_update_check(self, result, progress):
-        """Close progress feedback and show the update-check result."""
-        self._update_check_in_progress = False
-        try:
-            progress.destroy()
-        except tk.TclError:
-            pass
-
-        if result.error:
-            messagebox.showerror(
-                UPDATE_CHECK_FAILED_TITLE,
-                UPDATE_CHECK_FAILED_MSG.format(error=result.error),
-                parent=self.root,
-            )
-            return
-
-        if result.update_available:
-            self._show_update_available(result)
-            return
-
-        messagebox.showinfo(
-            UPDATE_CURRENT_TITLE,
-            UPDATE_CURRENT_MSG.format(current=result.current_version),
-            parent=self.root,
-        )
-
-    def _show_update_available(self, result):
-        """Show a dialog linking to the latest GitHub release."""
-        win = ctk.CTkToplevel(self.root)
-        win.withdraw()
-        win.title(WIN_UPDATE_AVAILABLE)
-        win.transient(self.root)
-        win.grab_set()
-        win.resizable(False, False)
-        win.bind('<Escape>', lambda *_: win.destroy())
-
-        outer = ctk.CTkFrame(win, fg_color='transparent')
-        outer.pack(fill='both', expand=True, padx=18, pady=(16, 10))
-
-        ctk.CTkLabel(
-            outer,
-            text=UPDATE_AVAILABLE_HEADING,
-            font=ctk.CTkFont(weight='bold'),
-            anchor='w',
-        ).pack(fill='x', pady=(0, 10))
-        ctk.CTkLabel(
-            outer,
-            text=UPDATE_INSTALLED_VERSION.format(
-                current=result.current_version),
-            anchor='w',
-        ).pack(fill='x')
-        ctk.CTkLabel(
-            outer,
-            text=UPDATE_LATEST_VERSION.format(latest=result.latest_version),
-            anchor='w',
-        ).pack(fill='x', pady=(2, 12))
-        ctk.CTkLabel(
-            outer,
-            text=UPDATE_DOWNLOAD_PROMPT,
-            anchor='w',
-        ).pack(fill='x')
-        release_link = ctk.CTkLabel(
-            outer,
-            text=result.release_url,
-            text_color=self._link_color,
-            anchor='w',
-        )
-        release_link.pack(fill='x', pady=(2, 0))
-        release_link.bind(
-            '<Button-1>', lambda *_: webbrowser.open(result.release_url))
-
-        ctk.CTkFrame(win, height=1,
-                     fg_color=('gray70', 'gray30')).pack(fill='x')
-        btn_frame = ctk.CTkFrame(win, fg_color='transparent')
-        btn_frame.pack(fill='x', padx=12, pady=8)
-        ctk.CTkButton(
-            btn_frame,
-            text=UPDATE_OPEN_RELEASES,
-            command=lambda: webbrowser.open(result.release_url),
-        ).pack(side='right', padx=(4, 0))
-        ctk.CTkButton(
-            btn_frame, text=BTN_CLOSE, width=80,
-            command=win.destroy,
-        ).pack(side='right')
-
-        self._fit_window_to_content(win, min_w=430, min_h=220)
-        win.deiconify()
-        win.after(50, win.focus_force)
-
-    def _show_file_window(self, title, filepath, markdown=False, preamble=""):
-        """Open a modal text window for a bundled documentation file."""
-        try:
-            with open(filepath, 'r', encoding='utf-8') as f:
-                content = preamble + f.read()
-        except OSError as e:
-            messagebox.showerror(
-                ERR_FILE_NOT_FOUND_TITLE,
-                ERR_FILE_NOT_FOUND_MSG.format(path=filepath, error=e))
-            return
-
-        win = ctk.CTkToplevel(self.root)
-        win.withdraw()
-        win.title(title)
-        win.transient(self.root)
-        win.grab_set()
-        win.bind('<Escape>', lambda *_: win.destroy())
-
-        is_dark = ctk.get_appearance_mode() == 'Dark'
-        code_bg = '#3a3a3a' if is_dark else '#f0f0f0'
-
-        ui_size = self._FONT_SIZES[self._font_size_pref]['ui']
-        ui_family = tkfont.nametofont('TkDefaultFont').actual()['family']
-        text = ctk.CTkTextbox(win, wrap='word', activate_scrollbars=True,
-                              font=ctk.CTkFont(family=ui_family, size=ui_size))
-        text._textbox.configure(padx=12, pady=8)
-        text.pack(fill='both', expand=True)
-
-        base_dir = os.path.dirname(os.path.abspath(filepath))
-
-        def _set_state(enabled):
-            if sys.platform == 'darwin':
-                if enabled:
-                    text._textbox.unbind('<Key>')
-                else:
-                    text._textbox.bind('<Key>', lambda *_: 'break')
-            else:
-                text.configure(state='normal' if enabled else 'disabled')
-
-        def _nav_handler(url):
-            if not url.startswith(('http://', 'https://')) and url.endswith('.md'):
-                target = os.path.normpath(os.path.join(base_dir, url))
-                try:
-                    with open(target, 'r', encoding='utf-8') as f:
-                        new_content = f.read()
-                except OSError:
-                    webbrowser.open(url)
-                    return
-                win.title(os.path.splitext(os.path.basename(target))[0]
-                          .replace('_', ' ').title())
-                for tag in list(text._textbox.tag_names()):
-                    if tag.startswith('_url_'):
-                        text._textbox.tag_delete(tag)
-                text._link_count = 0
-                _set_state(True)
-                text.delete('1.0', 'end')
-                render_markdown(
-                    text, new_content, self._link_color,
-                    url_handler=_nav_handler, code_bg=code_bg)
-                _set_state(False)
-                text.yview_moveto(0)
-            else:
-                webbrowser.open(url)
-
-        if markdown:
-            render_markdown(text, content, self._link_color,
-                            url_handler=_nav_handler, code_bg=code_bg)
-        else:
-            text.insert('1.0', content)
-
-        if sys.platform == 'darwin':
-            text._textbox.bind('<Key>', lambda *_: 'break')
-        else:
-            text.configure(state='disabled')
-
-        # Thin separator
-        ctk.CTkFrame(win, height=1, fg_color=("gray70", "gray30")).pack(fill='x')
-
-        btn_frame = ctk.CTkFrame(win, fg_color='transparent')
-        btn_frame.pack(fill='x', padx=12, pady=8)
-        ctk.CTkButton(btn_frame, text=BTN_CLOSE, width=80,
-                      command=win.destroy).pack(side='right')
-
-        win.bind('<Up>', lambda *_: text.yview_scroll(-1, 'units') or 'break')
-        win.bind('<Down>', lambda *_: text.yview_scroll(1, 'units') or 'break')
-        win.bind('<Prior>', lambda *_: text.yview_scroll(-1, 'pages') or 'break')
-        win.bind('<Next>', lambda *_: text.yview_scroll(1, 'pages') or 'break')
-        win.bind('<Home>', lambda *_: text.yview_moveto(0) or 'break')
-        win.bind('<End>', lambda *_: text.yview_moveto(1) or 'break')
-
-        self._fit_window_to_content(
-            win,
-            min_w=500,
-            min_h=300,
-            preferred_w=820,
-            preferred_h=640,
-        )
-        win.deiconify()
-        win.focus_set()

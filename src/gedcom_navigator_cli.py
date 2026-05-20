@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # cspell:ignore smth
 """
-gedcom_dna_finder_cli.py
+gedcom_navigator_cli.py
 
 Given a GEDCOM file and a target person, find the closest relative(s)
 who are flagged as DNA matches.
@@ -29,29 +29,29 @@ Pure stdlib; no external dependencies.
 Usage examples:
 
   # Inspect all tag definitions present in your GEDCOM
-  python gedcom_dna_finder_cli.py tree.ged --list-tags
+  python gedcom_navigator_cli.py tree.ged --list-tags
 
   # List every DNA-flagged person
-  python gedcom_dna_finder_cli.py tree.ged --list-flagged
+  python gedcom_navigator_cli.py tree.ged --list-flagged
 
   # Find the 3 nearest DNA-flagged relatives of a person, by name
-  python gedcom_dna_finder_cli.py tree.ged "John A Smith"
+  python gedcom_navigator_cli.py tree.ged "John A Smith"
 
   # Names are tokenized: this matches "John Adam Smith"
   # without needing the middle name.
-  python gedcom_dna_finder_cli.py tree.ged "John Smith"
+  python gedcom_navigator_cli.py tree.ged "John Smith"
 
   # Find by exact INDI ID (with or without surrounding @)
-  python gedcom_dna_finder_cli.py tree.ged @I1234@
-  python gedcom_dna_finder_cli.py tree.ged I1234
+  python gedcom_navigator_cli.py tree.ged @I1234@
+  python gedcom_navigator_cli.py tree.ged I1234
 
   # Tighten the tag filter to "DNA Match" only (exclude DNA Connection etc.)
-  python gedcom_dna_finder_cli.py tree.ged "John Smith" --tag-keyword "DNA Match"
+  python gedcom_navigator_cli.py tree.ged "John Smith" --tag-keyword "DNA Match"
 
   # Fuzzy match (tolerates typos and spelling variants):
   # "John Smth" will still find "John Adam Smith".
-  python gedcom_dna_finder_cli.py tree.ged "John Smith" --fuzzy
-  python gedcom_dna_finder_cli.py tree.ged "John Smith" --fuzzy --fuzzy-threshold 0.7
+  python gedcom_navigator_cli.py tree.ged "John Smith" --fuzzy
+  python gedcom_navigator_cli.py tree.ged "John Smith" --fuzzy --fuzzy-threshold 0.7
 """
 
 import argparse
@@ -139,7 +139,7 @@ def print_result(start_id, individuals, results):
 # ---------------------------------------------------------------------------
 
 def main():
-    """Parse command-line options and execute the DNA finder."""
+    """Parse command-line options and execute the GEDCOM navigator."""
     parser = argparse.ArgumentParser(
         description='Find the nearest DNA-flagged relative(s) to a target person in a GEDCOM tree.'
     )

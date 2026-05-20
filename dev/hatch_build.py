@@ -1,17 +1,17 @@
 """
-hatch_build.py — custom Hatchling build hook for gedcom-dna-finder.
+hatch_build.py — custom Hatchling build hook for gedcom-navigator.
 
 Runs automatically during `python -m build dev/ --outdir dist/`.
 
 What it does
 ------------
-1. Copies every *.py file from src/ into gedcom_dna_finder/_scripts/ so the
+1. Copies every *.py file from src/ into gedcom_navigator/_scripts/ so the
    GUI and CLI entry-point shims can find them at runtime after pip install.
 2. Copies docs/ and icons/ into the package so _resource_path() in the GUI
    resolves correctly (it looks two directories above __file__, which is
-   gedcom_dna_finder/_scripts/, landing on gedcom_dna_finder/).
+   gedcom_navigator/_scripts/, landing on gedcom_navigator/).
 3. The static [tool.hatch.build.targets.wheel.force-include] entry in
-   pyproject.toml then picks up the entire gedcom_dna_finder/ tree.
+   pyproject.toml then picks up the entire gedcom_navigator/ tree.
 4. Cleans up the temporary copies after the wheel is written so the working
    tree stays tidy.
 
@@ -37,7 +37,7 @@ class CustomBuildHook(BuildHookInterface):
         # When building from the source tree, self.root is dev/ and the repo
         # root is its parent.  When building a wheel from an extracted sdist
         # (the second phase of `python -m build`), the sdist includes src/
-        # and gedcom_dna_finder/ as siblings of hatch_build.py, so self.root
+        # and gedcom_navigator/ as siblings of hatch_build.py, so self.root
         # itself is the effective repo root.
         if (hook_dir.parent / "src").exists():
             repo = hook_dir.parent   # source-tree build
@@ -46,7 +46,7 @@ class CustomBuildHook(BuildHookInterface):
         else:
             return                   # can't locate sources — skip
 
-        pkg = repo / "gedcom_dna_finder"
+        pkg = repo / "gedcom_navigator"
         pkg.mkdir(parents=True, exist_ok=True)
 
         # --- scripts -------------------------------------------------------
@@ -70,10 +70,10 @@ class CustomBuildHook(BuildHookInterface):
         # Using a dynamic entry here (rather than a static pyproject.toml path)
         # so it resolves to the correct absolute path whether we're in the real
         # source tree or a temp sdist extraction directory.
-        build_data["force_include"][str(pkg)] = "gedcom_dna_finder"
+        build_data["force_include"][str(pkg)] = "gedcom_navigator"
 
     def finalize(self, version, build_data, artifact_path):
-        pkg = Path(self.root).parent / "gedcom_dna_finder"
+        pkg = Path(self.root).parent / "gedcom_navigator"
         for name in ("_scripts", *self._ASSET_DIRS):
             target = pkg / name
             if target.exists():

@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "gedcom-dna-finder"
+name = "gedcom-navigator"
 dynamic = ["version"]
 description = "Find the nearest DNA-flagged relatives in a GEDCOM family tree"
 readme = {file = "../docs/README.md", content-type = "text/markdown"}
@@ -39,18 +39,18 @@ gui = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/ajkessel/gedcom-dna-finder"
-Repository = "https://github.com/ajkessel/gedcom-dna-finder"
-"Bug Tracker" = "https://github.com/ajkessel/gedcom-dna-finder/issues"
-Changelog = "https://github.com/ajkessel/gedcom-dna-finder/blob/main/docs/CHANGELOG.md"
+Homepage = "https://github.com/ajkessel/gedcom-navigator"
+Repository = "https://github.com/ajkessel/gedcom-navigator"
+"Bug Tracker" = "https://github.com/ajkessel/gedcom-navigator/issues"
+Changelog = "https://github.com/ajkessel/gedcom-navigator/blob/main/docs/CHANGELOG.md"
 
 # CLI entry point (console)
 [project.scripts]
-gedcom-dna-finder = "gedcom_dna_finder.cli:main"
+gedcom-navigator = "gedcom_navigator.cli:main"
 
 # GUI entry point (no console window on Windows)
 [project.gui-scripts]
-gedcom_dna_finder_gui = "gedcom_dna_finder.gui:main"
+gedcom_navigator_gui = "gedcom_navigator.gui:main"
 
 # hatch_build.py sets build_data["force_include"] dynamically, so hatchling's
 # auto-discovery must be disabled to prevent it including dev/ files.
@@ -58,7 +58,7 @@ gedcom_dna_finder_gui = "gedcom_dna_finder.gui:main"
 packages = []
 
 [tool.hatch.version]
-path = "../gedcom_dna_finder/__init__.py"
+path = "../gedcom_navigator/__init__.py"
 
 [tool.hatch.build.hooks.custom]
 path = "hatch_build.py"
