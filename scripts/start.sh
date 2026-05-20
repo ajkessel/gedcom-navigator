@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
+cd "${SCRIPT_DIR}/.." || exit 1
 [ -e src/gedcom_navigator_gui.py ] || {
 	echo 'Application file not found.'
 	exit 1

@@ -7,6 +7,7 @@ SVG and PNG export helpers for relationship graph canvases.
 
 import io
 import math
+import os
 import tkinter as tk
 import tkinter.font as tkfont
 
@@ -37,8 +38,115 @@ def _canvas_color_to_rgb(value, default=(0, 0, 0)):
         return default
 
 
-def _pillow_canvas_font(font_name):
-    """Return a Pillow font that approximates a Tk canvas font."""
+def _tk_canvas_font_actual(font_name):
+    """Return normalized Tk font details for a canvas font name."""
+    try:
+        actual = tkfont.Font(font=font_name).actual()
+        return {
+            'family': actual.get('family') or '',
+            'size': abs(int(actual.get('size') or 10)),
+            'weight': actual.get('weight') or 'normal',
+            'slant': actual.get('slant') or 'roman',
+        }
+    except (tk.TclError, TypeError, ValueError):
+        return {
+            'family': '',
+            'size': 10,
+            'weight': 'normal',
+            'slant': 'roman',
+        }
+
+
+def _font_search_dirs():
+    """Return likely platform font directories."""
+    dirs = []
+    windir = os.environ.get('WINDIR')
+    if windir:
+        dirs.append(os.path.join(windir, 'Fonts'))
+    dirs.extend([
+        r'C:\Windows\Fonts',
+        '/System/Library/Fonts',
+        '/System/Library/Fonts/Supplemental',
+        '/Library/Fonts',
+        '/usr/share/fonts/truetype',
+        '/usr/share/fonts',
+    ])
+    seen = set()
+    for directory in dirs:
+        if directory and directory not in seen and os.path.isdir(directory):
+            seen.add(directory)
+            yield directory
+
+
+def _font_file_candidates(family, bold, italic):
+    """Yield likely font filenames for the requested Tk font style."""
+    family = family or ''
+    compact = family.replace(' ', '')
+    lower = family.strip().lower()
+    windows_names = {
+        'segoe ui': {
+            (False, False): 'segoeui.ttf',
+            (True, False): 'segoeuib.ttf',
+            (False, True): 'segoeuii.ttf',
+            (True, True): 'segoeuiz.ttf',
+        },
+        'arial': {
+            (False, False): 'arial.ttf',
+            (True, False): 'arialbd.ttf',
+            (False, True): 'ariali.ttf',
+            (True, True): 'arialbi.ttf',
+        },
+        'calibri': {
+            (False, False): 'calibri.ttf',
+            (True, False): 'calibrib.ttf',
+            (False, True): 'calibrii.ttf',
+            (True, True): 'calibriz.ttf',
+        },
+        'courier new': {
+            (False, False): 'cour.ttf',
+            (True, False): 'courbd.ttf',
+            (False, True): 'couri.ttf',
+            (True, True): 'courbi.ttf',
+        },
+        'times new roman': {
+            (False, False): 'times.ttf',
+            (True, False): 'timesbd.ttf',
+            (False, True): 'timesi.ttf',
+            (True, True): 'timesbi.ttf',
+        },
+    }
+    mapped = windows_names.get(lower, {}).get((bold, italic))
+    if mapped:
+        yield mapped, True
+
+    style_names = []
+    if bold and italic:
+        style_names.extend(['Bold Italic', 'BoldItalic', 'BoldOblique'])
+    elif bold:
+        style_names.extend(['Bold', 'Semibold', 'DemiBold'])
+    elif italic:
+        style_names.extend(['Italic', 'Oblique'])
+    for style in style_names:
+        for extension in ('.ttf', '.otf', '.ttc'):
+            yield f'{family} {style}{extension}', True
+            if compact:
+                yield f'{compact}-{style}{extension}', True
+                yield f'{compact}{style}{extension}', True
+
+    for extension in ('.ttf', '.otf', '.ttc'):
+        if family:
+            yield f'{family}{extension}', not (bold or italic)
+        if compact and compact != family:
+            yield f'{compact}{extension}', not (bold or italic)
+    regular_mapped = windows_names.get(lower, {}).get((False, False))
+    if regular_mapped and regular_mapped != mapped:
+        yield regular_mapped, not (bold or italic)
+    if family:
+        yield family, not (bold or italic)
+
+
+def _pillow_font_from_actual(actual):
+    """Return a Pillow font and whether it matched the requested style."""
     try:
         from PIL import ImageFont  # pylint: disable=import-outside-toplevel
     except ImportError as exc:
@@ -46,21 +154,34 @@ def _pillow_canvas_font(font_name):
             "Pillow is required for macOS graph clipboard copy."
         ) from exc
 
-    try:
-        actual = tkfont.Font(font=font_name).actual()
-        family = actual.get('family') or ''
-        size = abs(int(actual.get('size') or 10))
-    except tk.TclError:
-        family = ''
-        size = 10
-    for candidate in (family, f'{family}.ttf' if family else ''):
-        if not candidate:
-            continue
-        try:
-            return ImageFont.truetype(candidate, size=size)
-        except OSError:
-            continue
-    return ImageFont.load_default(size=size)
+    family = actual.get('family') or ''
+    size = abs(int(actual.get('size') or 10))
+    bold = actual.get('weight') == 'bold'
+    italic = actual.get('slant') == 'italic'
+    for candidate, style_match in _font_file_candidates(family, bold, italic):
+        for directory in (None, *_font_search_dirs()):
+            path = candidate if directory is None else os.path.join(
+                directory, candidate)
+            try:
+                return ImageFont.truetype(path, size=size), style_match
+            except OSError:
+                continue
+    return ImageFont.load_default(size=size), not (bold or italic)
+
+
+def _pillow_canvas_font(font_name):
+    """Return a Pillow font that approximates a Tk canvas font."""
+    font, _style_match = _pillow_font_from_actual(
+        _tk_canvas_font_actual(font_name))
+    return font
+
+
+def _draw_pillow_text(draw, xy, text, fill, font, faux_bold=False):
+    """Draw text, adding a small second pass when no bold face is available."""
+    draw.text(xy, text, fill=fill, font=font)
+    if faux_bold:
+        x, y = xy
+        draw.text((x + 1, y), text, fill=fill, font=font)
 
 
 def _draw_dashed_line(draw, xy, fill, width, dash):
@@ -137,7 +258,9 @@ def _draw_canvas_text_png(draw, canvas, item_id):
     fill = _canvas_color_to_rgb(canvas.itemcget(item_id, 'fill'))
     anchor = canvas.itemcget(item_id, 'anchor') or 'center'
     justify = canvas.itemcget(item_id, 'justify') or 'center'
-    font = _pillow_canvas_font(canvas.itemcget(item_id, 'font'))
+    actual = _tk_canvas_font_actual(canvas.itemcget(item_id, 'font'))
+    font, style_match = _pillow_font_from_actual(actual)
+    faux_bold = actual.get('weight') == 'bold' and not style_match
     try:
         max_width = float(canvas.itemcget(item_id, 'width') or 0)
     except ValueError:
@@ -173,8 +296,9 @@ def _draw_canvas_text_png(draw, canvas, item_id):
             left = box_left + max_w - line_w
         else:
             left = box_left + (max_w - line_w) / 2
-        draw.text((left, top + index * line_spacing),
-                  line, fill=fill, font=font)
+        _draw_pillow_text(
+            draw, (left, top + index * line_spacing),
+            line, fill, font, faux_bold=faux_bold)
     return max_w, total_h
 
 

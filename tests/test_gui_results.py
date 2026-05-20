@@ -4315,6 +4315,176 @@ def test_family_tree_compacts_drifted_sibling_after_expanded_branches():
     assert largest_gap <= 2.5
 
 
+def test_family_tree_center_siblings_stay_contiguous_after_uncle_children():
+    """Unrelated same-row nodes cannot split the center sibling group."""
+    visible = [
+        '@CENTER@',
+        '@CENTER_SP@',
+        '@CH1@',
+        '@CH2@',
+        '@PARENT@',
+        '@PARENT_SP@',
+        '@SIB1@',
+        '@SIB2@',
+        '@SIB3@',
+        '@SIB4@',
+        '@UNC@',
+        '@UNC_SP@',
+        '@UNC_SIB1@',
+        '@UNC_SIB2@',
+        '@COUS1@',
+        '@COUS2@',
+    ]
+    edges = [
+        ('@CENTER@', '@CH1@', 'children'),
+        ('@CENTER@', '@CENTER_SP@', 'spouses'),
+        ('@CENTER@', '@CH2@', 'children'),
+        ('@CENTER@', '@PARENT@', 'parents'),
+        ('@CENTER@', '@PARENT_SP@', 'parents'),
+        ('@CENTER@', '@SIB1@', 'siblings'),
+        ('@CENTER@', '@SIB2@', 'siblings'),
+        ('@CENTER@', '@SIB3@', 'siblings'),
+        ('@CENTER@', '@SIB4@', 'siblings'),
+        ('@PARENT@', '@PARENT_SP@', 'spouses'),
+        ('@PARENT@', '@UNC@', 'siblings'),
+        ('@PARENT@', '@UNC_SIB1@', 'siblings'),
+        ('@PARENT@', '@UNC_SIB2@', 'siblings'),
+        ('@UNC@', '@UNC_SP@', 'spouses'),
+        ('@UNC@', '@COUS1@', 'children'),
+        ('@UNC@', '@COUS2@', 'children'),
+    ]
+
+    layout = layout_family_tree('@CENTER@', visible, edges)
+    by_id = {node['id']: node for node in layout}
+    sibling_group = {
+        '@SIB1@',
+        '@SIB2@',
+        '@SIB3@',
+        '@SIB4@',
+        '@CENTER@',
+    }
+    group_columns = [by_id[person_id]['column'] for person_id in sibling_group]
+    group_min = min(group_columns)
+    group_max = max(group_columns)
+    interlopers = [
+        node['id'] for node in layout
+        if node['id'] not in sibling_group | {'@CENTER_SP@'}
+        and node['generation'] == by_id['@CENTER@']['generation']
+        and group_min < node['column'] < group_max
+    ]
+
+    assert interlopers == []
+    assert by_id['@CENTER_SP@']['column'] == by_id['@CENTER@']['column'] + 1.0
+
+
+def test_family_tree_non_center_parent_couple_moves_toward_children():
+    """A non-center parent couple can move over visible children."""
+    visible = [
+        '@CENTER@',
+        '@CENTER_SP@',
+        '@CH1@',
+        '@CH2@',
+        '@PARENT@',
+        '@PARENT_SP@',
+        '@SIB1@',
+        '@SIB2@',
+        '@SIB3@',
+        '@SIB4@',
+        '@UNC@',
+        '@UNC_SP@',
+        '@UNC_SIB1@',
+        '@UNC_SIB2@',
+        '@COUS1@',
+        '@COUS2@',
+    ]
+    edges = [
+        ('@CENTER@', '@CH1@', 'children'),
+        ('@CENTER@', '@CENTER_SP@', 'spouses'),
+        ('@CENTER@', '@CH2@', 'children'),
+        ('@CENTER@', '@PARENT@', 'parents'),
+        ('@CENTER@', '@PARENT_SP@', 'parents'),
+        ('@CENTER@', '@SIB1@', 'siblings'),
+        ('@CENTER@', '@SIB2@', 'siblings'),
+        ('@CENTER@', '@SIB3@', 'siblings'),
+        ('@CENTER@', '@SIB4@', 'siblings'),
+        ('@PARENT@', '@PARENT_SP@', 'spouses'),
+        ('@PARENT@', '@UNC@', 'siblings'),
+        ('@PARENT@', '@UNC_SIB1@', 'siblings'),
+        ('@PARENT@', '@UNC_SIB2@', 'siblings'),
+        ('@UNC@', '@UNC_SP@', 'spouses'),
+        ('@UNC@', '@COUS1@', 'children'),
+        ('@UNC@', '@COUS2@', 'children'),
+    ]
+
+    layout = layout_family_tree('@CENTER@', visible, edges)
+    by_id = {node['id']: node for node in layout}
+    uncle_midpoint = (
+        by_id['@UNC@']['column'] + by_id['@UNC_SP@']['column']) / 2
+    cousin_midpoint = (
+        by_id['@COUS1@']['column'] + by_id['@COUS2@']['column']) / 2
+    sibling_side_columns = sorted([
+        by_id['@UNC@']['column'],
+        by_id['@UNC_SP@']['column'],
+        by_id['@UNC_SIB1@']['column'],
+        by_id['@UNC_SIB2@']['column'],
+    ])
+    largest_sibling_side_gap = max(
+        sibling_side_columns[index + 1] - sibling_side_columns[index]
+        for index in range(len(sibling_side_columns) - 1))
+
+    assert uncle_midpoint == cousin_midpoint
+    assert largest_sibling_side_gap <= 1.5
+
+
+def test_family_tree_center_child_cluster_compacts_toward_parents():
+    """Child spouses do not force the whole youngest generation far right."""
+    visible = [
+        '@CENTER@',
+        '@CENTER_SP@',
+        '@CH1@',
+        '@CH1_SP@',
+        '@CH2@',
+        '@CH3@',
+        '@GC1@',
+        '@GC2@',
+        '@PARENT@',
+        '@PARENT_SP@',
+        '@SIB1@',
+        '@SIB2@',
+        '@SIB3@',
+        '@SIB4@',
+    ]
+    edges = [
+        ('@CENTER@', '@CENTER_SP@', 'spouses'),
+        ('@CENTER@', '@CH1@', 'children'),
+        ('@CENTER@', '@CH2@', 'children'),
+        ('@CENTER@', '@CH3@', 'children'),
+        ('@CH1@', '@CH1_SP@', 'spouses'),
+        ('@CH1@', '@GC1@', 'children'),
+        ('@CH1@', '@GC2@', 'children'),
+        ('@CENTER@', '@PARENT@', 'parents'),
+        ('@CENTER@', '@PARENT_SP@', 'parents'),
+        ('@CENTER@', '@SIB1@', 'siblings'),
+        ('@CENTER@', '@SIB2@', 'siblings'),
+        ('@CENTER@', '@SIB3@', 'siblings'),
+        ('@CENTER@', '@SIB4@', 'siblings'),
+    ]
+
+    layout = layout_family_tree('@CENTER@', visible, edges)
+    by_id = {node['id']: node for node in layout}
+    parent_midpoint = (
+        by_id['@CENTER@']['column'] + by_id['@CENTER_SP@']['column']) / 2
+    child_columns = [
+        by_id['@CH1@']['column'],
+        by_id['@CH1_SP@']['column'],
+        by_id['@CH2@']['column'],
+        by_id['@CH3@']['column'],
+    ]
+    child_midpoint = (min(child_columns) + max(child_columns)) / 2
+
+    assert abs(parent_midpoint - child_midpoint) <= 1.0
+
+
 def test_family_tree_shifted_child_group_connector_spans_parent_origin():
     """A shifted child group still draws a connector back to its parents."""
     visible = [
@@ -4383,9 +4553,8 @@ def test_family_tree_shifted_child_group_connector_spans_parent_origin():
     bus_start, bus_end = ResultsMixin._family_tree_child_bus_span(
         child_group['parent_x'], child_columns)
 
-    assert child_group['parent_x'] < min(child_columns)
-    assert bus_start <= child_group['parent_x']
-    assert bus_end >= max(child_columns)
+    assert bus_start <= min([child_group['parent_x'], *child_columns])
+    assert bus_end >= max([child_group['parent_x'], *child_columns])
 
 
 def test_family_tree_expanded_child_spouse_does_not_overlap_sibling_child():
@@ -4773,6 +4942,30 @@ def test_expansion_button_tooltip_is_state_aware():
         expanded, '@A@', 'children') == 'Hide children'
     assert ResultsMixin._expansion_button_tooltip(
         set(), '@A@', 'unknown') is None
+
+
+def test_graph_button_visibility_uses_shared_canvas_tags():
+    """Save/copy helpers hide all graph expansion buttons during export."""
+
+    class FakeCanvas:
+        def __init__(self):
+            self.calls = []
+
+        def itemconfigure(self, tag, **kwargs):
+            self.calls.append((tag, kwargs))
+
+    canvas = FakeCanvas()
+    mixin = ResultsMixin()
+
+    mixin._hide_graph_buttons(canvas)
+    mixin._show_graph_buttons(canvas)
+
+    assert canvas.calls == [
+        ('family_tree_button', {'state': 'hidden'}),
+        ('path_graph_button', {'state': 'hidden'}),
+        ('family_tree_button', {'state': 'normal'}),
+        ('path_graph_button', {'state': 'normal'}),
+    ]
 
 
 def test_spouse_button_uses_spouse_side_or_right_default():

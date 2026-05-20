@@ -25,6 +25,8 @@ from gedcom_tooltip import CanvasTagTooltip
 class GraphCommonMixin:
     """Shared graph helper methods."""
 
+    _GRAPH_BUTTON_TAGS = ('family_tree_button', 'path_graph_button')
+
     PERSON_BOX_FILL_MALE = '#d9ecff'
     PERSON_BOX_FILL_FEMALE = '#ffe1ec'
     PERSON_BOX_FILL_NEUTRAL = '#f2f2f2'

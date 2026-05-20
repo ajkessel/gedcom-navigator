@@ -275,6 +275,24 @@ def _visible_spouse_columns(source_id, relations, positions):
     ]
 
 
+def _visible_sibling_ids(source_id, relations, positions):
+    sibling_ids = list(relations[source_id].get('siblings', ()))
+    for other_id, rels in relations.items():
+        if source_id in rels.get('siblings', ()):
+            sibling_ids.append(other_id)
+    visible = []
+    seen = set()
+    source_generation = positions[source_id][0]
+    for sibling_id in sibling_ids:
+        if sibling_id in seen or sibling_id not in positions:
+            continue
+        if positions[sibling_id][0] != source_generation:
+            continue
+        visible.append(sibling_id)
+        seen.add(sibling_id)
+    return visible
+
+
 def _visible_spouse_pairs(relations, positions):
     pairs = []
     seen = set()
@@ -429,6 +447,294 @@ def layout_family_tree(center_id, visible_ids, edges):
             assigned_child_columns_by_generation[child_generation].extend(
                 assigned_child_columns)
 
+    def enforce_sibling_adjacency():
+        seen_groups = set()
+        for source_id in sorted(
+                list(positions),
+                key=lambda item: (positions[item][0], positions[item][1])):
+            sibling_ids = _visible_sibling_ids(source_id, relations, positions)
+            if not sibling_ids:
+                continue
+            if source_id != center_id and center_id in sibling_ids:
+                continue
+            source_generation, source_column = positions[source_id]
+            spouse_columns = _visible_spouse_columns(
+                source_id, relations, positions)
+            if not spouse_columns:
+                continue
+            group_key = frozenset([source_id, *sibling_ids])
+            if group_key in seen_groups:
+                continue
+            seen_groups.add(group_key)
+            direction = (
+                -1 if any(column > source_column
+                          for column in spouse_columns)
+                else 1
+            )
+            ordered_siblings = sorted(
+                sibling_ids,
+                key=lambda sibling_id: (
+                    abs(positions[sibling_id][1] - source_column),
+                    positions[sibling_id][1],
+                    sibling_id,
+                ))
+            desired = {
+                sibling_id: source_column + offset
+                for sibling_id, offset in zip(
+                    ordered_siblings,
+                    _side_offsets(len(ordered_siblings), direction),
+                )
+            }
+            if all(abs(positions[sibling_id][1] - column) < 0.001
+                   for sibling_id, column in desired.items()):
+                continue
+            protected_ids = set(group_key)
+            for sibling_id in sibling_ids:
+                protected_ids.update(
+                    _visible_spouse_ids(sibling_id, relations, positions))
+            protected_ids.update(
+                _visible_spouse_ids(source_id, relations, positions))
+            desired_columns = list(desired.values())
+            if desired_columns:
+                if direction < 0:
+                    band_min = min(desired_columns)
+                    band_max = source_column
+                    conflicts = sorted(
+                        (
+                            person_id for person_id, (generation, column)
+                            in positions.items()
+                            if person_id not in protected_ids
+                            and generation == source_generation
+                            and band_min <= column < band_max
+                        ),
+                        key=lambda person_id: positions[person_id][1],
+                    )
+                    next_column = band_min - MIN_COLUMN_SPACING
+                    for person_id in conflicts:
+                        positions[person_id] = (
+                            source_generation, next_column)
+                        next_column -= MIN_COLUMN_SPACING
+                else:
+                    band_min = source_column
+                    band_max = max(desired_columns)
+                    conflicts = sorted(
+                        (
+                            person_id for person_id, (generation, column)
+                            in positions.items()
+                            if person_id not in protected_ids
+                            and generation == source_generation
+                            and band_min < column <= band_max
+                        ),
+                        key=lambda person_id: positions[person_id][1],
+                    )
+                    next_column = band_max + MIN_COLUMN_SPACING
+                    for person_id in conflicts:
+                        positions[person_id] = (
+                            source_generation, next_column)
+                        next_column += MIN_COLUMN_SPACING
+                _rebuild_occupied(occupied, positions)
+            move_plan = sorted(
+                desired.items(),
+                key=lambda item: item[1],
+                reverse=direction < 0,
+            )
+            for sibling_id, column in move_plan:
+                _reserve_same_row_slot(
+                    positions, occupied, source_generation, column,
+                    protected_ids)
+                positions[sibling_id] = (source_generation, column)
+                _rebuild_occupied(occupied, positions)
+
+    def enforce_parent_child_alignment():
+        aligned_pairs = set()
+        for source_id in sorted(
+                list(positions),
+                key=lambda item: (positions[item][0], positions[item][1])):
+            if source_id == center_id:
+                continue
+            if center_id in _visible_sibling_ids(source_id, relations, positions):
+                continue
+            if any(
+                    center_id in _visible_sibling_ids(
+                        spouse_id, relations, positions)
+                    or spouse_id == center_id
+                    for spouse_id in _visible_spouse_ids(
+                        source_id, relations, positions)):
+                continue
+            source_generation, source_column = positions[source_id]
+            child_generation = source_generation + 1
+            child_ids = [
+                child_id for child_id in _visible_child_ids(
+                    source_id, relations, positions)
+                if positions[child_id][0] == child_generation
+            ]
+            if not child_ids:
+                continue
+            spouse_ids = [
+                spouse_id for spouse_id in _visible_spouse_ids(
+                    source_id, relations, positions)
+                if positions[spouse_id][0] == source_generation
+            ]
+            if not spouse_ids:
+                continue
+            spouse_id = spouse_ids[0]
+            pair_key = tuple(sorted((source_id, spouse_id)))
+            if pair_key in aligned_pairs:
+                continue
+            aligned_pairs.add(pair_key)
+            spouse_column = positions[spouse_id][1]
+            current_center = (source_column + spouse_column) / 2
+            child_center = (
+                min(positions[child_id][1] for child_id in child_ids)
+                + max(positions[child_id][1] for child_id in child_ids)
+            ) / 2
+            if child_center - current_center <= MIN_COLUMN_SPACING:
+                continue
+            pair_offset = MIN_COLUMN_SPACING / 2
+            if source_column <= spouse_column:
+                source_target = child_center - pair_offset
+                spouse_target = child_center + pair_offset
+            else:
+                source_target = child_center + pair_offset
+                spouse_target = child_center - pair_offset
+            protected_ids = {source_id, spouse_id}
+            _reserve_same_row_slot(
+                positions, occupied, source_generation, source_target,
+                protected_ids)
+            _reserve_same_row_slot(
+                positions, occupied, source_generation, spouse_target,
+                protected_ids)
+            positions[source_id] = (source_generation, source_target)
+            positions[spouse_id] = (source_generation, spouse_target)
+            _resolve_same_row_conflicts(positions, protected_ids)
+            _rebuild_occupied(occupied, positions)
+
+    def compact_child_row_clusters():
+        for source_id in sorted(
+                list(positions),
+                key=lambda item: (positions[item][0], positions[item][1])):
+            source_generation, source_column = positions[source_id]
+            child_generation = source_generation + 1
+            child_ids = [
+                child_id for child_id in _visible_child_ids(
+                    source_id, relations, positions)
+                if positions[child_id][0] == child_generation
+            ]
+            if len(child_ids) < 2:
+                continue
+            spouse_columns = _visible_spouse_columns(
+                source_id, relations, positions)
+            base_column = (
+                (source_column + spouse_columns[0]) / 2
+                if spouse_columns else source_column
+            )
+            group_ids = set(child_ids)
+            for child_id in child_ids:
+                group_ids.update(
+                    spouse_id for spouse_id in _visible_spouse_ids(
+                        child_id, relations, positions)
+                    if positions[spouse_id][0] == child_generation)
+            ordered_group = sorted(
+                group_ids,
+                key=lambda person_id: (positions[person_id][1], person_id))
+            current_center = (
+                min(positions[person_id][1] for person_id in ordered_group)
+                + max(positions[person_id][1] for person_id in ordered_group)
+            ) / 2
+            if current_center - base_column <= MIN_COLUMN_SPACING:
+                continue
+            start_column = base_column - (
+                (len(ordered_group) - 1) * MIN_COLUMN_SPACING) / 2
+            desired = {
+                person_id: start_column + index * MIN_COLUMN_SPACING
+                for index, person_id in enumerate(ordered_group)
+            }
+            non_group_columns = [
+                column for person_id, (generation, column)
+                in positions.items()
+                if generation == child_generation and person_id not in group_ids
+            ]
+            if any(
+                    abs(column - blocked) < MIN_COLUMN_SPACING
+                    for column in desired.values()
+                    for blocked in non_group_columns):
+                continue
+            for person_id, column in desired.items():
+                positions[person_id] = (child_generation, column)
+            _rebuild_occupied(occupied, positions)
+
+    def compact_sibling_side_gaps():
+        seen_groups = set()
+        max_gap = 1.5
+        for source_id in sorted(
+                list(positions),
+                key=lambda item: (positions[item][0], positions[item][1])):
+            sibling_ids = _visible_sibling_ids(source_id, relations, positions)
+            if not sibling_ids:
+                continue
+            source_generation, source_column = positions[source_id]
+            spouse_columns = _visible_spouse_columns(
+                source_id, relations, positions)
+            if not spouse_columns:
+                continue
+            group_key = frozenset([source_id, *sibling_ids])
+            if group_key in seen_groups:
+                continue
+            seen_groups.add(group_key)
+            direction = (
+                -1 if any(column > source_column
+                          for column in spouse_columns)
+                else 1
+            )
+            side_ids = set()
+            fixed_ids = {source_id, *_visible_spouse_ids(
+                source_id, relations, positions)}
+            for sibling_id in sibling_ids:
+                sibling_column = positions[sibling_id][1]
+                if (direction < 0 and sibling_column >= source_column
+                        or direction > 0 and sibling_column <= source_column):
+                    continue
+                side_ids.add(sibling_id)
+                visible_children = [
+                    child_id for child_id in _visible_child_ids(
+                        sibling_id, relations, positions)
+                    if positions[child_id][0] == source_generation + 1
+                ]
+                if visible_children:
+                    fixed_ids.add(sibling_id)
+                for spouse_id in _visible_spouse_ids(
+                        sibling_id, relations, positions):
+                    if positions[spouse_id][0] != source_generation:
+                        continue
+                    side_ids.add(spouse_id)
+                    if visible_children:
+                        fixed_ids.add(spouse_id)
+            if len(side_ids) < 2:
+                continue
+            for _ in range(len(side_ids)):
+                row = sorted(
+                    (positions[person_id][1], person_id)
+                    for person_id in side_ids)
+                changed = False
+                for index in range(1, len(row)):
+                    left_column, left_id = row[index - 1]
+                    right_column, right_id = row[index]
+                    if right_column - left_column <= max_gap:
+                        continue
+                    if left_id not in fixed_ids:
+                        positions[left_id] = (
+                            source_generation, right_column - max_gap)
+                        changed = True
+                    elif right_id not in fixed_ids:
+                        positions[right_id] = (
+                            source_generation, left_column + max_gap)
+                        changed = True
+                    if changed:
+                        _rebuild_occupied(occupied, positions)
+                        break
+                if not changed:
+                    break
+
     while queue:
         source_id = queue.popleft()
         source_generation, source_column = positions[source_id]
@@ -533,7 +839,25 @@ def layout_family_tree(center_id, visible_ids, edges):
     enforce_spouse_adjacency()
     _resolve_same_row_conflicts(positions, {center_id})
     _rebuild_occupied(occupied, positions)
+    enforce_sibling_adjacency()
+    _rebuild_occupied(occupied, positions)
+    enforce_spouse_adjacency()
+    _resolve_same_row_conflicts(positions, {center_id})
+    _rebuild_occupied(occupied, positions)
     _compact_row_gaps(positions, {center_id})
+    _resolve_same_row_conflicts(positions, {center_id})
+    enforce_sibling_adjacency()
+    _resolve_same_row_conflicts(positions, {center_id})
+    enforce_child_alignment()
+    enforce_spouse_adjacency()
+    enforce_sibling_adjacency()
+    enforce_spouse_adjacency()
+    enforce_parent_child_alignment()
+    enforce_spouse_adjacency()
+    compact_sibling_side_gaps()
+    compact_child_row_clusters()
+    enforce_child_alignment()
+    enforce_spouse_adjacency()
     _resolve_same_row_conflicts(positions, {center_id})
     _rebuild_occupied(occupied, positions)
     return [

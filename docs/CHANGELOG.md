@@ -1,8 +1,23 @@
 # Changelog
 
+## [1.9.1] - 2026-05-20
+
+### Fixed
+
+- **Family tree sibling layout** - siblings of the center person are now kept contiguous after expanding branches. Unrelated same-row nodes (such as an uncle's children) can no longer split the center sibling group. New layout passes `enforce_sibling_adjacency`, `enforce_parent_child_alignment`, `enforce_child_alignment`, `compact_sibling_side_gaps`, and `compact_child_row_clusters` are applied in `layout_family_tree` to improve overall tree geometry.
+- **PNG export bold text** - graph PNG exports now resolve the correct bold (and italic) font file from the system font directories on Windows, macOS, and Linux before falling back to faux-bold rendering. A new `_draw_pillow_text` helper applies a second offset pass when no styled font face can be found, so bold node labels are no longer silently rendered in the regular weight.
+- **Family tree center node styling** - the center person node in the interactive family tree now uses a distinct bold font for the name and a highlighted fill color, with the name and lifespan detail rendered as separate text blocks at the correct vertical positions.
+- **Graph button tag constant** - `GraphCommonMixin` now exposes `_GRAPH_BUTTON_TAGS` so family-tree and path-graph button tags are referenced from a single class-level tuple rather than scattered literals.
+- **Start script robustness** - `scripts/start.ps1` and `scripts/start.sh` now change to the project root first, activates the venv before checking for Python, and improves the error message when Python is not found.
+
+### Tests
+
+- **Graph export tests** - new `tests/test_graph_export.py` covers font-file candidate ordering (Windows bold face preferred), SVG bold font-weight output, and faux-bold PNG rendering when no styled font face is available.
+- **Family tree layout tests** - `tests/test_gui_results.py` extended with `test_family_tree_center_siblings_stay_contiguous_after_uncle_children` and additional sibling-adjacency layout cases.
+
 ## [1.9.0] - 2026-05-19
 
-- Final testing release before 2.0.0
+- Testing release before 2.0.0. Will focus on bug fixes and polish until 2.0.0.
 
 ### Added
 

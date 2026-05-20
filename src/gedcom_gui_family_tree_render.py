@@ -175,6 +175,10 @@ class FamilyTreeRenderMixin:
         label_font = tkfont.Font(
             family=ui_family,
             size=max(scale(ui_size), 7))
+        center_label_font = tkfont.Font(
+            family=ui_family,
+            size=max(scale(ui_size), 7),
+            weight='bold')
         button_font = tkfont.Font(
             family=ui_family,
             size=max(scale(ui_size - 2), 6),
@@ -185,17 +189,51 @@ class FamilyTreeRenderMixin:
             if node['id'] in self.individuals else node['id']
             for node in layout
         ]
-        longest = max((label_font.measure(label)
-                      for label in labels), default=0)
+        longest = 0
+        for node, label in zip(layout, labels):
+            name_label, detail_label = (
+                self._split_graph_label_name_detail(label)
+                if node['is_center'] else (label, '')
+            )
+            longest = max(
+                longest,
+                *(center_label_font.measure(line)
+                  for line in name_label.splitlines()),
+                *(label_font.measure(line)
+                  for line in detail_label.splitlines()),
+            )
         node_w = min(max(longest + scale(24), scale(112)), scale(190))
-        wrapped_labels = [
-            self._wrap_canvas_label(label, label_font, node_w - scale(24))
-            for label in labels
-        ]
+        label_width = node_w - scale(24)
+        wrapped_label_blocks = []
+        for node, label in zip(layout, labels):
+            if node['is_center']:
+                name_label, detail_label = (
+                    self._split_graph_label_name_detail(label))
+                wrapped_label_blocks.append((
+                    self._wrap_canvas_label(
+                        name_label, center_label_font, label_width),
+                    self._wrap_canvas_label(
+                        detail_label, label_font, label_width)
+                    if detail_label else '',
+                ))
+            else:
+                wrapped_label_blocks.append((
+                    self._wrap_canvas_label(label, label_font, label_width),
+                    '',
+                ))
         line_space = label_font.metrics('linespace')
-        max_lines = max((label.count('\n') + 1 for label in wrapped_labels),
-                        default=1)
-        node_h = max(scale(84), max_lines * line_space + scale(26))
+        center_line_space = center_label_font.metrics('linespace')
+        block_heights = [
+            ((name_label.count('\n') + 1) * (
+                center_line_space if node['is_center'] else line_space)
+             if name_label else 0)
+            + ((detail_label.count('\n') + 1) * line_space
+               if detail_label else 0)
+            for node, (name_label, detail_label)
+            in zip(layout, wrapped_label_blocks)
+        ]
+        max_label_h = max(block_heights, default=line_space)
+        node_h = max(scale(84), max_label_h + scale(26))
         h_gap = node_w + scale(48)
         v_gap = max(node_h + scale(88), scale(150))
         margin = scale(56)
@@ -279,7 +317,8 @@ class FamilyTreeRenderMixin:
                     fill=colors['parent'], width=scale(3), arrow='last',
                     arrowshape=(scale(12), scale(14), scale(5)))
 
-        for index, (node, label) in enumerate(zip(layout, wrapped_labels)):
+        for index, (node, label_block) in enumerate(
+                zip(layout, wrapped_label_blocks)):
             node_id = node['id']
             x, y = positions[node_id]
             x1 = x - node_w / 2
@@ -288,15 +327,39 @@ class FamilyTreeRenderMixin:
             y2 = y + node_h / 2
             node_tag = f'family_tree_node_{index}'
             fill = self._person_box_fill(self.individuals, node_id)
+            if node['is_center']:
+                fill = self._endpoint_person_box_fill(fill, colors)
             outline_width = scale(3) if node['is_center'] else scale(2)
             canvas.create_rectangle(
                 x1, y1, x2, y2, fill=fill, outline=colors['node_outline'],
                 width=outline_width, tags=('family_tree_node', node_tag))
-            canvas.create_text(
-                x, y, text=label, fill=self.PERSON_BOX_TEXT,
-                font=label_font,
-                width=node_w - scale(24), justify='center',
-                tags=('family_tree_node', node_tag))
+            name_label, detail_label = label_block
+            if node['is_center']:
+                name_lines = name_label.count('\n') + 1 if name_label else 0
+                detail_lines = (
+                    detail_label.count('\n') + 1 if detail_label else 0)
+                name_h = name_lines * center_line_space
+                detail_h = detail_lines * line_space
+                text_top = y - (name_h + detail_h) / 2
+                if name_label:
+                    canvas.create_text(
+                        x, text_top + name_h / 2,
+                        text=name_label, fill=self.PERSON_BOX_TEXT,
+                        font=center_label_font, width=label_width,
+                        justify='center',
+                        tags=('family_tree_node', node_tag))
+                if detail_label:
+                    canvas.create_text(
+                        x, text_top + name_h + detail_h / 2,
+                        text=detail_label, fill=self.PERSON_BOX_TEXT,
+                        font=label_font, width=label_width, justify='center',
+                        tags=('family_tree_node', node_tag))
+            else:
+                canvas.create_text(
+                    x, y, text=name_label, fill=self.PERSON_BOX_TEXT,
+                    font=label_font,
+                    width=label_width, justify='center',
+                    tags=('family_tree_node', node_tag))
             options = family_tree_expansion_options(
                 node_id, visible_set, self._family_tree_members_for)
             hidden_categories = tuple(
