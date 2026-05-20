@@ -19,7 +19,8 @@ The tool does not modify your GEDCOM file. It is only used for exploring connect
 
 In addition to the GUI, this application also includes a command-line tool for fast queries or incorporating into other programmatic workflows.
 
-Downloads:
+## Downloads
+
 * Mac
   * [App Store](https://apps.apple.com/app/gedcom-navigator/id6765485580) - easy install, may be behind the latest version here
   * [ZIP Download](https://github.com/ajkessel/gedcom-navigator/releases/latest/download/gedcom-navigator-mac.zip) (see [security note](MAC_SECURITY.md)).
