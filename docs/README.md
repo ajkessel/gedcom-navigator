@@ -273,9 +273,7 @@ This means a sibling and a parent are treated as equidistant from ego (both are 
 
 ## Privacy
 
-The tool runs entirely locally on your machine, with one exception: if you check for a new release, the app will check this page to see if your version is up to date. Nothing is ever uploaded. Be aware, however, that your `.ged` file likely contains personal information about living people; do not commit your real GEDCOM to a public repository or create issues or provide feedback to this repository with any personal data.
-
-See the [privacy policy](PRIVACY_POLICY.md) for full details. 
+The tool runs entirely locally on your machine. Nothing is uploaded. Be aware, however, that your `.ged` file likely contains personal information about living people; do not commit your real GEDCOM to a public repository or create issues or provide feedback to this repository with any personal data.
 
 ## Windows security
 
