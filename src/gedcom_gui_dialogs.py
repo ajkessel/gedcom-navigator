@@ -448,8 +448,11 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
         win.transient(self.root)
         win.grab_set()
 
-        outer = ctk.CTkFrame(win, fg_color='transparent')
-        outer.pack(fill='both', expand=True, padx=16, pady=16)
+        _scroll_frame = ctk.CTkScrollableFrame(win, fg_color='transparent', corner_radius=0)
+        _scroll_frame.pack(fill='both', expand=True)
+
+        outer = ctk.CTkFrame(_scroll_frame, fg_color='transparent')
+        outer.pack(fill='x', padx=16, pady=16)
 
         # Appearance section (font size + theme + tooltips)
         appearance_section = ctk.CTkFrame(outer, border_width=1)
