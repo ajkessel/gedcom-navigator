@@ -654,19 +654,38 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
         _radiobutton(profile_view_row, text=PROFILE_VIEW_TREE,
                      variable=profile_view_var, value='tree').pack(side='left')
 
-        # Language row
+        # Language row (wraps to multiple rows on narrow windows)
         lang_row = ctk.CTkFrame(display_section, fg_color='transparent')
         lang_row.pack(fill='x', padx=12, pady=(0, 10))
-        ctk.CTkLabel(lang_row, text=LBL_LANGUAGE).pack(side='left', padx=(0, 8))
+        ctk.CTkLabel(lang_row, text=LBL_LANGUAGE).pack(anchor='w', pady=(0, 2))
         lang_var = tk.StringVar(value=self._config.get_language())
-        
-        # Discover available languages
         lang_options = get_available_languages()
-        
-        for label, code in lang_options:
-            _radiobutton(
-                lang_row, text=label, variable=lang_var, value=code,
-            ).pack(side='left', padx=6)
+
+        lang_btns_frame = ctk.CTkFrame(lang_row, fg_color='transparent')
+        lang_btns_frame.pack(fill='x')
+        _lang_btns = [
+            _radiobutton(lang_btns_frame, text=label, variable=lang_var, value=code)
+            for label, code in lang_options
+        ]
+
+        def _layout_lang_buttons(event=None, _force_width=None):
+            avail = _force_width if _force_width is not None else lang_btns_frame.winfo_width()
+            if avail <= 1:
+                return
+            for b in _lang_btns:
+                b.grid_forget()
+            row = col = x = 0
+            for b in _lang_btns:
+                bw = b.winfo_reqwidth() + 12
+                if col and x + bw > avail:
+                    row += 1
+                    col = 0
+                    x = 0
+                b.grid(row=row, column=col, padx=(0, 6), pady=(0, 2), sticky='w')
+                x += bw
+                col += 1
+
+        lang_btns_frame.bind('<Configure>', _layout_lang_buttons)
 
         # Cache section
         cache_section = ctk.CTkFrame(outer, border_width=1)
@@ -761,38 +780,42 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
         ctk.CTkButton(btn_frame, text=BTN_CANCEL, width=80,
                       command=on_cancel).pack(side='right')
 
-        if getattr(self, '_debug', False):
-            import sys as _sys
-            import tkinter.font as _tkf
-            win.update_idletasks()
-            print('[debug] --- Preferences dialog before fit ---',
-                  file=_sys.stderr, flush=True)
-            print(f'[debug]   win req: {win.winfo_reqwidth()}x{win.winfo_reqheight()}',
-                  file=_sys.stderr, flush=True)
-            try:
-                cf = ctk.CTkFont()
-                print(f'[debug]   CTkFont: family={cf.cget("family")!r}'
-                      f'  size={cf.cget("size")} (cget)  actual={cf.actual("size")}',
-                      file=_sys.stderr, flush=True)
-            except Exception as e:
-                print(f'[debug]   CTkFont: ERROR {e}',
-                      file=_sys.stderr, flush=True)
-            try:
-                df = _tkf.nametofont('TkDefaultFont')
-                print(f'[debug]   TkDefaultFont: size={df.cget("size")} (cget)'
-                      f'  actual={df.actual("size")}',
-                      file=_sys.stderr, flush=True)
-            except Exception as e:
-                print(
-                    f'[debug]   TkDefaultFont: ERROR {e}', file=_sys.stderr, flush=True)
-            try:
-                theme_font = ctk.ThemeManager.theme.get('CTkFont', 'N/A')
-                print(f'[debug]   CTk theme CTkFont: {theme_font}',
-                      file=_sys.stderr, flush=True)
-            except Exception as e:
-                print(
-                    f'[debug]   CTk theme: ERROR {e}', file=_sys.stderr, flush=True)
+        # Pre-layout language buttons at the expected inner width so we can measure
+        # the accurate content height before the window is shown.  ~440 px accounts
+        # for window min_w=500 minus the CTkScrollableFrame scrollbar, outer padx=16,
+        # and the display-section padx=12 on each side.
+        _layout_lang_buttons(_force_width=440)
+        win.update_idletasks()
 
-        self._fit_window_to_content(win, min_w=500, min_h=420)
+        _pre_content_h = outer.winfo_reqheight() + 32
+        _pre_btn_h = btn_frame.winfo_reqheight() + 16
+        _pre_screen_h = win.winfo_screenheight()
+        _pre_max_h = max(420, min(int(_pre_screen_h * 0.9), _pre_screen_h - 32))
+        _pre_target_h = max(420, min(_pre_content_h + _pre_btn_h, _pre_max_h))
+
+        self._fit_window_to_content(win, min_w=500, min_h=420, preferred_h=_pre_target_h)
         win.deiconify()
         win.after(50, win.focus_force)
+
+        def _correct_prefs_height():
+            # Re-layout at the actual window width and resize if the pre-computed
+            # height was off (e.g. actual scrollbar width differed from estimate).
+            # Runs at 100 ms so the _windows_set_titlebar_color revert (at ~15 ms)
+            # has completed and the window is fully shown.  maxsize() is unlocked
+            # first to avoid the CTkToplevel scaling lock blocking the resize.
+            _layout_lang_buttons()
+            win.update_idletasks()
+            content_h = outer.winfo_reqheight() + 32
+            btn_h = btn_frame.winfo_reqheight() + 16
+            screen_h = win.winfo_screenheight()
+            max_h = max(420, min(int(screen_h * 0.9), screen_h - 32))
+            target_h = max(420, min(content_h + btn_h, max_h))
+            geo = win.geometry()
+            current_h = int(geo.split('x')[1].split('+')[0])
+            if abs(target_h - current_h) > 4:
+                fw = geo.split('x')[0]
+                pos = geo.split('+', 1)[1]
+                win.maxsize(10000, 10000)
+                win.geometry(f'{fw}x{target_h}+{pos}')
+
+        win.after(100, _correct_prefs_height)
