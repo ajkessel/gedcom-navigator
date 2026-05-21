@@ -10,6 +10,8 @@ import os
 import tempfile
 import zipfile
 
+from gedcom_transliteration import add_transliterated_names
+
 # Captures: level, optional xref (@…@), tag (non-space), optional value (rest)
 LINE_RE = re.compile(r'^\s*(\d+)\s+(?:(@[^@]+@)\s+)?(\S+)(?:\s+(.*?))?\s*$')
 
@@ -174,6 +176,7 @@ def build_model(gedcom_path, dna_keyword, page_marker):
                 'surname': '',
                 'given_name': '',
                 'alt_names': [],
+                'transliterated_names': [],
                 'sex': '',
                 'famc': [],
                 'fams': [],
@@ -283,6 +286,8 @@ def build_model(gedcom_path, dna_keyword, page_marker):
                     indi['dna_markers'].append(
                         f'Tag: {tag_name} ({ref})'
                     )
+
+    add_transliterated_names(individuals)
 
     model_error = None
     if not records:

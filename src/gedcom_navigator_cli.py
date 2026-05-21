@@ -24,7 +24,8 @@ Two DNA-flag signals are detected (either is sufficient):
 Use --list-tags first to see all tag definitions in your file, and
 --list-flagged to see every flagged individual. Then run a normal query.
 
-Pure stdlib; no external dependencies.
+No third-party packages are required. Optional transliteration packages are used
+when installed to improve fuzzy matching for some non-Latin names.
 
 Usage examples:
 
@@ -48,7 +49,8 @@ Usage examples:
   # Tighten the tag filter to "DNA Match" only (exclude DNA Connection etc.)
   python gedcom_navigator_cli.py tree.ged "John Smith" --tag-keyword "DNA Match"
 
-  # Fuzzy match (tolerates typos and spelling variants):
+  # Fuzzy match (tolerates typos, spelling variants, and cached Hebrew/Cyrillic
+  # transliterated aliases):
   # "John Smth" will still find "John Adam Smith".
   python gedcom_navigator_cli.py tree.ged "John Smith" --fuzzy
   python gedcom_navigator_cli.py tree.ged "John Smith" --fuzzy --fuzzy-threshold 0.7
@@ -164,7 +166,8 @@ def main():
     parser.add_argument('--fuzzy', action='store_true',
                         help='Enable fuzzy name matching. In addition to token matches, '
                              'include names whose similarity to the query exceeds '
-                             '--fuzzy-threshold. Useful for typos and spelling variants.')
+                             '--fuzzy-threshold. Useful for typos, spelling variants, '
+                             'and cached Hebrew/Cyrillic transliterated aliases.')
     parser.add_argument('--fuzzy-threshold', type=ratio_float, default=0.6,
                         help='Similarity cutoff for --fuzzy, between 0.0 and 1.0 (default 0.6). '
                              'Lower = more matches, higher = stricter. '
@@ -242,7 +245,10 @@ def main():
     if not candidates:
         msg = f'No individuals match: {args.target!r}'
         if not args.fuzzy:
-            msg += '  (try --fuzzy to allow typos and spelling variants)'
+            msg += (
+                '  (try --fuzzy to allow typos, spelling variants, '
+                'and Hebrew/Cyrillic transliterated aliases)'
+            )
         print(msg, file=sys.stderr)
         sys.exit(1)
     if len(candidates) > 1:

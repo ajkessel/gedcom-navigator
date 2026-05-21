@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- **Hebrew and Cyrillic fuzzy search aliases** - the parser now generates cached English-letter aliases for Hebrew and Cyrillic names. Fuzzy search in both the GUI and CLI can use these aliases, while normal token search remains unchanged. Packaged/source builds include optional `cyrtranslit` and `hebrew` support, with built-in fallback mappings when those packages are unavailable.
+
+### Tests
+
+- **Transliteration search coverage** - new tests cover Hebrew and Cyrillic alias generation, cache preservation, fuzzy-only matching, and fallback Hebrew aliases such as matching `moshe kohen` against a generated `msh khn` alias.
+
 ## [1.9.1] - 2026-05-20
 
 ### Fixed

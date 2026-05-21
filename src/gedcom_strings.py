@@ -211,7 +211,7 @@ def get_tip_dna_flagged_only():
 
 def get_tip_fuzzy():
     mod = get_mod_key()
-    return _("Toggle Fuzzy Search ({mod}U)\nAllow fuzzy name matching in search results. Fuzzy matching uses a similarity ratio to find names similar to the search term, which can help find matches when names are misspelled or have minor variations.").format(mod=mod)
+    return _("Toggle Fuzzy Search ({mod}U)\nAllow fuzzy name matching in search results. Fuzzy matching uses a similarity ratio to find names similar to the search term, which can help find matches when names are misspelled, have minor variations, or use cached Hebrew/Cyrillic transliterated aliases.").format(mod=mod)
 
 def get_tip_married_names():
     mod = get_mod_key()
