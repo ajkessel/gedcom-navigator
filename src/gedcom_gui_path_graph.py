@@ -831,11 +831,11 @@ class PathGraphMixin:
         copy_btn = ctk.CTkButton(
             btn_frame, text=BTN_COPY_GRAPH, width=80, command=_copy_graph)
         copy_btn.pack(side='right', padx=(0, 8))
-        Tooltip(copy_btn, TIP_COPY_GRAPH)
+        Tooltip(copy_btn, get_tip_copy_graph())
         save_btn = ctk.CTkButton(
             btn_frame, text=BTN_SAVE_GRAPH, width=80, command=_save_graph)
         save_btn.pack(side='right', padx=(0, 8))
-        Tooltip(save_btn, TIP_SAVE_GRAPH)
+        Tooltip(save_btn, get_tip_save_graph())
         graph_debug_enabled = (
             os.environ.get('GEDCOM_NAVIGATOR_GRAPH_DEBUG') == '1')
         if graph_debug_enabled:

@@ -6,3 +6,7 @@ pyinstaller
 pyinstaller-hooks-contrib
 pytest
 setuptools
+Babel
+polib
+deepl
+deep-translator

@@ -15,8 +15,16 @@ import tkinter.font as tkfont
 from tkinter import ttk, messagebox
 import customtkinter as ctk
 
-from gedcom_data_model import GedcomDataModel
 from gedcom_config import ConfigManager
+from gedcom_i18n import setup_i18n
+
+# Initialize i18n at the top level before any other local imports.
+# This ensures that constants in modules like gedcom_gui_search are translated.
+_config = ConfigManager(ConfigManager.default_path())
+setup_i18n(_config.get_language())
+
+from gedcom_data_model import GedcomDataModel
+# gedcom_strings imports will happen after setup_i18n
 from gedcom_strings import *  # pylint: disable=unused-wildcard-import
 from gedcom_gui_background import BackgroundTaskMixin
 from gedcom_gui_search import SearchMixin
@@ -286,11 +294,11 @@ class GedcomNavigatorApp(
         _select_tag_btn = ctk.CTkButton(
             settings_frame, text=BTN_SELECT_TAG, width=100, command=self._view_tags)
         _select_tag_btn.grid(row=0, column=4, padx=4)
-        Tooltip(_select_tag_btn, TIP_SELECT_TAG)
+        Tooltip(_select_tag_btn, get_tip_select_tag())
         _find_path_btn = ctk.CTkButton(
             settings_frame, text=BTN_FIND_PATH, width=120, command=self._find_path)
         _find_path_btn.grid(row=0, column=5, padx=(12, 4))
-        Tooltip(_find_path_btn, TIP_FIND_PATH)
+        Tooltip(_find_path_btn, get_tip_find_path())
 
         # Main paned area.  Use the classic Tk paned window here because it
         # supports per-pane minsize constraints; ttk.PanedWindow only supports
@@ -324,18 +332,18 @@ class GedcomNavigatorApp(
         self.search_entry.pack(side='left', fill='x', expand=True)
         self.search_entry.bind(
             '<Return>', lambda *_: self._search_flush_and_jump())
-        Tooltip(self.search_entry, TIP_FIND)
+        Tooltip(self.search_entry, get_tip_find())
         # Search mode checkboxes
         ctk.CTkCheckBox(
             search_frame, text=CHK_FUZZY,
             variable=self.fuzzy_search, width=0,
         ).pack(side='left', padx=(8, 0))
-        Tooltip(search_frame.winfo_children()[-1], TIP_FUZZY)
+        Tooltip(search_frame.winfo_children()[-1], get_tip_fuzzy())
         ctk.CTkCheckBox(
             search_frame, text=CHK_MARRIED_NAMES,
             variable=self.married_name_search, width=0,
         ).pack(side='left', padx=(8, 0))
-        Tooltip(search_frame.winfo_children()[-1], TIP_MARRIED_NAMES)
+        Tooltip(search_frame.winfo_children()[-1], get_tip_married_names())
 
         # Filter: box
         filter_frame = ctk.CTkFrame(left, fg_color='transparent')
@@ -346,12 +354,12 @@ class GedcomNavigatorApp(
             filter_frame, textvariable=self.filter_text)
         self.filter_entry.pack(side='left', fill='x', expand=True)
         self.filter_entry.bind('<Return>', lambda *_: self._kb_focus_list())
-        Tooltip(self.filter_entry, TIP_FILTER)
+        Tooltip(self.filter_entry, get_tip_filter())
         ctk.CTkCheckBox(
             filter_frame, text=CHK_DNA_FLAGGED_ONLY,
             variable=self.show_flagged_only, width=0,
         ).pack(side='left', padx=(8, 0))
-        Tooltip(filter_frame.winfo_children()[-1], TIP_DNA_FLAGGED_ONLY)
+        Tooltip(filter_frame.winfo_children()[-1], get_tip_dna_flagged_only())
 
         list_frame = ctk.CTkFrame(left, fg_color='transparent')
         list_frame.pack(fill='both', expand=True, pady=(4, 0))
@@ -414,21 +422,21 @@ class GedcomNavigatorApp(
         self.set_home_btn = ctk.CTkButton(
             action_frame, text=BTN_SET_HOME, command=self._set_home_person)
         self.set_home_btn.grid(row=0, column=5, padx=(0, 6))
-        Tooltip(self.set_home_btn, TIP_SET_HOME)
+        Tooltip(self.set_home_btn, get_tip_set_home())
         _show_person_label = (BTN_SHOW_PERSON_TREE
                               if self._default_profile_view == 'tree'
                               else BTN_SHOW_PERSON)
-        _show_person_tip = (TIP_SHOW_PERSON_TREE
-                            if self._default_profile_view == 'tree'
-                            else TIP_SHOW_PERSON)
+        _show_person_tip_fn = (get_tip_show_person_tree
+                               if self._default_profile_view == 'tree'
+                               else get_tip_show_person)
         self.show_person_btn = ctk.CTkButton(
             action_frame, text=_show_person_label, command=self._show_person)
         self.show_person_btn.grid(row=0, column=6, padx=(0, 6))
-        self._show_person_tooltip = Tooltip(self.show_person_btn, _show_person_tip)
+        self._show_person_tooltip = Tooltip(self.show_person_btn, _show_person_tip_fn())
         self.find_matches_btn = ctk.CTkButton(
             action_frame, text=BTN_FIND_MATCHES, command=self._find_matches)
         self.find_matches_btn.grid(row=0, column=7)
-        Tooltip(self.find_matches_btn, TIP_FIND_MATCHES)
+        Tooltip(self.find_matches_btn, get_tip_find_matches())
 
         # --- Right pane ---
         right = ctk.CTkFrame(paned, fg_color='transparent')
@@ -547,15 +555,15 @@ class GedcomNavigatorApp(
         self._reverse_btn = ctk.CTkButton(status_bar, text=BTN_REVERSE, width=110,
                                           command=self._reverse_results, state='disabled')
         self._reverse_btn.grid(row=0, column=1, padx=(4, 4), pady=4)
-        Tooltip(self._reverse_btn, TIP_REVERSE)
+        Tooltip(self._reverse_btn, get_tip_reverse())
         self._save_btn = ctk.CTkButton(status_bar, text=BTN_SAVE, width=80,
                                        command=self._save_results)
         self._save_btn.grid(row=0, column=2, padx=(4, 4), pady=4)
-        Tooltip(self._save_btn, TIP_SAVE)
+        Tooltip(self._save_btn, get_tip_save())
         self._copy_btn = ctk.CTkButton(status_bar, text=BTN_COPY, width=80,
                                        command=self._copy_results)
         self._copy_btn.grid(row=0, column=3, padx=(4, 8), pady=4)
-        Tooltip(self._copy_btn, TIP_COPY)
+        Tooltip(self._copy_btn, get_tip_copy())
         self._progress_bar = ctk.CTkProgressBar(status_bar, width=130)
         self._progress_bar.set(0)
         self._progress_bar.grid(row=0, column=2, columnspan=2, padx=(4, 8), pady=4)
@@ -696,6 +704,13 @@ def main():
         _patch_ctk_scaling_for_tkinter_dpi()
 
     root = ctk.CTk()
+
+    # Now that i18n is set up, we can safely import strings.
+    # Note: We must import * here to make them available in the main scope
+    # for existing code that expects them.
+    from gedcom_strings import (
+        APP_TITLE, ERR_FILE_NOT_FOUND_TITLE, ERR_GEDCOM_NOT_FOUND_MSG
+    )
 
     if args.debug:
         _print_dpi_diagnostics(root)

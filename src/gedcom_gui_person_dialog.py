@@ -42,24 +42,27 @@ class PersonDialogMixin:
                 self.show_person_btn.configure(
                     text=BTN_SHOW_PERSON,
                     command=lambda: self._show_person(initial_view='profile'))
-                self._show_person_tooltip.update_text(TIP_SHOW_PERSON)
+                self._show_person_tooltip.update_text(get_tip_show_person())
             else:
                 self.show_person_btn.configure(
                     text=BTN_SHOW_PERSON_TREE, command=self._show_person)
-                self._show_person_tooltip.update_text(TIP_SHOW_PERSON_TREE)
+                self._show_person_tooltip.update_text(get_tip_show_person_tree())
         else:
             if shift_held:
                 self.show_person_btn.configure(
                     text=BTN_SHOW_PERSON_TREE,
                     command=lambda: self._show_person(initial_view='tree'))
-                self._show_person_tooltip.update_text(TIP_SHOW_PERSON_TREE)
+                self._show_person_tooltip.update_text(get_tip_show_person_tree())
             else:
                 self.show_person_btn.configure(
                     text=BTN_SHOW_PERSON, command=self._show_person)
-                self._show_person_tooltip.update_text(TIP_SHOW_PERSON)
+                self._show_person_tooltip.update_text(get_tip_show_person())
     def _show_person_for(self, indi_id, initial_view=None,
                          existing_window=None):
         """Open a detail window for a specific individual ID."""
+        if indi_id not in self.individuals:
+            messagebox.showwarning(ERR_NO_SEL_TITLE, ERR_NO_SEL_MSG)
+            return
         if existing_window is None:
             existing = getattr(self, '_secondary_win', None)
             if existing is not None:
@@ -253,15 +256,15 @@ class PersonDialogMixin:
                 btn_frame, text=BTN_TREE_VIEW, width=90,
                 command=show_tree_view)
             tree_btn.pack(side='right', padx=(0, 8))
-            Tooltip(tree_btn, TIP_TREE_VIEW_BTN)
+            Tooltip(tree_btn, get_tip_tree_view_btn())
             copy_btn = ctk.CTkButton(
                 btn_frame, text=BTN_COPY_GRAPH, width=80, command=copy_profile)
             copy_btn.pack(side='right', padx=(0, 8))
-            Tooltip(copy_btn, TIP_COPY_PROFILE)
+            Tooltip(copy_btn, get_tip_copy_profile())
             save_btn = ctk.CTkButton(
                 btn_frame, text=BTN_SAVE_GRAPH, width=80, command=save_profile)
             save_btn.pack(side='right', padx=(0, 8))
-            Tooltip(save_btn, TIP_SAVE_PROFILE)
+            Tooltip(save_btn, get_tip_save_profile())
 
         def _render_tree_buttons(show_person_view, copy_graph, save_graph,
                                  save_debug=None):
@@ -273,15 +276,15 @@ class PersonDialogMixin:
                 btn_frame, text=BTN_PERSON_VIEW, width=100,
                 command=show_person_view)
             person_btn.pack(side='right', padx=(0, 8))
-            Tooltip(person_btn, TIP_PERSON_VIEW_BTN)
+            Tooltip(person_btn, get_tip_person_view_btn())
             copy_btn = ctk.CTkButton(
                 btn_frame, text=BTN_COPY_GRAPH, width=80, command=copy_graph)
             copy_btn.pack(side='right', padx=(0, 8))
-            Tooltip(copy_btn, TIP_COPY_GRAPH)
+            Tooltip(copy_btn, get_tip_copy_graph())
             save_btn = ctk.CTkButton(
                 btn_frame, text=BTN_SAVE_GRAPH, width=80, command=save_graph)
             save_btn.pack(side='right', padx=(0, 8))
-            Tooltip(save_btn, TIP_SAVE_GRAPH)
+            Tooltip(save_btn, get_tip_save_graph())
             if save_debug:
                 debug_btn = ctk.CTkButton(
                     btn_frame, text=BTN_DEBUG_GRAPH, width=100,

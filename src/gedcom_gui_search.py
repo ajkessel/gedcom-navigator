@@ -12,7 +12,7 @@ from tkinter import filedialog, messagebox
 
 from gedcom_name_search import individual_matches_query
 from gedcom_parser import extract_ged_from_zip
-from gedcom_strings import *  # pylint: disable=unused-wildcard-import,wildcard-import
+import gedcom_strings as gs
 
 
 class SearchMixin:
@@ -23,7 +23,7 @@ class SearchMixin:
         current = self.gedcom_path.get().strip()
         initialdir = os.path.dirname(current) if current else None
         path = filedialog.askopenfilename(
-            title=DLG_SELECT_GEDCOM,
+            title=gs.DLG_SELECT_GEDCOM,
             filetypes=[("GEDCOM files", "*.ged *.gedcom *.zip"),
                        ("All files", "*.*")],
             initialdir=initialdir,
@@ -38,14 +38,14 @@ class SearchMixin:
             return
         path = self.gedcom_path.get().strip()
         if not path:
-            messagebox.showerror(ERR_NO_FILE_TITLE, ERR_NO_FILE_MSG)
+            messagebox.showerror(gs.ERR_NO_FILE_TITLE, gs.ERR_NO_FILE_MSG)
             return
         if not os.path.isfile(path):
-            messagebox.showerror(ERR_NOT_FOUND_TITLE,
-                                 ERR_NOT_FOUND_MSG.format(path=path))
+            messagebox.showerror(gs.ERR_NOT_FOUND_TITLE,
+                                 gs.ERR_NOT_FOUND_MSG.format(path=path))
             return
 
-        self._show_progress(STATUS_LOADING)
+        self._show_progress(gs.STATUS_LOADING)
         self._set_busy(True)
 
         dna_keyword = self.tag_keyword.get()
@@ -82,25 +82,25 @@ class SearchMixin:
             self._hide_progress()
             self._set_busy(False)
             if error:
-                self.status_text.set(STATUS_LOAD_FAILED)
+                self.status_text.set(gs.STATUS_LOAD_FAILED)
                 if path.lower().endswith('.zip') and ged_name is None:
                     messagebox.showerror(
-                        ERR_ZIP_TITLE, ERR_ZIP_MSG.format(error=error))
+                        gs.ERR_ZIP_TITLE, gs.ERR_ZIP_MSG.format(error=error))
                 else:
                     messagebox.showerror(
-                        ERR_PARSE_TITLE, ERR_PARSE_MSG.format(error=error))
+                        gs.ERR_PARSE_TITLE, gs.ERR_PARSE_MSG.format(error=error))
                 return
             from_cache, encoding_warning, model_error = result
             if model_error:
-                self.status_text.set(STATUS_LOAD_FAILED)
+                self.status_text.set(gs.STATUS_LOAD_FAILED)
                 messagebox.showerror(
-                    ERR_PARSE_TITLE, ERR_PARSE_MSG.format(error=model_error))
+                    gs.ERR_PARSE_TITLE, gs.ERR_PARSE_MSG.format(error=model_error))
                 return
             self.individuals = self._model.individuals
             self.families = self._model.families
             self.tag_records = self._model.tag_records
             if encoding_warning:
-                messagebox.showwarning(ERR_ENCODING_TITLE, encoding_warning)
+                messagebox.showwarning(gs.ERR_ENCODING_TITLE, encoding_warning)
             self.sorted_ids = sorted(
                 self.individuals.keys(),
                 key=lambda iid: (self.individuals[iid]['name'].lower(), iid),
@@ -108,9 +108,9 @@ class SearchMixin:
             self._add_to_history(path)
             self._home_person_id = self._load_home_person(path)
             self._populate_tree()
-            status = (STATUS_LOADED_CACHED.format(count=len(self.individuals))
+            status = (gs.STATUS_LOADED_CACHED.format(count=len(self.individuals))
                       if from_cache
-                      else STATUS_LOADED.format(count=len(self.individuals)))
+                      else gs.STATUS_LOADED.format(count=len(self.individuals)))
             self.status_text.set(status)
 
         self.root.after(10, lambda: threading.Thread(
@@ -175,7 +175,7 @@ class SearchMixin:
                 self._hide_progress()
                 self._set_busy(False)
                 if error:
-                    messagebox.showerror(ERR_PARSE_TITLE, str(error))
+                    messagebox.showerror(gs.ERR_PARSE_TITLE, str(error))
                     return
                 results, home_paths = result
                 self._render_results(start_id, results, home_paths=home_paths)
@@ -184,7 +184,7 @@ class SearchMixin:
                 _do_refresh,
                 _on_done,
                 popup_message=(
-                    PROGRESS_SEARCHING
+                    gs.PROGRESS_SEARCHING
                     if self._is_slow_search(max_depth, len(self.individuals))
                     else None
                 ),
@@ -204,7 +204,7 @@ class SearchMixin:
                 self._hide_progress()
                 self._set_busy(False)
                 if error:
-                    messagebox.showerror(ERR_PARSE_TITLE, str(error))
+                    messagebox.showerror(gs.ERR_PARSE_TITLE, str(error))
                     return
                 paths, truncated = result
                 self._render_path_results(start_id, end_id, paths, truncated)
@@ -212,7 +212,7 @@ class SearchMixin:
             self._run_background_task(
                 _do_refresh,
                 _on_done,
-                popup_message=PROGRESS_FINDING_PATH,
+                popup_message=gs.PROGRESS_FINDING_PATH,
                 cancelable=True,
                 on_cancel=lambda: (self._hide_progress(), self._set_busy(False)),
             )
@@ -256,8 +256,8 @@ class SearchMixin:
         flagged_count = sum(
             1 for i in self.individuals.values() if i['dna_markers'])
 
-        _col_labels = {'name': COL_NAME, 'birth': COL_BIRTH,
-                       'death': COL_DEATH, 'flagged': COL_DNA}
+        _col_labels = {'name': gs.COL_NAME, 'birth': gs.COL_BIRTH,
+                       'death': gs.COL_DEATH, 'flagged': gs.COL_DNA}
         for _col, _label in _col_labels.items():
             suffix = (
                 ' ▼' if self._sort_rev else ' ▲') if _col == self._sort_col else ''
@@ -334,15 +334,15 @@ class SearchMixin:
 
         total = len(self.individuals)
         if truncated and (query or flagged_only):
-            self.status_text.set(STATUS_SHOWING_FIRST.format(
+            self.status_text.set(gs.STATUS_SHOWING_FIRST.format(
                 max_display=self.max_display.get(), total_matches=total_matches,
                 total=total, flagged=flagged_count))
         elif query or flagged_only:
-            self.status_text.set(STATUS_MATCHES.format(
+            self.status_text.set(gs.STATUS_MATCHES.format(
                 shown=shown, plural='es' if shown != 1 else '',
                 total=total, flagged=flagged_count))
         else:
-            self.status_text.set(STATUS_OVERVIEW.format(
+            self.status_text.set(gs.STATUS_OVERVIEW.format(
                 total=total, families=len(self.families), flagged=flagged_count))
 
     def _fuzzy_threshold_value(self):
@@ -366,18 +366,18 @@ class SearchMixin:
         if self._busy:
             return
         if not self.individuals:
-            messagebox.showwarning(ERR_NO_DATA_TITLE, ERR_NO_DATA_MSG)
+            messagebox.showwarning(gs.ERR_NO_DATA_TITLE, gs.ERR_NO_DATA_MSG)
             return
         sel = self.tree.selection()
         start_id = sel[0] if sel else self._active_id
         if not start_id:
-            messagebox.showwarning(ERR_NO_SEL_TITLE, ERR_NO_SEL_MSG)
+            messagebox.showwarning(gs.ERR_NO_SEL_TITLE, gs.ERR_NO_SEL_MSG)
             return
         try:
             top_n = int(self.top_n.get())
             max_depth = int(self.max_depth.get())
         except (tk.TclError, ValueError):
-            messagebox.showerror(ERR_BAD_VAL_TITLE, ERR_BAD_VAL_TOP_N)
+            messagebox.showerror(gs.ERR_BAD_VAL_TITLE, gs.ERR_BAD_VAL_TOP_N)
             return
 
         _slow = self._is_slow_search(max_depth, len(self.individuals))
@@ -397,18 +397,19 @@ class SearchMixin:
             self._hide_progress()
             self._set_busy(False)
             if error:
-                messagebox.showerror(ERR_PARSE_TITLE, str(error))
+                messagebox.showerror(gs.ERR_PARSE_TITLE, str(error))
                 return
             results, home_paths = result
             self._results_reversed = False
-            self._reverse_btn.configure(text=BTN_REVERSE)
+            self._reverse_btn.configure(text=gs.BTN_REVERSE)
             self._last_result = {'type': 'dna_matches', 'start_id': start_id}
             self._render_results(start_id, results, home_paths=home_paths)
 
         self._run_background_task(
             _do_search,
             _on_done,
-            popup_message=PROGRESS_SEARCHING if _slow else None,
+            popup_message=gs.PROGRESS_SEARCHING if _slow else None,
             cancelable=True,
             on_cancel=_on_cancel,
         )
+

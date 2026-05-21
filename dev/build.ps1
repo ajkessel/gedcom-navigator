@@ -54,7 +54,27 @@ try {
     $licenseTxt = $licenseMd -replace '^##+\s+', '' -replace '\[([^\]]+)\]\(([^\)]+)\)', '$1 ($2)'
     $licenseTxt | Out-File -FilePath ".\dist\LICENSE.txt" -Encoding utf8
 
+    # Generate icons
     python .\dev\generate_icon.py .\icons\family_tree.png
+
+    # Generate translations
+    $msgfmt = Get-Command msgfmt.exe -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source
+    if (-not $msgfmt) {
+        $msgfmt = Get-Command 'C:\Program Files (x86)\GnuWin32\bin\msgfmt' -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source
+    }
+    if (-not $msgfmt) {
+        Write-Output "msgfmt.exe not found. Skipping translation compilation. Please install GNU gettext for Windows to enable this step."
+    } else {
+        Write-Output "Compiling translations with msgfmt.exe from GnuWin32..."
+        Get-ChildItem -Path .\locales\*.po -Recurse | ForEach-Object {
+            Write-Output "Compiling translation: $($_.FullName)"
+            $poFile = $_.FullName
+            $moFile = [System.IO.Path]::ChangeExtension($poFile, ".mo")
+            & $msgfmt -v --use-fuzzy --output-file=$moFile $poFile | Out-Null
+        }
+    }
+
+    # Build executables with PyInstaller
     pyinstaller --noconfirm .\dev\gedcom_navigator_gui.spec
     pyinstaller --noconfirm .\dev\gedcom_navigator_cli.spec
 

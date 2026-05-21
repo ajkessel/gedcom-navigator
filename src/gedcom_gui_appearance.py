@@ -791,9 +791,9 @@ class AppearanceMixin:
         if sys.platform == 'darwin':
             self.root.createcommand(
                 '::tk::mac::ShowPreferences', self._show_preferences)
-        app_menu.add_command(label=MENU_HOW_TO_USE, underline=0,
+        app_menu.add_command(label=get_menu_how_to_use(), underline=0,
                              command=self._show_how_to_use)
-        app_menu.add_command(label=MENU_KEYBOARD_SHORTCUTS, underline=0,
+        app_menu.add_command(label=get_menu_keyboard_shortcuts(), underline=0,
                              command=self._show_keyboard_shortcuts)
         app_menu.add_separator()
         app_menu.add_command(label=MENU_CHECK_FOR_UPDATES, underline=0,

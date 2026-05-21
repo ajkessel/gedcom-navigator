@@ -4978,3 +4978,46 @@ def test_spouse_button_uses_spouse_side_or_right_default():
     assert ResultsMixin._spouse_button_x(
         '@A@', 100, 70, 130, 20, [('@A@', '@S@')], {'@S@': (140, 100)}
     ) == 140
+
+
+def test_results_header_menu_clears_stale_person_id():
+    """A stale results header from an old data set cannot open person actions."""
+
+    class Var:
+        def __init__(self, value):
+            self.value = value
+
+        def set(self, value):
+            self.value = value
+
+    class App(ResultsMixin):
+        pass
+
+    app = App()
+    app._results_header_id = '@OLD@'
+    app._results_header_var = Var('Old Person')
+    app.individuals = {}
+    updates = []
+    app._update_header_label_style = lambda: updates.append(True)
+
+    assert app._show_results_header_menu(object()) == 'break'
+    assert app._results_header_id is None
+    assert app._results_header_var.value == ''
+    assert updates == [True]
+
+
+def test_navigate_to_clears_stale_person_id():
+    """Clicking an old result link after data changes clears stale results."""
+
+    class App(ResultsMixin):
+        pass
+
+    app = App()
+    app._busy = False
+    app.individuals = {}
+    cleared = []
+    app._clear_results = lambda: cleared.append(True)
+
+    app._navigate_to('@OLD@')
+
+    assert cleared == [True]

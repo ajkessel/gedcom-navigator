@@ -18,6 +18,7 @@ ctktooltip
 customtkinter
 darkcolor
 DEAT
+docstrings
 famc
 FAMC
 fams
@@ -45,6 +46,7 @@ libexec
 lightcolor
 linespace
 lmargin
+magick
 makeappx
 marr
 MARR
@@ -58,8 +60,10 @@ notarytool
 NSData
 NSPasteboard
 opaqueresize
+osascript
 padx
 pady
+pathfinding
 pers
 popleft
 pyenv
@@ -67,17 +71,20 @@ PyObjC
 pypi
 pypirc
 pytest
+reflag
 reparsed
 rowheight
 Rsrc
 rstripped
 sashrelief
 sashwidth
+screencapture
 sdist
 selectbackground
 selectforeground
 selectmode
 setuptools
+shellcheck
 showhandle
 Smth
 subrecord

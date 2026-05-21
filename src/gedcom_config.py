@@ -196,6 +196,14 @@ class ConfigManager:
         """Save the DNA page marker keyword."""
         self.save_value('page_marker', str(value))
 
+    def get_language(self):
+        """Return the saved language code (e.g., 'en', 'fr') or 'sys' for system default."""
+        return self.load_value('language', 'sys')
+
+    def set_language(self, lang_code):
+        """Save the selected language code."""
+        self.save_value('language', lang_code)
+
     # ------------------------------------------------------------------
     # Platform default path
     # ------------------------------------------------------------------

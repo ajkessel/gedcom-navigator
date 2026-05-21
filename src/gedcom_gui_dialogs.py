@@ -22,6 +22,7 @@ from gedcom_relationship import (
     get_descendant_depths,
 )
 from gedcom_strings import *  # pylint: disable=unused-wildcard-import
+from gedcom_i18n import get_available_languages
 from gedcom_theme import get_flag_bg
 from gedcom_tooltip import Tooltip
 
@@ -650,6 +651,20 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
         _radiobutton(profile_view_row, text=PROFILE_VIEW_TREE,
                      variable=profile_view_var, value='tree').pack(side='left')
 
+        # Language row
+        lang_row = ctk.CTkFrame(display_section, fg_color='transparent')
+        lang_row.pack(fill='x', padx=12, pady=(0, 10))
+        ctk.CTkLabel(lang_row, text=LBL_LANGUAGE).pack(side='left', padx=(0, 8))
+        lang_var = tk.StringVar(value=self._config.get_language())
+        
+        # Discover available languages
+        lang_options = get_available_languages()
+        
+        for label, code in lang_options:
+            _radiobutton(
+                lang_row, text=label, variable=lang_var, value=code,
+            ).pack(side='left', padx=6)
+
         # Cache section
         cache_section = ctk.CTkFrame(outer, border_width=1)
         cache_section.pack(fill='x', pady=(0, 8))
@@ -710,12 +725,23 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
             self._config.set_name_order(self._name_order)
             self._default_profile_view = profile_view_var.get()
             self._config.set_profile_view_default(self._default_profile_view)
+            
+            # Check if language has changed
+            old_lang = self._config.get_language()
+            new_lang = lang_var.get()
+            if old_lang != new_lang:
+                self._config.set_language(new_lang)
+                messagebox.showinfo(
+                    _("Language Changed"),
+                    _("Please restart the application for the language change to take effect.")
+                )
+
             if self._default_profile_view == 'tree':
                 self.show_person_btn.configure(text=BTN_SHOW_PERSON_TREE)
-                self._show_person_tooltip.update_text(TIP_SHOW_PERSON_TREE)
+                self._show_person_tooltip.update_text(get_tip_show_person_tree())
             else:
                 self.show_person_btn.configure(text=BTN_SHOW_PERSON)
-                self._show_person_tooltip.update_text(TIP_SHOW_PERSON)
+                self._show_person_tooltip.update_text(get_tip_show_person())
             self._pop_sort_key = None
             self._populate_tree()
             self._refresh_result()

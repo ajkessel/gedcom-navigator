@@ -21,7 +21,7 @@ from gedcom_relationship import (
     get_ancestor_depths,
     get_descendant_depths,
 )
-from gedcom_strings import *  # pylint: disable=unused-wildcard-import
+import gedcom_strings as gs
 from gedcom_theme import get_link_color, ttk_colors
 from gedcom_tooltip import TextTagTooltip
 
@@ -35,7 +35,7 @@ class ResultsMixin(GraphRenderMixin, GraphLayoutMixin):
             return
         self._results_reversed = not self._results_reversed
         self._reverse_btn.configure(
-            text=BTN_REVERSE_RESTORE if self._results_reversed else BTN_REVERSE)
+            text=gs.BTN_REVERSE_RESTORE if self._results_reversed else gs.BTN_REVERSE)
         kind = self._last_result['type']
         if kind == 'dna_matches':
             self._render_results(
@@ -79,7 +79,7 @@ class ResultsMixin(GraphRenderMixin, GraphLayoutMixin):
         relationship_tooltip = getattr(self, '_relationship_tooltip', None)
         if (relationship_tooltip is None or
                 not relationship_tooltip.is_for(tw)):
-            relationship_tooltip = TextTagTooltip(tw, TIP_RELATIONSHIP)
+            relationship_tooltip = TextTagTooltip(tw, gs.TIP_RELATIONSHIP)
             self._relationship_tooltip = relationship_tooltip
         tw.tag_bind('relationship_link', '<Enter>',
                     lambda e: (tw.config(cursor='hand2'),
@@ -138,7 +138,7 @@ class ResultsMixin(GraphRenderMixin, GraphLayoutMixin):
             relationship_link_count += 1
             if prefix:
                 w.insert('end', prefix)
-            w.insert('end', RESULT_RELATIONSHIP.format(rel=rel),
+            w.insert('end', gs.RESULT_RELATIONSHIP.format(rel=rel),
                      ('relationship_link', tag))
             tw.tag_bind(
                 tag, '<Button-1>',
@@ -149,16 +149,16 @@ class ResultsMixin(GraphRenderMixin, GraphLayoutMixin):
             if prefix:
                 w.insert('end', prefix)
             if not ancestor_ids:
-                w.insert('end', RESULT_COMMON_ANCESTOR)
-                w.insert('end', RESULT_COMMON_ANCESTOR_NONE)
+                w.insert('end', gs.RESULT_COMMON_ANCESTOR)
+                w.insert('end', gs.RESULT_COMMON_ANCESTOR_NONE)
                 w.insert('end', '\n')
                 return
             if len(ancestor_ids) == 1:
-                w.insert('end', RESULT_COMMON_ANCESTOR)
+                w.insert('end', gs.RESULT_COMMON_ANCESTOR)
                 person_inline(ancestor_ids[0])
                 w.insert('end', '\n')
                 return
-            w.insert('end', RESULT_COMMON_ANCESTORS + '\n')
+            w.insert('end', gs.RESULT_COMMON_ANCESTORS + '\n')
             for ancestor_id in ancestor_ids:
                 person_inline(ancestor_id, prefix=item_prefix)
                 w.insert('end', '\n')
@@ -184,15 +184,15 @@ class ResultsMixin(GraphRenderMixin, GraphLayoutMixin):
         self._results_header_id = start_id
         self._update_header_label_style()
 
-        nl(RESULT_CLOSEST_MATCHES, bold=True)
+        nl(gs.RESULT_CLOSEST_MATCHES, bold=True)
         if start['dna_markers']:
-            nl(RESULT_DNA_FLAGGED_NOTE)
+            nl(gs.RESULT_DNA_FLAGGED_NOTE)
             for m in start['dna_markers']:
                 nl(f"    - {self._format_marker(m)}")
         nl()
 
         if not results:
-            nl(RESULT_NO_DNA_FOUND)
+            nl(gs.RESULT_NO_DNA_FOUND)
         else:
             hr()
             if self._results_reversed:
@@ -208,7 +208,7 @@ class ResultsMixin(GraphRenderMixin, GraphLayoutMixin):
                         ancestors=m_anc, descendants=m_desc,
                         families=self.families)
                     person(match_id,
-                           prefix=RESULT_RANK_PREFIX.format(rank=rank), bold=True)
+                           prefix=gs.RESULT_RANK_PREFIX.format(rank=rank), bold=True)
                     relationship_line(
                         rel, rev_path, prefix=result_detail_indent)
                     common_ancestor_line(
@@ -216,14 +216,14 @@ class ResultsMixin(GraphRenderMixin, GraphLayoutMixin):
                             rev_path[0][0], rev_path[-1][0]),
                         prefix=result_detail_indent,
                         item_prefix="     ")
-                    nl(result_detail_indent + RESULT_PATH)
+                    nl(result_detail_indent + gs.RESULT_PATH)
                     for i, (node_id, edge) in enumerate(rev_path):
                         if i == 0:
                             person(node_id, prefix="     ")
                         else:
                             person(node_id, prefix=self._path_edge_prefix(
                                 edge, result_edge_indent))
-                    nl(RESULT_DNA_MARKERS)
+                    nl(gs.RESULT_DNA_MARKERS)
                     for m in self.individuals[match_id]['dna_markers']:
                         nl(f"     - {self._format_marker(m)}")
                     hr()
@@ -235,7 +235,7 @@ class ResultsMixin(GraphRenderMixin, GraphLayoutMixin):
                 for rank, (dist, path) in enumerate(results, 1):
                     end_id = path[-1][0]
                     person(end_id,
-                           prefix=RESULT_RANK_PREFIX.format(rank=rank),
+                           prefix=gs.RESULT_RANK_PREFIX.format(rank=rank),
                            bold=True)
                     rel = describe_relationship(
                         path, self.individuals,
@@ -247,56 +247,56 @@ class ResultsMixin(GraphRenderMixin, GraphLayoutMixin):
                             path[0][0], path[-1][0]),
                         prefix=result_detail_indent,
                         item_prefix="     ")
-                    nl(result_detail_indent + RESULT_PATH)
+                    nl(result_detail_indent + gs.RESULT_PATH)
                     for i, (node_id, edge) in enumerate(path):
                         if i == 0:
                             person(node_id, prefix="     ")
                         else:
                             person(node_id, prefix=self._path_edge_prefix(
                                 edge, result_edge_indent))
-                    nl(RESULT_DNA_MARKERS)
+                    nl(gs.RESULT_DNA_MARKERS)
                     for m in self.individuals[end_id]['dna_markers']:
                         nl(f"     - {self._format_marker(m)}")
                     hr()
 
         # Family section
-        nl(FAM_SECTION, bold=True)
+        nl(gs.FAM_SECTION, bold=True)
         family_found = False
         parents, siblings, spouses, children = self._get_family_members(
             start_id)
 
         if parents:
             family_found = True
-            nl(FAM_PARENTS)
+            nl(gs.FAM_PARENTS)
             for pid in parents:
                 person(pid, prefix="    ")
         if siblings:
             family_found = True
-            nl(FAM_SIBLINGS)
+            nl(gs.FAM_SIBLINGS)
             for sib_id in siblings:
                 person(sib_id, prefix="    ")
         if spouses:
             family_found = True
-            nl(FAM_SPOUSES if len(spouses) > 1 else FAM_SPOUSE)
+            nl(gs.FAM_SPOUSES if len(spouses) > 1 else gs.FAM_SPOUSE)
             for sid in spouses:
                 person(sid, prefix="    ")
         if children:
             family_found = True
-            nl(FAM_CHILDREN)
+            nl(gs.FAM_CHILDREN)
             for child_id in children:
                 person(child_id, prefix="    ")
         if not family_found:
-            nl(FAM_NO_INFO)
+            nl(gs.FAM_NO_INFO)
         nl()
 
         # Home person relationship
         home_id = self._home_person_id
         if home_id and home_id != start_id and home_id in self.individuals:
             hr()
-            nl(RESULT_PATH_SECTION, bold=True)
-            person(home_id, prefix=RESULT_HOME)
+            nl(gs.RESULT_PATH_SECTION, bold=True)
+            person(home_id, prefix=gs.RESULT_HOME)
             if not home_paths:
-                nl(RESULT_NO_HOME_PATH)
+                nl(gs.RESULT_NO_HOME_PATH)
             else:
                 raw_path = home_paths[0]
                 if self._results_reversed:
@@ -322,7 +322,7 @@ class ResultsMixin(GraphRenderMixin, GraphLayoutMixin):
                 relationship_line(rel, disp_path)
                 common_ancestor_line(self._model.find_common_ancestors(
                     disp_path[0][0], disp_path[-1][0]))
-                nl(RESULT_PATH)
+                nl(gs.RESULT_PATH)
                 for i, (node_id, edge) in enumerate(disp_path):
                     if i == 0:
                         person(node_id, prefix="  ")
@@ -338,6 +338,11 @@ class ResultsMixin(GraphRenderMixin, GraphLayoutMixin):
         indi_id = getattr(self, '_results_header_id', None)
         if not indi_id:
             return 'break'
+        if indi_id not in self.individuals:
+            self._results_header_id = None
+            self._results_header_var.set('')
+            self._update_header_label_style()
+            return 'break'
         _menu_kw = {'font': tkfont.nametofont('TkMenuFont')} if sys.platform == 'win32' else {}
         menu = tk.Menu(self._results_header_label, tearoff=0, **_menu_kw)
 
@@ -347,13 +352,13 @@ class ResultsMixin(GraphRenderMixin, GraphLayoutMixin):
                 self._display_name(self.individuals[indi_id]))
 
         menu.add_command(
-            label=RESULTS_HEADER_MENU_COPY_NAME,
+            label=gs.RESULTS_HEADER_MENU_COPY_NAME,
             command=_copy_name)
         menu.add_command(
-            label=RESULTS_HEADER_MENU_SHOW_PROFILE,
+            label=gs.RESULTS_HEADER_MENU_SHOW_PROFILE,
             command=lambda: self._show_person_for(indi_id, initial_view='profile'))
         menu.add_command(
-            label=RESULTS_HEADER_MENU_SHOW_TREE,
+            label=gs.RESULTS_HEADER_MENU_SHOW_TREE,
             command=lambda: self._show_person_for(indi_id, initial_view='tree'))
         try:
             menu.tk_popup(event.x_root, event.y_root)
@@ -383,7 +388,7 @@ class ResultsMixin(GraphRenderMixin, GraphLayoutMixin):
             text = header + '\n\n' + text
         path = filedialog.asksaveasfilename(
             parent=self.root,
-            title=DLG_SAVE_RESULTS,
+            title=gs.DLG_SAVE_RESULTS,
             defaultextension='.txt',
             filetypes=[
                 ("Text files", "*.txt"),
@@ -398,8 +403,8 @@ class ResultsMixin(GraphRenderMixin, GraphLayoutMixin):
                 results_file.write('\n')
         except OSError as exc:
             messagebox.showerror(
-                ERR_SAVE_GRAPH_TITLE,
-                ERR_SAVE_RESULTS_MSG.format(error=exc),
+                gs.ERR_SAVE_GRAPH_TITLE,
+                gs.ERR_SAVE_RESULTS_MSG.format(error=exc),
                 parent=self.root,
             )
     def _clear_results(self):
@@ -413,7 +418,7 @@ class ResultsMixin(GraphRenderMixin, GraphLayoutMixin):
         self.search_text.set('')
         self._last_result = None
         self._results_reversed = False
-        self._reverse_btn.configure(state='disabled', text=BTN_REVERSE)
+        self._reverse_btn.configure(state='disabled', text=gs.BTN_REVERSE)
         self._kb_focus_search()
     def _format_marker(self, marker):
         """Strip the trailing (@ref@) from a DNA marker string when Show IDs is off."""
@@ -459,7 +464,7 @@ class ResultsMixin(GraphRenderMixin, GraphLayoutMixin):
         self._active_id = snapshot['active_id']
         self._results_reversed = snapshot['results_reversed']
         self._reverse_btn.configure(
-            text=BTN_REVERSE_RESTORE if self._results_reversed else BTN_REVERSE)
+            text=gs.BTN_REVERSE_RESTORE if self._results_reversed else gs.BTN_REVERSE)
         if self._active_id:
             self._select_person_in_main_tree(self._active_id)
         kind = self._last_result.get('type') if self._last_result else None
@@ -497,6 +502,9 @@ class ResultsMixin(GraphRenderMixin, GraphLayoutMixin):
         """
         if self._busy:
             return
+        if indi_id not in self.individuals:
+            self._clear_results()
+            return
 
         if self._last_result:
             self._nav_history.append(self._nav_snapshot())
@@ -504,7 +512,7 @@ class ResultsMixin(GraphRenderMixin, GraphLayoutMixin):
 
         # reset "reverse" button and pull in default search parameters
         self._results_reversed = False
-        self._reverse_btn.configure(text=BTN_REVERSE)
+        self._reverse_btn.configure(text=gs.BTN_REVERSE)
         try:
             top_n = int(self.top_n.get())
             max_depth = int(self.max_depth.get())
@@ -534,7 +542,7 @@ class ResultsMixin(GraphRenderMixin, GraphLayoutMixin):
                 self._hide_progress()
                 self._set_busy(False)
                 if error:
-                    messagebox.showerror(ERR_PARSE_TITLE, str(error))
+                    messagebox.showerror(gs.ERR_PARSE_TITLE, str(error))
                     return
                 paths, truncated = result
                 self._last_result = {
@@ -547,7 +555,7 @@ class ResultsMixin(GraphRenderMixin, GraphLayoutMixin):
             self._run_background_task(
                 _do_path,
                 _on_done,
-                popup_message=PROGRESS_FINDING_PATH,
+                popup_message=gs.PROGRESS_FINDING_PATH,
                 cancelable=True,
                 on_cancel=_on_cancel,
             )
@@ -570,7 +578,7 @@ class ResultsMixin(GraphRenderMixin, GraphLayoutMixin):
                 self._hide_progress()
                 self._set_busy(False)
                 if error:
-                    messagebox.showerror(ERR_PARSE_TITLE, str(error))
+                    messagebox.showerror(gs.ERR_PARSE_TITLE, str(error))
                     return
                 results, home_paths = result
                 self._last_result = {
@@ -581,7 +589,7 @@ class ResultsMixin(GraphRenderMixin, GraphLayoutMixin):
                 _do_dna,
                 _on_done,
                 popup_message=(
-                    PROGRESS_SEARCHING
+                    gs.PROGRESS_SEARCHING
                     if self._is_slow_search(max_depth, len(self.individuals))
                     else None
                 ),
