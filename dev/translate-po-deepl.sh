@@ -22,7 +22,7 @@ pybabel extract -o locales/gedcom_navigator.pot src/ || {
   exit 1
 }
 python ./dev/translate-po-deepl.py --input ./locales/gedcom_navigator.pot --outdir locales --langs de es fr he --prefer-official || {
-  echo "Translation failed."
+  echo 'Translation failed. Is API key set in .env?'
   exit 1
 }
 for x in locales/*.po
@@ -35,7 +35,7 @@ do
 	echo "${x} is empty, skipping."
 	continue
   fi
-  if [[ ! "${x}" =~ *_*.po ]]; then
+  if [[ ! "${x}" =~ .*_[a-z]{2}.po ]]; then
 	echo "${x} does not match expected pattern, skipping."
 	continue
   fi
