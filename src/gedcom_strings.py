@@ -404,6 +404,8 @@ BTN_CLEAR_CACHE = _("Clear Cache…")
 LBL_CACHE_NOTE = _("Remove all cached GEDCOM data")
 LBL_LANGUAGE = _("Language:")
 LANG_SYSTEM = _("System Default")
+LBL_LANGUAGE_CHANGED = _("Language Changed")
+MSG_LANGUAGE_CHANGED = _("Language changed from {old} to {new}. Please restart the application for the change to take effect.")
 
 # ---------------------------------------------------------------------------
 # Search progress popup

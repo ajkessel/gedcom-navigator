@@ -732,8 +732,8 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
             if old_lang != new_lang:
                 self._config.set_language(new_lang)
                 messagebox.showinfo(
-                    _("Language Changed"),
-                    _("Please restart the application for the language change to take effect.")
+                    _(LBL_LANGUAGE_CHANGED),
+                    _(MSG_LANGUAGE_CHANGED).format(old=old_lang, new=new_lang)
                 )
 
             if self._default_profile_view == 'tree':
