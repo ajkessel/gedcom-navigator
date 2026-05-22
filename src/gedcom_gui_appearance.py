@@ -617,13 +617,13 @@ class AppearanceMixin:
             not self.fuzzy_search.get()))
         bind(f'<{_MOD_KEY}-m>', lambda: self.married_name_search.set(
             not self.married_name_search.get()))
-        bind(f'<{_MOD_KEY}-p>', self._find_path)
+        bind(f'<{_MOD_KEY}-p>', lambda: self._set_display_mode('paths'))
         bind(f'<{_MOD_KEY}-t>', self._view_tags)
         bind(f'<{_MOD_KEY}-o>', self._browse)
         bind(f'<{_MOD_KEY}-h>', self._set_home_person)
-        bind(f'<{_MOD_KEY}-e>', self._show_person)
+        bind(f'<{_MOD_KEY}-e>', lambda: self._set_display_mode('profile'))
         bind(f'<{_MOD_KEY}-s>', self._save_results)
-        bind(f'<{_MOD_KEY}-n>', self._find_matches)
+        bind(f'<{_MOD_KEY}-n>', lambda: self._set_display_mode('matches'))
         bind(f'<{_MOD_KEY}-r>', self._reverse_results)
         bind(f'<{_MOD_KEY}-l>', self._clear_results)
         bind('<Escape>', self._clear_results)
@@ -634,38 +634,34 @@ class AppearanceMixin:
         # Only invoke _copy_results when a Text widget isn't focused
         self.root.bind(f'<{_MOD_KEY}-c>', self._kb_copy)
 
-        self.root.bind(
-            '<KeyPress-Shift_L>',
-            lambda *_: self._update_show_person_btn_for_shift(True), add='+')
-        self.root.bind(
-            '<KeyPress-Shift_R>',
-            lambda *_: self._update_show_person_btn_for_shift(True), add='+')
-        self.root.bind(
-            '<KeyRelease-Shift_L>',
-            lambda *_: self._update_show_person_btn_for_shift(False), add='+')
-        self.root.bind(
-            '<KeyRelease-Shift_R>',
-            lambda *_: self._update_show_person_btn_for_shift(False), add='+')
-        self.root.bind(
-            '<FocusOut>',
-            lambda e: self._update_show_person_btn_for_shift(False)
-            if e.widget is self.root else None, add='+')
-
         # Explicit tab chain via the internal tk widgets for CTk widgets:
-        # tree → results_text → top_n_spin → max_depth_spin →
-        # set_home_btn → show_person_btn → find_matches_btn
+        # tree → display mode → results_text → top_n_spin → max_depth_spin →
+        # set_home_btn
         results_inner = self.results._textbox
         results_inner.configure(takefocus=True)
+        mode_widgets = list(getattr(
+            self._display_mode_selector, '_buttons_dict', {}).values())
+        if not mode_widgets:
+            try:
+                mode_widgets = list(self._display_mode_selector.winfo_children())
+            except tk.TclError:
+                mode_widgets = []
         tab_chain = [
-            self.tree, results_inner,
+            self.tree, *mode_widgets, results_inner,
             self.top_n_spin, self.max_depth_spin,
-            self.set_home_btn, self.show_person_btn, self.find_matches_btn,
+            self.set_home_btn,
         ]
+        show_tree_btn = getattr(self, 'show_tree_btn', None)
+        if show_tree_btn is not None:
+            tab_chain.insert(1 + len(mode_widgets), show_tree_btn)
         for i, w in enumerate(tab_chain):
             nxt = tab_chain[(i + 1) % len(tab_chain)]
             prv = tab_chain[(i - 1) % len(tab_chain)]
-            w.bind('<Tab>', lambda *_, nw=nxt: nw.focus_set() or 'break')
-            w.bind('<Shift-Tab>', lambda *_, pw=prv: pw.focus_set() or 'break')
+            try:
+                w.bind('<Tab>', lambda *_, nw=nxt: nw.focus_set() or 'break')
+                w.bind('<Shift-Tab>', lambda *_, pw=prv: pw.focus_set() or 'break')
+            except NotImplementedError:
+                continue
 
         r_inner = self.results._textbox
         r_inner.bind(

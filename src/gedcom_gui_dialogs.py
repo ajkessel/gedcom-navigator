@@ -257,7 +257,13 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
         target_id = self._pick_person(WIN_SELECT_TARGET)
         if not target_id:
             return
+        self._display_path_target_id = target_id
+        self._set_display_mode('paths', refresh=False)
+        self._run_path_search(start_id, target_id)
 
+    def _run_path_search(self, start_id, target_id):
+        """Render relationship paths from start_id to target_id."""
+        self._set_display_mode('paths', refresh=False)
         try:
             max_depth = int(self.max_depth.get())
         except (tk.TclError, ValueError):
@@ -291,6 +297,7 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
             paths, truncated = result
             self._results_reversed = False
             self._reverse_btn.configure(text=BTN_REVERSE)
+            self._display_path_target_id = target_id
             self._last_result = {'type': 'path',
                                  'start_id': start_id, 'end_id': target_id}
             self._render_path_results(start_id, target_id, paths, truncated)
@@ -643,16 +650,17 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
         _radiobutton(name_order_row, text=NAME_LAST_FIRST,
                      variable=name_order_var, value='last_first').pack(side='left')
 
-        profile_view_row = ctk.CTkFrame(display_frame, fg_color='transparent')
-        profile_view_row.pack(anchor='w', pady=(6, 0))
-        ctk.CTkLabel(profile_view_row, text=LBL_DEFAULT_PROFILE_VIEW).pack(
+        default_display_row = ctk.CTkFrame(display_frame, fg_color='transparent')
+        default_display_row.pack(anchor='w', pady=(6, 0))
+        ctk.CTkLabel(default_display_row, text=LBL_DEFAULT_DISPLAY).pack(
             side='left', padx=(0, 8))
-        profile_view_var = tk.StringVar(
-            value=getattr(self, '_default_profile_view', 'profile'))
-        _radiobutton(profile_view_row, text=PROFILE_VIEW_PROFILE,
-                     variable=profile_view_var, value='profile').pack(side='left', padx=(0, 8))
-        _radiobutton(profile_view_row, text=PROFILE_VIEW_TREE,
-                     variable=profile_view_var, value='tree').pack(side='left')
+        default_display_var = tk.StringVar(value=self._config.get_default_display())
+        _radiobutton(default_display_row, text=DISPLAY_MODE_PROFILE,
+                     variable=default_display_var, value='profile').pack(side='left', padx=(0, 8))
+        _radiobutton(default_display_row, text=DISPLAY_MODE_MATCHES,
+                     variable=default_display_var, value='matches').pack(side='left', padx=(0, 8))
+        _radiobutton(default_display_row, text=DISPLAY_MODE_PATHS,
+                     variable=default_display_var, value='paths').pack(side='left')
 
         # Language row (wraps to multiple rows on narrow windows)
         lang_row = ctk.CTkFrame(display_section, fg_color='transparent')
@@ -745,8 +753,7 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
             self._config.set_show_full_gedcom(show_full_gedcom_var.get())
             self._name_order = name_order_var.get()
             self._config.set_name_order(self._name_order)
-            self._default_profile_view = profile_view_var.get()
-            self._config.set_profile_view_default(self._default_profile_view)
+            self._config.set_default_display(default_display_var.get())
             
             # Check if language has changed
             old_lang = self._config.get_language()
@@ -758,12 +765,6 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
                     _(MSG_LANGUAGE_CHANGED).format(old=old_lang, new=new_lang)
                 )
 
-            if self._default_profile_view == 'tree':
-                self.show_person_btn.configure(text=BTN_SHOW_PERSON_TREE)
-                self._show_person_tooltip.update_text(get_tip_show_person_tree())
-            else:
-                self.show_person_btn.configure(text=BTN_SHOW_PERSON)
-                self._show_person_tooltip.update_text(get_tip_show_person())
             self._pop_sort_key = None
             self._populate_tree()
             self._refresh_result()

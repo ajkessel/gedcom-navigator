@@ -146,7 +146,7 @@ class GedcomNavigatorApp(
         self.show_ids = tk.BooleanVar(value=self._config.get_show_ids())
         self.show_full_gedcom = tk.BooleanVar(value=self._config.get_show_full_gedcom())
         self._name_order = self._config.get_name_order()
-        self._default_profile_view = self._config.get_profile_view_default()
+        self.display_mode = tk.StringVar(value=self._config.get_default_display())
 
         self.search_text.trace_add('write', self._on_search_change)
         self.filter_text.trace_add('write', self._on_search_change)
@@ -165,6 +165,8 @@ class GedcomNavigatorApp(
         self._dna_settings_after_id = None
         self._last_result = None
         self._results_reversed = False
+        self._display_path_target_id = None
+        self._suppress_display_refresh = False
         self._active_id = None
         self._results_header_id = None
         self._nav_history = []
@@ -295,10 +297,6 @@ class GedcomNavigatorApp(
             settings_frame, text=BTN_SELECT_TAG, width=100, command=self._view_tags)
         _select_tag_btn.grid(row=0, column=4, padx=4)
         Tooltip(_select_tag_btn, get_tip_select_tag())
-        _find_path_btn = ctk.CTkButton(
-            settings_frame, text=BTN_FIND_PATH, width=120, command=self._find_path)
-        _find_path_btn.grid(row=0, column=5, padx=(12, 4))
-        Tooltip(_find_path_btn, get_tip_find_path())
 
         # Main paned area.  Use the classic Tk paned window here because it
         # supports per-pane minsize constraints; ttk.PanedWindow only supports
@@ -389,8 +387,9 @@ class GedcomNavigatorApp(
         is_dark = ctk.get_appearance_mode() == 'Dark'
         self.tree.tag_configure('flagged_row', background=get_flag_bg(is_dark))
 
-        self.tree.bind('<Double-1>', lambda *_: self._find_matches())
-        self.tree.bind('<Return>', lambda *_: self._find_matches())
+        self.tree.bind('<<TreeviewSelect>>', self._on_tree_selection_change)
+        self.tree.bind('<Double-1>', lambda *_: self._refresh_display_pane())
+        self.tree.bind('<Return>', lambda *_: self._refresh_display_pane())
         self.tree.bind('<Key>', self._tree_type_ahead)
         self.tree.bind(
             '<Home>', lambda *_: self._tree_jump('first') or 'break')
@@ -423,35 +422,19 @@ class GedcomNavigatorApp(
             action_frame, text=BTN_SET_HOME, command=self._set_home_person)
         self.set_home_btn.grid(row=0, column=5, padx=(0, 6))
         Tooltip(self.set_home_btn, get_tip_set_home())
-        _show_person_label = (BTN_SHOW_PERSON_TREE
-                              if self._default_profile_view == 'tree'
-                              else BTN_SHOW_PERSON)
-        _show_person_tip_fn = (get_tip_show_person_tree
-                               if self._default_profile_view == 'tree'
-                               else get_tip_show_person)
-        self.show_person_btn = ctk.CTkButton(
-            action_frame, text=_show_person_label, command=self._show_person)
-        self.show_person_btn.grid(row=0, column=6, padx=(0, 6))
-        self._show_person_tooltip = Tooltip(self.show_person_btn, _show_person_tip_fn())
-        self.find_matches_btn = ctk.CTkButton(
-            action_frame, text=BTN_FIND_MATCHES, command=self._find_matches)
-        self.find_matches_btn.grid(row=0, column=7)
-        Tooltip(self.find_matches_btn, get_tip_find_matches())
 
         # --- Right pane ---
         right = ctk.CTkFrame(paned, fg_color='transparent')
 
         def _action_min_w():
             # padx totals per grid() call: spinbox1=14, spinbox2=2,
-            # set_home=6, show_person=6, find_matches=0
+            # set_home=6
             return (
                 _top_n_label.winfo_reqwidth()
                 + self.top_n_spin.winfo_reqwidth() + 14
                 + _max_depth_label.winfo_reqwidth()
                 + self.max_depth_spin.winfo_reqwidth() + 2
                 + self.set_home_btn.winfo_reqwidth() + 6
-                + self.show_person_btn.winfo_reqwidth() + 6
-                + self.find_matches_btn.winfo_reqwidth()
             )
 
         def _tree_min_w():
@@ -510,6 +493,63 @@ class GedcomNavigatorApp(
 
         results_header = ctk.CTkFrame(right, fg_color='transparent')
         results_header.pack(fill='x')
+        self._display_mode_labels = {
+            'profile': DISPLAY_MODE_PROFILE,
+            'matches': DISPLAY_MODE_MATCHES,
+            'paths': DISPLAY_MODE_PATHS,
+        }
+        self._display_mode_tooltips = {
+            'profile': get_tip_show_person(),
+            'matches': get_tip_find_matches(),
+            'paths': get_tip_find_path(),
+        }
+        self._display_mode_by_label = {
+            label: mode for mode, label in self._display_mode_labels.items()
+        }
+        mode_values = [
+            self._display_mode_labels['profile'],
+            self._display_mode_labels['matches'],
+            self._display_mode_labels['paths'],
+        ]
+        display_mode_frame = ctk.CTkFrame(results_header, fg_color='transparent')
+        display_mode_frame.pack(side='right', padx=(8, 0))
+        if hasattr(ctk, 'CTkSegmentedButton'):
+            self._display_mode_selector = ctk.CTkSegmentedButton(
+                display_mode_frame,
+                values=mode_values,
+                command=self._on_display_mode_selected,
+            )
+            self._display_mode_selector.pack(side='left')
+            self._display_mode_selector.set(
+                self._display_mode_labels[self.display_mode.get()])
+            for mode, label in self._display_mode_labels.items():
+                button = self._display_mode_selector._buttons_dict.get(label)
+                if button is not None:
+                    Tooltip(button, self._display_mode_tooltips[mode])
+        else:
+            self._display_mode_selector = ctk.CTkFrame(
+                display_mode_frame, fg_color='transparent')
+            self._display_mode_selector.pack(side='left')
+            self._display_mode_radio_var = tk.StringVar(
+                value=self._display_mode_labels[self.display_mode.get()])
+            for mode, value in self._display_mode_labels.items():
+                radio = ctk.CTkRadioButton(
+                    self._display_mode_selector,
+                    text=value,
+                    variable=self._display_mode_radio_var,
+                    value=value,
+                    command=lambda v=value: self._on_display_mode_selected(v),
+                )
+                radio.pack(side='left', padx=(0, 6))
+                Tooltip(radio, self._display_mode_tooltips[mode])
+        self.show_tree_btn = ctk.CTkButton(
+            display_mode_frame,
+            text=BTN_SHOW_PERSON_TREE,
+            width=64,
+            command=lambda: self._show_person(initial_view='tree'),
+        )
+        self.show_tree_btn.pack(side='left', padx=(8, 0))
+        Tooltip(self.show_tree_btn, get_tip_show_person_tree())
         self._results_header_var = tk.StringVar()
         self._results_header_label = ctk.CTkLabel(
             results_header,
@@ -570,6 +610,7 @@ class GedcomNavigatorApp(
         self._progress_bar.grid_remove()
 
         self._setup_keybindings()
+        self.root.after_idle(lambda: self._refresh_display_pane(prompt_for_path=False))
 
 def _patch_ctk_scaling_for_tkinter_dpi():
     """Patch CTk's per-window DPI detection to use winfo_fpixels instead of GetDpiForMonitor.

@@ -107,7 +107,7 @@ For pre-built binaries, just run the executable, or download directly from the [
 
 ### Relationship finder
 
-This is an alternate use of this tool. Select a person in the search panel, then click on "Find Relationship Path..." and select a second person. This tool will then show you the top three paths (if they exist) between those two people. You can change the number of paths to an arbitrary number by editing the "Top N" value in the bottom right. If the two people are very distantly related, you may need to increase the "Max Depth" setting to find the connection. The default max depth of 50 should find connections at least up to 4th cousins.
+This is an alternate use of this tool. Select a person in the search panel, switch the Display Pane to **Paths**, and select a second person when prompted. The Display Pane will then show the top three paths (if they exist) between those two people. You can change the number of paths to an arbitrary number by editing the "Top N" value in the bottom right. If the two people are very distantly related, you may need to increase the "Max Depth" setting to find the connection. The default max depth of 50 should find connections at least up to 4th cousins.
 
 ![Relationship
 window](https://raw.githubusercontent.com/ajkessel/gedcom-navigator/main/docs/screenshots/relationship-path.png)
@@ -124,8 +124,8 @@ python gedcom_navigator_gui.py /path/to/tree.ged   # auto-loads on startup
 2. Optionally adjust the tag keyword (default `DNA`) or page marker (default `AncestryDNA Match`). The defaults work for files exported from Ancestry and Family Tree Maker.
 3. Click **Load**. The status bar will show how many individuals, families, and DNA-flagged people were found.
 4. Type a name or INDI ID into the search box to filter the people list. Names are matched by whitespace-separated tokens, in any order, each as a case-insensitive substring — so `John Smith` will find `John Adam Smith`. When fuzzy matching is enabled, cached English-letter aliases for Hebrew and Cyrillic names are also searched. The aliases are generated locally when the GEDCOM is parsed, stored in the parsed-data cache, and are approximate; the original GEDCOM names are not modified. The "DNA-flagged only" checkbox hides everyone else.
-5. Select a person and click **Find Nearest DNA Matches** (or just double-click the row).
-6. The right pane shows the closest flagged relative(s) and the relationship path from the selected person to each one.
+5. Select a person and switch the Display Pane to **Matches**.
+6. The Display Pane shows the closest flagged relative(s) and the relationship path from the selected person to each one.
 
 ![Results pane showing a relationship
 path](https://raw.githubusercontent.com/ajkessel/gedcom-navigator/main/docs/screenshots/results-pane.png)

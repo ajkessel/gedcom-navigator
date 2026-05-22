@@ -282,6 +282,32 @@ class TestNameOrder:
 
 
 # ===========================================================================
+# default_display
+# ===========================================================================
+
+class TestDefaultDisplay:
+    def test_default_is_profile(self, tmp_path):
+        mgr = _mgr(tmp_path)
+        assert mgr.get_default_display() == "profile"
+
+    def test_set_matches(self, tmp_path):
+        mgr = _mgr(tmp_path)
+        mgr.set_default_display("matches")
+        assert mgr.get_default_display() == "matches"
+
+    def test_set_paths(self, tmp_path):
+        mgr = _mgr(tmp_path)
+        mgr.set_default_display("paths")
+        assert mgr.get_default_display() == "paths"
+
+    def test_invalid_falls_back_to_profile(self, tmp_path):
+        p = tmp_path / "settings.json"
+        p.write_text(json.dumps({"default_display": "tree"}), encoding="utf-8")
+        mgr = ConfigManager(p)
+        assert mgr.get_default_display() == "profile"
+
+
+# ===========================================================================
 # window_geometry (generic key/value pass-through)
 # ===========================================================================
 

@@ -29,14 +29,35 @@ from gedcom_tooltip import TextTagTooltip
 class ResultsMixin(GraphRenderMixin, GraphLayoutMixin):
     """Render search results and handle result-pane navigation."""
 
+    def _set_results_header_for_person(self, indi_id):
+        """Show the selected person's name in the Display Pane header."""
+        start = self.individuals[indi_id]
+        name = self._display_name(start)
+        b, d = start.get('birth_year'), start.get('death_year')
+        if b and d:
+            lifespan = f" ({b}–{d})"
+        elif b:
+            lifespan = f" (b. {b})"
+        elif d:
+            lifespan = f" (d. {d})"
+        else:
+            lifespan = ""
+        if self.show_ids.get():
+            name += f" [{indi_id.strip('@')}]"
+        self._results_header_var.set(name + lifespan)
+        self._results_header_id = indi_id
+        self._update_header_label_style()
+
     def _reverse_results(self):
         """Toggle reversed display of the current results."""
         if not self._last_result:
             return
+        kind = self._last_result['type']
+        if kind not in ('dna_matches', 'path'):
+            return
         self._results_reversed = not self._results_reversed
         self._reverse_btn.configure(
             text=gs.BTN_REVERSE_RESTORE if self._results_reversed else gs.BTN_REVERSE)
-        kind = self._last_result['type']
         if kind == 'dna_matches':
             self._render_results(
                 self._last_result['start_id'],
@@ -50,6 +71,30 @@ class ResultsMixin(GraphRenderMixin, GraphLayoutMixin):
                 self._last_result.get('paths', []),
                 self._last_result.get('truncated', False),
             )
+
+    def _render_profile_result(self, start_id):
+        """Render the selected person's profile in the Display Pane."""
+        if start_id not in self.individuals:
+            self._clear_results()
+            return
+        if self._last_result and self._last_result.get('type') == 'profile':
+            self._last_result['start_id'] = start_id
+        w = self.results
+        w.configure(state='normal')
+        w.delete('1.0', 'end')
+        self._set_results_header_for_person(start_id)
+
+        def _on_tag_click(tag_name):
+            self.tag_keyword.set(tag_name)
+            self.page_marker.set('')
+            self.search_text.set('')
+            self.filter_text.set('')
+            self.show_flagged_only.set(True)
+
+        self._insert_person_profile(
+            w, start_id, self._navigate_to, tag_callback=_on_tag_click)
+        self._reverse_btn.configure(state='disabled', text=gs.BTN_REVERSE)
+        w.configure(state='disabled')
 
     def _render_results(self, start_id, results, home_paths=None):
         """Render DNA match search results and family context."""
@@ -168,21 +213,7 @@ class ResultsMixin(GraphRenderMixin, GraphLayoutMixin):
         home_edge_indent = "    "
 
         start = self.individuals[start_id]
-        name = self._display_name(start)
-        b, d = start.get('birth_year'), start.get('death_year')
-        if b and d:
-            lifespan = f" ({b}–{d})"
-        elif b:
-            lifespan = f" (b. {b})"
-        elif d:
-            lifespan = f" (d. {d})"
-        else:
-            lifespan = ""
-        if self.show_ids.get():
-            name += f" [{start_id.strip('@')}]"
-        self._results_header_var.set(name + lifespan)
-        self._results_header_id = start_id
-        self._update_header_label_style()
+        self._set_results_header_for_person(start_id)
 
         nl(gs.RESULT_CLOSEST_MATCHES, bold=True)
         if start['dna_markers']:
@@ -440,9 +471,14 @@ class ResultsMixin(GraphRenderMixin, GraphLayoutMixin):
             self.show_flagged_only.set(False)
             self._populate_tree()
         if self.tree.exists(indi_id):
-            self.tree.selection_set(indi_id)
-            self.tree.see(indi_id)
-            self.tree.focus(indi_id)
+            old_suppress = getattr(self, '_suppress_display_refresh', False)
+            self._suppress_display_refresh = True
+            try:
+                self.tree.selection_set(indi_id)
+                self.tree.see(indi_id)
+                self.tree.focus(indi_id)
+            finally:
+                self._suppress_display_refresh = old_suppress
             return True
 
         # Person exceeds max_display even with no filters; clear stale
@@ -457,12 +493,20 @@ class ResultsMixin(GraphRenderMixin, GraphLayoutMixin):
             'last_result': dict(self._last_result) if self._last_result else None,
             'active_id': self._active_id,
             'results_reversed': self._results_reversed,
+            'display_mode': self.display_mode.get(),
+            'display_path_target_id': getattr(self, '_display_path_target_id', None),
         }
     def _nav_restore(self, snapshot):
         """Apply a navigation snapshot and re-render results."""
         self._last_result = snapshot['last_result']
         self._active_id = snapshot['active_id']
         self._results_reversed = snapshot['results_reversed']
+        self._display_path_target_id = snapshot.get('display_path_target_id')
+        self._set_display_mode(
+            snapshot.get('display_mode', 'profile'),
+            refresh=False,
+            prompt_for_path=False,
+        )
         self._reverse_btn.configure(
             text=gs.BTN_REVERSE_RESTORE if self._results_reversed else gs.BTN_REVERSE)
         if self._active_id:
@@ -481,6 +525,8 @@ class ResultsMixin(GraphRenderMixin, GraphLayoutMixin):
                 self._last_result.get('paths', []),
                 self._last_result.get('truncated', False),
             )
+        elif kind == 'profile':
+            self._render_profile_result(self._last_result['start_id'])
     def _navigate_back(self):
         """Restore the previous navigation state, saving current state for forward."""
         if self._busy or not self._nav_history:
@@ -510,92 +556,12 @@ class ResultsMixin(GraphRenderMixin, GraphLayoutMixin):
             self._nav_history.append(self._nav_snapshot())
             self._nav_forward.clear()
 
-        # reset "reverse" button and pull in default search parameters
+        self._select_person_in_main_tree(indi_id)
+
+        # reset "reverse" button and refresh the active Display Pane mode
         self._results_reversed = False
         self._reverse_btn.configure(text=gs.BTN_REVERSE)
-        try:
-            top_n = int(self.top_n.get())
-            max_depth = int(self.max_depth.get())
-        except (tk.TclError, ValueError):
-            return
-
-        kind = self._last_result.get('type') if self._last_result else None
-
-        # for a "path" search, find the path from the originally selected person
-        if kind == 'path':
-            # to the newly selected person
-            start_id = self._last_result['start_id']
-            self._show_progress()
-            self._set_busy(True)
-
-            def _do_path(cancel_event):
-                return self._model.find_all_paths(
-                    start_id, indi_id, top_n, max_depth,
-                    cancel_event=cancel_event)
-
-            def _on_cancel():
-                self._hide_progress()
-                self._set_busy(False)
-
-            def _on_done(result, error):
-                self._hide_search_popup()
-                self._hide_progress()
-                self._set_busy(False)
-                if error:
-                    messagebox.showerror(gs.ERR_PARSE_TITLE, str(error))
-                    return
-                paths, truncated = result
-                self._last_result = {
-                    'type': 'path',
-                    'start_id': start_id,
-                    'end_id': indi_id,
-                }
-                self._render_path_results(start_id, indi_id, paths, truncated)
-
-            self._run_background_task(
-                _do_path,
-                _on_done,
-                popup_message=gs.PROGRESS_FINDING_PATH,
-                cancelable=True,
-                on_cancel=_on_cancel,
-            )
-        # for a "DNA" search, find the closest DNA markers to the newly selected person
-        else:
-            self._select_person_in_main_tree(indi_id)
-            self._show_progress()
-            self._set_busy(True)
-
-            def _do_dna(cancel_event):
-                return self._find_dna_result_data(
-                    indi_id, top_n, max_depth, cancel_event=cancel_event)
-
-            def _on_cancel():
-                self._hide_progress()
-                self._set_busy(False)
-
-            def _on_done(result, error):
-                self._hide_search_popup()
-                self._hide_progress()
-                self._set_busy(False)
-                if error:
-                    messagebox.showerror(gs.ERR_PARSE_TITLE, str(error))
-                    return
-                results, home_paths = result
-                self._last_result = {
-                    'type': 'dna_matches', 'start_id': indi_id}
-                self._render_results(indi_id, results, home_paths=home_paths)
-
-            self._run_background_task(
-                _do_dna,
-                _on_done,
-                popup_message=(
-                    gs.PROGRESS_SEARCHING
-                    if self._is_slow_search(max_depth, len(self.individuals))
-                    else None
-                ),
-                cancelable=True,
-                on_cancel=_on_cancel,
-            )
+        self._refresh_display_pane()
     def _display_name(self, indi):
         """Return an individual's display name using the configured name order."""
         if self._name_order == 'last_first':

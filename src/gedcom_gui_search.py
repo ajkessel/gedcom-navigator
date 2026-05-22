@@ -99,6 +99,8 @@ class SearchMixin:
             self.individuals = self._model.individuals
             self.families = self._model.families
             self.tag_records = self._model.tag_records
+            self._display_path_target_id = None
+            self._last_result = None
             if encoding_warning:
                 messagebox.showwarning(gs.ERR_ENCODING_TITLE, encoding_warning)
             self.sorted_ids = sorted(
@@ -151,8 +153,74 @@ class SearchMixin:
                 cancel_event=cancel_event)
         return results, home_paths
 
+    def _on_display_mode_selected(self, label):
+        """Handle a click on the Display Pane mode selector."""
+        mode = self._display_mode_by_label.get(label, 'profile')
+        self._set_display_mode(mode)
+
+    def _sync_display_mode_selector(self):
+        """Keep the mode selector widget in sync with display_mode."""
+        selector = getattr(self, '_display_mode_selector', None)
+        labels = getattr(self, '_display_mode_labels', {})
+        label = labels.get(self.display_mode.get())
+        if selector is None or label is None:
+            return
+        if hasattr(selector, 'set'):
+            selector.set(label)
+        else:
+            radio_var = getattr(self, '_display_mode_radio_var', None)
+            if radio_var is not None:
+                radio_var.set(label)
+
+    def _set_display_mode(self, mode, refresh=True, prompt_for_path=True):
+        """Select the active Display Pane mode."""
+        if mode not in ('profile', 'matches', 'paths'):
+            mode = 'profile'
+        self.display_mode.set(mode)
+        self._sync_display_mode_selector()
+        if refresh:
+            self._refresh_display_pane(prompt_for_path=prompt_for_path)
+
+    def _selected_or_active_id(self):
+        """Return the selected person, falling back to the active person."""
+        sel = self.tree.selection()
+        return sel[0] if sel else self._active_id
+
+    def _on_tree_selection_change(self, *_):
+        """Refresh the Display Pane after the selected person changes."""
+        if getattr(self, '_suppress_display_refresh', False):
+            return
+        self._refresh_display_pane()
+
+    def _refresh_display_pane(self, prompt_for_path=True):
+        """Refresh the active Display Pane mode for the selected person."""
+        if self._busy or not self.individuals:
+            return
+        start_id = self._selected_or_active_id()
+        if not start_id:
+            return
+        mode = self.display_mode.get()
+        if mode == 'profile':
+            self._results_reversed = False
+            self._reverse_btn.configure(state='disabled', text=gs.BTN_REVERSE)
+            self._last_result = {'type': 'profile', 'start_id': start_id}
+            self._render_profile_result(start_id)
+        elif mode == 'matches':
+            self._find_matches()
+        elif mode == 'paths':
+            target_id = getattr(self, '_display_path_target_id', None)
+            if (not target_id or target_id not in self.individuals
+                    or target_id == start_id):
+                if not prompt_for_path:
+                    return
+                target_id = self._pick_person(gs.WIN_SELECT_TARGET)
+                if not target_id:
+                    return
+                self._display_path_target_id = target_id
+            self._run_path_search(start_id, target_id)
+
     def _refresh_result(self):
-        """Recompute and redraw the most recent result view."""
+        """Recompute and redraw the active Display Pane view."""
         self._settings_after_id = None
         if self._busy or not self._last_result or not self.individuals:
             return
@@ -163,6 +231,9 @@ class SearchMixin:
             return
         kind = self._last_result['type']
         start_id = self._last_result['start_id']
+        if kind == 'profile':
+            self._render_profile_result(start_id)
+            return
         self._show_progress()
         self._set_busy(True)
         if kind == 'dna_matches':
@@ -239,111 +310,116 @@ class SearchMixin:
         self._search_after_id = None
         prev_sel = self.tree.selection()
         prev_id = prev_sel[0] if prev_sel else None
+        old_suppress = getattr(self, '_suppress_display_refresh', False)
+        self._suppress_display_refresh = True
 
-        self.tree.delete(*self.tree.get_children())
+        try:
+            self.tree.delete(*self.tree.get_children())
 
-        if not self.individuals:
-            return
+            if not self.individuals:
+                return
 
-        query = self.search_text.get().strip()
-        filter_query = self.filter_text.get().strip().lower()
-        flagged_only = self.show_flagged_only.get()
-        extra_names_by_id = (
-            self._model.married_name_index
-            if self.married_name_search.get()
-            else {}
-        )
-        flagged_count = sum(
-            1 for i in self.individuals.values() if i['dna_markers'])
-
-        _col_labels = {'name': gs.COL_NAME, 'birth': gs.COL_BIRTH,
-                       'death': gs.COL_DEATH, 'flagged': gs.COL_DNA}
-        for _col, _label in _col_labels.items():
-            suffix = (
-                ' ▼' if self._sort_rev else ' ▲') if _col == self._sort_col else ''
-            self.tree.heading(_col, text=_label + suffix)
-
-        def _sort_key(indi_id):
-            indi = self.individuals[indi_id]
-            name = self._display_name(indi).lower()
-            if self._sort_col == 'birth':
-                by = indi['birth_year']
-                return (by is None, by or 0, name)
-            if self._sort_col == 'death':
-                dy = indi['death_year']
-                return (dy is None, dy or 0, name)
-            if self._sort_col == 'flagged':
-                return (not bool(indi['dna_markers']), name)
-            return (name, indi_id)
-
-        # Re-sort only when sort settings or underlying data change.
-        # id(self.sorted_ids) changes whenever a new file is loaded.
-        cache_key = (
-            self._sort_col, self._sort_rev, id(self.sorted_ids),
-            self._name_order,
-        )
-        if getattr(self, '_pop_sort_key', None) != cache_key:
-            self._pop_sorted = sorted(self.sorted_ids, key=_sort_key,
-                                      reverse=self._sort_rev)
-            self._pop_sort_key = cache_key
-        display_ids = self._pop_sorted
-
-        shown = 0
-        total_matches = 0
-        truncated = False
-        for indi_id in display_ids:
-            indi = self.individuals[indi_id]
-            if flagged_only and not indi['dna_markers']:
-                continue
-            if query:
-                match, _score = individual_matches_query(
-                    indi_id, indi, query,
-                    fuzzy=self.fuzzy_search.get(),
-                    fuzzy_threshold=self._fuzzy_threshold_value(),
-                    extra_names=extra_names_by_id.get(indi_id),
-                )
-                if not match:
-                    continue
-            if filter_query:
-                raw_text = ' '.join(v.lower() for _, _, _, v in indi['_raw'])
-                if filter_query not in raw_text:
-                    continue
-            total_matches += 1
-            if shown >= self.max_display.get():
-                truncated = True
-                continue
-            tags = ('flagged_row',) if indi['dna_markers'] else ()
-            flagged_mark = '✓' if indi['dna_markers'] else ''
-            self.tree.insert(
-                '', 'end', iid=indi_id,
-                values=(self._display_name(indi),
-                        indi['birth_year'] or '',
-                        indi['death_year'] or '',
-                        flagged_mark),
-                tags=tags,
+            query = self.search_text.get().strip()
+            filter_query = self.filter_text.get().strip().lower()
+            flagged_only = self.show_flagged_only.get()
+            extra_names_by_id = (
+                self._model.married_name_index
+                if self.married_name_search.get()
+                else {}
             )
-            shown += 1
+            flagged_count = sum(
+                1 for i in self.individuals.values() if i['dna_markers'])
 
-        if prev_id and self.tree.exists(prev_id):
-            self.tree.selection_set(prev_id)
-            self.tree.see(prev_id)
-        elif shown == 1 and (query or flagged_only):
-            only = self.tree.get_children()[0]
-            self.tree.selection_set(only)
-            self.tree.see(only)
+            _col_labels = {'name': gs.COL_NAME, 'birth': gs.COL_BIRTH,
+                           'death': gs.COL_DEATH, 'flagged': gs.COL_DNA}
+            for _col, _label in _col_labels.items():
+                suffix = (
+                    ' ▼' if self._sort_rev else ' ▲') if _col == self._sort_col else ''
+                self.tree.heading(_col, text=_label + suffix)
 
-        total = len(self.individuals)
-        if truncated and (query or flagged_only):
-            self.status_text.set(gs.STATUS_SHOWING_FIRST.format(
-                max_display=self.max_display.get(), total_matches=total_matches,
-                total=total, flagged=flagged_count))
-        elif query or flagged_only:
-            self.status_text.set(gs.STATUS_MATCHES.format(
-                shown=shown, plural='es' if shown != 1 else '',
-                total=total, flagged=flagged_count))
-        else:
-            self.status_text.set(gs.STATUS_OVERVIEW.format(
-                total=total, families=len(self.families), flagged=flagged_count))
+            def _sort_key(indi_id):
+                indi = self.individuals[indi_id]
+                name = self._display_name(indi).lower()
+                if self._sort_col == 'birth':
+                    by = indi['birth_year']
+                    return (by is None, by or 0, name)
+                if self._sort_col == 'death':
+                    dy = indi['death_year']
+                    return (dy is None, dy or 0, name)
+                if self._sort_col == 'flagged':
+                    return (not bool(indi['dna_markers']), name)
+                return (name, indi_id)
+
+            # Re-sort only when sort settings or underlying data change.
+            # id(self.sorted_ids) changes whenever a new file is loaded.
+            cache_key = (
+                self._sort_col, self._sort_rev, id(self.sorted_ids),
+                self._name_order,
+            )
+            if getattr(self, '_pop_sort_key', None) != cache_key:
+                self._pop_sorted = sorted(self.sorted_ids, key=_sort_key,
+                                          reverse=self._sort_rev)
+                self._pop_sort_key = cache_key
+            display_ids = self._pop_sorted
+
+            shown = 0
+            total_matches = 0
+            truncated = False
+            for indi_id in display_ids:
+                indi = self.individuals[indi_id]
+                if flagged_only and not indi['dna_markers']:
+                    continue
+                if query:
+                    match, _score = individual_matches_query(
+                        indi_id, indi, query,
+                        fuzzy=self.fuzzy_search.get(),
+                        fuzzy_threshold=self._fuzzy_threshold_value(),
+                        extra_names=extra_names_by_id.get(indi_id),
+                    )
+                    if not match:
+                        continue
+                if filter_query:
+                    raw_text = ' '.join(v.lower() for _, _, _, v in indi['_raw'])
+                    if filter_query not in raw_text:
+                        continue
+                total_matches += 1
+                if shown >= self.max_display.get():
+                    truncated = True
+                    continue
+                tags = ('flagged_row',) if indi['dna_markers'] else ()
+                flagged_mark = '✓' if indi['dna_markers'] else ''
+                self.tree.insert(
+                    '', 'end', iid=indi_id,
+                    values=(self._display_name(indi),
+                            indi['birth_year'] or '',
+                            indi['death_year'] or '',
+                            flagged_mark),
+                    tags=tags,
+                )
+                shown += 1
+
+            if prev_id and self.tree.exists(prev_id):
+                self.tree.selection_set(prev_id)
+                self.tree.see(prev_id)
+            elif shown == 1 and (query or flagged_only):
+                only = self.tree.get_children()[0]
+                self.tree.selection_set(only)
+                self.tree.see(only)
+
+            total = len(self.individuals)
+            if truncated and (query or flagged_only):
+                self.status_text.set(gs.STATUS_SHOWING_FIRST.format(
+                    max_display=self.max_display.get(), total_matches=total_matches,
+                    total=total, flagged=flagged_count))
+            elif query or flagged_only:
+                self.status_text.set(gs.STATUS_MATCHES.format(
+                    shown=shown, plural='es' if shown != 1 else '',
+                    total=total, flagged=flagged_count))
+            else:
+                self.status_text.set(gs.STATUS_OVERVIEW.format(
+                    total=total, families=len(self.families), flagged=flagged_count))
+        finally:
+            self._suppress_display_refresh = old_suppress
 
     def _fuzzy_threshold_value(self):
         """Return the configured fuzzy threshold, falling back to the default."""
@@ -365,6 +441,8 @@ class SearchMixin:
         """Find and display nearest DNA-flagged matches for the selected person."""
         if self._busy:
             return
+        if getattr(self, 'display_mode', None) is not None:
+            self._set_display_mode('matches', refresh=False)
         if not self.individuals:
             messagebox.showwarning(gs.ERR_NO_DATA_TITLE, gs.ERR_NO_DATA_MSG)
             return
@@ -412,4 +490,3 @@ class SearchMixin:
             cancelable=True,
             on_cancel=_on_cancel,
         )
-

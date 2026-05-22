@@ -60,7 +60,6 @@ DLG_SELECT_GEDCOM = _("Select GEDCOM file")
 LBL_TAG_KEYWORD = _("Tag keyword:")
 LBL_PAGE_MARKER = _("Page marker:")
 BTN_SELECT_TAG = _("Select Tag")
-BTN_FIND_PATH = _("Find Relationship Path")
 
 # ---------------------------------------------------------------------------
 # People list
@@ -80,14 +79,17 @@ COL_DNA = _("Tagged")
 # ---------------------------------------------------------------------------
 LBL_TOP_N = _("Results:")
 LBL_MAX_DEPTH = _("Max Depth:")
-BTN_FIND_MATCHES = _("Find Matches")
 BTN_SHOW_PERSON = _("Profile")
 BTN_SHOW_PERSON_TREE = _("Tree")
 BTN_SET_HOME = _("Set Home")
 
 # ---------------------------------------------------------------------------
-# Results panel
+# Display Pane
 # ---------------------------------------------------------------------------
+DISPLAY_MODE_PROFILE = _("Profile")
+DISPLAY_MODE_MATCHES = _("Matches")
+DISPLAY_MODE_PATHS = _("Paths")
+BTN_FIND_MATCHES = DISPLAY_MODE_MATCHES
 BTN_COPY = _("Copy")
 BTN_REVERSE = _("Reverse")
 BTN_REVERSE_RESTORE = _("Normal Path")
@@ -132,13 +134,12 @@ def get_tip_find():
 def get_tip_find_matches():
     mod = get_mod_key()
     return (
-        _("Find Nearest Matches ({mod}N)\n"
-          "Find the closest tagged matches to the selected person. "
+        _("Matches ({mod}N)\n"
+          "Show the closest tagged matches to the selected person. "
           "The results are ranked by proximity to the selected person, with ties broken by "
           "the number of tags (if any) associated with the match. "
           "Use the 'Results' and 'Max Depth' settings to adjust how many results are returned and "
-          "how far to search within the tree.\n\n"
-          "Also triggered by pressing Enter when selecting a person.").format(mod=mod)
+          "how far to search within the tree.").format(mod=mod)
     )
 
 def get_tip_filter():
@@ -164,7 +165,7 @@ def get_tip_set_home():
 
 def get_tip_show_person():
     mod = get_mod_key()
-    return _("Profile ({mod}E)\nView the full GEDCOM record for the selected person, along with a summary of biographical and family information. Shift-Click for Tree View.").format(mod=mod)
+    return _("Profile ({mod}E)\nShow the selected person's biographical, family, tag, and optional full GEDCOM record details in the Display Pane.").format(mod=mod)
 
 def get_tip_show_person_tree():
     mod = get_mod_key()
@@ -176,7 +177,7 @@ def get_tip_select_tag():
 
 def get_tip_find_path():
     mod = get_mod_key()
-    return _("Find Relationship Paths ({mod}P)\nFind multiple paths between the selected person and any other person in your tree. Select any person in the results to find the relationships between the originally selected person and the newly-selected person.").format(mod=mod)
+    return _("Paths ({mod}P)\nShow relationship paths between the selected person and a target person. The first time you enter Paths mode, choose the target person.").format(mod=mod)
 
 TIP_TOP_N = _(
     "Number of Results\n"
@@ -396,9 +397,7 @@ TIP_SHOW_FULL_GEDCOM = _(
 LBL_NAME_FORMAT = _("Name format:")
 NAME_FIRST_LAST = _("First Last")
 NAME_LAST_FIRST = _("Last, First")
-LBL_DEFAULT_PROFILE_VIEW = _("Default profile view:")
-PROFILE_VIEW_PROFILE = _("Profile View")
-PROFILE_VIEW_TREE = _("Tree View")
+LBL_DEFAULT_DISPLAY = _("Default display:")
 FRAME_CACHE = _("Cache")
 BTN_CLEAR_CACHE = _("Clear Cache…")
 LBL_CACHE_NOTE = _("Remove all cached GEDCOM data")
@@ -514,10 +513,10 @@ def get_keyboard_shortcut_rows():
         (f"{mod}U",     _("Toggle fuzzy search mode")),
         (f"{mod}M",     _("Toggle married-name search mode")),
         (f"{mod}O",     _("Open a new GEDCOM file")),
-        (f"{mod}N",     _("Find Nearest Tagged Matches for the selected person")),
-        (f"{mod}E",     _("Show the full GEDCOM record for the selected person")),
+        (f"{mod}N",     _("Switch the Display Pane to Matches")),
+        (f"{mod}E",     _("Switch the Display Pane to Profile")),
         (f"{mod}H",     _("Set Home person to the selected person")),
-        (f"{mod}P",     _("Open the Find Relationship Paths dialog")),
+        (f"{mod}P",     _("Switch the Display Pane to Paths")),
         (f"{mod}T",     _("Select new tag for finding relationship paths")),
         (f"{mod}R",     _("Reverse/restore the direction of all relationship paths")),
         (f"{mod}S",     _("Save results to a text file")),

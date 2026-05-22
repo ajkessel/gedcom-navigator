@@ -35,28 +35,143 @@ class PersonDialogMixin:
             messagebox.showwarning(ERR_NO_SEL_TITLE, ERR_NO_SEL_MSG)
             return
         self._show_person_for(indi_id, initial_view=initial_view)
-    def _update_show_person_btn_for_shift(self, shift_held):
-        """Temporarily flip show_person_btn label/command while Shift is held."""
-        if self._default_profile_view == 'tree':
-            if shift_held:
-                self.show_person_btn.configure(
-                    text=BTN_SHOW_PERSON,
-                    command=lambda: self._show_person(initial_view='profile'))
-                self._show_person_tooltip.update_text(get_tip_show_person())
-            else:
-                self.show_person_btn.configure(
-                    text=BTN_SHOW_PERSON_TREE, command=self._show_person)
-                self._show_person_tooltip.update_text(get_tip_show_person_tree())
-        else:
-            if shift_held:
-                self.show_person_btn.configure(
-                    text=BTN_SHOW_PERSON_TREE,
-                    command=lambda: self._show_person(initial_view='tree'))
-                self._show_person_tooltip.update_text(get_tip_show_person_tree())
-            else:
-                self.show_person_btn.configure(
-                    text=BTN_SHOW_PERSON, command=self._show_person)
-                self._show_person_tooltip.update_text(get_tip_show_person())
+
+    def _insert_person_profile(self, text, current_id, navigate_callback,
+                               tag_callback=None):
+        """Insert the textual profile for current_id into a textbox."""
+        text._textbox.tag_configure(
+            'bold', font=(self._mono_family, self._mono_size, 'bold'))
+        text._textbox.tag_configure('person_link')
+        text._textbox.tag_bind(
+            'person_link', '<Enter>',
+            lambda *_: text._textbox.config(cursor='hand2'))
+        text._textbox.tag_bind(
+            'person_link', '<Leave>',
+            lambda *_: text._textbox.config(cursor=''))
+        text._textbox.tag_configure('tag_link')
+        text._textbox.tag_bind(
+            'tag_link', '<Enter>',
+            lambda *_: text._textbox.config(cursor='hand2'))
+        text._textbox.tag_bind(
+            'tag_link', '<Leave>',
+            lambda *_: text._textbox.config(cursor=''))
+        self._clear_person_tags(text)
+
+        indi = self.individuals[current_id]
+
+        def add(line, bold=False):
+            text.insert('end', line + '\n', ('bold',) if bold else ())
+
+        def person(pid, prefix=''):
+            if prefix:
+                text.insert('end', prefix)
+            tag = f'pers_{pid.strip("@")}'
+            text.insert('end', describe(self.individuals[pid],
+                                        show_id=self.show_ids.get()),
+                        ('person_link', tag))
+            text._textbox.tag_configure(tag, foreground=self._link_color)
+            text._textbox.tag_bind(
+                tag, '<Button-1>',
+                lambda _, p=pid: navigate_callback(p))
+            text.insert('end', '\n')
+
+        add(BIO_SECTION, bold=True)
+        bio_found = False
+
+        def fmt_event(date, place):
+            parts = [p for p in (date, place) if p]
+            return ', '.join(parts)
+
+        b_date, b_place = _extract_event(indi['_raw'], 'BIRT')
+        if b_date or b_place:
+            bio_found = True
+            add(BIO_BORN.format(event=fmt_event(b_date, b_place)))
+
+        for fam_id in indi['fams']:
+            fam = self.families.get(fam_id)
+            if not fam:
+                continue
+            m_date = fam.get('marr_date', '')
+            m_place = fam.get('marr_place', '')
+            spouse_id = (
+                fam['wife'] if fam['husb'] == current_id else fam['husb'])
+            spouse_name = (self._display_name(self.individuals[spouse_id])
+                           if spouse_id and spouse_id in self.individuals else '')
+            if spouse_name or m_date or m_place:
+                bio_found = True
+                parts = [p for p in (spouse_name, m_date, m_place) if p]
+                add(BIO_MARRIED.format(spouses=', '.join(parts)))
+
+        d_date, d_place = _extract_event(indi['_raw'], 'DEAT')
+        if d_date or d_place:
+            bio_found = True
+            add(BIO_DIED.format(event=fmt_event(d_date, d_place)))
+
+        bu_date, bu_place = _extract_event(indi['_raw'], 'BURI')
+        if bu_date or bu_place:
+            bio_found = True
+            add(BIO_BURIED.format(event=fmt_event(bu_date, bu_place)))
+
+        if not bio_found:
+            add(BIO_NO_INFO)
+        add("")
+
+        add(FAM_SECTION, bold=True)
+        family_found = False
+        parents, siblings, spouses, children = self._get_family_members(
+            current_id)
+
+        if parents:
+            family_found = True
+            add(FAM_PARENTS)
+            for pid in parents:
+                person(pid, prefix="    ")
+        if siblings:
+            family_found = True
+            add(FAM_SIBLINGS)
+            for sib_id in siblings:
+                person(sib_id, prefix="    ")
+        if spouses:
+            family_found = True
+            add(FAM_SPOUSES if len(spouses) > 1 else FAM_SPOUSE)
+            for sid in spouses:
+                person(sid, prefix="    ")
+        if children:
+            family_found = True
+            add(FAM_CHILDREN)
+            for child_id in children:
+                person(child_id, prefix="    ")
+        if not family_found:
+            add(FAM_NO_INFO)
+        add("")
+
+        indi_tags = indi.get('tags', [])
+        if indi_tags:
+            add(TAGS_SECTION, bold=True)
+            for i, tag_name in enumerate(indi_tags):
+                tlink = f'taglink_{i}'
+                text.insert('end', '  ')
+                text.insert('end', tag_name, ('tag_link', tlink))
+                text.insert('end', '\n')
+                text._textbox.tag_configure(tlink, foreground=self._link_color)
+                if tag_callback is not None:
+                    text._textbox.tag_bind(
+                        tlink, '<Button-1>',
+                        lambda _, n=tag_name: tag_callback(n))
+            add("")
+
+        if self.show_full_gedcom.get():
+            add(GEDCOM_SECTION, bold=True)
+
+            for level, xref, tag, value in indi.get('_raw', []):
+                parts = [str(level)]
+                if xref and self.show_ids.get():
+                    parts.append(xref)
+                parts.append(tag)
+                if value:
+                    parts.append(value)
+                add(' '.join(parts))
+
     def _show_person_for(self, indi_id, initial_view=None,
                          existing_window=None):
         """Open a detail window for a specific individual ID."""
@@ -320,22 +435,6 @@ class PersonDialogMixin:
                 wrap='none')
             text._textbox.configure(padx=8, pady=8)
             text.pack(fill='both', expand=True)
-            text._textbox.tag_configure(
-                'bold', font=(self._mono_family, self._mono_size, 'bold'))
-            text._textbox.tag_configure('person_link')
-            text._textbox.tag_bind(
-                'person_link', '<Enter>',
-                lambda *_: text._textbox.config(cursor='hand2'))
-            text._textbox.tag_bind(
-                'person_link', '<Leave>',
-                lambda *_: text._textbox.config(cursor=''))
-            text._textbox.tag_configure('tag_link')
-            text._textbox.tag_bind(
-                'tag_link', '<Enter>',
-                lambda *_: text._textbox.config(cursor='hand2'))
-            text._textbox.tag_bind(
-                'tag_link', '<Leave>',
-                lambda *_: text._textbox.config(cursor=''))
 
             def _apply_person_zoom(size):
                 text.configure(font=(self._mono_family, size))
@@ -354,126 +453,17 @@ class PersonDialogMixin:
                 name=indi['name'] or current_id))
             text.configure(state='normal')
             text.delete('1.0', 'end')
-            self._clear_person_tags(text)
 
-            def add(line, bold=False):
-                text.insert('end', line + '\n', ('bold',) if bold else ())
+            def _on_tag_click(tag_name):
+                self.tag_keyword.set(tag_name)
+                self.page_marker.set('')
+                self.search_text.set('')
+                self.filter_text.set('')
+                self.show_flagged_only.set(True)
+                win.destroy()
 
-            def person(pid, prefix=''):
-                if prefix:
-                    text.insert('end', prefix)
-                tag = f'pers_{pid.strip("@")}'
-                text.insert('end', describe(self.individuals[pid],
-                                            show_id=self.show_ids.get()),
-                            ('person_link', tag))
-                text._textbox.tag_configure(tag, foreground=self._link_color)
-                text._textbox.tag_bind(tag, '<Button-1>',
-                                       lambda _, p=pid: _show_person_view(p))
-                text.insert('end', '\n')
-
-            add(BIO_SECTION, bold=True)
-            bio_found = False
-
-            def fmt_event(date, place):
-                parts = [p for p in (date, place) if p]
-                return ', '.join(parts)
-
-            b_date, b_place = _extract_event(indi['_raw'], 'BIRT')
-            if b_date or b_place:
-                bio_found = True
-                add(BIO_BORN.format(event=fmt_event(b_date, b_place)))
-
-            for fam_id in indi['fams']:
-                fam = self.families.get(fam_id)
-                if not fam:
-                    continue
-                m_date = fam.get('marr_date', '')
-                m_place = fam.get('marr_place', '')
-                spouse_id = (
-                    fam['wife'] if fam['husb'] == current_id else fam['husb'])
-                spouse_name = (self._display_name(self.individuals[spouse_id])
-                               if spouse_id and spouse_id in self.individuals else '')
-                if spouse_name or m_date or m_place:
-                    bio_found = True
-                    parts = [p for p in (spouse_name, m_date, m_place) if p]
-                    add(BIO_MARRIED.format(spouses=', '.join(parts)))
-
-            d_date, d_place = _extract_event(indi['_raw'], 'DEAT')
-            if d_date or d_place:
-                bio_found = True
-                add(BIO_DIED.format(event=fmt_event(d_date, d_place)))
-
-            bu_date, bu_place = _extract_event(indi['_raw'], 'BURI')
-            if bu_date or bu_place:
-                bio_found = True
-                add(BIO_BURIED.format(event=fmt_event(bu_date, bu_place)))
-
-            if not bio_found:
-                add(BIO_NO_INFO)
-            add("")
-
-            add(FAM_SECTION, bold=True)
-            family_found = False
-            parents, siblings, spouses, children = self._get_family_members(
-                current_id)
-
-            if parents:
-                family_found = True
-                add(FAM_PARENTS)
-                for pid in parents:
-                    person(pid, prefix="    ")
-            if siblings:
-                family_found = True
-                add(FAM_SIBLINGS)
-                for sib_id in siblings:
-                    person(sib_id, prefix="    ")
-            if spouses:
-                family_found = True
-                add(FAM_SPOUSES if len(spouses) > 1 else FAM_SPOUSE)
-                for sid in spouses:
-                    person(sid, prefix="    ")
-            if children:
-                family_found = True
-                add(FAM_CHILDREN)
-                for child_id in children:
-                    person(child_id, prefix="    ")
-            if not family_found:
-                add(FAM_NO_INFO)
-            add("")
-
-            indi_tags = indi.get('tags', [])
-            if indi_tags:
-                add(TAGS_SECTION, bold=True)
-                for i, tag_name in enumerate(indi_tags):
-                    tlink = f'taglink_{i}'
-                    text.insert('end', '  ')
-                    text.insert('end', tag_name, ('tag_link', tlink))
-                    text.insert('end', '\n')
-                    text._textbox.tag_configure(
-                        tlink, foreground=self._link_color)
-
-                    def _on_tag_click(_, n=tag_name):
-                        self.tag_keyword.set(n)
-                        self.page_marker.set('')
-                        self.search_text.set('')
-                        self.filter_text.set('')
-                        self.show_flagged_only.set(True)
-                        win.destroy()
-
-                    text._textbox.tag_bind(tlink, '<Button-1>', _on_tag_click)
-                add("")
-
-            if self.show_full_gedcom.get():
-                add(GEDCOM_SECTION, bold=True)
-
-                for level, xref, tag, value in indi.get('_raw', []):
-                    parts = [str(level)]
-                    if xref and self.show_ids.get():
-                        parts.append(xref)
-                    parts.append(tag)
-                    if value:
-                        parts.append(value)
-                    add(' '.join(parts))
+            self._insert_person_profile(
+                text, current_id, _show_person_view, tag_callback=_on_tag_click)
 
             text.configure(state='disabled')
 
@@ -787,10 +777,7 @@ class PersonDialogMixin:
 
         win.bind(toggle_shortcut, _toggle_view)
 
-        initial_view = (
-            initial_view
-            or getattr(self, '_default_profile_view', 'profile')
-        )
+        initial_view = initial_view or 'profile'
         if initial_view == 'tree':
             _show_tree_view(indi_id)
         else:

@@ -114,7 +114,15 @@ class BackgroundTaskMixin:
         """Disable or re-enable the controls that trigger long operations."""
         self._busy = busy
         state = 'disabled' if busy else 'normal'
-        self.find_matches_btn.configure(state=state)
+        selector = getattr(self, '_display_mode_selector', None)
+        if selector is not None:
+            try:
+                selector.configure(state=state)
+            except (tk.TclError, ValueError):
+                pass
+        show_tree_btn = getattr(self, 'show_tree_btn', None)
+        if show_tree_btn is not None:
+            show_tree_btn.configure(state=state)
         self._file_menu.entryconfigure(MENU_OPEN_GEDCOM, state=state)
 
     # ---------------------------------------------------------- Search popup
