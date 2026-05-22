@@ -1,7 +1,7 @@
 Set-Location -Path $PSScriptRoot/..
-if ( test-path "./venv/scripts/activate" ) {
+if ( test-path "./venv/Scripts/Activate.ps1" ) {
    Write-Output "venv found, activating"
-   & "./venv/scripts/activate"
+   & "./venv/Scripts/Activate.ps1"
 }
 if ( -not ( Get-Command python -ErrorAction SilentlyContinue ) ) { 
     Write-Output "Python is not installed or not in the PATH or venv. Please install Python and ensure it is in the PATH before running this script." 
@@ -9,8 +9,8 @@ if ( -not ( Get-Command python -ErrorAction SilentlyContinue ) ) {
 }
 if ( -not ($env:virtual_env)) {
     python -m venv .\venv
-    & "./venv/scripts/activate"
+    & "./venv/Scripts/Activate.ps1"
     pip install -r dev/requirements.txt
 }
 $env:GEDCOM_NAVIGATOR_GRAPH_DEBUG=1
-python src/gedcom_navigator_gui.py
+& "./venv/Scripts/python.exe" src/gedcom_navigator_gui.py
