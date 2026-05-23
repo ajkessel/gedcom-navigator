@@ -5,13 +5,13 @@ gedcom_gui_person_dialog.py
 Person profile and family-tree detail windows for GedcomNavigatorApp.
 """
 
-import os
 import sys
 import tkinter as tk
 from tkinter import filedialog, messagebox
 
 import customtkinter as ctk
 
+from gedcom_debug import debug_enabled
 from gedcom_display import describe
 from gedcom_family_tree import INITIAL_TREE_CATEGORIES
 from gedcom_relationship import _extract_event
@@ -802,7 +802,7 @@ class PersonDialogMixin:
             bind_zoom_shortcuts(canvas, _zoom_tree_in, _zoom_tree_out, _zoom_tree_reset)
             win.bind(copy_shortcut, _copy_tree)
             win.bind(save_shortcut, _save_tree)
-            graph_debug_enabled = os.environ.get("GEDCOM_NAVIGATOR_DEBUG") == "1"
+            graph_debug_enabled = debug_enabled()
             if graph_debug_enabled:
                 win.bind("<Control-Shift-D>", _save_tree_debug)
                 canvas.bind("<Control-Shift-D>", _save_tree_debug)

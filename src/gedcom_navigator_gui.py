@@ -636,7 +636,7 @@ class GedcomNavigatorApp(
                                        command=self._copy_results)
         self._copy_btn.grid(row=0, column=4, padx=(4, 4), pady=4)
         Tooltip(self._copy_btn, get_tip_copy())
-        if os.environ.get('GEDCOM_NAVIGATOR_DEBUG') == '1':
+        if debug_enabled():
             self._copy_json_btn = ctk.CTkButton(
                 status_bar, text='Copy JSON', width=90,
                 command=self._copy_paths_json)

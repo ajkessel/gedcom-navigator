@@ -27,9 +27,21 @@ _previous_tk_report_callback_exception = None
 _logged_exception_keys = set()
 
 
+def _getenv(name, default=None):
+    """Return an environment value using case-insensitive lookup on all platforms."""
+    value = os.environ.get(name)
+    if value is not None:
+        return value
+    name_upper = name.upper()
+    for key, candidate in os.environ.items():
+        if key.upper() == name_upper:
+            return candidate
+    return default
+
+
 def debug_enabled():
     """Return whether debug diagnostics are enabled for this process."""
-    return os.environ.get(_DEBUG_ENV, '').strip().lower() in {
+    return _getenv(_DEBUG_ENV, '').strip().lower() in {
         '1', 'true', 'yes', 'on'
     }
 
@@ -54,7 +66,7 @@ def _default_debug_log_path():
 
 def debug_log_path():
     """Return the configured debug log path."""
-    override = os.environ.get(_LOG_PATH_ENV)
+    override = _getenv(_LOG_PATH_ENV)
     if override:
         return Path(override).expanduser()
     return _default_debug_log_path()

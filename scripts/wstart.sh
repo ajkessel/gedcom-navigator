@@ -20,9 +20,15 @@ for arg in "$@"; do
 		args+=("${arg}")
 	fi
 done
-[ -n "${GEDCOM_NAVIGATOR_DEBUG_LOG}" ] && {
+if [ -n "${gedcom_navigator_debug:-}" ] && [ -z "${GEDCOM_NAVIGATOR_DEBUG:-}" ]; then
+	export GEDCOM_NAVIGATOR_DEBUG="${gedcom_navigator_debug}"
+fi
+if [ -n "${gedcom_navigator_debug_log:-}" ] && [ -z "${GEDCOM_NAVIGATOR_DEBUG_LOG:-}" ]; then
+	export GEDCOM_NAVIGATOR_DEBUG_LOG="${gedcom_navigator_debug_log}"
+fi
+if [ -n "${GEDCOM_NAVIGATOR_DEBUG}" ] || [ -n "${GEDCOM_NAVIGATOR_DEBUG_LOG}" ]; then
 	export GEDCOM_NAVIGATOR_DEBUG
 	export GEDCOM_NAVIGATOR_DEBUG_LOG
 	export WSLENV="${WSLENV:+$WSLENV:}GEDCOM_NAVIGATOR_DEBUG/w:GEDCOM_NAVIGATOR_DEBUG_LOG/wp"
-}
-"${WIN_PY}" "$(wslpath -w src/gedcom_navigator_gui.py)" --debug "${args[@]}"
+fi
+"${WIN_PY}" "$(wslpath -w src/gedcom_navigator_gui.py)" "${args[@]}"
