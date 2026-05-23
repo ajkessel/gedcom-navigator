@@ -24,6 +24,12 @@ from gedcom_zoom import TextZoomController, bind_zoom_shortcuts
 class PersonDialogMixin:
     """Person detail window helpers."""
 
+    def _show_profile_from_tree_context(self, indi_id, close_tree_window):
+        """Close Tree View and show indi_id in the main Display Pane profile."""
+        self._select_person_in_main_tree(indi_id)
+        close_tree_window()
+        self.root.after_idle(lambda: self._set_display_mode("profile"))
+
     def _show_person(self, initial_view=None):
         """Open the GEDCOM record viewer for the selected person."""
         if not self.individuals:
@@ -753,8 +759,8 @@ class PersonDialogMixin:
                 canvas.after_idle(_center_tree_on_current)
 
             def _show_profile_from_tree(indi_id):
-                self._select_person_in_main_tree(indi_id)
-                _show_person_view(indi_id)
+                self._show_profile_from_tree_context(
+                    indi_id, _on_destroy_person_win)
 
             def _find_matches_from_tree(indi_id):
                 self._select_person_in_main_tree(indi_id)
