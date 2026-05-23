@@ -140,11 +140,22 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
         def on_cancel():
             win.destroy()
 
+        def on_double_click(event):
+            row_id = tag_tree.identify_row(event.y)
+            if not row_id:
+                return 'break'
+            tag_tree.focus(row_id)
+            tag_tree.selection_set(row_id)
+            tag_tree.see(row_id)
+            on_ok()
+            return 'break'
+
         ctk.CTkButton(btn_frame, text=BTN_OK, width=80,
                       command=on_ok).pack(side='right', padx=(4, 0))
         ctk.CTkButton(btn_frame, text=BTN_CANCEL, width=80,
                       command=on_cancel).pack(side='right')
 
+        tag_tree.bind('<Double-1>', on_double_click)
         tag_tree.bind('<Return>', lambda *_: on_ok())
         tag_tree.bind('<Home>', lambda *_: self._tree_jump(
             'first', tag_tree) or 'break')

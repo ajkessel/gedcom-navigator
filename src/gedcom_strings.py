@@ -173,7 +173,7 @@ def get_tip_show_person_tree():
 
 def get_tip_select_tag():
     mod = get_mod_key()
-    return _("Select Tag for Finding Paths ({mod}T)\nSelect a new tag for finding the path between the selected person and the closest people with that tag.").format(mod=mod)
+    return _("Select Tag for Finding Matches ({mod}T)\nSelect a tag to use when finding closest matches for the selected person.").format(mod=mod)
 
 def get_tip_find_path():
     mod = get_mod_key()

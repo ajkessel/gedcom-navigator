@@ -274,30 +274,6 @@ class GedcomNavigatorApp(
         outer = ctk.CTkFrame(self.root, fg_color='transparent')
         outer.pack(fill='both', expand=True, padx=8, pady=8)
 
-        # Settings row
-        settings_group = ctk.CTkFrame(outer, border_width=1)
-        settings_group.pack(fill='x', pady=(8, 0))
-        settings_frame = ctk.CTkFrame(settings_group, fg_color='transparent')
-        settings_frame.pack(fill='x', padx=8, pady=(6, 8))
-
-        # Tag Keyword and Page Marker settings
-        ctk.CTkLabel(settings_frame, text=LBL_TAG_KEYWORD).grid(
-            row=0, column=0, sticky='w', padx=(0, 4))
-        ctk.CTkEntry(settings_frame, textvariable=self.tag_keyword,
-                     width=150).grid(row=0, column=1, padx=(0, 16))
-        Tooltip(settings_frame.grid_slaves(
-            row=0, column=1)[0], TIP_TAG_KEYWORD)
-        ctk.CTkLabel(settings_frame, text=LBL_PAGE_MARKER).grid(
-            row=0, column=2, sticky='w', padx=(0, 4))
-        ctk.CTkEntry(settings_frame, textvariable=self.page_marker,
-                     width=240).grid(row=0, column=3, padx=(0, 16))
-        Tooltip(settings_frame.grid_slaves(
-            row=0, column=3)[0], TIP_PAGE_MARKER)
-        _select_tag_btn = ctk.CTkButton(
-            settings_frame, text=BTN_SELECT_TAG, width=100, command=self._view_tags)
-        _select_tag_btn.grid(row=0, column=4, padx=4)
-        Tooltip(_select_tag_btn, get_tip_select_tag())
-
         # Main paned area.  Use the classic Tk paned window here because it
         # supports per-pane minsize constraints; ttk.PanedWindow only supports
         # relative weights.
@@ -593,33 +569,71 @@ class GedcomNavigatorApp(
         self._results_zoom = TextZoomController(
             self.results, self._mono_size, _apply_results_zoom)
 
-        # Status bar
-        status_bar = ctk.CTkFrame(outer, border_width=1)
+        # Display Pane footer
+        status_bar = ctk.CTkFrame(right, border_width=1)
         status_bar.pack(fill='x', pady=(8, 0))
         status_bar.columnconfigure(0, weight=1)
         ctk.CTkLabel(
             status_bar, textvariable=self.status_text, anchor='w',
         ).grid(row=0, column=0, sticky='ew', padx=(8, 0), pady=4)
+
+        self._matches_settings_frame = ctk.CTkFrame(
+            status_bar, fg_color='transparent')
+        self._matches_settings_frame.grid(
+            row=0, column=1, sticky='e', padx=(6, 4), pady=4)
+        tag_keyword_label = ctk.CTkLabel(
+            self._matches_settings_frame, text=LBL_TAG_KEYWORD)
+        tag_keyword_label.grid(row=0, column=0, sticky='w', padx=(0, 4))
+        tag_keyword_entry = ctk.CTkEntry(
+            self._matches_settings_frame,
+            textvariable=self.tag_keyword,
+            width=110,
+        )
+        tag_keyword_entry.grid(row=0, column=1, padx=(0, 10))
+        page_marker_label = ctk.CTkLabel(
+            self._matches_settings_frame, text=LBL_PAGE_MARKER)
+        page_marker_label.grid(row=0, column=2, sticky='w', padx=(0, 4))
+        page_marker_entry = ctk.CTkEntry(
+            self._matches_settings_frame,
+            textvariable=self.page_marker,
+            width=170,
+        )
+        page_marker_entry.grid(row=0, column=3, padx=(0, 10))
+        select_tag_btn = ctk.CTkButton(
+            self._matches_settings_frame,
+            text=BTN_SELECT_TAG,
+            width=92,
+            command=self._view_tags,
+        )
+        select_tag_btn.grid(row=0, column=4)
+        Tooltip(tag_keyword_label, TIP_TAG_KEYWORD)
+        Tooltip(tag_keyword_entry, TIP_TAG_KEYWORD)
+        Tooltip(page_marker_label, TIP_PAGE_MARKER)
+        Tooltip(page_marker_entry, TIP_PAGE_MARKER)
+        Tooltip(select_tag_btn, get_tip_select_tag())
+        self._set_matches_settings_visible(self.display_mode.get() == 'matches')
+
         self._reverse_btn = ctk.CTkButton(status_bar, text=BTN_REVERSE, width=110,
                                           command=self._reverse_results, state='disabled')
-        self._reverse_btn.grid(row=0, column=1, padx=(4, 4), pady=4)
+        self._reverse_btn.grid(row=0, column=2, padx=(4, 4), pady=4)
+        self._set_reverse_button_visible(self.display_mode.get() == 'paths')
         Tooltip(self._reverse_btn, get_tip_reverse())
         self._save_btn = ctk.CTkButton(status_bar, text=BTN_SAVE, width=80,
                                        command=self._save_results)
-        self._save_btn.grid(row=0, column=2, padx=(4, 4), pady=4)
+        self._save_btn.grid(row=0, column=3, padx=(4, 4), pady=4)
         Tooltip(self._save_btn, get_tip_save())
         self._copy_btn = ctk.CTkButton(status_bar, text=BTN_COPY, width=80,
                                        command=self._copy_results)
-        self._copy_btn.grid(row=0, column=3, padx=(4, 4), pady=4)
+        self._copy_btn.grid(row=0, column=4, padx=(4, 4), pady=4)
         Tooltip(self._copy_btn, get_tip_copy())
         if os.environ.get('GEDCOM_NAVIGATOR_DEBUG') == '1':
             self._copy_json_btn = ctk.CTkButton(
                 status_bar, text='Copy JSON', width=90,
                 command=self._copy_paths_json)
-            self._copy_json_btn.grid(row=0, column=4, padx=(0, 8), pady=4)
+            self._copy_json_btn.grid(row=0, column=5, padx=(0, 8), pady=4)
         self._progress_bar = ctk.CTkProgressBar(status_bar, width=130)
         self._progress_bar.set(0)
-        self._progress_bar.grid(row=0, column=2, columnspan=2, padx=(4, 8), pady=4)
+        self._progress_bar.grid(row=0, column=3, columnspan=2, padx=(4, 8), pady=4)
         self._progress_bar.grid_remove()
 
         self._setup_keybindings()

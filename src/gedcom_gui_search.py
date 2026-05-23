@@ -47,6 +47,33 @@ class SearchMixin:
         """Return True while an immediate post-cancel re-prompt should be ignored."""
         return bool(getattr(self, "_path_prompt_cancelled", False))
 
+    def _set_reverse_button_visible(self, visible):
+        """Show the Reverse button only when it applies to the active mode."""
+        button = getattr(self, "_reverse_btn", None)
+        if button is None:
+            return
+        try:
+            if visible:
+                button.grid()
+            else:
+                button.configure(state="disabled", text=gs.BTN_REVERSE)
+                button.grid_remove()
+        except tk.TclError:
+            pass
+
+    def _set_matches_settings_visible(self, visible):
+        """Show DNA marker controls only when Matches mode is active."""
+        frame = getattr(self, "_matches_settings_frame", None)
+        if frame is None:
+            return
+        try:
+            if visible:
+                frame.grid()
+            else:
+                frame.grid_remove()
+        except tk.TclError:
+            pass
+
     def _browse(self):
         """Prompt for a GEDCOM or ZIP file and load it when selected."""
         current = self.gedcom_path.get().strip()
@@ -221,6 +248,8 @@ class SearchMixin:
         if mode not in ('profile', 'matches', 'paths'):
             mode = 'profile'
         self.display_mode.set(mode)
+        self._set_reverse_button_visible(mode == 'paths')
+        self._set_matches_settings_visible(mode == 'matches')
         self._sync_display_mode_selector()
         if refresh:
             self._refresh_display_pane(prompt_for_path=prompt_for_path)
@@ -244,6 +273,8 @@ class SearchMixin:
         if not start_id:
             return
         mode = self.display_mode.get()
+        self._set_reverse_button_visible(mode == 'paths')
+        self._set_matches_settings_visible(mode == 'matches')
         if mode == 'profile':
             self._results_reversed = False
             self._reverse_btn.configure(state='disabled', text=gs.BTN_REVERSE)

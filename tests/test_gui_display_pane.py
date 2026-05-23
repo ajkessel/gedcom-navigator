@@ -23,8 +23,18 @@ class Tree:
 
 
 class Button:
-    def configure(self, **_kwargs):
-        pass
+    def __init__(self):
+        self.visible = True
+        self.config = {}
+
+    def configure(self, **kwargs):
+        self.config.update(kwargs)
+
+    def grid(self):
+        self.visible = True
+
+    def grid_remove(self):
+        self.visible = False
 
 
 class Model:
@@ -44,6 +54,7 @@ class App(SearchMixin):
         self.display_mode = Var(mode)
         self.tree = Tree(selection)
         self._reverse_btn = Button()
+        self._matches_settings_frame = Button()
         self._active_id = None
         self._display_path_target_id = None
         self._home_person_id = None
@@ -77,6 +88,9 @@ def test_profile_mode_renders_selected_person():
     app._refresh_display_pane()
 
     assert app.calls == [('profile', '@A@')]
+    assert app._reverse_btn.visible is False
+    assert app._reverse_btn.config['state'] == 'disabled'
+    assert app._matches_settings_frame.visible is False
 
 
 def test_matches_mode_routes_to_match_search():
@@ -85,6 +99,8 @@ def test_matches_mode_routes_to_match_search():
     app._refresh_display_pane()
 
     assert app.calls == [('matches', '@A@')]
+    assert app._reverse_btn.visible is False
+    assert app._matches_settings_frame.visible is True
 
 
 def test_paths_mode_prompts_once_then_reuses_target():
@@ -99,6 +115,8 @@ def test_paths_mode_prompts_once_then_reuses_target():
         ('paths', '@A@', '@B@'),
         ('paths', '@C@', '@B@'),
     ]
+    assert app._reverse_btn.visible is True
+    assert app._matches_settings_frame.visible is False
 
 
 def test_paths_mode_cancel_does_not_immediately_prompt_again():
@@ -108,6 +126,24 @@ def test_paths_mode_cancel_does_not_immediately_prompt_again():
     app._refresh_display_pane()
 
     assert app.calls == [('pick', None)]
+    assert app._reverse_btn.visible is True
+    assert app._matches_settings_frame.visible is False
+
+
+def test_set_display_mode_toggles_footer_control_visibility():
+    app = App(mode='profile')
+
+    app._set_display_mode('paths', refresh=False)
+    assert app._reverse_btn.visible is True
+    assert app._matches_settings_frame.visible is False
+
+    app._set_display_mode('matches', refresh=False)
+    assert app._reverse_btn.visible is False
+    assert app._matches_settings_frame.visible is True
+
+    app._set_display_mode('profile', refresh=False)
+    assert app._reverse_btn.visible is False
+    assert app._matches_settings_frame.visible is False
 
 
 def test_home_path_data_returns_none_without_home():
