@@ -64,7 +64,8 @@ try {
     }
     if (-not $msgfmt) {
         Write-Output "msgfmt.exe not found. Skipping translation compilation. Please install GNU gettext for Windows to enable this step."
-    } else {
+    }
+    else {
         Write-Output "Compiling translations with msgfmt.exe from GnuWin32..."
         Get-ChildItem -Path .\locales\*.po -Recurse | ForEach-Object {
             Write-Output "Compiling translation: $($_.FullName)"
@@ -92,9 +93,10 @@ try {
         }
     }
 
-    if ($iscc) {
+    if ($iscc -and ( get-path ".\dev\gedcom-navigator.iss")) {
         Write-Output "Inno Setup found at $iscc. Building installer..."
         $initFile = Get-Content ".\gedcom_navigator\__init__.py" -Raw
+        (Get-Content ".\dev\gedcom-navigator.iss") -replace "#define MyAppVersion.*", "#define MyAppVersion $version" | Set-Content ".\dev\gedcom-navigator.iss"
         if ($initFile -match '__version__\s*=\s*["'']([^"'']+)["'']') {
             $version = $Matches[1]
             Write-Output "Building installer for version $version"
