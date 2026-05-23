@@ -77,7 +77,7 @@ class ResultsMixin(GraphRenderMixin, GraphLayoutMixin):
     def _render_profile_result(self, start_id, home_paths=None):
         """Render the selected person's profile in the Display Pane."""
         if start_id not in self.individuals:
-            self._clear_results()
+            self._reset_results_pane()
             return
         if self._last_result and self._last_result.get('type') == 'profile':
             self._last_result['start_id'] = start_id
@@ -518,19 +518,18 @@ class ResultsMixin(GraphRenderMixin, GraphLayoutMixin):
         self.root.clipboard_clear()
         self.root.clipboard_append(json.dumps(out, indent=2, ensure_ascii=False))
 
-    def _clear_results(self):
-        """Clear result output and reset search focus."""
+    def _reset_results_pane(self):
+        """Reset invalid result state after the underlying person data changes."""
         self.results.configure(state='normal')
         self.results.delete('1.0', 'end')
         self.results.configure(state='disabled')
         self._results_header_var.set('')
         self._results_header_id = None
         self._update_header_label_style()
-        self.search_text.set('')
         self._last_result = None
         self._results_reversed = False
         self._reverse_btn.configure(state='disabled', text=gs.BTN_REVERSE)
-        self._kb_focus_search()
+
     def _format_marker(self, marker):
         """Strip the trailing (@ref@) from a DNA marker string when Show IDs is off."""
         if self.show_ids.get():
@@ -633,7 +632,7 @@ class ResultsMixin(GraphRenderMixin, GraphLayoutMixin):
         if self._busy:
             return
         if indi_id not in self.individuals:
-            self._clear_results()
+            self._reset_results_pane()
             return
 
         if self._last_result:

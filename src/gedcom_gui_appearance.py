@@ -621,8 +621,6 @@ class AppearanceMixin:
             'save_results': self._save_results,
             'display_matches': lambda: self._set_display_mode('matches'),
             'reverse_results': self._reverse_results,
-            'clear_results': self._clear_results,
-            'close_or_clear': self._clear_results,
             'back': self._navigate_back,
             'forward': self._navigate_forward,
         }

@@ -5078,8 +5078,8 @@ def test_results_header_menu_clears_stale_person_id():
     assert updates == [True]
 
 
-def test_navigate_to_clears_stale_person_id():
-    """Clicking an old result link after data changes clears stale results."""
+def test_navigate_to_resets_stale_person_id():
+    """Clicking an old result link after data changes resets stale results."""
 
     class App(ResultsMixin):
         pass
@@ -5087,9 +5087,9 @@ def test_navigate_to_clears_stale_person_id():
     app = App()
     app._busy = False
     app.individuals = {}
-    cleared = []
-    app._clear_results = lambda: cleared.append(True)
+    resets = []
+    app._reset_results_pane = lambda: resets.append(True)
 
     app._navigate_to('@OLD@')
 
-    assert cleared == [True]
+    assert resets == [True]

@@ -1490,11 +1490,6 @@ msgstr "Guardar se guarda en un archivo de texto"
 msgid "Copy result to clipboard"
 msgstr "Copiar: copiar el resultado al portapapeles"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:523
-#, fuzzy
-msgid "Clear the results"
-msgstr "Borrar los resultados"
-
 #: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:524
 #, fuzzy
 msgid "Go back to the previous view"

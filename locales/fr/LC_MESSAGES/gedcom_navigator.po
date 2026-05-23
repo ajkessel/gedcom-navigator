@@ -1488,11 +1488,6 @@ msgstr "Enregistrer est enregistré dans un fichier texte"
 msgid "Copy result to clipboard"
 msgstr "Copier : copier le résultat dans le presse-papiers"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:523
-#, fuzzy
-msgid "Clear the results"
-msgstr "Effacer les résultats"
-
 #: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:524
 #, fuzzy
 msgid "Go back to the previous view"

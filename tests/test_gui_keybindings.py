@@ -94,9 +94,6 @@ class _App(AppearanceMixin):
     def _reverse_results(self):
         pass
 
-    def _clear_results(self):
-        pass
-
     def _navigate_back(self):
         pass
 
@@ -157,6 +154,16 @@ def test_copy_shortcut_uses_platform_specific_modifier():
     assert shortcut_by_action("copy_results", "linux").sequence == "<Control-c>"
     assert shortcut_by_action("copy_results", "win32").sequence == "<Control-c>"
     assert shortcut_by_action("copy_results", "darwin").sequence == "<Command-c>"
+
+
+def test_removed_result_reset_shortcuts_are_not_registered():
+    removed_action_keys = {"clear" + "_results", "close_or" + "_clear"}
+    for platform in ("linux", "win32", "darwin"):
+        shortcuts = main_window_shortcuts(platform)
+        assert all(shortcut.action_key not in removed_action_keys
+                   for shortcut in shortcuts)
+        assert all(shortcut.key not in removed_action_keys for shortcut in shortcuts)
+        assert all(shortcut.sequence != "<Escape>" for shortcut in shortcuts)
 
 
 def test_keyboard_shortcut_rows_match_metadata(monkeypatch):

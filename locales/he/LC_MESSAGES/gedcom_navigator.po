@@ -1474,11 +1474,6 @@ msgstr "שמור נשמר בקובץ טקסט"
 msgid "Copy result to clipboard"
 msgstr "העתק הוסף את התוצאה ללוח"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:523
-#, fuzzy
-msgid "Clear the results"
-msgstr "נקה את התוצאות"
-
 #: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:524
 #, fuzzy
 msgid "Go back to the previous view"

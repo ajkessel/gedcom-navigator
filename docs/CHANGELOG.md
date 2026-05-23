@@ -345,20 +345,17 @@
 
 - **Filter field** — a new "Filter:" text entry below the "Find:" box narrows the people list by searching the complete raw GEDCOM record for each person, not just the name. Type any text that appears in a GEDCOM entry — a location, source, event type, or any other field — to restrict results to only those individuals whose records contain that text. `Ctrl+I` jumps to the Filter box and selects all text.
 - **Enter key moves focus to list** — pressing Enter in either the Find or Filter box immediately moves keyboard focus to the people list, so you can navigate straight to a result without reaching for the mouse.
-- **Escape clears results** — the Escape key now triggers the same "clear results" action as `Ctrl+L`, providing a quick way to reset the results pane from anywhere in the window.
-
 ### Improved
 
 - **Tab order** — Tab now follows a logical left-to-right, top-to-bottom sequence through the main controls: Find → Filter → people list → results pane → Top N → Max Depth → Set Home → Show Person → Find Nearest DNA Matches. Shift+Tab traverses the same chain in reverse. The vertical scrollbar on the people list is excluded from tab traversal.
-- **Focus on list entry** — when focus moves to the people list (via Enter from a search box, `Ctrl+L`, or Tab), the first row is automatically selected if no row is already focused, so arrow-key navigation works immediately without an extra keypress.
-- **Clear results behavior** — `Ctrl+L` (and Escape) now also clears the Find box and resets the last result state, then returns focus to the Find box for a clean start.
+- **Focus on list entry** — when focus moves to the people list (via Enter from a search box or Tab), the first row is automatically selected if no row is already focused, so arrow-key navigation works immediately without an extra keypress.
 
 ## [0.0.7] - 2026-04-28
 
 ### Added
 
-- **Keyboard shortcuts** — twelve Ctrl-key shortcuts are now active throughout the application: Ctrl+F (jump to Search), Ctrl+D (toggle DNA-flagged filter), Ctrl+U (toggle Fuzzy search), Ctrl+O (Browse file), Ctrl+N (Find Nearest DNA Matches), Ctrl+S (Show Person), Ctrl+H (Set Home), Ctrl+P (Find Relationship Path), Ctrl+T (View tag definitions), Ctrl+C (Copy results), Ctrl+L (Clear results). Ctrl+C defers to the text widget's own copy behavior when the results pane has keyboard focus.
-- **Button mnemonics** — the shortcut letter is underlined on seven buttons: Find (F), Copy (C), Clear (l), Show Person (S), Set Home (H), Find Nearest DNA Matches (N), and View tag definitions… (t).
+- **Keyboard shortcuts** — Ctrl-key shortcuts are now active throughout the application: Ctrl+F (jump to Search), Ctrl+D (toggle DNA-flagged filter), Ctrl+U (toggle Fuzzy search), Ctrl+O (Browse file), Ctrl+N (Find Nearest DNA Matches), Ctrl+S (Show Person), Ctrl+H (Set Home), Ctrl+P (Find Relationship Path), Ctrl+T (View tag definitions), and Ctrl+C (Copy results). Ctrl+C defers to the text widget's own copy behavior when the results pane has keyboard focus.
+- **Button mnemonics** — the shortcut letter is underlined on six buttons: Find (F), Copy (C), Show Person (S), Set Home (H), Find Nearest DNA Matches (N), and View tag definitions… (t).
 - **Keyboard shortcuts help page** — a new "Keyboard shortcuts" entry in the Menu opens a formatted reference listing all shortcuts (`docs/KEYBOARD_SHORTCUTS.md`).
 - **GEDCOM parse cache** — parsed GEDCOM data is now cached on disk as a binary pickle file (stored in the application's config directory under `cache/`). On subsequent opens the cache is loaded instead of re-parsing the file, making large GEDCOM files open almost instantly. The cache is invalidated automatically when the source file's modification time changes or when the Tag keyword or Page marker settings differ from the values used to build the cache.
 

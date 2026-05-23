@@ -1210,10 +1210,6 @@ msgstr ""
 msgid "Copy result to clipboard"
 msgstr ""
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:523
-msgid "Clear the results"
-msgstr ""
-
 #: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:524
 msgid "Go back to the previous view"
 msgstr ""
@@ -1229,4 +1225,3 @@ msgstr ""
 #: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:527
 msgid "Reset zoom in the focused text or graph view"
 msgstr ""
-

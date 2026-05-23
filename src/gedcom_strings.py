@@ -504,7 +504,6 @@ UPDATE_OPEN_RELEASES = _("Open GitHub Releases")
 
 def get_keyboard_shortcut_rows():
     actions = {
-        "close_or_clear": _("Close any dialog or pop-up window"),
         "help": _("Help"),
         "keyboard_shortcuts": _("Keyboard Shortcuts"),
         "preferences": _("Open Preferences"),
@@ -523,7 +522,6 @@ def get_keyboard_shortcut_rows():
             "Reverse/restore the direction of all relationship paths"),
         "save_results": _("Save results to a text file"),
         "copy_results": _("Copy result to clipboard"),
-        "clear_results": _("Clear the results"),
         "back": _("Go back to the previous view"),
         "forward": _("Go forward to the next view"),
         "zoom_in_out": _("Zoom the focused text or graph view"),

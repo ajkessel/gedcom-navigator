@@ -58,7 +58,6 @@ def main_window_shortcuts(platform=None):
     """Return shortcuts registered on the main application window."""
     platform = _platform(platform)
     shortcuts = [
-        ShortcutSpec("clear_results", "<Escape>", "Esc", "close_or_clear"),
         ShortcutSpec(
             "help",
             "<Command-question>" if platform == "darwin" else "<F1>",
@@ -89,7 +88,6 @@ def main_window_shortcuts(platform=None):
         _mod_shortcut("s", "save_results", platform),
         _mod_shortcut("n", "display_matches", platform),
         _mod_shortcut("r", "reverse_results", platform),
-        _mod_shortcut("l", "clear_results", platform),
         ShortcutSpec(
             "back",
             "<Command-Left>" if platform == "darwin" else "<Alt-Left>",

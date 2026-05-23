@@ -19,7 +19,6 @@
 | **Ctrl+R** | **R**everse/restore the direction of all relationship paths |
 | **Ctrl+S** | **S**ave results to a text file |
 | **Ctrl+C** | **C**opy result to clipboard |
-| **Ctrl+L** | C**l**ear the results |
 | **Alt+←** | Go back to the previous view |
 | **Alt+→** | Go forward to the next view |
 | **Ctrl+Plus / Ctrl+Minus** | Zoom the focused text or graph view |
