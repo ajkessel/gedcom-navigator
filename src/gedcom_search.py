@@ -9,6 +9,7 @@ import heapq
 import time
 from collections import deque
 
+from gedcom_debug import log_exception_once
 from gedcom_relationship import (
     describe_relationship as _describe_rel,
     get_ancestor_depths as _get_ancestor_depths,
@@ -42,6 +43,10 @@ def _check_cancelled(cancel_event):
             time.sleep(_GUI_YIELD_SECONDS)
         setattr(cancel_event, '_gedcom_check_count', checks)
     except Exception:  # pylint: disable=broad-exception-caught
+        log_exception_once(
+            'cancel-event-yield-bookkeeping',
+            "updating search cancellation yield bookkeeping",
+        )
         pass
 
 

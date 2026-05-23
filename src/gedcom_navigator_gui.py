@@ -16,6 +16,13 @@ from tkinter import ttk, messagebox
 import customtkinter as ctk
 
 from gedcom_config import ConfigManager
+from gedcom_debug import (
+    configure_debug_logging,
+    debug_enabled,
+    install_exception_hooks,
+    log_exception,
+    set_debug_enabled,
+)
 from gedcom_i18n import setup_i18n
 
 # Initialize i18n at the top level before any other local imports.
@@ -111,6 +118,7 @@ class GedcomNavigatorApp(
                 self.root.iconbitmap(
                     self._resource_path('icons/family_tree.ico'))
             except Exception:  # pylint: disable=broad-exception-caught
+                log_exception("setting Windows window icon")
                 pass
         elif sys.platform != 'darwin':
             try:
@@ -118,6 +126,7 @@ class GedcomNavigatorApp(
                     file=self._resource_path('icons/family_tree.png'))
                 self.root.iconphoto(True, icon)
             except Exception:  # pylint: disable=broad-exception-caught
+                log_exception("setting Linux window icon")
                 pass
 
         # Data state
@@ -216,6 +225,7 @@ class GedcomNavigatorApp(
             for _pkl in self._cache_dir().glob('*.pkl'):
                 _pkl.unlink(missing_ok=True)
         except Exception:  # pylint: disable=broad-exception-caught
+            log_exception("removing legacy pickle cache files")
             pass
 
         self._build_ui()
@@ -675,15 +685,18 @@ def _patch_ctk_scaling_for_tkinter_dpi():
             try:
                 dpi = window.winfo_fpixels('1i')
                 return round(max(0.75, min(3.0, dpi / 96.0)), 2)
-            except Exception:
+            except Exception:  # pylint: disable=broad-exception-caught
+                log_exception("reading Tk DPI for CTk scaling patch")
                 pass
             try:
                 return float(orig_fn(cls, window))
-            except Exception:
+            except Exception:  # pylint: disable=broad-exception-caught
+                log_exception("falling back from original CTk DPI scaling")
                 return 1.0
 
         ctk.ScalingTracker.get_window_dpi_scaling = _winfo_consistent_scaling
-    except Exception:
+    except Exception:  # pylint: disable=broad-exception-caught
+        log_exception("patching CTk DPI scaling")
         pass
 
 
@@ -696,51 +709,60 @@ def _print_dpi_diagnostics(root):
         dpi_fpix = root.winfo_fpixels('1i')
         lines.append(f'  winfo_fpixels("1i"):    {dpi_fpix:.2f}'
                      '  (96=100%, 120=125%, 144=150%, 192=200%)')
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        log_exception("printing DPI diagnostic: winfo_fpixels")
         lines.append(f'  winfo_fpixels:          ERROR {e}')
 
     if sys.platform == 'win32':
         try:
             import ctypes
             lines.append(f'  GetDpiForSystem():      {ctypes.windll.user32.GetDpiForSystem()}')
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
+            log_exception("printing DPI diagnostic: GetDpiForSystem")
             lines.append(f'  GetDpiForSystem():      ERROR {e}')
         try:
             import ctypes
             lines.append(f'  GetDpiForWindow(root):  {ctypes.windll.user32.GetDpiForWindow(root.winfo_id())}')
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
+            log_exception("printing DPI diagnostic: GetDpiForWindow")
             lines.append(f'  GetDpiForWindow():      ERROR {e}')
 
     try:
         lines.append(f'  CTk widget scaling:     {ctk.ScalingTracker.get_widget_scaling(root)}')
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        log_exception("printing DPI diagnostic: CTk widget scaling")
         lines.append(f'  CTk widget scaling:     ERROR {e}')
     try:
         lines.append(f'  CTk window scaling:     {ctk.ScalingTracker.get_window_scaling(root)}')
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        log_exception("printing DPI diagnostic: CTk window scaling")
         lines.append(f'  CTk window scaling:     ERROR {e}')
 
     try:
         lines.append(f'  Screen (winfo):         {root.winfo_screenwidth()}x{root.winfo_screenheight()}')
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        log_exception("printing DPI diagnostic: screen size")
         lines.append(f'  Screen:                 ERROR {e}')
 
     try:
         df = _tkf.nametofont('TkDefaultFont')
         lines.append(f'  TkDefaultFont:          size={df.cget("size")} (cget)  actual={df.actual("size")}')
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        log_exception("printing DPI diagnostic: TkDefaultFont")
         lines.append(f'  TkDefaultFont:          ERROR {e}')
 
     try:
         cf = ctk.CTkFont()
         lines.append(f'  CTkFont (default):      family={cf.cget("family")!r}'
                      f'  size={cf.cget("size")} (cget)  actual={cf.actual("size")}')
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        log_exception("printing DPI diagnostic: CTkFont")
         lines.append(f'  CTkFont:                ERROR {e}')
 
     try:
         lines.append(f'  CTk theme CTkFont:      {ctk.ThemeManager.theme.get("CTkFont", "N/A")}')
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        log_exception("printing DPI diagnostic: CTk theme font")
         lines.append(f'  CTk theme CTkFont:      ERROR {e}')
 
     lines.append('================================')
@@ -759,9 +781,16 @@ def main():
     )
     parser.add_argument(
         '--debug', action='store_true',
-        help='Print DPI/scaling diagnostics to stderr (for troubleshooting display issues).'
+        help='Enable debug diagnostics, including exception logging, and print '
+             'DPI/scaling diagnostics to stderr.'
     )
     args = parser.parse_args()
+
+    if args.debug:
+        set_debug_enabled(True)
+    if debug_enabled():
+        configure_debug_logging()
+        install_exception_hooks()
 
     # Patch CTk's per-window DPI detection BEFORE creating any window.
     # On some Windows environments the process is DPI-virtualised: tkinter
@@ -783,7 +812,8 @@ def main():
 
     if args.debug:
         _print_dpi_diagnostics(root)
-        os.environ["GEDCOM_NAVIGATOR_DEBUG"] = "1"
+    if debug_enabled():
+        install_exception_hooks(root)
 
     # On macOS the window briefly appears at the default top-left position
     # before _fit_window_to_content centres it, so withdraw it first.
@@ -792,7 +822,7 @@ def main():
     if sys.platform == 'darwin':
         root.withdraw()
     app = GedcomNavigatorApp(root)
-    app._debug = args.debug
+    app._debug = debug_enabled()
     if sys.platform == 'darwin':
         root.deiconify()
 

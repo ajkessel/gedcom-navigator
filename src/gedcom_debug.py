@@ -1,0 +1,194 @@
+#!/usr/bin/env python3
+"""
+gedcom_debug.py
+
+Debug-only exception logging and process-wide exception hooks.
+"""
+
+import logging
+from logging.handlers import RotatingFileHandler
+import os
+from pathlib import Path
+import sys
+import tempfile
+import threading
+
+
+_DEBUG_ENV = 'GEDCOM_NAVIGATOR_DEBUG'
+_LOG_PATH_ENV = 'GEDCOM_NAVIGATOR_DEBUG_LOG'
+_LOGGER_NAME = 'gedcom_navigator'
+_MAX_LOG_BYTES = 1_000_000
+_BACKUP_COUNT = 3
+
+_configured_path = None
+_previous_sys_excepthook = None
+_previous_threading_excepthook = None
+_previous_tk_report_callback_exception = None
+_logged_exception_keys = set()
+
+
+def debug_enabled():
+    """Return whether debug diagnostics are enabled for this process."""
+    return os.environ.get(_DEBUG_ENV, '').strip().lower() in {
+        '1', 'true', 'yes', 'on'
+    }
+
+
+def set_debug_enabled(enabled=True):
+    """Set or clear the environment flag used by all debug-only helpers."""
+    if enabled:
+        os.environ[_DEBUG_ENV] = '1'
+    else:
+        os.environ.pop(_DEBUG_ENV, None)
+
+
+def _default_debug_log_path():
+    if sys.platform == 'win32':
+        base = Path(os.environ.get('APPDATA', Path.home()))
+    elif sys.platform == 'darwin':
+        base = Path.home() / 'Library' / 'Application Support'
+    else:
+        base = Path(os.environ.get('XDG_CONFIG_HOME', Path.home() / '.config'))
+    return base / 'gedcom-navigator' / 'debug.log'
+
+
+def debug_log_path():
+    """Return the configured debug log path."""
+    override = os.environ.get(_LOG_PATH_ENV)
+    if override:
+        return Path(override).expanduser()
+    return _default_debug_log_path()
+
+
+def get_debug_logger():
+    """Return the application debug logger."""
+    return logging.getLogger(_LOGGER_NAME)
+
+
+def configure_debug_logging(*, enabled=None):
+    """Configure rotating file logging when debug mode is enabled."""
+    global _configured_path
+
+    if enabled is not None:
+        set_debug_enabled(enabled)
+    if not debug_enabled():
+        return None
+
+    logger = get_debug_logger()
+    logger.setLevel(logging.DEBUG)
+    logger.propagate = False
+
+    if _configured_path is not None:
+        return _configured_path
+
+    path = debug_log_path()
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        handler = RotatingFileHandler(
+            path,
+            maxBytes=_MAX_LOG_BYTES,
+            backupCount=_BACKUP_COUNT,
+            encoding='utf-8',
+        )
+    except OSError:
+        fallback_dir = Path(tempfile.gettempdir())
+        path = fallback_dir / 'gedcom-navigator-debug.log'
+        fallback_dir.mkdir(parents=True, exist_ok=True)
+        handler = RotatingFileHandler(
+            path,
+            maxBytes=_MAX_LOG_BYTES,
+            backupCount=_BACKUP_COUNT,
+            encoding='utf-8',
+        )
+
+    handler.setLevel(logging.DEBUG)
+    handler.setFormatter(logging.Formatter(
+        '%(asctime)s %(levelname)s [%(threadName)s] %(name)s: %(message)s'
+    ))
+    logger.addHandler(handler)
+    _configured_path = path
+    logger.debug(
+        'Debug logging enabled: executable=%r argv=%r log_path=%s',
+        sys.executable,
+        sys.argv,
+        path,
+    )
+    return path
+
+
+def log_debug(message, *args, **kwargs):
+    """Write a debug message if diagnostics are enabled."""
+    if not debug_enabled():
+        return
+    configure_debug_logging()
+    get_debug_logger().debug(message, *args, **kwargs)
+
+
+def log_exception(context):
+    """Log the active exception if diagnostics are enabled."""
+    if not debug_enabled():
+        return
+    configure_debug_logging()
+    get_debug_logger().debug('Recovered exception: %s', context, exc_info=True)
+
+
+def log_exception_once(key, context):
+    """Log the active exception once per key if diagnostics are enabled."""
+    if key in _logged_exception_keys:
+        return
+    _logged_exception_keys.add(key)
+    log_exception(context)
+
+
+def _log_unhandled_exception(context, exc_info):
+    configure_debug_logging()
+    get_debug_logger().critical(context, exc_info=exc_info)
+
+
+def install_exception_hooks(root=None):
+    """Install process-wide debug hooks for uncaught exceptions."""
+    global _previous_sys_excepthook
+    global _previous_threading_excepthook
+    global _previous_tk_report_callback_exception
+
+    if not debug_enabled():
+        return
+    configure_debug_logging()
+
+    if _previous_sys_excepthook is None:
+        _previous_sys_excepthook = sys.excepthook
+
+        def _sys_excepthook(exc_type, exc_value, traceback):
+            _log_unhandled_exception(
+                'Unhandled main-thread exception',
+                (exc_type, exc_value, traceback),
+            )
+            _previous_sys_excepthook(exc_type, exc_value, traceback)
+
+        sys.excepthook = _sys_excepthook
+
+    if (_previous_threading_excepthook is None
+            and hasattr(threading, 'excepthook')):
+        _previous_threading_excepthook = threading.excepthook
+
+        def _threading_excepthook(args):
+            _log_unhandled_exception(
+                f'Unhandled thread exception in {args.thread!r}',
+                (args.exc_type, args.exc_value, args.exc_traceback),
+            )
+            _previous_threading_excepthook(args)
+
+        threading.excepthook = _threading_excepthook
+
+    if root is not None and _previous_tk_report_callback_exception is None:
+        _previous_tk_report_callback_exception = root.report_callback_exception
+
+        def _report_callback_exception(exc_type, exc_value, traceback):
+            _log_unhandled_exception(
+                'Unhandled Tk callback exception',
+                (exc_type, exc_value, traceback),
+            )
+            _previous_tk_report_callback_exception(
+                exc_type, exc_value, traceback)
+
+        root.report_callback_exception = _report_callback_exception

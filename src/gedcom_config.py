@@ -9,6 +9,8 @@ import json
 import sys
 from pathlib import Path
 
+from gedcom_debug import log_exception
+
 
 class ConfigManager:
     """Read/write a single settings.json file; all I/O is isolated here."""
@@ -27,6 +29,7 @@ class ConfigManager:
             data = json.loads(self._path.read_text(encoding='utf-8'))
             return data.get(key, default)
         except Exception:  # pylint: disable=broad-exception-caught
+            log_exception(f"loading setting {key!r} from {self._path}")
             return default
 
     def save_value(self, key, value):
@@ -34,6 +37,7 @@ class ConfigManager:
         try:
             data = json.loads(self._path.read_text(encoding='utf-8'))
         except Exception:  # pylint: disable=broad-exception-caught
+            log_exception(f"reading settings before saving {key!r} to {self._path}")
             data = {}
         data[key] = value
         self._path.parent.mkdir(parents=True, exist_ok=True)

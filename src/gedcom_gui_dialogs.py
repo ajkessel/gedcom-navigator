@@ -12,6 +12,7 @@ from tkinter import messagebox, ttk
 
 import customtkinter as ctk
 
+from gedcom_debug import log_exception
 from gedcom_display import describe
 from gedcom_gui_help_dialogs import HelpDialogsMixin
 from gedcom_gui_person_dialog import PersonDialogMixin
@@ -624,7 +625,8 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
             _size = _ctk_font_obj.cget('size')
             _rb_font = (_ctk_font_obj.cget('family'),
                         -_size if sys.platform == 'win32' else _size)
-        except Exception:
+        except Exception:  # pylint: disable=broad-exception-caught
+            log_exception("building preferences radiobutton font")
             _rb_font = None
 
         def _radiobutton(parent, *, text, variable, value):

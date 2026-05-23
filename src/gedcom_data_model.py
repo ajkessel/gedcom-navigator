@@ -14,6 +14,7 @@ from pathlib import Path
 from gedcom_parser import apply_dna_flags, build_model
 from gedcom_relationship import find_common_ancestors
 from gedcom_search import bfs_find_all_paths, bfs_find_dna_matches
+from gedcom_debug import log_exception
 
 
 def _positive_int(value, name):
@@ -117,6 +118,7 @@ class GedcomDataModel:
                 except OSError:
                     pass
         except Exception: # pylint: disable=broad-exception-caught
+            log_exception(f"clearing cache directory {cache_dir!r}")
             pass
         return deleted
 
@@ -174,6 +176,7 @@ class GedcomDataModel:
                 return None
             return data['individuals'], data['families'], data['tag_records']
         except Exception: # pylint: disable=broad-exception-caught
+            log_exception(f"loading parse cache for {gedcom_path!r}")
             return None
 
     def _save_to_cache(self, gedcom_path, cache_dir):
@@ -193,4 +196,5 @@ class GedcomDataModel:
                 json.dump(payload, f)
             tmp.replace(cache_file)
         except Exception: # pylint: disable=broad-exception-caught
+            log_exception(f"saving parse cache for {gedcom_path!r}")
             pass

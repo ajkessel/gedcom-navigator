@@ -3,6 +3,8 @@ import os
 import sys
 from pathlib import Path
 
+from gedcom_debug import log_exception
+
 def setup_i18n(lang_code=None):
     """
     Initialize gettext for the application.
@@ -39,8 +41,9 @@ def setup_i18n(lang_code=None):
         )
         translation.install()
         return translation.gettext
-    except Exception:
+    except Exception:  # pylint: disable=broad-exception-caught
         # Fallback to a dummy translator if something goes wrong
+        log_exception(f"setting up gettext for language {lang_code!r}")
         return lambda s: s
 
 # Initial dummy _ so modules can define strings before setup_i18n is called.

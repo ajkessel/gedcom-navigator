@@ -12,6 +12,8 @@ import webbrowser
 import tkinter as tk
 import tkinter.font as tkfont
 
+from gedcom_debug import log_exception, log_exception_once
+
 
 # Inline markdown: image (skip), link, bold, italic, code
 _INLINE_RE = re.compile(
@@ -45,6 +47,7 @@ def _insert_hr(widget):
     try:
         padx = int(tw.cget('padx'))
     except Exception:  # pylint: disable=broad-exception-caught
+        log_exception("reading markdown horizontal-rule padding")
         padx = 0
     bg = tw.cget('background') or 'white'
     fg = tw.cget('foreground') or 'gray60'
@@ -62,6 +65,10 @@ def _insert_hr(widget):
                     c.configure(width=usable)
                     c.coords(lid, 0, 5, usable, 5)
                 except Exception:  # pylint: disable=broad-exception-caught
+                    log_exception_once(
+                        'markdown-horizontal-rule-resize',
+                        "resizing markdown horizontal rule",
+                    )
                     pass
 
         tw.bind('<Configure>', _on_resize)
@@ -88,6 +95,7 @@ def render_markdown(widget, content, link_color='#0066cc', url_handler=None,
         base = tkfont.Font(font=tw.cget('font'))
         info = base.actual()
     except Exception:  # pylint: disable=broad-exception-caught
+        log_exception("reading markdown widget font")
         info = {'family': 'TkTextFont', 'size': 10}
     family = info['family']
     size = abs(info['size']) or 10

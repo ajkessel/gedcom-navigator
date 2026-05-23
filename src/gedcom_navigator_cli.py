@@ -61,6 +61,13 @@ import os
 import sys
 
 from gedcom_display import describe
+from gedcom_debug import (
+    configure_debug_logging,
+    debug_enabled,
+    install_exception_hooks,
+    log_exception,
+    set_debug_enabled,
+)
 from gedcom_name_search import find_candidates
 from gedcom_parser import build_model, extract_ged_from_zip
 from gedcom_search import bfs_find_dna_matches
@@ -176,7 +183,15 @@ def main():
                         help='Print all _MTTAG definitions found in the file and exit.')
     parser.add_argument('--list-flagged', action='store_true',
                         help='Print every individual currently flagged as a DNA match and exit.')
+    parser.add_argument('--debug', action='store_true',
+                        help='Enable debug diagnostics, including exception logging.')
     args = parser.parse_args()
+
+    if args.debug:
+        set_debug_enabled(True)
+    if debug_enabled():
+        configure_debug_logging()
+        install_exception_hooks()
 
     gedcom_path = args.gedcom
     tmp_path = None
@@ -186,6 +201,7 @@ def main():
             print(f'Extracted {ged_name!r} from ZIP.', file=sys.stderr)
             gedcom_path = tmp_path
         except Exception as e:  # pylint: disable=broad-except
+            log_exception(f"extracting GEDCOM from ZIP: {gedcom_path!r}")
             print(f'Error: {e}', file=sys.stderr)
             sys.exit(1)
 

@@ -10,6 +10,7 @@ import threading
 import tkinter as tk
 from tkinter import filedialog, messagebox
 
+from gedcom_debug import log_exception
 from gedcom_name_search import individual_matches_query
 from gedcom_parser import extract_ged_from_zip
 import gedcom_strings as gs
@@ -125,6 +126,7 @@ class SearchMixin:
                 self.root.after(
                     0, lambda: _on_done(result, None, tmp_path, ged_name))
             except Exception as e:  # pylint: disable=broad-exception-caught
+                log_exception(f"loading GEDCOM file {path!r}")
                 self.root.after(
                     0, lambda e=e, tmp_path=tmp_path: _on_done(
                         None, e, tmp_path, ged_name))

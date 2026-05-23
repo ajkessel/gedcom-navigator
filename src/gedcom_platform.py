@@ -7,6 +7,8 @@ Small platform integration hooks that do not belong in persistence helpers.
 
 import sys
 
+from gedcom_debug import log_exception
+
 
 def configure_process_identity():
     """Apply process-level desktop identity settings when supported."""
@@ -18,4 +20,5 @@ def configure_process_identity():
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(
             "com.ajkessel.gedcom-navigator")
     except Exception:  # pylint: disable=broad-exception-caught
+        log_exception("configuring Windows app user model ID")
         pass

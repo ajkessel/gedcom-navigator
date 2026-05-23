@@ -7,6 +7,8 @@ Cached Latin-script aliases for non-Latin GEDCOM names.
 
 import unicodedata
 
+from gedcom_debug import log_exception_once
+
 
 _CYRILLIC_LANGS = ('ru', 'ua', 'by', 'bg', 'sr', 'rs', 'me', 'mk', 'tj', 'mn')
 _MAX_ALIASES_PER_NAME = 32
@@ -104,6 +106,10 @@ def _cyrtranslit_aliases(name):
         try:
             aliases.append(cyrtranslit.to_latin(name, lang))
         except Exception:  # pylint: disable=broad-exception-caught
+            log_exception_once(
+                f'cyrtranslit:{lang}',
+                f"transliterating Cyrillic name with cyrtranslit lang={lang!r}",
+            )
             continue
     return aliases
 
@@ -125,6 +131,10 @@ def _normalize_hebrew(name):
         text_only = normalized.text_only()
         return getattr(text_only, 'string', text_only)
     except Exception:  # pylint: disable=broad-exception-caught
+        log_exception_once(
+            'hebrew-normalize',
+            "normalizing Hebrew name with optional hebrew package",
+        )
         return unicodedata.normalize('NFKC', name)
 
 

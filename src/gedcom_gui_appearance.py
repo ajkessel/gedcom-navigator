@@ -10,6 +10,7 @@ import tkinter.font as tkfont
 from tkinter import ttk, messagebox
 import sys
 import customtkinter as ctk
+from gedcom_debug import log_exception, log_exception_once
 from gedcom_shortcuts import main_window_shortcuts, shortcut_by_action
 from gedcom_strings import *  # noqa: F401,F403 # pylint: disable=unused-wildcard-import
 from gedcom_theme import (
@@ -185,6 +186,7 @@ class AppearanceMixin:
         try:
             ctk.ThemeManager.theme["CTkFont"]["size"] = ui_sz
         except Exception:  # pylint: disable=broad-except
+            log_exception("updating CTk theme font size")
             pass
 
         # Walk the live widget tree and update every existing CTkFont so that
@@ -197,12 +199,17 @@ class AppearanceMixin:
                     if isinstance(fnt, ctk.CTkFont):
                         fnt.configure(size=ui_sz)
                 except Exception:  # pylint: disable=broad-except
+                    log_exception_once(
+                        'update-live-ctk-font',
+                        "updating live CTk widget font",
+                    )
                     pass
                 _update_ctk_fonts(child)
 
         try:
             _update_ctk_fonts(self.root)
         except Exception:  # pylint: disable=broad-except
+            log_exception("walking widget tree to update CTk fonts")
             pass
 
         self._apply_styles()
@@ -452,6 +459,7 @@ class AppearanceMixin:
                 self._font_size_pref, self._FONT_SIZES['medium'])['ui']
             ctk.ThemeManager.theme["CTkFont"]["size"] = ui_sz
         except Exception:  # pylint: disable=broad-except
+            log_exception("restamping CTk theme font size after theme change")
             pass
         self._inject_theme_backgrounds(theme_name)
         ctk.set_appearance_mode(mode)
@@ -575,6 +583,7 @@ class AppearanceMixin:
             self._show_person_geometry = geo
             self._config.set_window_geometry('show_person_geometry', geo)
         except Exception as e:  # pylint: disable=broad-except
+            log_exception("persisting profile geometry")
             print(f"Error persisting profile geometry: {e}")
 
     def _set_home_person(self):

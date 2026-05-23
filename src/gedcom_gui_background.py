@@ -13,6 +13,7 @@ from tkinter import ttk
 
 import customtkinter as ctk
 
+from gedcom_debug import log_exception
 from gedcom_strings import *  # pylint: disable=unused-wildcard-import,wildcard-import
 from gedcom_theme import ttk_colors
 
@@ -63,6 +64,7 @@ class BackgroundTaskMixin:
                 else:
                     result_queue.put((work(cancel_event), None))
             except Exception as e:  # pylint: disable=broad-exception-caught
+                log_exception("running background task")
                 result_queue.put((None, e))
 
         def _cancel_task():
