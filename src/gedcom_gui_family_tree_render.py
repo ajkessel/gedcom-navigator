@@ -157,7 +157,7 @@ class FamilyTreeRenderMixin:
     def _render_family_tree_canvas(self, canvas, center_id, expanded, colors,
                                    win, zoom, on_expand, on_recenter,
                                    on_profile=None, on_find_matches=None,
-                                   on_expand_all=None):
+                                   on_find_paths=None, on_expand_all=None):
         """Draw an expandable immediate-family tree graph."""
         zoom = max(0.5, min(2.5, float(zoom)))
         visible_ids, edges = build_family_tree_graph(
@@ -393,6 +393,11 @@ class FamilyTreeRenderMixin:
                         command=(
                             lambda: on_find_matches(indi_id)
                             if on_find_matches else None))
+                    menu.add_command(
+                        label=TREE_MENU_PATHS,
+                        command=(
+                            lambda: on_find_paths(indi_id)
+                            if on_find_paths else None))
                     menu.add_command(
                         label=TREE_MENU_EXPAND_ALL,
                         command=(

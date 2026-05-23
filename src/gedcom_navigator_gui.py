@@ -15,8 +15,23 @@ import tkinter.font as tkfont
 from tkinter import ttk, messagebox
 import customtkinter as ctk
 
-from gedcom_data_model import GedcomDataModel
 from gedcom_config import ConfigManager
+from gedcom_debug import (
+    configure_debug_logging,
+    debug_enabled,
+    install_exception_hooks,
+    log_exception,
+    set_debug_enabled,
+)
+from gedcom_i18n import setup_i18n
+
+# Initialize i18n at the top level before any other local imports.
+# This ensures that constants in modules like gedcom_gui_search are translated.
+_config = ConfigManager(ConfigManager.default_path())
+setup_i18n(_config.get_language())
+
+from gedcom_data_model import GedcomDataModel
+# gedcom_strings imports will happen after setup_i18n
 from gedcom_strings import *  # pylint: disable=unused-wildcard-import
 from gedcom_gui_background import BackgroundTaskMixin
 from gedcom_gui_search import SearchMixin
@@ -103,6 +118,7 @@ class GedcomNavigatorApp(
                 self.root.iconbitmap(
                     self._resource_path('icons/family_tree.ico'))
             except Exception:  # pylint: disable=broad-exception-caught
+                log_exception("setting Windows window icon")
                 pass
         elif sys.platform != 'darwin':
             try:
@@ -110,6 +126,7 @@ class GedcomNavigatorApp(
                     file=self._resource_path('icons/family_tree.png'))
                 self.root.iconphoto(True, icon)
             except Exception:  # pylint: disable=broad-exception-caught
+                log_exception("setting Linux window icon")
                 pass
 
         # Data state
@@ -138,7 +155,7 @@ class GedcomNavigatorApp(
         self.show_ids = tk.BooleanVar(value=self._config.get_show_ids())
         self.show_full_gedcom = tk.BooleanVar(value=self._config.get_show_full_gedcom())
         self._name_order = self._config.get_name_order()
-        self._default_profile_view = self._config.get_profile_view_default()
+        self.display_mode = tk.StringVar(value=self._config.get_default_display())
 
         self.search_text.trace_add('write', self._on_search_change)
         self.filter_text.trace_add('write', self._on_search_change)
@@ -157,6 +174,8 @@ class GedcomNavigatorApp(
         self._dna_settings_after_id = None
         self._last_result = None
         self._results_reversed = False
+        self._display_path_target_id = None
+        self._suppress_display_refresh = False
         self._active_id = None
         self._results_header_id = None
         self._nav_history = []
@@ -206,6 +225,7 @@ class GedcomNavigatorApp(
             for _pkl in self._cache_dir().glob('*.pkl'):
                 _pkl.unlink(missing_ok=True)
         except Exception:  # pylint: disable=broad-exception-caught
+            log_exception("removing legacy pickle cache files")
             pass
 
         self._build_ui()
@@ -264,34 +284,6 @@ class GedcomNavigatorApp(
         outer = ctk.CTkFrame(self.root, fg_color='transparent')
         outer.pack(fill='both', expand=True, padx=8, pady=8)
 
-        # Settings row
-        settings_group = ctk.CTkFrame(outer, border_width=1)
-        settings_group.pack(fill='x', pady=(8, 0))
-        settings_frame = ctk.CTkFrame(settings_group, fg_color='transparent')
-        settings_frame.pack(fill='x', padx=8, pady=(6, 8))
-
-        # Tag Keyword and Page Marker settings
-        ctk.CTkLabel(settings_frame, text=LBL_TAG_KEYWORD).grid(
-            row=0, column=0, sticky='w', padx=(0, 4))
-        ctk.CTkEntry(settings_frame, textvariable=self.tag_keyword,
-                     width=150).grid(row=0, column=1, padx=(0, 16))
-        Tooltip(settings_frame.grid_slaves(
-            row=0, column=1)[0], TIP_TAG_KEYWORD)
-        ctk.CTkLabel(settings_frame, text=LBL_PAGE_MARKER).grid(
-            row=0, column=2, sticky='w', padx=(0, 4))
-        ctk.CTkEntry(settings_frame, textvariable=self.page_marker,
-                     width=240).grid(row=0, column=3, padx=(0, 16))
-        Tooltip(settings_frame.grid_slaves(
-            row=0, column=3)[0], TIP_PAGE_MARKER)
-        _select_tag_btn = ctk.CTkButton(
-            settings_frame, text=BTN_SELECT_TAG, width=100, command=self._view_tags)
-        _select_tag_btn.grid(row=0, column=4, padx=4)
-        Tooltip(_select_tag_btn, TIP_SELECT_TAG)
-        _find_path_btn = ctk.CTkButton(
-            settings_frame, text=BTN_FIND_PATH, width=120, command=self._find_path)
-        _find_path_btn.grid(row=0, column=5, padx=(12, 4))
-        Tooltip(_find_path_btn, TIP_FIND_PATH)
-
         # Main paned area.  Use the classic Tk paned window here because it
         # supports per-pane minsize constraints; ttk.PanedWindow only supports
         # relative weights.
@@ -324,18 +316,18 @@ class GedcomNavigatorApp(
         self.search_entry.pack(side='left', fill='x', expand=True)
         self.search_entry.bind(
             '<Return>', lambda *_: self._search_flush_and_jump())
-        Tooltip(self.search_entry, TIP_FIND)
+        Tooltip(self.search_entry, get_tip_find())
         # Search mode checkboxes
         ctk.CTkCheckBox(
             search_frame, text=CHK_FUZZY,
             variable=self.fuzzy_search, width=0,
         ).pack(side='left', padx=(8, 0))
-        Tooltip(search_frame.winfo_children()[-1], TIP_FUZZY)
+        Tooltip(search_frame.winfo_children()[-1], get_tip_fuzzy())
         ctk.CTkCheckBox(
             search_frame, text=CHK_MARRIED_NAMES,
             variable=self.married_name_search, width=0,
         ).pack(side='left', padx=(8, 0))
-        Tooltip(search_frame.winfo_children()[-1], TIP_MARRIED_NAMES)
+        Tooltip(search_frame.winfo_children()[-1], get_tip_married_names())
 
         # Filter: box
         filter_frame = ctk.CTkFrame(left, fg_color='transparent')
@@ -346,12 +338,12 @@ class GedcomNavigatorApp(
             filter_frame, textvariable=self.filter_text)
         self.filter_entry.pack(side='left', fill='x', expand=True)
         self.filter_entry.bind('<Return>', lambda *_: self._kb_focus_list())
-        Tooltip(self.filter_entry, TIP_FILTER)
+        Tooltip(self.filter_entry, get_tip_filter())
         ctk.CTkCheckBox(
             filter_frame, text=CHK_DNA_FLAGGED_ONLY,
             variable=self.show_flagged_only, width=0,
         ).pack(side='left', padx=(8, 0))
-        Tooltip(filter_frame.winfo_children()[-1], TIP_DNA_FLAGGED_ONLY)
+        Tooltip(filter_frame.winfo_children()[-1], get_tip_dna_flagged_only())
 
         list_frame = ctk.CTkFrame(left, fg_color='transparent')
         list_frame.pack(fill='both', expand=True, pady=(4, 0))
@@ -381,8 +373,9 @@ class GedcomNavigatorApp(
         is_dark = ctk.get_appearance_mode() == 'Dark'
         self.tree.tag_configure('flagged_row', background=get_flag_bg(is_dark))
 
-        self.tree.bind('<Double-1>', lambda *_: self._find_matches())
-        self.tree.bind('<Return>', lambda *_: self._find_matches())
+        self.tree.bind('<<TreeviewSelect>>', self._on_tree_selection_change)
+        self.tree.bind('<Double-1>', lambda *_: self._refresh_display_pane())
+        self.tree.bind('<Return>', lambda *_: self._refresh_display_pane())
         self.tree.bind('<Key>', self._tree_type_ahead)
         self.tree.bind(
             '<Home>', lambda *_: self._tree_jump('first') or 'break')
@@ -414,36 +407,20 @@ class GedcomNavigatorApp(
         self.set_home_btn = ctk.CTkButton(
             action_frame, text=BTN_SET_HOME, command=self._set_home_person)
         self.set_home_btn.grid(row=0, column=5, padx=(0, 6))
-        Tooltip(self.set_home_btn, TIP_SET_HOME)
-        _show_person_label = (BTN_SHOW_PERSON_TREE
-                              if self._default_profile_view == 'tree'
-                              else BTN_SHOW_PERSON)
-        _show_person_tip = (TIP_SHOW_PERSON_TREE
-                            if self._default_profile_view == 'tree'
-                            else TIP_SHOW_PERSON)
-        self.show_person_btn = ctk.CTkButton(
-            action_frame, text=_show_person_label, command=self._show_person)
-        self.show_person_btn.grid(row=0, column=6, padx=(0, 6))
-        self._show_person_tooltip = Tooltip(self.show_person_btn, _show_person_tip)
-        self.find_matches_btn = ctk.CTkButton(
-            action_frame, text=BTN_FIND_MATCHES, command=self._find_matches)
-        self.find_matches_btn.grid(row=0, column=7)
-        Tooltip(self.find_matches_btn, TIP_FIND_MATCHES)
+        Tooltip(self.set_home_btn, get_tip_set_home())
 
         # --- Right pane ---
         right = ctk.CTkFrame(paned, fg_color='transparent')
 
         def _action_min_w():
             # padx totals per grid() call: spinbox1=14, spinbox2=2,
-            # set_home=6, show_person=6, find_matches=0
+            # set_home=6
             return (
                 _top_n_label.winfo_reqwidth()
                 + self.top_n_spin.winfo_reqwidth() + 14
                 + _max_depth_label.winfo_reqwidth()
                 + self.max_depth_spin.winfo_reqwidth() + 2
                 + self.set_home_btn.winfo_reqwidth() + 6
-                + self.show_person_btn.winfo_reqwidth() + 6
-                + self.find_matches_btn.winfo_reqwidth()
             )
 
         def _tree_min_w():
@@ -502,6 +479,71 @@ class GedcomNavigatorApp(
 
         results_header = ctk.CTkFrame(right, fg_color='transparent')
         results_header.pack(fill='x')
+        self._display_mode_labels = {
+            'profile': DISPLAY_MODE_PROFILE,
+            'matches': DISPLAY_MODE_MATCHES,
+            'paths': DISPLAY_MODE_PATHS,
+        }
+        self._display_mode_tooltips = {
+            'profile': get_tip_show_person(),
+            'matches': get_tip_find_matches(),
+            'paths': get_tip_find_path(),
+        }
+        self._display_mode_by_label = {
+            label: mode for mode, label in self._display_mode_labels.items()
+        }
+        mode_values = [
+            self._display_mode_labels['profile'],
+            self._display_mode_labels['matches'],
+            self._display_mode_labels['paths'],
+        ]
+        display_mode_frame = ctk.CTkFrame(results_header, fg_color='transparent')
+        display_mode_frame.pack(side='right', padx=(8, 0))
+        if hasattr(ctk, 'CTkSegmentedButton'):
+            self._display_mode_selector = ctk.CTkSegmentedButton(
+                display_mode_frame,
+                values=mode_values,
+                command=self._on_display_mode_selected,
+            )
+            self._display_mode_selector.pack(side='left')
+            self._display_mode_selector.set(
+                self._display_mode_labels[self.display_mode.get()])
+            def _on_paths_btn_release(*_):
+                if (self.display_mode.get() == 'paths'
+                        and not self._path_prompt_cancelled_recently()
+                        and not getattr(self, '_picker_open', False)):
+                    self._find_path()
+            for mode, label in self._display_mode_labels.items():
+                button = self._display_mode_selector._buttons_dict.get(label)
+                if button is not None:
+                    Tooltip(button, self._display_mode_tooltips[mode])
+                    if mode == 'paths':
+                        for w in [button] + list(button.winfo_children()):
+                            w.bind('<ButtonRelease-1>', _on_paths_btn_release, add='+')
+        else:
+            self._display_mode_selector = ctk.CTkFrame(
+                display_mode_frame, fg_color='transparent')
+            self._display_mode_selector.pack(side='left')
+            self._display_mode_radio_var = tk.StringVar(
+                value=self._display_mode_labels[self.display_mode.get()])
+            for mode, value in self._display_mode_labels.items():
+                radio = ctk.CTkRadioButton(
+                    self._display_mode_selector,
+                    text=value,
+                    variable=self._display_mode_radio_var,
+                    value=value,
+                    command=lambda v=value: self._on_display_mode_selected(v),
+                )
+                radio.pack(side='left', padx=(0, 6))
+                Tooltip(radio, self._display_mode_tooltips[mode])
+        self.show_tree_btn = ctk.CTkButton(
+            display_mode_frame,
+            text=BTN_SHOW_PERSON_TREE,
+            width=64,
+            command=lambda: self._show_person(initial_view='tree'),
+        )
+        self.show_tree_btn.pack(side='left', padx=(8, 0))
+        Tooltip(self.show_tree_btn, get_tip_show_person_tree())
         self._results_header_var = tk.StringVar()
         self._results_header_label = ctk.CTkLabel(
             results_header,
@@ -537,31 +579,76 @@ class GedcomNavigatorApp(
         self._results_zoom = TextZoomController(
             self.results, self._mono_size, _apply_results_zoom)
 
-        # Status bar
-        status_bar = ctk.CTkFrame(outer, border_width=1)
+        # Display Pane footer
+        status_bar = ctk.CTkFrame(right, border_width=1)
         status_bar.pack(fill='x', pady=(8, 0))
         status_bar.columnconfigure(0, weight=1)
         ctk.CTkLabel(
             status_bar, textvariable=self.status_text, anchor='w',
         ).grid(row=0, column=0, sticky='ew', padx=(8, 0), pady=4)
+
+        self._matches_settings_frame = ctk.CTkFrame(
+            status_bar, fg_color='transparent')
+        self._matches_settings_frame.grid(
+            row=0, column=1, sticky='e', padx=(6, 4), pady=4)
+        tag_keyword_label = ctk.CTkLabel(
+            self._matches_settings_frame, text=LBL_TAG_KEYWORD)
+        tag_keyword_label.grid(row=0, column=0, sticky='w', padx=(0, 4))
+        tag_keyword_entry = ctk.CTkEntry(
+            self._matches_settings_frame,
+            textvariable=self.tag_keyword,
+            width=110,
+        )
+        tag_keyword_entry.grid(row=0, column=1, padx=(0, 10))
+        page_marker_label = ctk.CTkLabel(
+            self._matches_settings_frame, text=LBL_PAGE_MARKER)
+        page_marker_label.grid(row=0, column=2, sticky='w', padx=(0, 4))
+        page_marker_entry = ctk.CTkEntry(
+            self._matches_settings_frame,
+            textvariable=self.page_marker,
+            width=170,
+        )
+        page_marker_entry.grid(row=0, column=3, padx=(0, 10))
+        select_tag_btn = ctk.CTkButton(
+            self._matches_settings_frame,
+            text=BTN_SELECT_TAG,
+            width=92,
+            command=self._view_tags,
+        )
+        select_tag_btn.grid(row=0, column=4)
+        Tooltip(tag_keyword_label, TIP_TAG_KEYWORD)
+        Tooltip(tag_keyword_entry, TIP_TAG_KEYWORD)
+        Tooltip(page_marker_label, TIP_PAGE_MARKER)
+        Tooltip(page_marker_entry, TIP_PAGE_MARKER)
+        Tooltip(select_tag_btn, get_tip_select_tag())
+        self._set_matches_settings_visible(self.display_mode.get() == 'matches')
+
         self._reverse_btn = ctk.CTkButton(status_bar, text=BTN_REVERSE, width=110,
                                           command=self._reverse_results, state='disabled')
-        self._reverse_btn.grid(row=0, column=1, padx=(4, 4), pady=4)
-        Tooltip(self._reverse_btn, TIP_REVERSE)
+        self._reverse_btn.grid(row=0, column=2, padx=(4, 4), pady=4)
+        self._set_reverse_button_visible(self.display_mode.get() == 'paths')
+        Tooltip(self._reverse_btn, get_tip_reverse())
         self._save_btn = ctk.CTkButton(status_bar, text=BTN_SAVE, width=80,
                                        command=self._save_results)
-        self._save_btn.grid(row=0, column=2, padx=(4, 4), pady=4)
-        Tooltip(self._save_btn, TIP_SAVE)
+        self._save_btn.grid(row=0, column=3, padx=(4, 4), pady=4)
+        Tooltip(self._save_btn, get_tip_save())
         self._copy_btn = ctk.CTkButton(status_bar, text=BTN_COPY, width=80,
                                        command=self._copy_results)
-        self._copy_btn.grid(row=0, column=3, padx=(4, 8), pady=4)
-        Tooltip(self._copy_btn, TIP_COPY)
+        self._copy_btn.grid(row=0, column=4, padx=(4, 4), pady=4)
+        Tooltip(self._copy_btn, get_tip_copy())
+        if debug_enabled():
+            self._copy_json_btn = ctk.CTkButton(
+                status_bar, text='Copy JSON', width=90,
+                command=self._copy_paths_json)
+            Tooltip(self._copy_json_btn, get_tip_copy_json())
+            self._copy_json_btn.grid(row=0, column=5, padx=(0, 8), pady=4)
         self._progress_bar = ctk.CTkProgressBar(status_bar, width=130)
         self._progress_bar.set(0)
-        self._progress_bar.grid(row=0, column=2, columnspan=2, padx=(4, 8), pady=4)
+        self._progress_bar.grid(row=0, column=3, columnspan=2, padx=(4, 8), pady=4)
         self._progress_bar.grid_remove()
 
         self._setup_keybindings()
+        self.root.after_idle(lambda: self._refresh_display_pane(prompt_for_path=False))
 
 def _patch_ctk_scaling_for_tkinter_dpi():
     """Patch CTk's per-window DPI detection to use winfo_fpixels instead of GetDpiForMonitor.
@@ -598,15 +685,18 @@ def _patch_ctk_scaling_for_tkinter_dpi():
             try:
                 dpi = window.winfo_fpixels('1i')
                 return round(max(0.75, min(3.0, dpi / 96.0)), 2)
-            except Exception:
+            except Exception:  # pylint: disable=broad-exception-caught
+                log_exception("reading Tk DPI for CTk scaling patch")
                 pass
             try:
                 return float(orig_fn(cls, window))
-            except Exception:
+            except Exception:  # pylint: disable=broad-exception-caught
+                log_exception("falling back from original CTk DPI scaling")
                 return 1.0
 
         ctk.ScalingTracker.get_window_dpi_scaling = _winfo_consistent_scaling
-    except Exception:
+    except Exception:  # pylint: disable=broad-exception-caught
+        log_exception("patching CTk DPI scaling")
         pass
 
 
@@ -619,51 +709,60 @@ def _print_dpi_diagnostics(root):
         dpi_fpix = root.winfo_fpixels('1i')
         lines.append(f'  winfo_fpixels("1i"):    {dpi_fpix:.2f}'
                      '  (96=100%, 120=125%, 144=150%, 192=200%)')
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        log_exception("printing DPI diagnostic: winfo_fpixels")
         lines.append(f'  winfo_fpixels:          ERROR {e}')
 
     if sys.platform == 'win32':
         try:
             import ctypes
             lines.append(f'  GetDpiForSystem():      {ctypes.windll.user32.GetDpiForSystem()}')
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
+            log_exception("printing DPI diagnostic: GetDpiForSystem")
             lines.append(f'  GetDpiForSystem():      ERROR {e}')
         try:
             import ctypes
             lines.append(f'  GetDpiForWindow(root):  {ctypes.windll.user32.GetDpiForWindow(root.winfo_id())}')
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
+            log_exception("printing DPI diagnostic: GetDpiForWindow")
             lines.append(f'  GetDpiForWindow():      ERROR {e}')
 
     try:
         lines.append(f'  CTk widget scaling:     {ctk.ScalingTracker.get_widget_scaling(root)}')
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        log_exception("printing DPI diagnostic: CTk widget scaling")
         lines.append(f'  CTk widget scaling:     ERROR {e}')
     try:
         lines.append(f'  CTk window scaling:     {ctk.ScalingTracker.get_window_scaling(root)}')
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        log_exception("printing DPI diagnostic: CTk window scaling")
         lines.append(f'  CTk window scaling:     ERROR {e}')
 
     try:
         lines.append(f'  Screen (winfo):         {root.winfo_screenwidth()}x{root.winfo_screenheight()}')
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        log_exception("printing DPI diagnostic: screen size")
         lines.append(f'  Screen:                 ERROR {e}')
 
     try:
         df = _tkf.nametofont('TkDefaultFont')
         lines.append(f'  TkDefaultFont:          size={df.cget("size")} (cget)  actual={df.actual("size")}')
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        log_exception("printing DPI diagnostic: TkDefaultFont")
         lines.append(f'  TkDefaultFont:          ERROR {e}')
 
     try:
         cf = ctk.CTkFont()
         lines.append(f'  CTkFont (default):      family={cf.cget("family")!r}'
                      f'  size={cf.cget("size")} (cget)  actual={cf.actual("size")}')
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        log_exception("printing DPI diagnostic: CTkFont")
         lines.append(f'  CTkFont:                ERROR {e}')
 
     try:
         lines.append(f'  CTk theme CTkFont:      {ctk.ThemeManager.theme.get("CTkFont", "N/A")}')
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        log_exception("printing DPI diagnostic: CTk theme font")
         lines.append(f'  CTk theme CTkFont:      ERROR {e}')
 
     lines.append('================================')
@@ -682,9 +781,16 @@ def main():
     )
     parser.add_argument(
         '--debug', action='store_true',
-        help='Print DPI/scaling diagnostics to stderr (for troubleshooting display issues).'
+        help='Enable debug diagnostics, including exception logging, and print '
+             'DPI/scaling diagnostics to stderr.'
     )
     args = parser.parse_args()
+
+    if args.debug:
+        set_debug_enabled(True)
+    if debug_enabled():
+        configure_debug_logging()
+        install_exception_hooks()
 
     # Patch CTk's per-window DPI detection BEFORE creating any window.
     # On some Windows environments the process is DPI-virtualised: tkinter
@@ -697,8 +803,17 @@ def main():
 
     root = ctk.CTk()
 
+    # Now that i18n is set up, we can safely import strings.
+    # Note: We must import * here to make them available in the main scope
+    # for existing code that expects them.
+    from gedcom_strings import (
+        APP_TITLE, ERR_FILE_NOT_FOUND_TITLE, ERR_GEDCOM_NOT_FOUND_MSG
+    )
+
     if args.debug:
         _print_dpi_diagnostics(root)
+    if debug_enabled():
+        install_exception_hooks(root)
 
     # On macOS the window briefly appears at the default top-left position
     # before _fit_window_to_content centres it, so withdraw it first.
@@ -707,7 +822,7 @@ def main():
     if sys.platform == 'darwin':
         root.withdraw()
     app = GedcomNavigatorApp(root)
-    app._debug = args.debug
+    app._debug = debug_enabled()
     if sys.platform == 'darwin':
         root.deiconify()
 

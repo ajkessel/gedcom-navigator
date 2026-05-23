@@ -51,9 +51,10 @@ class HelpDialogsMixin:
         tree_frame = ctk.CTkFrame(outer, fg_color='transparent')
         tree_frame.pack(fill='both', expand=True)
 
+        rows = get_keyboard_shortcut_rows()
         tree = ttk.Treeview(tree_frame, columns=('key', 'action'),
                             show='headings', selectmode='browse',
-                            height=len(KEYBOARD_SHORTCUT_ROWS))
+                            height=len(rows))
         tree.heading('key', text=COL_SHORTCUT)
         tree.heading('action', text=COL_ACTION)
         tree.column('key', width=90, minwidth=70, stretch=False, anchor='center')
@@ -63,7 +64,7 @@ class HelpDialogsMixin:
         odd_bg  = '#2f2f2f' if is_dark else '#f5f5f5'
         tree.tag_configure('odd', background=odd_bg)
 
-        for idx, (key, action) in enumerate(KEYBOARD_SHORTCUT_ROWS):
+        for idx, (key, action) in enumerate(rows):
             tree.insert('', 'end', values=(key, action),
                         tags=('odd',) if idx % 2 else ())
 

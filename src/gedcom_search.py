@@ -9,9 +9,11 @@ import heapq
 import time
 from collections import deque
 
+from gedcom_debug import log_exception_once
 from gedcom_relationship import (
     describe_relationship as _describe_rel,
     get_ancestor_depths as _get_ancestor_depths,
+    get_descendant_depths as _get_descendant_depths,
     prepare_family_lookup as _prepare_family_lookup,
 )
 
@@ -41,6 +43,10 @@ def _check_cancelled(cancel_event):
             time.sleep(_GUI_YIELD_SECONDS)
         setattr(cancel_event, '_gedcom_check_count', checks)
     except Exception:  # pylint: disable=broad-exception-caught
+        log_exception_once(
+            'cancel-event-yield-bookkeeping',
+            "updating search cancellation yield bookkeeping",
+        )
         pass
 
 
@@ -104,6 +110,47 @@ class _NeighborCache:
             cached = tuple(neighbors(indi_id, self._individuals, self._families))
             self._cache[indi_id] = cached
         return cached
+
+
+class _PathState:
+    """Linked path state for heap searches.
+
+    Storing each candidate as a linked node avoids copying the full path tuple
+    on every heap push.  The visited set is still kept per candidate so cycle
+    checks stay O(1).
+    """
+
+    __slots__ = ('node_id', 'edge_label', 'previous', 'depth', 'visited')
+
+    def __init__(self, node_id, edge_label, previous, depth, visited):
+        self.node_id = node_id
+        self.edge_label = edge_label
+        self.previous = previous
+        self.depth = depth
+        self.visited = visited
+
+    def extend(self, node_id, edge_label):
+        visited = self.visited.copy()
+        visited.add(node_id)
+        return _PathState(node_id, edge_label, self, self.depth + 1, visited)
+
+    def to_path_list(self):
+        path = []
+        state = self
+        while state is not None:
+            path.append((state.node_id, state.edge_label))
+            state = state.previous
+        path.reverse()
+        return path
+
+    def to_edge_list(self):
+        edges = []
+        state = self
+        while state.previous is not None:
+            edges.append(state.edge_label)
+            state = state.previous
+        edges.reverse()
+        return edges
 
 
 class _BfsNeighborExpander:
@@ -202,12 +249,20 @@ def bfs_find_dna_matches(start_id, individuals, families, top_n, max_depth,
 _UP_EDGES = frozenset({'father', 'mother'})
 
 
-def _path_kinship_signature(path):
-    """Return a canonical kinship tuple used to deduplicate genealogically equivalent paths.
+def _edge_kinship_signature(raw_edges):
+    """Return a canonical kinship tuple for an edge-label sequence.
 
     Two paths represent the same relationship type when they yield the same signature.
     Algorithm:
       1. Strip interior spouse-detour hops (spouse immediately before child/sibling).
+      1.2. Collapse parent→child pairs to sibling (up then down = lateral).
+      1.3. Collapse child→sibling to child (already-descended sibling = same child).
+      1.5. Collapse consecutive sibling hops to one.
+      1.6. Apply kinship-identity simplifications iteratively:
+             A) child→parent  = spouse  (child's parent = co-parent)
+             B) sibling→parent = parent (sibling's parent = own parent)
+             C) parent→spouse  = other parent
+           Re-run 1.3 and 1.5 after each stable cycle.
       2. Peel bare leading/trailing spouse edges (in-law indicator).
       3. Classify the core as up* [sibling] down*, yielding (u, d, s).
       4. If a trailing sibling causes classification to fail, trim it — but only
@@ -215,10 +270,9 @@ def _path_kinship_signature(path):
          a first cousin's sibling collapses to the same signature as the first cousin.
       5. Fall back to a normalized edge tuple for unusual paths.
     """
-    if len(path) <= 1:
+    raw = list(raw_edges)
+    if not raw:
         return ('self',)
-
-    raw = [e for _, e in path[1:]]
 
     # Step 1: strip interior spouse→child detours only.
     # spouse→sibling is a genuine lateral hop (e.g. father→mother→maternal aunt)
@@ -233,6 +287,37 @@ def _path_kinship_signature(path):
             edges.append(raw[i])
             i += 1
 
+    # Step 1.2: collapse father/mother→child pairs to sibling.
+    # Going up to a parent then back down to a different child of that parent
+    # is the same generational hop as a direct sibling edge.  This is the
+    # ascending-then-descending analogue of the spouse→child strip above.
+    # Example: [child, father, child, sibling] → [child, sibling, sibling]
+    # which later collapses to [child] (a grandchild of the start).
+    collapsed_pc = []
+    i = 0
+    while i < len(edges):
+        if (edges[i] in _UP_EDGES and i + 1 < len(edges)
+                and edges[i + 1] == 'child'):
+            collapsed_pc.append('sibling')
+            i += 2
+        else:
+            collapsed_pc.append(edges[i])
+            i += 1
+    edges = collapsed_pc
+
+    # Step 1.3: collapse child→sibling to child.
+    # A node's child's sibling is also that node's child — the lateral sibling
+    # hop after a descending hop stays at the same generational level and is
+    # redundant for kinship-type purposes.  This canonicalises paths like
+    # [child, sibling, child] (grandparent→child→sibling→grandchild) to
+    # [child, child] (same signature as the direct grandchild path).
+    collapsed_cs = []
+    for e in edges:
+        if e == 'sibling' and collapsed_cs and collapsed_cs[-1] == 'child':
+            continue
+        collapsed_cs.append(e)
+    edges = collapsed_cs
+
     # Step 1.5: collapse consecutive sibling hops to one.
     # A's sibling's sibling is genealogically the same level as A's sibling
     # (they share the same parents), so routing through uncle1→uncle2→... vs
@@ -243,6 +328,59 @@ def _path_kinship_signature(path):
             continue
         collapsed.append(e)
     edges = collapsed
+
+    # Step 1.6: kinship-identity simplifications (applied iteratively).
+    # Three rules reduce roundabout paths to direct equivalents:
+    #   A) child→parent  → spouse       (child's parent = co-parent)
+    #   B) sibling→parent → parent      (sibling's parent = own parent)
+    #   C) parent→spouse  → other-parent (parent's spouse = other parent)
+    # Each rule shrinks the sequence by one hop, so the loop always terminates.
+    # After each stable pass re-run steps 1.3 and 1.5, since new sibling/child
+    # patterns may have been created.
+    # Example: [child,father,sibling,father,spouse,father]
+    #   → A: [spouse,sibling,father,spouse,father]
+    #   → B: [spouse,father,spouse,father]
+    #   → C: [spouse,mother,father]
+    # which matches the direct "grandfather-in-law" path [spouse,mother,father].
+    changed = True
+    while changed:
+        changed = False
+        new_e = []
+        i = 0
+        while i < len(edges):
+            if i + 1 < len(edges):
+                e0, e1 = edges[i], edges[i + 1]
+                if e0 == 'child' and e1 in _UP_EDGES:           # Rule A
+                    new_e.append('spouse')
+                    i += 2
+                    changed = True
+                    continue
+                if e0 == 'sibling' and e1 in _UP_EDGES:         # Rule B
+                    new_e.append(e1)
+                    i += 2
+                    changed = True
+                    continue
+                if e0 in _UP_EDGES and e1 == 'spouse':          # Rule C
+                    new_e.append('mother' if e0 == 'father' else 'father')
+                    i += 2
+                    changed = True
+                    continue
+            new_e.append(edges[i])
+            i += 1
+        edges = new_e
+        # Re-collapse after each rule pass.
+        tmp = []
+        for e in edges:
+            if e == 'sibling' and tmp and tmp[-1] == 'child':
+                continue
+            tmp.append(e)
+        edges = tmp
+        tmp = []
+        for e in edges:
+            if e == 'sibling' and tmp and tmp[-1] == 'sibling':
+                continue
+            tmp.append(e)
+        edges = tmp
 
     # Step 2: peel leading/trailing bare spouse edges
     lead_sp = trail_sp = 0
@@ -284,12 +422,16 @@ def _path_kinship_signature(path):
         u, d, s = result
         return ('kin', u, d, s, lead_sp, trail_sp)
 
-    # Step 4: trim trailing sibling and retry (safe only for cousin/sibling-style paths)
+    # Step 4: trim trailing sibling and retry.
+    # A trailing sibling means "one of their siblings", which is the same kinship
+    # level when the remaining path already has a downward component (child or
+    # sibling hop already taken).  Purely-ascending paths must NOT be collapsed:
+    # [father, sibling] = uncle/aunt, which differs from [father] = parent.
     if edges[-1] == 'sibling':
         result = _classify(edges[:-1])
         if result:
             u, d, s = result
-            if (u + s) > 0 and (d + s) > 0:
+            if (d + s) > 0:
                 return ('kin', u, d, s, lead_sp, trail_sp)
 
     # Step 5: fallback to normalized edge tuple.
@@ -301,6 +443,11 @@ def _path_kinship_signature(path):
         return ('spouse', lead_sp, trail_sp)
     norm = tuple('up' if e in _UP_EDGES else e for e in edges)
     return ('chain', norm, lead_sp, trail_sp)
+
+
+def _path_kinship_signature(path):
+    """Return a canonical kinship tuple used to deduplicate paths."""
+    return _edge_kinship_signature(e for _, e in path[1:])
 
 
 def _is_spouse_detour_of(longer, shorter):
@@ -422,8 +569,54 @@ def _reverse_edge_for_path(edge, from_sex):
     return edge  # 'sibling' and 'spouse' are symmetric
 
 
+def _simplify_path_detours(path, individuals, families):
+    """Replace parent→spouse→child detours with a direct sibling edge.
+
+    The three-edge pattern A→(father|mother)→P→spouse→SP→child→B is a
+    roundabout way of reaching a sibling: P is A's parent, SP is P's spouse
+    (A's other parent), and B is their child — i.e., B is A's sibling.  When A
+    and B truly share a FAMC family the direct sibling edge is shorter and
+    clearer.  Applied iteratively until no more simplifications are possible.
+
+    This arises in bridge-expansion paths where the BFS predecessor map stores
+    the parent-hop route to a sibling rather than the direct sibling edge (e.g.
+    because the sibling edge was first encountered from the opposite direction).
+    """
+    if len(path) < 4:
+        return path
+    if hasattr(families, 'share_child_family'):
+        def _are_siblings(a, b):
+            return families.share_child_family(a, b)
+    else:
+        def _are_siblings(a, b):
+            a_famc = set(individuals.get(a, {}).get('famc', []))
+            b_famc = set(individuals.get(b, {}).get('famc', []))
+            return bool(a_famc & b_famc)
+
+    changed = True
+    while changed:
+        changed = False
+        result = [path[0]]
+        i = 1
+        while i < len(path):
+            if (i + 2 < len(path)
+                    and path[i][1] in ('father', 'mother')
+                    and path[i + 1][1] == 'spouse'
+                    and path[i + 2][1] == 'child'
+                    and _are_siblings(result[-1][0], path[i + 2][0])):
+                result.append((path[i + 2][0], 'sibling'))
+                i += 3
+                changed = True
+            else:
+                result.append(path[i])
+                i += 1
+        path = result
+    return path
+
+
 def _marriage_bridge_expansion(start_id, end_id, individuals, families,
-                                max_depth, found_labels, start_ancestors, slots,
+                                max_depth, found_labels, found_sigs,
+                                start_ancestors, slots, descendants=None,
                                 cancel_event=None):
     """Find paths via marriage bridges: X (near start) married to Y (near end).
 
@@ -532,10 +725,15 @@ def _marriage_bridge_expansion(start_id, end_id, individuals, families,
                     continue
 
                 full_path = fwd_path + [(y_id, 'spouse')] + rev_chain
+                full_path = _simplify_path_detours(full_path, individuals, families)
                 label = _describe_rel(full_path, individuals,
-                                      ancestors=start_ancestors, families=families)
-                if label not in found_labels:
+                                      ancestors=start_ancestors,
+                                      descendants=descendants,
+                                      families=families)
+                sig = _path_kinship_signature(full_path)
+                if label not in found_labels and sig not in found_sigs:
                     found_labels.add(label)
+                    found_sigs.add(sig)
                     results.append(full_path)
                     if len(results) >= slots:
                         return results
@@ -601,8 +799,9 @@ def bfs_find_all_paths(start_id, end_id, individuals, families, top_n=5,
                 dist_to_end[nbr] = dist + 1
                 q_rev.append((nbr, dist + 1))
 
-    # Precompute start's biological ancestors for describe_relationship
+    # Precompute start's biological ancestors/descendants for describe_relationship
     _start_ancestors = _get_ancestor_depths(start_id, individuals, families)
+    _start_descendants = _get_descendant_depths(start_id, individuals, families)
     _relationship_families = _prepare_family_lookup(families)
 
     # Phase 2: A*-style path search
@@ -610,12 +809,14 @@ def bfs_find_all_paths(start_id, end_id, individuals, families, top_n=5,
 
     found = []
     found_labels = set()
+    found_sigs = set()
     explored = 0
     truncated = False
     _seq = 0
 
     h0 = dist_to_end.get(start_id, length_limit + 1)
-    heap = [(h0, _seq, start_id, ((start_id, None),))]
+    start_state = _PathState(start_id, None, None, 0, {start_id})
+    heap = [(h0, _seq, start_state)]
     path_neighbors = _NeighborCache(individuals, families)
 
     # Oversample: collect more raw paths than top_n so _filter_spouse_detours
@@ -625,36 +826,68 @@ def bfs_find_all_paths(start_id, end_id, individuals, families, top_n=5,
     # filtering and spouse expansion.
     _raw_n = top_n + 12
 
+    # Cache labels as paths are found so the sort step reuses them rather than
+    # recomputing.  Keys are id(path_list) which stays stable because
+    # _filter_spouse_detours returns the same list objects (not copies).
+    _label_cache = {}
+
+    def _add_path(path_list, label, sig):
+        found_labels.add(label)
+        found_sigs.add(sig)
+        found.append(path_list)
+        _label_cache[id(path_list)] = label
+
+    def _evaluate_path(path_list):
+        sig = _path_kinship_signature(path_list)
+        if sig in found_sigs:
+            return None
+        label = _describe_rel(path_list, individuals,
+                              ancestors=_start_ancestors,
+                              descendants=_start_descendants,
+                              families=_relationship_families)
+        if label in found_labels:
+            return None
+        return label, sig
+
+    def _evaluate_state(state):
+        sig = _edge_kinship_signature(state.to_edge_list())
+        if sig in found_sigs:
+            return None
+        path_list = state.to_path_list()
+        label = _describe_rel(path_list, individuals,
+                              ancestors=_start_ancestors,
+                              descendants=_start_descendants,
+                              families=_relationship_families)
+        if label in found_labels:
+            return None
+        return path_list, label, sig
+
     while heap and len(found) < _raw_n:
         _check_cancelled(cancel_event)
         if explored >= MAX_EXPLORE:
             truncated = True
             break
-        _, _, current_id, path = heapq.heappop(heap)
+        _, _, state = heapq.heappop(heap)
         explored += 1
 
-        g = len(path) - 1
-        path_visited = {nid for nid, _ in path}
-        for neighbor_id, edge_label in path_neighbors(current_id):
+        g = state.depth
+        for neighbor_id, edge_label in path_neighbors(state.node_id):
             _check_cancelled(cancel_event)
-            if neighbor_id in path_visited:
+            if neighbor_id in state.visited:
                 continue
             h = dist_to_end.get(neighbor_id, length_limit + 1)
             new_g = g + 1
             if new_g + h > length_limit:
                 continue
-            new_path = path + ((neighbor_id, edge_label),)
+            new_state = state.extend(neighbor_id, edge_label)
             if neighbor_id == end_id:
-                new_path_list = list(new_path)
-                label = _describe_rel(new_path_list, individuals,
-                                      ancestors=_start_ancestors,
-                                      families=_relationship_families)
-                if label not in found_labels:
-                    found_labels.add(label)
-                    found.append(new_path_list)
+                evaluated = _evaluate_state(new_state)
+                if evaluated is not None:
+                    new_path_list, label, sig = evaluated
+                    _add_path(new_path_list, label, sig)
             else:
                 _seq += 1
-                heapq.heappush(heap, (new_g + h, _seq, neighbor_id, new_path))
+                heapq.heappush(heap, (new_g + h, _seq, new_state))
 
     # Filter detours from the A* results before checking the count.
     found = _filter_spouse_detours(found)
@@ -682,12 +915,10 @@ def bfs_find_all_paths(start_id, end_id, individuals, families, top_n=5,
                 if spouse_path is None:
                     continue
                 full_path = spouse_path + [(end_id, 'spouse')]
-                label = _describe_rel(full_path, individuals,
-                                      ancestors=_start_ancestors,
-                                      families=None)
-                if label not in found_labels:
-                    found_labels.add(label)
-                    found.append(full_path)
+                evaluated = _evaluate_path(full_path)
+                if evaluated is not None:
+                    label, sig = evaluated
+                    _add_path(full_path, label, sig)
 
     # Symmetric spouse expansion: also expand spouses of start_id.  This
     # handles cases like "Randi → Michael (spouse) → Matt (4th cousin)" which
@@ -712,12 +943,10 @@ def bfs_find_all_paths(start_id, end_id, individuals, families, top_n=5,
                 if spouse_path is None:
                     continue
                 full_path = [(start_id, None), (spouse_id, 'spouse')] + spouse_path[1:]
-                label = _describe_rel(full_path, individuals,
-                                      ancestors=_start_ancestors,
-                                      families=None)
-                if label not in found_labels:
-                    found_labels.add(label)
-                    found.append(full_path)
+                evaluated = _evaluate_path(full_path)
+                if evaluated is not None:
+                    label, sig = evaluated
+                    _add_path(full_path, label, sig)
 
     # Marriage bridge expansion: find paths where X (near start) is married to Y
     # (near end), composing two BFS sub-paths joined by a spouse edge.  This
@@ -726,19 +955,27 @@ def bfs_find_all_paths(start_id, end_id, individuals, families, top_n=5,
     if len(found) < top_n:
         bridge_paths = _marriage_bridge_expansion(
             start_id, end_id, individuals, _relationship_families, max_depth,
-            found_labels, _start_ancestors, top_n - len(found),
-            cancel_event=cancel_event)
+            found_labels, found_sigs, _start_ancestors, top_n - len(found),
+            descendants=_start_descendants, cancel_event=cancel_event)
+        for bp in bridge_paths:
+            lbl = _describe_rel(bp, individuals,
+                                ancestors=_start_ancestors,
+                                descendants=_start_descendants,
+                                families=_relationship_families)
+            _label_cache[id(bp)] = lbl
         found.extend(bridge_paths)
 
     # Sort paths by relationship directness: fewer possessive chains first,
-    # then by total word count, then by label length.  This ensures simpler
-    # labels like "first cousin once removed" sort before "first cousin
-    # once removed-in-law's wife" regardless of A* discovery order.
+    # then by total word count, then by label length.  Reuse cached labels
+    # where available; only recompute for paths that slipped through uncached.
     if len(found) > 1:
         def _label_key(path):
-            lbl = _describe_rel(path, individuals,
-                                ancestors=_start_ancestors,
-                                families=_relationship_families)
+            lbl = _label_cache.get(id(path))
+            if lbl is None:
+                lbl = _describe_rel(path, individuals,
+                                    ancestors=_start_ancestors,
+                                    descendants=_start_descendants,
+                                    families=_relationship_families)
             return lbl.count("'s "), len(lbl.split()), len(lbl)
         found.sort(key=_label_key)
 

@@ -10,22 +10,22 @@ This application provides useful ways to rapidly explore a GEDCOM file exported 
 
 * Find the closest tagged people (e.g. DNA match) to any other person in a family tree
 * Show multiple relationship paths between any two people in your tree
-* Search your tree for variations on names (maiden/married name, alternate names, fuzzy matching) and filter on other information like geographical locations or occupation
+* Search your tree for variations on names (maiden/married name, alternate names, fuzzy matching, and Hebrew/Cyrillic transliterations) and filter on other information like geographical locations or occupation
 * Rapidly explore names and connections, even in a very large tree with very distant connections
 * Generate custom images of parts of your tree, expanding or collapsing the connections you want to see and saving them to your clipboard or an image file
 * Visualize relationships between any two people graphically
 
-The tool does not modify your GEDCOM file. It is only used for exploring connections.
+The tool does not modify your GEDCOM file. It is used for exploring connections.
 
 In addition to the GUI, this application also includes a command-line tool for fast queries or incorporating into other programmatic workflows.
 
 ## Downloads
 
 * Mac
-  * [App Store](https://apps.apple.com/app/gedcom-navigator/id6765485580) - easy install (may be behind the latest version here)
+  * [App Store](https://apps.apple.com/app/gedcom-navigator/id6765485580) (easy install, may be behind the latest version here)
   * [ZIP Download](https://github.com/ajkessel/gedcom-navigator/releases/latest/download/gedcom-navigator-mac.zip) (see [security note](MAC_SECURITY.md)).
 * Windows
-  * [App Store](https://apps.microsoft.com/detail/9p3zvf1q3rhm?hl=en-US&gl=US) - easy install
+  * [App Store](https://apps.microsoft.com/detail/9p3zvf1q3rhm?hl=en-US&gl=US) (easy install)
   * [Portable Version](https://github.com/ajkessel/gedcom-navigator/releases/latest/download/gedcom-navigator-windows-portable.zip) (see [security note](WINDOWS_SECURITY.md)).
   * [Installer](https://github.com/ajkessel/gedcom-navigator/releases/latest/download/gedcom-navigator-windows-installer.exe)
 * [Linux](https://github.com/ajkessel/gedcom-navigator/releases/latest/download/gedcom-navigator-linux.zip)
@@ -44,9 +44,9 @@ You can also use this tool to find multiple paths between any two people in your
 
 Any relationship description can be clicked to see a graphical representation of that relationship, which you can then copy and use as you like.
 
-If you set a person as the "Home Person" using the "Set Home" button, the results will always include the path from the selected person to the Home Person in addition to the closest people with DNA match markers.
+If you set a person as the "Home Person" using the "Set Home" button, the Display Pane will include the path from the selected person to the Home Person in Profile, Matches, and Paths mode.
 
-Finally, if you have a large tree, you may find it difficult to search for specific individuals in other tools. Ancestry, for example, only searches on the person's "preferred name" and not any of the alternate names, and neither Ancestry nor Family Tree Maker allow fuzzy matching searches. Ancestry also does not allow you to easily search on multiple fields simultaneously, like name, location, and occupation. With this tool, you can search for a name with fuzzy matching (e.g. "John Smith" in the "Find:" box) and then further limit the results by a term that appears anywhere in the person's record (e.g. "Chicago" and "tailor" in the "Filter" box). If you have multiple names in a person's record (e.g. maiden name, married name, nicknames), this tool will match any of them. This search method avoids the clumsy workarounds people use to label people in their tree, for example, by packing all the person's different surnames into the surname field. You can create a separate "name" record for each name the person has, and then find them easily using this tool's search functionality.
+Finally, if you have a large tree, you may find it difficult to search for specific individuals in other tools. Ancestry, for example, only searches on the person's "preferred name" and not any of the alternate names, and neither Ancestry nor Family Tree Maker allow fuzzy matching searches. Ancestry also does not allow you to easily search on multiple fields simultaneously, like name, location, and occupation. With this tool, you can search for a name with fuzzy matching (e.g. "John Smith" in the "Find:" box) and then further limit the results by a term that appears anywhere in the person's record (e.g. "Chicago" and "tailor" in the "Filter" box). If you have multiple names in a person's record (e.g. maiden name, married name, nicknames), this tool will match any of them. When fuzzy matching is enabled, Hebrew and Cyrillic names also get approximate English-letter aliases generated locally when the GEDCOM is parsed and cached, so they can be found from an English-language keyboard (e.g., searching for "shlomo" should return someone named שְׁלֹמֹה even if their GEDCOM entry lacks any English version of their name; likewise with "Vladimir" for Владимир). This search method avoids the clumsy workarounds people use to label people in their tree, for example, by packing all the person's different surnames into the surname field. You can create a separate "name" record for each name the person has, and then find them easily using this tool's search functionality.
 
 I've also sought to make all actions accessible from the keyboard. See [the keyboard shortcuts list](KEYBOARD_SHORTCUTS.md) for guidance. This makes it very fast to search for and compare people, even in a very large tree.
 

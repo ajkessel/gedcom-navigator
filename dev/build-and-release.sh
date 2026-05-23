@@ -53,7 +53,10 @@ source .venv/bin/activate || die 'Error activating venv.'
 echo 'Building for Linux platform...'
 ./dev/build.sh "${OPTIONS}" || die 'Error building for Linux.'
 echo 'Building for Windows platform...'
-pwsh -command 'c:/apps/src/gedcom-navigator/dev/build.ps1' || die 'Error building for Windows.'
+pwsh=$(command -v pwsh.exe)
+[ -z "$pwsh" ] && pwsh=$(command -v /mnt/c/Program\ Files/PowerShell/7/pwsh.exe)
+[ -z "$pwsh" ] && die 'PowerShell executable not found, cannot continue.'
+"${pwsh}" -command 'c:/apps/src/gedcom-navigator/dev/build.ps1' || die 'Error building for Windows.'
 echo 'Building for Mac platform...'
 # ${OPTIONS} should be expanded locally, not remotely
 # shellcheck disable=SC2029

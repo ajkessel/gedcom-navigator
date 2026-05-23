@@ -9,6 +9,8 @@ import json
 import sys
 from pathlib import Path
 
+from gedcom_debug import log_exception
+
 
 class ConfigManager:
     """Read/write a single settings.json file; all I/O is isolated here."""
@@ -27,6 +29,7 @@ class ConfigManager:
             data = json.loads(self._path.read_text(encoding='utf-8'))
             return data.get(key, default)
         except Exception:  # pylint: disable=broad-exception-caught
+            log_exception(f"loading setting {key!r} from {self._path}")
             return default
 
     def save_value(self, key, value):
@@ -34,6 +37,7 @@ class ConfigManager:
         try:
             data = json.loads(self._path.read_text(encoding='utf-8'))
         except Exception:  # pylint: disable=broad-exception-caught
+            log_exception(f"reading settings before saving {key!r} to {self._path}")
             data = {}
         data[key] = value
         self._path.parent.mkdir(parents=True, exist_ok=True)
@@ -169,14 +173,14 @@ class ConfigManager:
         """Save whether tooltips should be suppressed."""
         self.save_value('hide_tooltips', bool(value))
 
-    def get_profile_view_default(self):
-        """Return the default view for the profile window ('profile' or 'tree')."""
-        val = self.load_value('profile_view_default', 'profile')
-        return val if val in ('profile', 'tree') else 'profile'
+    def get_default_display(self):
+        """Return the startup Display Pane mode."""
+        val = self.load_value('default_display', 'profile')
+        return val if val in ('profile', 'matches', 'paths') else 'profile'
 
-    def set_profile_view_default(self, value):
-        """Save the default view for the profile window."""
-        self.save_value('profile_view_default', value)
+    def set_default_display(self, value):
+        """Save the startup Display Pane mode."""
+        self.save_value('default_display', value)
 
     def get_tag_keyword(self, default="DNA"):
         """Return the saved DNA tag keyword."""
@@ -195,6 +199,14 @@ class ConfigManager:
     def set_page_marker(self, value):
         """Save the DNA page marker keyword."""
         self.save_value('page_marker', str(value))
+
+    def get_language(self):
+        """Return the saved language code (e.g., 'en', 'fr') or 'sys' for system default."""
+        return self.load_value('language', 'sys')
+
+    def set_language(self, lang_code):
+        """Save the selected language code."""
+        self.save_value('language', lang_code)
 
     # ------------------------------------------------------------------
     # Platform default path

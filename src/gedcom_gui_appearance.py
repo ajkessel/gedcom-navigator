@@ -10,13 +10,12 @@ import tkinter.font as tkfont
 from tkinter import ttk, messagebox
 import sys
 import customtkinter as ctk
+from gedcom_debug import log_debug, log_exception, log_exception_once
+from gedcom_shortcuts import main_window_shortcuts, shortcut_by_action
 from gedcom_strings import *  # noqa: F401,F403 # pylint: disable=unused-wildcard-import
 from gedcom_theme import (
     CTK_THEME_MAP, ttk_colors, get_flag_bg, get_link_color,
 )
-
-# Tkinter modifier key name: Command on macOS, Control on Windows/Linux.
-_MOD_KEY = 'Command' if sys.platform == 'darwin' else 'Control'
 
 # Background tints injected into ThemeManager for the named Blue/Green themes.
 # Each value is [light_color, dark_color]; only the mode-appropriate one shows.
@@ -187,6 +186,7 @@ class AppearanceMixin:
         try:
             ctk.ThemeManager.theme["CTkFont"]["size"] = ui_sz
         except Exception:  # pylint: disable=broad-except
+            log_exception("updating CTk theme font size")
             pass
 
         # Walk the live widget tree and update every existing CTkFont so that
@@ -199,12 +199,17 @@ class AppearanceMixin:
                     if isinstance(fnt, ctk.CTkFont):
                         fnt.configure(size=ui_sz)
                 except Exception:  # pylint: disable=broad-except
+                    log_exception_once(
+                        'update-live-ctk-font',
+                        "updating live CTk widget font",
+                    )
                     pass
                 _update_ctk_fonts(child)
 
         try:
             _update_ctk_fonts(self.root)
         except Exception:  # pylint: disable=broad-except
+            log_exception("walking widget tree to update CTk fonts")
             pass
 
         self._apply_styles()
@@ -277,13 +282,11 @@ class AppearanceMixin:
         win.geometry(f"{w}x{h}+{x}+{y}")
 
         if getattr(self, '_debug', False):
-            import sys as _sys
-            print(
+            log_debug(
                 f'[debug] fit_window {win.title()!r}: '
                 f'req={req_w}x{req_h}  preferred={preferred_w}x{preferred_h}  '
                 f'min={min_w}x{min_h}  screen={screen_w}x{screen_h}  '
-                f'max={max_w}x{max_h}  -> {w}x{h}',
-                file=_sys.stderr, flush=True,
+                f'max={max_w}x{max_h}  -> {w}x{h}'
             )
 
         return w, h
@@ -454,6 +457,7 @@ class AppearanceMixin:
                 self._font_size_pref, self._FONT_SIZES['medium'])['ui']
             ctk.ThemeManager.theme["CTkFont"]["size"] = ui_sz
         except Exception:  # pylint: disable=broad-except
+            log_exception("restamping CTk theme font size after theme change")
             pass
         self._inject_theme_backgrounds(theme_name)
         ctk.set_appearance_mode(mode)
@@ -577,6 +581,7 @@ class AppearanceMixin:
             self._show_person_geometry = geo
             self._config.set_window_geometry('show_person_geometry', geo)
         except Exception as e:  # pylint: disable=broad-except
+            log_exception("persisting profile geometry")
             print(f"Error persisting profile geometry: {e}")
 
     def _set_home_person(self):
@@ -603,69 +608,65 @@ class AppearanceMixin:
         def bind(seq, cmd):
             self.root.bind(seq, lambda *_: cmd() or 'break')
 
-        bind('<Command-question>' if sys.platform ==
-             'darwin' else '<F1>', self._show_how_to_use)
-        bind(f'<{_MOD_KEY}-k>' if sys.platform ==
-             'darwin' else '<F2>', self._show_keyboard_shortcuts)
-        if sys.platform == 'win32':
-            bind('<F3>', self._show_preferences)
-        bind(f'<{_MOD_KEY}-f>', self._kb_focus_search)
-        bind(f'<{_MOD_KEY}-i>', self._kb_focus_filter)
-        bind(f'<{_MOD_KEY}-d>', lambda: self.show_flagged_only.set(
-            not self.show_flagged_only.get()))
-        bind(f'<{_MOD_KEY}-u>', lambda: self.fuzzy_search.set(
-            not self.fuzzy_search.get()))
-        bind(f'<{_MOD_KEY}-m>', lambda: self.married_name_search.set(
-            not self.married_name_search.get()))
-        bind(f'<{_MOD_KEY}-p>', self._find_path)
-        bind(f'<{_MOD_KEY}-t>', self._view_tags)
-        bind(f'<{_MOD_KEY}-o>', self._browse)
-        bind(f'<{_MOD_KEY}-h>', self._set_home_person)
-        bind(f'<{_MOD_KEY}-e>', self._show_person)
-        bind(f'<{_MOD_KEY}-s>', self._save_results)
-        bind(f'<{_MOD_KEY}-n>', self._find_matches)
-        bind(f'<{_MOD_KEY}-r>', self._reverse_results)
-        bind(f'<{_MOD_KEY}-l>', self._clear_results)
-        bind('<Escape>', self._clear_results)
-        back_seq = '<Command-Left>' if sys.platform == 'darwin' else '<Alt-Left>'
-        bind(back_seq, self._navigate_back)
-        fwd_seq = '<Command-Right>' if sys.platform == 'darwin' else '<Alt-Right>'
-        bind(fwd_seq, self._navigate_forward)
+        commands = {
+            'help': self._show_how_to_use,
+            'keyboard_shortcuts': self._show_keyboard_shortcuts,
+            'preferences': self._show_preferences,
+            'find_person': self._kb_focus_search,
+            'filter_results': self._kb_focus_filter,
+            'toggle_tagged_filter': lambda: self.show_flagged_only.set(
+                not self.show_flagged_only.get()),
+            'toggle_fuzzy_search': lambda: self.fuzzy_search.set(
+                not self.fuzzy_search.get()),
+            'toggle_married_name_search': lambda: self.married_name_search.set(
+                not self.married_name_search.get()),
+            'display_paths': lambda: self._set_display_mode('paths'),
+            'select_tag': self._view_tags,
+            'open_gedcom': self._browse,
+            'set_home': self._set_home_person,
+            'display_tree': lambda: self._show_person(initial_view='tree'),
+            'save_results': self._save_results,
+            'display_matches': lambda: self._set_display_mode('matches'),
+            'reverse_results': self._reverse_results,
+            'back': self._navigate_back,
+            'forward': self._navigate_forward,
+        }
+        for shortcut in main_window_shortcuts(sys.platform):
+            if shortcut.action_key == 'copy_results':
+                continue
+            bind(shortcut.sequence, commands[shortcut.action_key])
         # Only invoke _copy_results when a Text widget isn't focused
-        self.root.bind(f'<{_MOD_KEY}-c>', self._kb_copy)
-
-        self.root.bind(
-            '<KeyPress-Shift_L>',
-            lambda *_: self._update_show_person_btn_for_shift(True), add='+')
-        self.root.bind(
-            '<KeyPress-Shift_R>',
-            lambda *_: self._update_show_person_btn_for_shift(True), add='+')
-        self.root.bind(
-            '<KeyRelease-Shift_L>',
-            lambda *_: self._update_show_person_btn_for_shift(False), add='+')
-        self.root.bind(
-            '<KeyRelease-Shift_R>',
-            lambda *_: self._update_show_person_btn_for_shift(False), add='+')
-        self.root.bind(
-            '<FocusOut>',
-            lambda e: self._update_show_person_btn_for_shift(False)
-            if e.widget is self.root else None, add='+')
+        self.root.bind(shortcut_by_action(
+            'copy_results', sys.platform).sequence, self._kb_copy)
 
         # Explicit tab chain via the internal tk widgets for CTk widgets:
-        # tree → results_text → top_n_spin → max_depth_spin →
-        # set_home_btn → show_person_btn → find_matches_btn
+        # tree → display mode → results_text → top_n_spin → max_depth_spin →
+        # set_home_btn
         results_inner = self.results._textbox
         results_inner.configure(takefocus=True)
+        mode_widgets = list(getattr(
+            self._display_mode_selector, '_buttons_dict', {}).values())
+        if not mode_widgets:
+            try:
+                mode_widgets = list(self._display_mode_selector.winfo_children())
+            except tk.TclError:
+                mode_widgets = []
         tab_chain = [
-            self.tree, results_inner,
+            self.tree, *mode_widgets, results_inner,
             self.top_n_spin, self.max_depth_spin,
-            self.set_home_btn, self.show_person_btn, self.find_matches_btn,
+            self.set_home_btn,
         ]
+        show_tree_btn = getattr(self, 'show_tree_btn', None)
+        if show_tree_btn is not None:
+            tab_chain.insert(1 + len(mode_widgets), show_tree_btn)
         for i, w in enumerate(tab_chain):
             nxt = tab_chain[(i + 1) % len(tab_chain)]
             prv = tab_chain[(i - 1) % len(tab_chain)]
-            w.bind('<Tab>', lambda *_, nw=nxt: nw.focus_set() or 'break')
-            w.bind('<Shift-Tab>', lambda *_, pw=prv: pw.focus_set() or 'break')
+            try:
+                w.bind('<Tab>', lambda *_, nw=nxt: nw.focus_set() or 'break')
+                w.bind('<Shift-Tab>', lambda *_, pw=prv: pw.focus_set() or 'break')
+            except NotImplementedError:
+                continue
 
         r_inner = self.results._textbox
         r_inner.bind(
@@ -791,9 +792,9 @@ class AppearanceMixin:
         if sys.platform == 'darwin':
             self.root.createcommand(
                 '::tk::mac::ShowPreferences', self._show_preferences)
-        app_menu.add_command(label=MENU_HOW_TO_USE, underline=0,
+        app_menu.add_command(label=get_menu_how_to_use(), underline=0,
                              command=self._show_how_to_use)
-        app_menu.add_command(label=MENU_KEYBOARD_SHORTCUTS, underline=0,
+        app_menu.add_command(label=get_menu_keyboard_shortcuts(), underline=0,
                              command=self._show_keyboard_shortcuts)
         app_menu.add_separator()
         app_menu.add_command(label=MENU_CHECK_FOR_UPDATES, underline=0,

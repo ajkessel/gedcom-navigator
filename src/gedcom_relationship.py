@@ -639,7 +639,8 @@ def _describe_sub_path(sub_path, individuals, families=None):
     return classification.description if classification else None
 
 
-def _smart_chain(path, individuals, ancestors=None, families=None):
+def _smart_chain(path, individuals, ancestors=None, descendants=None,
+                 families=None):
     """Build a compact possessive chain by greedily matching the longest
     recognized sub-path at each position, then joining with "'s ".
 
@@ -651,6 +652,11 @@ def _smart_chain(path, individuals, ancestors=None, families=None):
     Used to avoid labelling a biological ancestor as a 'step-' relative when
     the path reaches them via a roundabout route (e.g. father → spouse →
     biological-mother is still "mother", not "step-mother").
+
+    descendants: optional {id: depth} dict of biological descendants of path[0].
+    Used to avoid labelling a biological descendant as a 'step-' relative when
+    the path reaches them via a roundabout route (e.g. spouse → child who is
+    also a biological child is still "son", not "step-son").
     """
     if len(path) <= 1:
         return 'same person'
@@ -687,6 +693,18 @@ def _smart_chain(path, individuals, ancestors=None, families=None):
                 terminal_sex = individuals.get(terminal_id, {}).get('sex', '')
                 best_desc = _ancestor_term(
                     ancestors[terminal_id], terminal_sex)
+
+        # Same fix for descendants: suppress 'step-' when the terminal node
+        # is a known biological descendant of path[0].
+        # Example: spouse → child who is ALSO a biological child should be
+        # "son", not "step-son".
+        if (descendants and best_desc and best_desc.startswith('step-')
+                and best_end > 1):
+            terminal_id = path[best_end - 1][0]
+            if terminal_id in descendants:
+                terminal_sex = individuals.get(terminal_id, {}).get('sex', '')
+                best_desc = _descendant_term(
+                    descendants[terminal_id], terminal_sex)
 
         # Absorb a trailing 'spouse' edge when doing so yields a more compact
         # term (e.g. "first cousin" + "wife" → "first cousin-in-law",
@@ -824,13 +842,17 @@ def describe_relationship(path, individuals, ancestors=None, descendants=None,
         path[0][0], target_id, individuals, families, ancestors)
 
     if ancestors and target_id in ancestors:
-        return _prefer_more_efficient(
-            _ancestor_term(ancestors[target_id], target_sex),
-            biological_desc)
+        bio_depth = ancestors[target_id]
+        if len(path) - 1 <= bio_depth + 3:
+            return _prefer_more_efficient(
+                _ancestor_term(bio_depth, target_sex),
+                biological_desc)
     if descendants and target_id in descendants:
-        return _prefer_more_efficient(
-            _descendant_term(descendants[target_id], target_sex),
-            biological_desc)
+        bio_depth = descendants[target_id]
+        if len(path) - 1 <= bio_depth + 3:
+            return _prefer_more_efficient(
+                _descendant_term(bio_depth, target_sex),
+                biological_desc)
 
     classification = _classify_relationship_path(
         path, individuals, families=families)
@@ -840,13 +862,7 @@ def describe_relationship(path, individuals, ancestors=None, descendants=None,
         return _prefer_more_efficient(
             classification.description, biological_desc)
 
-    lead_sp = int(len(path) > 1 and path[1][1] == 'spouse')
-    trail_sp = int(len(path) > 1 and path[-1][1] == 'spouse')
-    if lead_sp or trail_sp:
-        smart = _smart_chain(
-            path, individuals, ancestors=ancestors, families=families)
-        return smart
-
     smart = _smart_chain(
-        path, individuals, ancestors=ancestors, families=families)
+        path, individuals, ancestors=ancestors, descendants=descendants,
+        families=families)
     return _prefer_more_efficient(smart, biological_desc)

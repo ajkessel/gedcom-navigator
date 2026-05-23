@@ -7,6 +7,78 @@ from gedcom_family_tree import (
     layout_family_tree,
 )
 from gedcom_gui_results import ResultsMixin
+import gedcom_strings as gs
+
+
+class _HomeModel:
+    def find_common_ancestors(self, *_args):
+        return []
+
+
+class _HomePathApp(ResultsMixin):
+    def __init__(self):
+        self.individuals = {
+            '@A@': {'name': 'Alex', 'sex': 'M', 'famc': [], 'fams': []},
+            '@B@': {'name': 'Home', 'sex': 'M', 'famc': [], 'fams': []},
+        }
+        self.families = {}
+        self._model = _HomeModel()
+
+    def _reverse_path(self, path, _individuals):
+        return list(reversed([(node_id, edge) for node_id, edge in path]))
+
+    def _path_edge_prefix(self, edge, indent='  '):
+        return f'{indent}{edge}: '
+
+
+def test_home_path_section_renders_missing_path_message():
+    app = _HomePathApp()
+    lines = []
+
+    rendered = app._render_home_path_section(
+        '@A@',
+        {'home_id': '@B@', 'paths': []},
+        nl=lambda text='', bold=False: lines.append(text),
+        person=lambda indi_id, prefix='': lines.append(prefix + indi_id),
+        relationship_line=lambda rel, path, prefix='': lines.append(rel),
+        common_ancestor_line=lambda ancestor_ids, prefix='', item_prefix='    ': None,
+    )
+
+    assert rendered is True
+    assert gs.RESULT_PATH_SECTION in lines
+    assert gs.RESULT_NO_HOME_PATH in lines
+
+
+def test_home_path_section_renders_same_person_message():
+    app = _HomePathApp()
+    lines = []
+
+    app._render_home_path_section(
+        '@A@',
+        {'home_id': '@A@', 'paths': [[('@A@', None)]]},
+        nl=lambda text='', bold=False: lines.append(text),
+        person=lambda indi_id, prefix='': lines.append(prefix + indi_id),
+        relationship_line=lambda rel, path, prefix='': lines.append(rel),
+        common_ancestor_line=lambda ancestor_ids, prefix='', item_prefix='    ': None,
+    )
+
+    assert gs.PATH_SAME_PERSON in lines
+
+
+def test_home_path_section_is_appended_after_existing_content():
+    app = _HomePathApp()
+    lines = ['main content']
+
+    app._render_home_path_section(
+        '@A@',
+        {'home_id': '@B@', 'paths': [[('@A@', None), ('@B@', 'father')]]},
+        nl=lambda text='', bold=False: lines.append(text),
+        person=lambda indi_id, prefix='': lines.append(prefix + indi_id),
+        relationship_line=lambda rel, path, prefix='': lines.append(rel),
+        common_ancestor_line=lambda ancestor_ids, prefix='', item_prefix='    ': None,
+    )
+
+    assert lines.index('main content') < lines.index(gs.RESULT_PATH_SECTION)
 
 
 def test_path_graph_layout_aligns_same_generation_edges():
@@ -4978,3 +5050,46 @@ def test_spouse_button_uses_spouse_side_or_right_default():
     assert ResultsMixin._spouse_button_x(
         '@A@', 100, 70, 130, 20, [('@A@', '@S@')], {'@S@': (140, 100)}
     ) == 140
+
+
+def test_results_header_menu_clears_stale_person_id():
+    """A stale results header from an old data set cannot open person actions."""
+
+    class Var:
+        def __init__(self, value):
+            self.value = value
+
+        def set(self, value):
+            self.value = value
+
+    class App(ResultsMixin):
+        pass
+
+    app = App()
+    app._results_header_id = '@OLD@'
+    app._results_header_var = Var('Old Person')
+    app.individuals = {}
+    updates = []
+    app._update_header_label_style = lambda: updates.append(True)
+
+    assert app._show_results_header_menu(object()) == 'break'
+    assert app._results_header_id is None
+    assert app._results_header_var.value == ''
+    assert updates == [True]
+
+
+def test_navigate_to_resets_stale_person_id():
+    """Clicking an old result link after data changes resets stale results."""
+
+    class App(ResultsMixin):
+        pass
+
+    app = App()
+    app._busy = False
+    app.individuals = {}
+    resets = []
+    app._reset_results_pane = lambda: resets.append(True)
+
+    app._navigate_to('@OLD@')
+
+    assert resets == [True]

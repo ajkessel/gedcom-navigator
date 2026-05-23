@@ -1,4 +1,5 @@
 # cspell:disable
+.env
 .codex/
 .claude/
 .claudesync/
@@ -8,8 +9,11 @@ venv/
 build/
 debug/
 dist/
+test-artifacts/
+.coverage
 *.zip
 *.log
+*.mo
 .DS_Store
 icons/family_tree.ico
 icons/family_tree.icns

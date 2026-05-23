@@ -10,6 +10,9 @@ import os
 import tempfile
 import zipfile
 
+from gedcom_debug import log_exception
+from gedcom_transliteration import add_transliterated_names
+
 # Captures: level, optional xref (@…@), tag (non-space), optional value (rest)
 LINE_RE = re.compile(r'^\s*(\d+)\s+(?:(@[^@]+@)\s+)?(\S+)(?:\s+(.*?))?\s*$')
 
@@ -174,6 +177,7 @@ def build_model(gedcom_path, dna_keyword, page_marker):
                 'surname': '',
                 'given_name': '',
                 'alt_names': [],
+                'transliterated_names': [],
                 'sex': '',
                 'famc': [],
                 'fams': [],
@@ -284,6 +288,8 @@ def build_model(gedcom_path, dna_keyword, page_marker):
                         f'Tag: {tag_name} ({ref})'
                     )
 
+    add_transliterated_names(individuals)
+
     model_error = None
     if not records:
         model_error = (
@@ -389,7 +395,8 @@ def extract_ged_from_zip(zip_path, cancel_event=None):
                                 "uncompressed limit."
                             )
                         tmp.write(chunk)
-        except Exception:
+        except Exception:  # pylint: disable=broad-exception-caught
+            log_exception(f"extracting GEDCOM from ZIP {zip_path!r}")
             if tmp_path:
                 try:
                     os.unlink(tmp_path)

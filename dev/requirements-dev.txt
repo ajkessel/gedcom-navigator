@@ -5,4 +5,9 @@ pillow
 pyinstaller
 pyinstaller-hooks-contrib
 pytest
+pytest-cov
 setuptools
+Babel
+polib
+deepl
+deep-translator

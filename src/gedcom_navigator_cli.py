@@ -24,7 +24,8 @@ Two DNA-flag signals are detected (either is sufficient):
 Use --list-tags first to see all tag definitions in your file, and
 --list-flagged to see every flagged individual. Then run a normal query.
 
-Pure stdlib; no external dependencies.
+No third-party packages are required. Optional transliteration packages are used
+when installed to improve fuzzy matching for some non-Latin names.
 
 Usage examples:
 
@@ -48,7 +49,8 @@ Usage examples:
   # Tighten the tag filter to "DNA Match" only (exclude DNA Connection etc.)
   python gedcom_navigator_cli.py tree.ged "John Smith" --tag-keyword "DNA Match"
 
-  # Fuzzy match (tolerates typos and spelling variants):
+  # Fuzzy match (tolerates typos, spelling variants, and cached Hebrew/Cyrillic
+  # transliterated aliases):
   # "John Smth" will still find "John Adam Smith".
   python gedcom_navigator_cli.py tree.ged "John Smith" --fuzzy
   python gedcom_navigator_cli.py tree.ged "John Smith" --fuzzy --fuzzy-threshold 0.7
@@ -59,6 +61,13 @@ import os
 import sys
 
 from gedcom_display import describe
+from gedcom_debug import (
+    configure_debug_logging,
+    debug_enabled,
+    install_exception_hooks,
+    log_exception,
+    set_debug_enabled,
+)
 from gedcom_name_search import find_candidates
 from gedcom_parser import build_model, extract_ged_from_zip
 from gedcom_search import bfs_find_dna_matches
@@ -164,7 +173,8 @@ def main():
     parser.add_argument('--fuzzy', action='store_true',
                         help='Enable fuzzy name matching. In addition to token matches, '
                              'include names whose similarity to the query exceeds '
-                             '--fuzzy-threshold. Useful for typos and spelling variants.')
+                             '--fuzzy-threshold. Useful for typos, spelling variants, '
+                             'and cached Hebrew/Cyrillic transliterated aliases.')
     parser.add_argument('--fuzzy-threshold', type=ratio_float, default=0.6,
                         help='Similarity cutoff for --fuzzy, between 0.0 and 1.0 (default 0.6). '
                              'Lower = more matches, higher = stricter. '
@@ -173,7 +183,15 @@ def main():
                         help='Print all _MTTAG definitions found in the file and exit.')
     parser.add_argument('--list-flagged', action='store_true',
                         help='Print every individual currently flagged as a DNA match and exit.')
+    parser.add_argument('--debug', action='store_true',
+                        help='Enable debug diagnostics, including exception logging.')
     args = parser.parse_args()
+
+    if args.debug:
+        set_debug_enabled(True)
+    if debug_enabled():
+        configure_debug_logging()
+        install_exception_hooks()
 
     gedcom_path = args.gedcom
     tmp_path = None
@@ -183,6 +201,7 @@ def main():
             print(f'Extracted {ged_name!r} from ZIP.', file=sys.stderr)
             gedcom_path = tmp_path
         except Exception as e:  # pylint: disable=broad-except
+            log_exception(f"extracting GEDCOM from ZIP: {gedcom_path!r}")
             print(f'Error: {e}', file=sys.stderr)
             sys.exit(1)
 
@@ -242,7 +261,10 @@ def main():
     if not candidates:
         msg = f'No individuals match: {args.target!r}'
         if not args.fuzzy:
-            msg += '  (try --fuzzy to allow typos and spelling variants)'
+            msg += (
+                '  (try --fuzzy to allow typos, spelling variants, '
+                'and Hebrew/Cyrillic transliterated aliases)'
+            )
         print(msg, file=sys.stderr)
         sys.exit(1)
     if len(candidates) > 1:

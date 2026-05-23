@@ -16,6 +16,16 @@ INDIVIDUALS = {
         "name": "Alice /Jones/",
         "alt_names": ["Alice Jones"],
     },
+    "@I4@": {
+        "name": "משה /כהן/",
+        "alt_names": ["משה כהן"],
+        "transliterated_names": ["moshe kohen"],
+    },
+    "@I5@": {
+        "name": "Fallback /Hebrew/",
+        "alt_names": ["משה כהן"],
+        "transliterated_names": ["msh khn"],
+    },
 }
 
 
@@ -57,6 +67,25 @@ class TestFindCandidates:
         assert candidates[0][0] == "@I2@"
         assert candidates[0][1] is not None
 
+    def test_transliterated_names_are_fuzzy_only(self):
+        assert find_candidates(INDIVIDUALS, "moshe kohen") == []
+
+        candidates = find_candidates(
+            INDIVIDUALS, "moshe kohen", fuzzy=True, fuzzy_threshold=0.9)
+
+        assert candidates == [("@I4@", 1.0)]
+
+    def test_fuzzy_matching_handles_hebrew_fallback_aliases(self):
+        candidates = find_candidates(
+            {"@I5@": INDIVIDUALS["@I5@"]},
+            "moshe kohen",
+            fuzzy=True,
+            fuzzy_threshold=0.72,
+        )
+
+        assert candidates[0][0] == "@I5@"
+        assert candidates[0][1] is not None
+
 
 class TestIndividualMatchesQuery:
     def test_empty_query_matches_for_list_population(self):
@@ -74,3 +103,14 @@ class TestIndividualMatchesQuery:
             "jane jones",
             extra_names=["Jane Jones"],
         ) == (True, None)
+
+    def test_transliterated_names_require_fuzzy_mode(self):
+        assert individual_matches_query(
+            "@I4@", INDIVIDUALS["@I4@"], "moshe kohen") == (False, None)
+
+        matched, score = individual_matches_query(
+            "@I4@", INDIVIDUALS["@I4@"], "moshe kohen",
+            fuzzy=True, fuzzy_threshold=0.9)
+
+        assert matched is True
+        assert score == 1.0

@@ -42,6 +42,15 @@ SIMPLE_GED = """\
 """
 # cspell: enable
 
+HEBREW_GED = """\
+0 HEAD
+1 GEDC
+2 VERS 5.5.1
+0 @I1@ INDI
+1 NAME משה /כהן/
+0 TRLR
+"""
+
 def _write_ged(tmp_path, content="", filename="tree.ged"):
     p = tmp_path / filename
     p.write_text(content or SIMPLE_GED, encoding="utf-8")
@@ -102,6 +111,14 @@ class TestLoad:
         mdl.load(p, "DNA", "AncestryDNA", str(tmp_path / "cache"))
         assert mdl.married_name_index == {"@I1@": ["Alice Jones"]}
 
+    def test_transliterated_names_built_after_load(self, tmp_path):
+        mdl = GedcomDataModel()
+        p = _write_ged(tmp_path, HEBREW_GED)
+
+        mdl.load(p, "DNA", "AncestryDNA", str(tmp_path / "cache"))
+
+        assert "msh khn" in mdl.individuals["@I1@"]["transliterated_names"]
+
     def test_invalid_file_returns_model_error(self, tmp_path):
         mdl = GedcomDataModel()
         p = _write_ged(tmp_path, "0 HEAD\n0 TRLR\n")
@@ -157,6 +174,18 @@ class TestCacheHit:
         assert from_cache is True
         assert error is None
         assert mdl.married_name_index == {"@I1@": ["Alice Jones"]}
+
+    def test_cache_hit_preserves_transliterated_names(self, tmp_path):
+        cache_dir = str(tmp_path / "cache")
+        p = _write_ged(tmp_path, HEBREW_GED)
+        GedcomDataModel().load(p, "DNA", "AncestryDNA", cache_dir)
+
+        mdl = GedcomDataModel()
+        from_cache, _, error = mdl.load(p, "DNA", "AncestryDNA", cache_dir)
+
+        assert from_cache is True
+        assert error is None
+        assert "msh khn" in mdl.individuals["@I1@"]["transliterated_names"]
 
 
 # ===========================================================================

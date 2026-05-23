@@ -12,6 +12,7 @@ from tkinter import messagebox, ttk
 
 import customtkinter as ctk
 
+from gedcom_debug import log_exception
 from gedcom_display import describe
 from gedcom_gui_help_dialogs import HelpDialogsMixin
 from gedcom_gui_person_dialog import PersonDialogMixin
@@ -22,12 +23,63 @@ from gedcom_relationship import (
     get_descendant_depths,
 )
 from gedcom_strings import *  # pylint: disable=unused-wildcard-import
+from gedcom_i18n import _, get_available_languages
 from gedcom_theme import get_flag_bg
 from gedcom_tooltip import Tooltip
 
 
 class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
     """Mixin providing picker, path finder, and preferences dialogs."""
+
+    _PREFS_MIN_WIDTH = 500
+    _PREFS_MIN_HEIGHT = 420
+    _PREFS_PRE_SHOW_SETTLE_PASSES = 3
+    _PREFS_WIN_REVEAL_DELAY_MS = 75
+    _PREFS_HEIGHT_SETTLE_DELAYS_MS = (100, 250, 500)
+    _PREFS_LANG_WIDTH_OVERHEAD = 60
+
+    def _focus_person_picker_find_entry(self, dialog, search_entry):
+        """Move keyboard focus to the person picker Find entry."""
+        try:
+            dialog.focus_force()
+        except tk.TclError:
+            return
+
+        for widget in (search_entry, getattr(search_entry, "_entry", None)):
+            if widget is None:
+                continue
+            try:
+                widget.focus_set()
+                if hasattr(widget, "select_range"):
+                    widget.select_range(0, "end")
+            except tk.TclError:
+                continue
+
+    @staticmethod
+    def _preferences_dialog_target_height(
+        outer,
+        btn_frame,
+        screen_h,
+        *,
+        min_h=_PREFS_MIN_HEIGHT,
+        max_screen_ratio=0.9,
+    ):
+        """Return the compact Preferences height for current content metrics."""
+        content_h = outer.winfo_reqheight() + 32
+        btn_h = btn_frame.winfo_reqheight() + 16
+        max_h = max(min_h, min(int(screen_h * max_screen_ratio), screen_h - 32))
+        return max(min_h, min(content_h + btn_h, max_h))
+
+    @staticmethod
+    def _preferences_dialog_width(win, *, min_w=_PREFS_MIN_WIDTH):
+        """Return a usable Preferences window width during early layout."""
+        width = win.winfo_width()
+        if width <= 1:
+            try:
+                width = int(win.geometry().split('x', 1)[0])
+            except (tk.TclError, ValueError):
+                width = min_w
+        return max(min_w, width)
 
     def _view_tags(self):
         """Show tag-record definitions and allow choosing the DNA tag keyword."""
@@ -89,11 +141,22 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
         def on_cancel():
             win.destroy()
 
+        def on_double_click(event):
+            row_id = tag_tree.identify_row(event.y)
+            if not row_id:
+                return 'break'
+            tag_tree.focus(row_id)
+            tag_tree.selection_set(row_id)
+            tag_tree.see(row_id)
+            on_ok()
+            return 'break'
+
         ctk.CTkButton(btn_frame, text=BTN_OK, width=80,
                       command=on_ok).pack(side='right', padx=(4, 0))
         ctk.CTkButton(btn_frame, text=BTN_CANCEL, width=80,
                       command=on_cancel).pack(side='right')
 
+        tag_tree.bind('<Double-1>', on_double_click)
         tag_tree.bind('<Return>', lambda *_: on_ok())
         tag_tree.bind('<Home>', lambda *_: self._tree_jump(
             'first', tag_tree) or 'break')
@@ -130,15 +193,35 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
         result = [None]
 
         search_frame = ctk.CTkFrame(dialog, fg_color='transparent')
-        search_frame.pack(fill='x', padx=8, pady=8)
+        search_frame.pack(fill='x', padx=8, pady=(8, 0))
         ctk.CTkLabel(search_frame, text=LBL_FIND).pack(
             side='left', padx=(0, 4))
         search_var = tk.StringVar()
         search_entry = ctk.CTkEntry(search_frame, textvariable=search_var)
         search_entry.pack(side='left', fill='x', expand=True)
+        fuzzy_var = tk.BooleanVar(value=self.fuzzy_search.get())
+        ctk.CTkCheckBox(
+            search_frame, text=CHK_FUZZY, variable=fuzzy_var, width=0,
+        ).pack(side='left', padx=(8, 0))
+        married_var = tk.BooleanVar(value=self.married_name_search.get())
+        ctk.CTkCheckBox(
+            search_frame, text=CHK_MARRIED_NAMES, variable=married_var, width=0,
+        ).pack(side='left', padx=(8, 0))
+
+        filter_frame = ctk.CTkFrame(dialog, fg_color='transparent')
+        filter_frame.pack(fill='x', padx=8, pady=(2, 0))
+        ctk.CTkLabel(filter_frame, text=LBL_FILTER).pack(
+            side='left', padx=(0, 4))
+        filter_var = tk.StringVar()
+        filter_entry = ctk.CTkEntry(filter_frame, textvariable=filter_var)
+        filter_entry.pack(side='left', fill='x', expand=True)
+        flagged_var = tk.BooleanVar(value=False)
+        ctk.CTkCheckBox(
+            filter_frame, text=CHK_DNA_FLAGGED_ONLY, variable=flagged_var, width=0,
+        ).pack(side='left', padx=(8, 0))
 
         list_frame = ctk.CTkFrame(dialog, fg_color='transparent')
-        list_frame.pack(fill='both', expand=True, padx=8)
+        list_frame.pack(fill='both', expand=True, padx=8, pady=(4, 0))
 
         picker_tree = ttk.Treeview(
             list_frame,
@@ -166,16 +249,33 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
 
         after_id = [None]
 
-        def populate(query=''):
+        def populate():
             picker_tree.delete(*picker_tree.get_children())
-            query = query.strip()
+            query = search_var.get().strip()
+            filter_query = filter_var.get().strip().lower()
+            flagged_only = flagged_var.get()
+            extra_names_by_id = (
+                self._model.married_name_index
+                if married_var.get()
+                else {}
+            )
             shown = 0
             for indi_id in self.sorted_ids:
                 indi = self.individuals[indi_id]
+                if flagged_only and not indi['dna_markers']:
+                    continue
                 if query:
                     match, _score = individual_matches_query(
-                        indi_id, indi, query)
+                        indi_id, indi, query,
+                        fuzzy=fuzzy_var.get(),
+                        fuzzy_threshold=self._fuzzy_threshold_value(),
+                        extra_names=extra_names_by_id.get(indi_id),
+                    )
                     if not match:
+                        continue
+                if filter_query:
+                    raw_text = ' '.join(v.lower() for _, _, _, v in indi['_raw'])
+                    if filter_query not in raw_text:
                         continue
                 tags = ('flagged_row',) if indi['dna_markers'] else ()
                 flagged_mark = '✓' if indi['dna_markers'] else ''
@@ -194,17 +294,19 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
         def on_search_change(*_):
             if after_id[0]:
                 dialog.after_cancel(after_id[0])
-            after_id[0] = dialog.after(150, lambda: populate(search_var.get()))
+            after_id[0] = dialog.after(150, populate)
 
         def picker_flush_and_jump():
             if after_id[0]:
                 dialog.after_cancel(after_id[0])
                 after_id[0] = None
-                populate(search_var.get())
+                populate()
             self._tree_jump('first', picker_tree)
 
-        search_var.trace_add('write', on_search_change)
+        for _var in (search_var, filter_var, fuzzy_var, married_var, flagged_var):
+            _var.trace_add('write', on_search_change)
         search_entry.bind('<Return>', lambda *_: picker_flush_and_jump())
+        filter_entry.bind('<Return>', lambda *_: picker_flush_and_jump())
         populate()
 
         def select():
@@ -234,18 +336,30 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
         self._fit_window_to_content(
             dialog,
             min_w=500,
-            min_h=380,
-            preferred_w=600,
-            preferred_h=500,
+            min_h=420,
+            preferred_w=620,
+            preferred_h=540,
         )
         dialog.deiconify()
-        search_entry.focus_set()
-        dialog.wait_window()
+
+        def focus_find_entry():
+            self._focus_person_picker_find_entry(dialog, search_entry)
+
+        focus_find_entry()
+        dialog.after_idle(focus_find_entry)
+        dialog.after(50, focus_find_entry)
+        self._picker_open = True
+        try:
+            dialog.wait_window()
+        finally:
+            self._picker_open = False
         return result[0]
 
     def _find_path(self):
         """Prompt for a target person and render paths from the current selection."""
         if self._busy:
+            return
+        if self._path_prompt_cancelled_recently():
             return
         sel = self.tree.selection()
         start_id = sel[0] if sel else self._active_id
@@ -255,8 +369,15 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
 
         target_id = self._pick_person(WIN_SELECT_TARGET)
         if not target_id:
+            self._suppress_path_prompt_after_cancel()
             return
+        self._display_path_target_id = target_id
+        self._set_display_mode('paths', refresh=False)
+        self._run_path_search(start_id, target_id)
 
+    def _run_path_search(self, start_id, target_id):
+        """Render relationship paths from start_id to target_id."""
+        self._set_display_mode('paths', refresh=False)
         try:
             max_depth = int(self.max_depth.get())
         except (tk.TclError, ValueError):
@@ -272,9 +393,12 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
         self._set_busy(True)
 
         def _do_search(cancel_event):
-            return self._model.find_all_paths(
+            paths, truncated = self._model.find_all_paths(
                 start_id, target_id, top_n, max_depth,
                 cancel_event=cancel_event)
+            home_path_data = self._find_home_path_data(
+                start_id, max_depth, cancel_event=cancel_event)
+            return paths, truncated, home_path_data
 
         def _on_cancel():
             self._hide_progress()
@@ -287,12 +411,14 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
             if error:
                 messagebox.showerror(ERR_PARSE_TITLE, str(error))
                 return
-            paths, truncated = result
+            paths, truncated, home_path_data = result
             self._results_reversed = False
             self._reverse_btn.configure(text=BTN_REVERSE)
+            self._display_path_target_id = target_id
             self._last_result = {'type': 'path',
                                  'start_id': start_id, 'end_id': target_id}
-            self._render_path_results(start_id, target_id, paths, truncated)
+            self._render_path_results(
+                start_id, target_id, paths, truncated, home_path_data)
 
         self._run_background_task(
             _do_search,
@@ -302,11 +428,13 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
             on_cancel=_on_cancel,
         )
 
-    def _render_path_results(self, start_id, end_id, paths, truncated=False):
+    def _render_path_results(
+            self, start_id, end_id, paths, truncated=False, home_paths=None):
         """Render relationship paths between two selected individuals."""
         if self._last_result and self._last_result.get('type') == 'path':
             self._last_result['paths'] = paths
             self._last_result['truncated'] = truncated
+            self._last_result['home_paths'] = home_paths
 
         w = self.results
         w.configure(state='normal')
@@ -435,6 +563,17 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
                 nl(PATH_SEARCH_CAP)
         nl()
 
+        self._render_home_path_section(
+            start_id,
+            home_paths,
+            nl=nl,
+            person=person,
+            relationship_line=relationship_line,
+            common_ancestor_line=common_ancestor_line,
+            separator=None,
+            reverse=self._results_reversed,
+        )
+
         self._reverse_btn.configure(state='normal')
         w.configure(state='disabled')
 
@@ -447,8 +586,11 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
         win.transient(self.root)
         win.grab_set()
 
-        outer = ctk.CTkFrame(win, fg_color='transparent')
-        outer.pack(fill='both', expand=True, padx=16, pady=16)
+        _scroll_frame = ctk.CTkScrollableFrame(win, fg_color='transparent', corner_radius=0)
+        _scroll_frame.pack(fill='both', expand=True)
+
+        outer = ctk.CTkFrame(_scroll_frame, fg_color='transparent')
+        outer.pack(fill='x', padx=16, pady=16)
 
         # Appearance section (font size + theme + tooltips)
         appearance_section = ctk.CTkFrame(outer, border_width=1)
@@ -483,7 +625,8 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
             _size = _ctk_font_obj.cget('size')
             _rb_font = (_ctk_font_obj.cget('family'),
                         -_size if sys.platform == 'win32' else _size)
-        except Exception:
+        except Exception:  # pylint: disable=broad-exception-caught
+            log_exception("building preferences radiobutton font")
             _rb_font = None
 
         def _radiobutton(parent, *, text, variable, value):
@@ -639,16 +782,50 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
         _radiobutton(name_order_row, text=NAME_LAST_FIRST,
                      variable=name_order_var, value='last_first').pack(side='left')
 
-        profile_view_row = ctk.CTkFrame(display_frame, fg_color='transparent')
-        profile_view_row.pack(anchor='w', pady=(6, 0))
-        ctk.CTkLabel(profile_view_row, text=LBL_DEFAULT_PROFILE_VIEW).pack(
+        default_display_row = ctk.CTkFrame(display_frame, fg_color='transparent')
+        default_display_row.pack(anchor='w', pady=(6, 0))
+        ctk.CTkLabel(default_display_row, text=LBL_DEFAULT_DISPLAY).pack(
             side='left', padx=(0, 8))
-        profile_view_var = tk.StringVar(
-            value=getattr(self, '_default_profile_view', 'profile'))
-        _radiobutton(profile_view_row, text=PROFILE_VIEW_PROFILE,
-                     variable=profile_view_var, value='profile').pack(side='left', padx=(0, 8))
-        _radiobutton(profile_view_row, text=PROFILE_VIEW_TREE,
-                     variable=profile_view_var, value='tree').pack(side='left')
+        default_display_var = tk.StringVar(value=self._config.get_default_display())
+        _radiobutton(default_display_row, text=DISPLAY_MODE_PROFILE,
+                     variable=default_display_var, value='profile').pack(side='left', padx=(0, 8))
+        _radiobutton(default_display_row, text=DISPLAY_MODE_MATCHES,
+                     variable=default_display_var, value='matches').pack(side='left', padx=(0, 8))
+        _radiobutton(default_display_row, text=DISPLAY_MODE_PATHS,
+                     variable=default_display_var, value='paths').pack(side='left')
+
+        # Language row (wraps to multiple rows on narrow windows)
+        lang_row = ctk.CTkFrame(display_section, fg_color='transparent')
+        lang_row.pack(fill='x', padx=12, pady=(0, 10))
+        ctk.CTkLabel(lang_row, text=LBL_LANGUAGE).pack(anchor='w', pady=(0, 2))
+        lang_var = tk.StringVar(value=self._config.get_language())
+        lang_options = get_available_languages()
+
+        lang_btns_frame = ctk.CTkFrame(lang_row, fg_color='transparent')
+        lang_btns_frame.pack(fill='x')
+        _lang_btns = [
+            _radiobutton(lang_btns_frame, text=label, variable=lang_var, value=code)
+            for label, code in lang_options
+        ]
+
+        def _layout_lang_buttons(event=None, _force_width=None):
+            avail = _force_width if _force_width is not None else lang_btns_frame.winfo_width()
+            if avail <= 1:
+                return
+            for b in _lang_btns:
+                b.grid_forget()
+            row = col = x = 0
+            for b in _lang_btns:
+                bw = b.winfo_reqwidth() + 12
+                if col and x + bw > avail:
+                    row += 1
+                    col = 0
+                    x = 0
+                b.grid(row=row, column=col, padx=(0, 6), pady=(0, 2), sticky='w')
+                x += bw
+                col += 1
+
+        lang_btns_frame.bind('<Configure>', _layout_lang_buttons)
 
         # Cache section
         cache_section = ctk.CTkFrame(outer, border_width=1)
@@ -708,14 +885,18 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
             self._config.set_show_full_gedcom(show_full_gedcom_var.get())
             self._name_order = name_order_var.get()
             self._config.set_name_order(self._name_order)
-            self._default_profile_view = profile_view_var.get()
-            self._config.set_profile_view_default(self._default_profile_view)
-            if self._default_profile_view == 'tree':
-                self.show_person_btn.configure(text=BTN_SHOW_PERSON_TREE)
-                self._show_person_tooltip.update_text(TIP_SHOW_PERSON_TREE)
-            else:
-                self.show_person_btn.configure(text=BTN_SHOW_PERSON)
-                self._show_person_tooltip.update_text(TIP_SHOW_PERSON)
+            self._config.set_default_display(default_display_var.get())
+            
+            # Check if language has changed
+            old_lang = self._config.get_language()
+            new_lang = lang_var.get()
+            if old_lang != new_lang:
+                self._config.set_language(new_lang)
+                messagebox.showinfo(
+                    _(LBL_LANGUAGE_CHANGED),
+                    _(MSG_LANGUAGE_CHANGED).format(old=old_lang, new=new_lang)
+                )
+
             self._pop_sort_key = None
             self._populate_tree()
             self._refresh_result()
@@ -732,38 +913,83 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
         ctk.CTkButton(btn_frame, text=BTN_CANCEL, width=80,
                       command=on_cancel).pack(side='right')
 
-        if getattr(self, '_debug', False):
-            import sys as _sys
-            import tkinter.font as _tkf
-            win.update_idletasks()
-            print('[debug] --- Preferences dialog before fit ---',
-                  file=_sys.stderr, flush=True)
-            print(f'[debug]   win req: {win.winfo_reqwidth()}x{win.winfo_reqheight()}',
-                  file=_sys.stderr, flush=True)
-            try:
-                cf = ctk.CTkFont()
-                print(f'[debug]   CTkFont: family={cf.cget("family")!r}'
-                      f'  size={cf.cget("size")} (cget)  actual={cf.actual("size")}',
-                      file=_sys.stderr, flush=True)
-            except Exception as e:
-                print(f'[debug]   CTkFont: ERROR {e}',
-                      file=_sys.stderr, flush=True)
-            try:
-                df = _tkf.nametofont('TkDefaultFont')
-                print(f'[debug]   TkDefaultFont: size={df.cget("size")} (cget)'
-                      f'  actual={df.actual("size")}',
-                      file=_sys.stderr, flush=True)
-            except Exception as e:
-                print(
-                    f'[debug]   TkDefaultFont: ERROR {e}', file=_sys.stderr, flush=True)
-            try:
-                theme_font = ctk.ThemeManager.theme.get('CTkFont', 'N/A')
-                print(f'[debug]   CTk theme CTkFont: {theme_font}',
-                      file=_sys.stderr, flush=True)
-            except Exception as e:
-                print(
-                    f'[debug]   CTk theme: ERROR {e}', file=_sys.stderr, flush=True)
+        # Pre-layout language buttons at the expected inner width so we can measure
+        # the accurate content height before the window is shown.  ~440 px accounts
+        # for window min_w=500 minus the CTkScrollableFrame scrollbar, outer padx=16,
+        # and the display-section padx=12 on each side.
+        _layout_lang_buttons(_force_width=440)
+        win.update_idletasks()
 
-        self._fit_window_to_content(win, min_w=500, min_h=420)
+        _pre_target_h = self._preferences_dialog_target_height(
+            outer, btn_frame, win.winfo_screenheight())
+
+        self._fit_window_to_content(
+            win,
+            min_w=self._PREFS_MIN_WIDTH,
+            min_h=self._PREFS_MIN_HEIGHT,
+            preferred_h=_pre_target_h,
+        )
+
+        def _correct_prefs_height():
+            # Re-layout at the actual window width and resize if the pre-computed
+            # height was off.  Early Configure events can still report a width
+            # of 1, so fall back to the known window width minus the same
+            # scrollbar/padding allowance used for the pre-layout pass.
+            lang_width = lang_btns_frame.winfo_width()
+            if lang_width <= 1:
+                lang_width = (
+                    self._preferences_dialog_width(win)
+                    - self._PREFS_LANG_WIDTH_OVERHEAD
+                )
+            _layout_lang_buttons(_force_width=max(1, lang_width))
+            win.update_idletasks()
+            target_h = self._preferences_dialog_target_height(
+                outer, btn_frame, win.winfo_screenheight())
+            geo = win.geometry()
+            current_h = int(geo.split('x')[1].split('+')[0])
+            if abs(target_h - current_h) > 4:
+                fw = geo.split('x')[0]
+                pos = geo.split('+', 1)[1]
+                # Unlock CTkToplevel's scaling maxsize before resizing.
+                win.maxsize(10000, 10000)
+                win.geometry(f'{fw}x{target_h}+{pos}')
+
+        for _ in range(self._PREFS_PRE_SHOW_SETTLE_PASSES):
+            _correct_prefs_height()
+
+        hidden_until_mapped = False
+        if sys.platform != 'darwin':
+            try:
+                win.attributes('-alpha', 0.0)
+                hidden_until_mapped = True
+            except tk.TclError:
+                hidden_until_mapped = False
+
         win.deiconify()
-        win.after(50, win.focus_force)
+        win.update_idletasks()
+        for _ in range(self._PREFS_PRE_SHOW_SETTLE_PASSES):
+            _correct_prefs_height()
+
+        def _focus_prefs_window():
+            try:
+                win.focus_force()
+            except tk.TclError:
+                pass
+
+        def _reveal_prefs_window():
+            for _ in range(self._PREFS_PRE_SHOW_SETTLE_PASSES):
+                _correct_prefs_height()
+            if hidden_until_mapped:
+                try:
+                    win.attributes('-alpha', 1.0)
+                except tk.TclError:
+                    pass
+            _focus_prefs_window()
+
+        if hidden_until_mapped:
+            win.after(self._PREFS_WIN_REVEAL_DELAY_MS, _reveal_prefs_window)
+        else:
+            win.after(50, _focus_prefs_window)
+
+        for delay_ms in self._PREFS_HEIGHT_SETTLE_DELAYS_MS:
+            win.after(delay_ms, _correct_prefs_height)

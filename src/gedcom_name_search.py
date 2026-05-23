@@ -17,6 +17,13 @@ def individual_names(indi, extra_names=None):
     return [name for name in names if name]
 
 
+def fuzzy_names(indi, extra_names=None):
+    """Return names used by fuzzy matching, including cached transliterations."""
+    names = individual_names(indi, extra_names=extra_names)
+    names.extend(indi.get('transliterated_names') or [])
+    return [name for name in names if name]
+
+
 def exact_id_candidate(individuals, query):
     """Return an exact INDI ID match for query, or None."""
     q = query.strip()
@@ -55,7 +62,7 @@ def fuzzy_score(indi, query, threshold, extra_names=None):
     best_score = 0.0
     tokens = q_lower.split()
 
-    for name in individual_names(indi, extra_names=extra_names):
+    for name in fuzzy_names(indi, extra_names=extra_names):
         name_lower = name.lower()
         matcher.set_seq1(name_lower)
         if matcher.quick_ratio() >= threshold:

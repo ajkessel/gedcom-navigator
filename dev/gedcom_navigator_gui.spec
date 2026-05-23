@@ -85,7 +85,8 @@ d = [('../docs/HELP.md', './docs'), ('../docs/LICENSE.md', './docs'),
      ('../docs/KEYBOARD_SHORTCUTS.md',
      './docs'), ('../docs/PRIVACY_POLICY.md', './docs'),
      ('../icons/family_tree.ico', './icons'), ('../icons/family_tree.png', './icons'),
-     ('../gedcom_navigator/__init__.py', 'gedcom_navigator')]
+     ('../gedcom_navigator/__init__.py', 'gedcom_navigator'),
+     ('../locales', './locales')]
 
 # package certificates for MacOS since python.org does not include them by default
 if sys.platform == 'darwin':
