@@ -522,10 +522,17 @@ class GedcomNavigatorApp(
             self._display_mode_selector.pack(side='left')
             self._display_mode_selector.set(
                 self._display_mode_labels[self.display_mode.get()])
+            def _on_paths_btn_release(*_):
+                if (self.display_mode.get() == 'paths'
+                        and not getattr(self, '_picker_open', False)):
+                    self._find_path()
             for mode, label in self._display_mode_labels.items():
                 button = self._display_mode_selector._buttons_dict.get(label)
                 if button is not None:
                     Tooltip(button, self._display_mode_tooltips[mode])
+                    if mode == 'paths':
+                        for w in [button] + list(button.winfo_children()):
+                            w.bind('<ButtonRelease-1>', _on_paths_btn_release, add='+')
         else:
             self._display_mode_selector = ctk.CTkFrame(
                 display_mode_frame, fg_color='transparent')
@@ -602,8 +609,13 @@ class GedcomNavigatorApp(
         Tooltip(self._save_btn, get_tip_save())
         self._copy_btn = ctk.CTkButton(status_bar, text=BTN_COPY, width=80,
                                        command=self._copy_results)
-        self._copy_btn.grid(row=0, column=3, padx=(4, 8), pady=4)
+        self._copy_btn.grid(row=0, column=3, padx=(4, 4), pady=4)
         Tooltip(self._copy_btn, get_tip_copy())
+        if os.environ.get('GEDCOM_NAVIGATOR_DEBUG') == '1':
+            self._copy_json_btn = ctk.CTkButton(
+                status_bar, text='Copy JSON', width=90,
+                command=self._copy_paths_json)
+            self._copy_json_btn.grid(row=0, column=4, padx=(0, 8), pady=4)
         self._progress_bar = ctk.CTkProgressBar(status_bar, width=130)
         self._progress_bar.set(0)
         self._progress_bar.grid(row=0, column=2, columnspan=2, padx=(4, 8), pady=4)
@@ -755,6 +767,7 @@ def main():
 
     if args.debug:
         _print_dpi_diagnostics(root)
+        os.environ["GEDCOM_NAVIGATOR_DEBUG"] = "1"
 
     # On macOS the window briefly appears at the default top-left position
     # before _fit_window_to_content centres it, so withdraw it first.

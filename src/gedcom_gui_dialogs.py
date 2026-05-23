@@ -131,15 +131,35 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
         result = [None]
 
         search_frame = ctk.CTkFrame(dialog, fg_color='transparent')
-        search_frame.pack(fill='x', padx=8, pady=8)
+        search_frame.pack(fill='x', padx=8, pady=(8, 0))
         ctk.CTkLabel(search_frame, text=LBL_FIND).pack(
             side='left', padx=(0, 4))
         search_var = tk.StringVar()
         search_entry = ctk.CTkEntry(search_frame, textvariable=search_var)
         search_entry.pack(side='left', fill='x', expand=True)
+        fuzzy_var = tk.BooleanVar(value=self.fuzzy_search.get())
+        ctk.CTkCheckBox(
+            search_frame, text=CHK_FUZZY, variable=fuzzy_var, width=0,
+        ).pack(side='left', padx=(8, 0))
+        married_var = tk.BooleanVar(value=self.married_name_search.get())
+        ctk.CTkCheckBox(
+            search_frame, text=CHK_MARRIED_NAMES, variable=married_var, width=0,
+        ).pack(side='left', padx=(8, 0))
+
+        filter_frame = ctk.CTkFrame(dialog, fg_color='transparent')
+        filter_frame.pack(fill='x', padx=8, pady=(2, 0))
+        ctk.CTkLabel(filter_frame, text=LBL_FILTER).pack(
+            side='left', padx=(0, 4))
+        filter_var = tk.StringVar()
+        filter_entry = ctk.CTkEntry(filter_frame, textvariable=filter_var)
+        filter_entry.pack(side='left', fill='x', expand=True)
+        flagged_var = tk.BooleanVar(value=False)
+        ctk.CTkCheckBox(
+            filter_frame, text=CHK_DNA_FLAGGED_ONLY, variable=flagged_var, width=0,
+        ).pack(side='left', padx=(8, 0))
 
         list_frame = ctk.CTkFrame(dialog, fg_color='transparent')
-        list_frame.pack(fill='both', expand=True, padx=8)
+        list_frame.pack(fill='both', expand=True, padx=8, pady=(4, 0))
 
         picker_tree = ttk.Treeview(
             list_frame,
@@ -167,16 +187,33 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
 
         after_id = [None]
 
-        def populate(query=''):
+        def populate():
             picker_tree.delete(*picker_tree.get_children())
-            query = query.strip()
+            query = search_var.get().strip()
+            filter_query = filter_var.get().strip().lower()
+            flagged_only = flagged_var.get()
+            extra_names_by_id = (
+                self._model.married_name_index
+                if married_var.get()
+                else {}
+            )
             shown = 0
             for indi_id in self.sorted_ids:
                 indi = self.individuals[indi_id]
+                if flagged_only and not indi['dna_markers']:
+                    continue
                 if query:
                     match, _score = individual_matches_query(
-                        indi_id, indi, query)
+                        indi_id, indi, query,
+                        fuzzy=fuzzy_var.get(),
+                        fuzzy_threshold=self._fuzzy_threshold_value(),
+                        extra_names=extra_names_by_id.get(indi_id),
+                    )
                     if not match:
+                        continue
+                if filter_query:
+                    raw_text = ' '.join(v.lower() for _, _, _, v in indi['_raw'])
+                    if filter_query not in raw_text:
                         continue
                 tags = ('flagged_row',) if indi['dna_markers'] else ()
                 flagged_mark = '✓' if indi['dna_markers'] else ''
@@ -195,17 +232,19 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
         def on_search_change(*_):
             if after_id[0]:
                 dialog.after_cancel(after_id[0])
-            after_id[0] = dialog.after(150, lambda: populate(search_var.get()))
+            after_id[0] = dialog.after(150, populate)
 
         def picker_flush_and_jump():
             if after_id[0]:
                 dialog.after_cancel(after_id[0])
                 after_id[0] = None
-                populate(search_var.get())
+                populate()
             self._tree_jump('first', picker_tree)
 
-        search_var.trace_add('write', on_search_change)
+        for _var in (search_var, filter_var, fuzzy_var, married_var, flagged_var):
+            _var.trace_add('write', on_search_change)
         search_entry.bind('<Return>', lambda *_: picker_flush_and_jump())
+        filter_entry.bind('<Return>', lambda *_: picker_flush_and_jump())
         populate()
 
         def select():
@@ -235,13 +274,17 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
         self._fit_window_to_content(
             dialog,
             min_w=500,
-            min_h=380,
-            preferred_w=600,
-            preferred_h=500,
+            min_h=420,
+            preferred_w=620,
+            preferred_h=540,
         )
         dialog.deiconify()
         search_entry.focus_set()
-        dialog.wait_window()
+        self._picker_open = True
+        try:
+            dialog.wait_window()
+        finally:
+            self._picker_open = False
         return result[0]
 
     def _find_path(self):
@@ -279,9 +322,12 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
         self._set_busy(True)
 
         def _do_search(cancel_event):
-            return self._model.find_all_paths(
+            paths, truncated = self._model.find_all_paths(
                 start_id, target_id, top_n, max_depth,
                 cancel_event=cancel_event)
+            home_path_data = self._find_home_path_data(
+                start_id, max_depth, cancel_event=cancel_event)
+            return paths, truncated, home_path_data
 
         def _on_cancel():
             self._hide_progress()
@@ -294,13 +340,14 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
             if error:
                 messagebox.showerror(ERR_PARSE_TITLE, str(error))
                 return
-            paths, truncated = result
+            paths, truncated, home_path_data = result
             self._results_reversed = False
             self._reverse_btn.configure(text=BTN_REVERSE)
             self._display_path_target_id = target_id
             self._last_result = {'type': 'path',
                                  'start_id': start_id, 'end_id': target_id}
-            self._render_path_results(start_id, target_id, paths, truncated)
+            self._render_path_results(
+                start_id, target_id, paths, truncated, home_path_data)
 
         self._run_background_task(
             _do_search,
@@ -310,11 +357,13 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
             on_cancel=_on_cancel,
         )
 
-    def _render_path_results(self, start_id, end_id, paths, truncated=False):
+    def _render_path_results(
+            self, start_id, end_id, paths, truncated=False, home_paths=None):
         """Render relationship paths between two selected individuals."""
         if self._last_result and self._last_result.get('type') == 'path':
             self._last_result['paths'] = paths
             self._last_result['truncated'] = truncated
+            self._last_result['home_paths'] = home_paths
 
         w = self.results
         w.configure(state='normal')
@@ -442,6 +491,17 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
             if truncated:
                 nl(PATH_SEARCH_CAP)
         nl()
+
+        self._render_home_path_section(
+            start_id,
+            home_paths,
+            nl=nl,
+            person=person,
+            relationship_line=relationship_line,
+            common_ancestor_line=common_ancestor_line,
+            separator=None,
+            reverse=self._results_reversed,
+        )
 
         self._reverse_btn.configure(state='normal')
         w.configure(state='disabled')

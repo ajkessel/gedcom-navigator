@@ -837,7 +837,7 @@ class PathGraphMixin:
         save_btn.pack(side='right', padx=(0, 8))
         Tooltip(save_btn, get_tip_save_graph())
         graph_debug_enabled = (
-            os.environ.get('GEDCOM_NAVIGATOR_GRAPH_DEBUG') == '1')
+            os.environ.get('GEDCOM_NAVIGATOR_DEBUG') == '1')
         if graph_debug_enabled:
             debug_btn = ctk.CTkButton(
                 btn_frame, text=BTN_DEBUG_GRAPH, width=100,

@@ -1,6 +1,44 @@
 """Tests for person dialog defensive behavior."""
 
 from gedcom_gui_person_dialog import PersonDialogMixin
+from gedcom_gui_results import ResultsMixin
+from gedcom_strings import (
+    BIO_SECTION,
+    FAM_SECTION,
+    GEDCOM_SECTION,
+    RESULT_PATH_SECTION,
+)
+
+
+class Var:
+    def __init__(self, value):
+        self.value = value
+
+    def get(self):
+        return self.value
+
+
+class FakeText:
+    def __init__(self):
+        self._textbox = self
+        self.parts = []
+
+    def insert(self, _index, text, _tags=None):
+        self.parts.append(text)
+
+    def tag_configure(self, *_args, **_kwargs):
+        pass
+
+    def tag_bind(self, *_args, **_kwargs):
+        pass
+
+    def tag_names(self, *_args):
+        return []
+
+
+class Model:
+    def find_common_ancestors(self, *_args):
+        return []
 
 
 def test_show_person_for_missing_id_warns_without_opening_window(monkeypatch):
@@ -21,3 +59,63 @@ def test_show_person_for_missing_id_warns_without_opening_window(monkeypatch):
 
     assert warnings
     assert not hasattr(app, '_secondary_win')
+
+
+def test_profile_home_path_appears_between_bio_and_full_gedcom():
+    """Profile mode inserts the home path before later profile sections."""
+
+    class App(PersonDialogMixin, ResultsMixin):
+        def _display_name(self, indi):
+            return indi['name']
+
+        def _get_family_members(self, _indi_id):
+            return [], [], [], []
+
+        def _show_path_graph(self, *_args):
+            pass
+
+    app = App()
+    app.individuals = {
+        '@A@': {
+            'name': 'Alex Person',
+            'sex': 'M',
+            'famc': [],
+            'fams': [],
+            'tags': [],
+            '_raw': [(0, '@A@', 'INDI', ''),
+                     (1, None, 'BIRT', ''),
+                     (2, None, 'DATE', '1900')],
+        },
+        '@H@': {
+            'name': 'Home Person',
+            'sex': 'M',
+            'famc': [],
+            'fams': [],
+            'tags': [],
+            '_raw': [],
+        },
+    }
+    app.families = {}
+    app.show_ids = Var(False)
+    app.show_full_gedcom = Var(True)
+    app._link_color = '#0000ee'
+    app._mono_family = 'Courier'
+    app._mono_size = 12
+    app._model = Model()
+    text = FakeText()
+
+    app._insert_person_profile(
+        text,
+        '@A@',
+        lambda _indi_id: None,
+        home_paths={
+            'home_id': '@H@',
+            'paths': [[('@A@', None), ('@H@', 'father')]],
+        },
+    )
+    rendered = ''.join(text.parts)
+
+    assert rendered.index(BIO_SECTION) < rendered.index(RESULT_PATH_SECTION)
+    assert rendered.index(BIO_SECTION) < rendered.index(FAM_SECTION)
+    assert rendered.index(FAM_SECTION) < rendered.index(RESULT_PATH_SECTION)
+    assert rendered.index(RESULT_PATH_SECTION) < rendered.index(GEDCOM_SECTION)

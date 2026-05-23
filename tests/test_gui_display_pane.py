@@ -27,6 +27,16 @@ class Button:
         pass
 
 
+class Model:
+    def __init__(self, paths=None):
+        self.paths = paths or []
+        self.calls = []
+
+    def find_all_paths(self, start_id, end_id, top_n, max_depth, cancel_event=None):
+        self.calls.append((start_id, end_id, top_n, max_depth, cancel_event))
+        return self.paths, False
+
+
 class App(SearchMixin):
     def __init__(self, mode='profile', selection=('@A@',)):
         self._busy = False
@@ -36,6 +46,8 @@ class App(SearchMixin):
         self._reverse_btn = Button()
         self._active_id = None
         self._display_path_target_id = None
+        self._home_person_id = None
+        self._model = Model()
         self._display_mode_labels = {
             'profile': 'Profile',
             'matches': 'Matches',
@@ -85,3 +97,32 @@ def test_paths_mode_prompts_once_then_reuses_target():
         ('paths', '@A@', '@B@'),
         ('paths', '@C@', '@B@'),
     ]
+
+
+def test_home_path_data_returns_none_without_home():
+    app = App()
+
+    assert app._find_home_path_data('@A@', 10) is None
+
+
+def test_home_path_data_returns_same_person_path_for_home_selection():
+    app = App()
+    app._home_person_id = '@A@'
+
+    assert app._find_home_path_data('@A@', 10) == {
+        'home_id': '@A@',
+        'paths': [[('@A@', None)]],
+    }
+
+
+def test_home_path_data_finds_path_to_home_person():
+    path = [[('@A@', None), ('@B@', 'father')]]
+    app = App()
+    app._home_person_id = '@B@'
+    app._model = Model(paths=path)
+
+    assert app._find_home_path_data('@A@', 12) == {
+        'home_id': '@B@',
+        'paths': path,
+    }
+    assert app._model.calls == [('@A@', '@B@', 1, 12, None)]

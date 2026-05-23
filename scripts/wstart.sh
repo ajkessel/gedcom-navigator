@@ -8,7 +8,7 @@ cd "${SCRIPT_DIR}/.." || exit 1
 }
 [ ! -e "/mnt/c/apps/src/gedcom-navigator/venv/Scripts/python.exe" ] && {
 	echo '/mnt/c/apps/src/gedcom-navigator/venv/Scripts/python.exe not found.'
-	echo 'Script needs to be modified to find the Windows venv python interpreter.'
+	echo 'Script needs to be modified to find the Windows host venv python interpreter.'
 	exit 1
 }
-/mnt/c/apps/src/gedcom-navigator/venv/Scripts/python.exe $(wslpath -w src/gedcom_navigator_gui.py)
+/mnt/c/apps/src/gedcom-navigator/venv/Scripts/python.exe $(wslpath -w src/gedcom_navigator_gui.py) --debug

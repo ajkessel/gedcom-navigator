@@ -7,6 +7,78 @@ from gedcom_family_tree import (
     layout_family_tree,
 )
 from gedcom_gui_results import ResultsMixin
+import gedcom_strings as gs
+
+
+class _HomeModel:
+    def find_common_ancestors(self, *_args):
+        return []
+
+
+class _HomePathApp(ResultsMixin):
+    def __init__(self):
+        self.individuals = {
+            '@A@': {'name': 'Alex', 'sex': 'M', 'famc': [], 'fams': []},
+            '@B@': {'name': 'Home', 'sex': 'M', 'famc': [], 'fams': []},
+        }
+        self.families = {}
+        self._model = _HomeModel()
+
+    def _reverse_path(self, path, _individuals):
+        return list(reversed([(node_id, edge) for node_id, edge in path]))
+
+    def _path_edge_prefix(self, edge, indent='  '):
+        return f'{indent}{edge}: '
+
+
+def test_home_path_section_renders_missing_path_message():
+    app = _HomePathApp()
+    lines = []
+
+    rendered = app._render_home_path_section(
+        '@A@',
+        {'home_id': '@B@', 'paths': []},
+        nl=lambda text='', bold=False: lines.append(text),
+        person=lambda indi_id, prefix='': lines.append(prefix + indi_id),
+        relationship_line=lambda rel, path, prefix='': lines.append(rel),
+        common_ancestor_line=lambda ancestor_ids, prefix='', item_prefix='    ': None,
+    )
+
+    assert rendered is True
+    assert gs.RESULT_PATH_SECTION in lines
+    assert gs.RESULT_NO_HOME_PATH in lines
+
+
+def test_home_path_section_renders_same_person_message():
+    app = _HomePathApp()
+    lines = []
+
+    app._render_home_path_section(
+        '@A@',
+        {'home_id': '@A@', 'paths': [[('@A@', None)]]},
+        nl=lambda text='', bold=False: lines.append(text),
+        person=lambda indi_id, prefix='': lines.append(prefix + indi_id),
+        relationship_line=lambda rel, path, prefix='': lines.append(rel),
+        common_ancestor_line=lambda ancestor_ids, prefix='', item_prefix='    ': None,
+    )
+
+    assert gs.PATH_SAME_PERSON in lines
+
+
+def test_home_path_section_is_appended_after_existing_content():
+    app = _HomePathApp()
+    lines = ['main content']
+
+    app._render_home_path_section(
+        '@A@',
+        {'home_id': '@B@', 'paths': [[('@A@', None), ('@B@', 'father')]]},
+        nl=lambda text='', bold=False: lines.append(text),
+        person=lambda indi_id, prefix='': lines.append(prefix + indi_id),
+        relationship_line=lambda rel, path, prefix='': lines.append(rel),
+        common_ancestor_line=lambda ancestor_ids, prefix='', item_prefix='    ': None,
+    )
+
+    assert lines.index('main content') < lines.index(gs.RESULT_PATH_SECTION)
 
 
 def test_path_graph_layout_aligns_same_generation_edges():

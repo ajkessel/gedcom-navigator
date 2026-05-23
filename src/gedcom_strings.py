@@ -288,7 +288,7 @@ RESULT_COMMON_ANCESTOR_NONE = _("None found.")
 RESULT_PATH = _("Path:")
 RESULT_PATH_SECTION = _("Path to Home Person")
 RESULT_HOME = _("Home: ")
-RESULT_NO_HOME_PATH = _("No path found to home person within the current max depth.")
+RESULT_NO_HOME_PATH = _("None found within the current max depth.")
 
 EDGE_LABELS = {
     'father': _('father'),

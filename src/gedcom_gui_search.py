@@ -141,22 +141,37 @@ class SearchMixin:
         self._model.reflag(dna_keyword, page_marker)
         self._populate_tree()
 
+    def _find_home_path_data(self, start_id, max_depth, cancel_event=None):
+        """Return path data from start_id to the configured home person."""
+        home_id = self._home_person_id
+        if not home_id or home_id not in self.individuals:
+            return None
+        if home_id == start_id:
+            return {'home_id': home_id, 'paths': [[(start_id, None)]]}
+        home_paths, _ = self._model.find_all_paths(
+            start_id, home_id, top_n=1, max_depth=max_depth,
+            cancel_event=cancel_event)
+        return {'home_id': home_id, 'paths': home_paths}
+
     def _find_dna_result_data(self, start_id, top_n, max_depth, cancel_event=None):
         """Return DNA search results plus the optional path to the home person."""
         results = self._model.find_dna_matches(
             start_id, top_n, max_depth, cancel_event=cancel_event)
-        home_paths = None
-        home_id = self._home_person_id
-        if home_id and home_id != start_id and home_id in self.individuals:
-            home_paths, _ = self._model.find_all_paths(
-                start_id, home_id, top_n=1, max_depth=max_depth,
-                cancel_event=cancel_event)
-        return results, home_paths
+        return (
+            results,
+            self._find_home_path_data(
+                start_id, max_depth, cancel_event=cancel_event),
+        )
 
     def _on_display_mode_selected(self, label):
         """Handle a click on the Display Pane mode selector."""
         mode = self._display_mode_by_label.get(label, 'profile')
-        self._set_display_mode(mode)
+        if mode == 'paths':
+            self._find_path()
+            # Revert button visual if picker was cancelled (mode unchanged).
+            self._sync_display_mode_selector()
+        else:
+            self._set_display_mode(mode)
 
     def _sync_display_mode_selector(self):
         """Keep the mode selector widget in sync with display_mode."""
@@ -232,7 +247,8 @@ class SearchMixin:
         kind = self._last_result['type']
         start_id = self._last_result['start_id']
         if kind == 'profile':
-            self._render_profile_result(start_id)
+            self._render_profile_result(
+                start_id, self._find_home_path_data(start_id, max_depth))
             return
         self._show_progress()
         self._set_busy(True)
@@ -266,9 +282,12 @@ class SearchMixin:
             end_id = self._last_result['end_id']
 
             def _do_refresh(cancel_event):
-                return self._model.find_all_paths(
+                paths, truncated = self._model.find_all_paths(
                     start_id, end_id, top_n, max_depth,
                     cancel_event=cancel_event)
+                home_path_data = self._find_home_path_data(
+                    start_id, max_depth, cancel_event=cancel_event)
+                return paths, truncated, home_path_data
 
             def _on_done(result, error):
                 self._hide_search_popup()
@@ -277,8 +296,9 @@ class SearchMixin:
                 if error:
                     messagebox.showerror(gs.ERR_PARSE_TITLE, str(error))
                     return
-                paths, truncated = result
-                self._render_path_results(start_id, end_id, paths, truncated)
+                paths, truncated, home_path_data = result
+                self._render_path_results(
+                    start_id, end_id, paths, truncated, home_path_data)
 
             self._run_background_task(
                 _do_refresh,

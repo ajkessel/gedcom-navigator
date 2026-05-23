@@ -12,5 +12,5 @@ if ( -not ($env:virtual_env)) {
     & "./venv/Scripts/Activate.ps1"
     pip install -r dev/requirements.txt
 }
-$env:GEDCOM_NAVIGATOR_GRAPH_DEBUG=1
+$env:GEDCOM_NAVIGATOR_DEBUG=1
 & "./venv/Scripts/python.exe" src/gedcom_navigator_gui.py

@@ -5,6 +5,7 @@ gedcom_gui_results.py
 Result rendering, path reversal, person navigation, and family-summary helpers.
 """
 
+import json
 import re
 import sys
 import tkinter as tk
@@ -70,9 +71,10 @@ class ResultsMixin(GraphRenderMixin, GraphLayoutMixin):
                 self._last_result['end_id'],
                 self._last_result.get('paths', []),
                 self._last_result.get('truncated', False),
+                self._last_result.get('home_paths'),
             )
 
-    def _render_profile_result(self, start_id):
+    def _render_profile_result(self, start_id, home_paths=None):
         """Render the selected person's profile in the Display Pane."""
         if start_id not in self.individuals:
             self._clear_results()
@@ -91,10 +93,81 @@ class ResultsMixin(GraphRenderMixin, GraphLayoutMixin):
             self.filter_text.set('')
             self.show_flagged_only.set(True)
 
+        home_path_data = home_paths
+        if home_path_data is None:
+            try:
+                max_depth = int(self.max_depth.get())
+            except (tk.TclError, ValueError):
+                max_depth = 1
+            home_path_data = self._find_home_path_data(start_id, max_depth)
+        if self._last_result and self._last_result.get('type') == 'profile':
+            self._last_result['home_paths'] = home_path_data
+
         self._insert_person_profile(
-            w, start_id, self._navigate_to, tag_callback=_on_tag_click)
+            w, start_id, self._navigate_to, tag_callback=_on_tag_click,
+            home_paths=home_path_data)
         self._reverse_btn.configure(state='disabled', text=gs.BTN_REVERSE)
         w.configure(state='disabled')
+
+    def _coerce_home_path_data(self, home_paths):
+        """Normalize home-path payloads from old and new render callers."""
+        if home_paths is None:
+            return None
+        if isinstance(home_paths, dict):
+            return home_paths
+        home_id = getattr(self, '_home_person_id', None)
+        if not home_id or home_id not in self.individuals:
+            return None
+        return {'home_id': home_id, 'paths': home_paths}
+
+    def _render_home_path_section(
+            self, start_id, home_paths, nl, person, relationship_line,
+            common_ancestor_line, separator=None, reverse=False):
+        """Render the shared Path to Home Person section."""
+        home_data = self._coerce_home_path_data(home_paths)
+        if not home_data:
+            return False
+        home_id = home_data['home_id']
+        if separator is not None:
+            separator()
+        nl(gs.RESULT_PATH_SECTION, bold=True)
+        person(home_id, prefix=gs.RESULT_HOME)
+        paths = home_data.get('paths') or []
+        if not paths:
+            nl(gs.RESULT_NO_HOME_PATH)
+            nl()
+            return True
+
+        raw_path = paths[0]
+        if len(raw_path) <= 1:
+            nl(gs.PATH_SAME_PERSON)
+            nl()
+            return True
+
+        disp_path = (
+            self._reverse_path(raw_path, self.individuals)
+            if reverse else raw_path
+        )
+        rel_start_id = disp_path[0][0]
+        ancestors = get_ancestor_depths(
+            rel_start_id, self.individuals, self.families)
+        descendants = get_descendant_depths(
+            rel_start_id, self.individuals, self.families)
+        rel = describe_relationship(
+            disp_path, self.individuals,
+            ancestors=ancestors, descendants=descendants,
+            families=self.families)
+        relationship_line(rel, disp_path)
+        common_ancestor_line(self._model.find_common_ancestors(
+            disp_path[0][0], disp_path[-1][0]))
+        nl(gs.RESULT_PATH)
+        for i, (node_id, edge) in enumerate(disp_path):
+            if i == 0:
+                person(node_id, prefix="  ")
+            else:
+                person(node_id, prefix=self._path_edge_prefix(edge, "    "))
+        nl()
+        return True
 
     def _render_results(self, start_id, results, home_paths=None):
         """Render DNA match search results and family context."""
@@ -210,8 +283,6 @@ class ResultsMixin(GraphRenderMixin, GraphLayoutMixin):
 
         result_detail_indent = "   "
         result_edge_indent = "       "
-        home_edge_indent = "    "
-
         start = self.individuals[start_id]
         self._set_results_header_for_person(start_id)
 
@@ -320,47 +391,16 @@ class ResultsMixin(GraphRenderMixin, GraphLayoutMixin):
             nl(gs.FAM_NO_INFO)
         nl()
 
-        # Home person relationship
-        home_id = self._home_person_id
-        if home_id and home_id != start_id and home_id in self.individuals:
-            hr()
-            nl(gs.RESULT_PATH_SECTION, bold=True)
-            person(home_id, prefix=gs.RESULT_HOME)
-            if not home_paths:
-                nl(gs.RESULT_NO_HOME_PATH)
-            else:
-                raw_path = home_paths[0]
-                if self._results_reversed:
-                    disp_path = self._reverse_path(raw_path, self.individuals)
-                    h_anc = get_ancestor_depths(
-                        home_id, self.individuals, self.families)
-                    h_desc = get_descendant_depths(
-                        home_id, self.individuals, self.families)
-                    rel = describe_relationship(
-                        disp_path, self.individuals,
-                        ancestors=h_anc, descendants=h_desc,
-                        families=self.families)
-                else:
-                    disp_path = raw_path
-                    ancestors = get_ancestor_depths(
-                        start_id, self.individuals, self.families)
-                    descendants = get_descendant_depths(
-                        start_id, self.individuals, self.families)
-                    rel = describe_relationship(
-                        disp_path, self.individuals,
-                        ancestors=ancestors, descendants=descendants,
-                        families=self.families)
-                relationship_line(rel, disp_path)
-                common_ancestor_line(self._model.find_common_ancestors(
-                    disp_path[0][0], disp_path[-1][0]))
-                nl(gs.RESULT_PATH)
-                for i, (node_id, edge) in enumerate(disp_path):
-                    if i == 0:
-                        person(node_id, prefix="  ")
-                    else:
-                        person(node_id, prefix=self._path_edge_prefix(
-                            edge, home_edge_indent))
-            nl()
+        self._render_home_path_section(
+            start_id,
+            home_paths,
+            nl=nl,
+            person=person,
+            relationship_line=relationship_line,
+            common_ancestor_line=common_ancestor_line,
+            separator=hr,
+            reverse=self._results_reversed,
+        )
 
         self._reverse_btn.configure(state='normal')
         w.configure(state='disabled')
@@ -438,6 +478,46 @@ class ResultsMixin(GraphRenderMixin, GraphLayoutMixin):
                 gs.ERR_SAVE_RESULTS_MSG.format(error=exc),
                 parent=self.root,
             )
+    def _copy_paths_json(self):
+        """Copy current path results as JSON to clipboard (debug mode only)."""
+        if not self._last_result or self._last_result.get('type') != 'path':
+            return
+        from gedcom_display import describe as _describe
+        from gedcom_relationship import (
+            describe_relationship as _desc_rel,
+            get_ancestor_depths,
+            get_descendant_depths,
+        )
+        start_id = self._last_result.get('start_id', '')
+        end_id = self._last_result.get('end_id', '')
+        paths = self._last_result.get('paths', [])
+        ancestors = get_ancestor_depths(start_id, self.individuals, self.families)
+        descendants = get_descendant_depths(start_id, self.individuals, self.families)
+        out = {
+            'start': {'id': start_id,
+                      'name': _describe(self.individuals.get(start_id, {}))},
+            'end': {'id': end_id,
+                    'name': _describe(self.individuals.get(end_id, {}))},
+            'paths': [],
+        }
+        for path in paths:
+            label = _desc_rel(path, self.individuals,
+                              ancestors=ancestors,
+                              descendants=descendants,
+                              families=self.families)
+            nodes = []
+            for node_id, edge in path:
+                indi = self.individuals.get(node_id, {})
+                nodes.append({
+                    'id': node_id,
+                    'name': _describe(indi),
+                    'sex': indi.get('sex', ''),
+                    'edge': edge,
+                })
+            out['paths'].append({'label': label, 'nodes': nodes})
+        self.root.clipboard_clear()
+        self.root.clipboard_append(json.dumps(out, indent=2, ensure_ascii=False))
+
     def _clear_results(self):
         """Clear result output and reset search focus."""
         self.results.configure(state='normal')
@@ -524,9 +604,13 @@ class ResultsMixin(GraphRenderMixin, GraphLayoutMixin):
                 self._last_result['end_id'],
                 self._last_result.get('paths', []),
                 self._last_result.get('truncated', False),
+                self._last_result.get('home_paths'),
             )
         elif kind == 'profile':
-            self._render_profile_result(self._last_result['start_id'])
+            self._render_profile_result(
+                self._last_result['start_id'],
+                self._last_result.get('home_paths'),
+            )
     def _navigate_back(self):
         """Restore the previous navigation state, saving current state for forward."""
         if self._busy or not self._nav_history:

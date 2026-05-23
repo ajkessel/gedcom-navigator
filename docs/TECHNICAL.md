@@ -62,8 +62,8 @@ pip install "gedcom-navigator[gui]"
 
 After installation two commands are available:
 
-| Command                 | Description            |
-| ----------------------- | ---------------------- |
+| Command                | Description            |
+| ---------------------- | ---------------------- |
 | `gedcom-navigator`     | Command-line interface |
 | `gedcom_navigator_gui` | Graphical interface    |
 
