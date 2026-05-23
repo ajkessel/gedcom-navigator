@@ -1,6 +1,6 @@
 ; cspell: disable
 #define MyAppName "GEDCOM Navigator"
-#define MyAppVersion "1.9.0"
+#define MyAppVersion "1.9.3"
 #define MyAppPublisher "Adam Kessel"
 #define MyAppURL "https://github.com/ajkessel/gedcom-navigator"
 #define MyAppExeName "gedcom-navigator.exe"
