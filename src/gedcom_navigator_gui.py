@@ -630,6 +630,7 @@ class GedcomNavigatorApp(
             self._copy_json_btn = ctk.CTkButton(
                 status_bar, text='Copy JSON', width=90,
                 command=self._copy_paths_json)
+            Tooltip(self._copy_json_btn, get_tip_copy_json())
             self._copy_json_btn.grid(row=0, column=5, padx=(0, 8), pady=4)
         self._progress_bar = ctk.CTkProgressBar(status_bar, width=130)
         self._progress_bar.set(0)

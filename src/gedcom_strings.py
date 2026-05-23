@@ -117,6 +117,14 @@ def get_tip_copy():
           "{mod}C copies only the selected text as usual.").format(mod=mod)
     )
 
+def get_tip_copy_json():
+    mod = get_mod_key()
+    return (
+        _("Copy JSON ({mod}J)\n"
+          "Copy the entire contents of the results pane as JSON to the clipboard. "
+          "Used only for debugging.").format(mod=mod)
+    )
+
 def get_tip_save():
     mod = get_mod_key()
     return _("Save ({mod}S)\nSave the results to a text file.").format(mod=mod)
