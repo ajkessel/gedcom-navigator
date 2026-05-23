@@ -564,6 +564,51 @@ def _reverse_edge_for_path(edge, from_sex):
     return edge  # 'sibling' and 'spouse' are symmetric
 
 
+def _simplify_path_detours(path, individuals, families):
+    """Replace parent→spouse→child detours with a direct sibling edge.
+
+    The three-edge pattern A→(father|mother)→P→spouse→SP→child→B is a
+    roundabout way of reaching a sibling: P is A's parent, SP is P's spouse
+    (A's other parent), and B is their child — i.e., B is A's sibling.  When A
+    and B truly share a FAMC family the direct sibling edge is shorter and
+    clearer.  Applied iteratively until no more simplifications are possible.
+
+    This arises in bridge-expansion paths where the BFS predecessor map stores
+    the parent-hop route to a sibling rather than the direct sibling edge (e.g.
+    because the sibling edge was first encountered from the opposite direction).
+    """
+    if len(path) < 4:
+        return path
+    if hasattr(families, 'share_child_family'):
+        def _are_siblings(a, b):
+            return families.share_child_family(a, b)
+    else:
+        def _are_siblings(a, b):
+            a_famc = set(individuals.get(a, {}).get('famc', []))
+            b_famc = set(individuals.get(b, {}).get('famc', []))
+            return bool(a_famc & b_famc)
+
+    changed = True
+    while changed:
+        changed = False
+        result = [path[0]]
+        i = 1
+        while i < len(path):
+            if (i + 2 < len(path)
+                    and path[i][1] in ('father', 'mother')
+                    and path[i + 1][1] == 'spouse'
+                    and path[i + 2][1] == 'child'
+                    and _are_siblings(result[-1][0], path[i + 2][0])):
+                result.append((path[i + 2][0], 'sibling'))
+                i += 3
+                changed = True
+            else:
+                result.append(path[i])
+                i += 1
+        path = result
+    return path
+
+
 def _marriage_bridge_expansion(start_id, end_id, individuals, families,
                                 max_depth, found_labels, found_sigs,
                                 start_ancestors, slots, descendants=None,
@@ -675,6 +720,7 @@ def _marriage_bridge_expansion(start_id, end_id, individuals, families,
                     continue
 
                 full_path = fwd_path + [(y_id, 'spouse')] + rev_chain
+                full_path = _simplify_path_detours(full_path, individuals, families)
                 label = _describe_rel(full_path, individuals,
                                       ancestors=start_ancestors,
                                       descendants=descendants,
