@@ -107,6 +107,47 @@ class _NeighborCache:
         return cached
 
 
+class _PathState:
+    """Linked path state for heap searches.
+
+    Storing each candidate as a linked node avoids copying the full path tuple
+    on every heap push.  The visited set is still kept per candidate so cycle
+    checks stay O(1).
+    """
+
+    __slots__ = ('node_id', 'edge_label', 'previous', 'depth', 'visited')
+
+    def __init__(self, node_id, edge_label, previous, depth, visited):
+        self.node_id = node_id
+        self.edge_label = edge_label
+        self.previous = previous
+        self.depth = depth
+        self.visited = visited
+
+    def extend(self, node_id, edge_label):
+        visited = self.visited.copy()
+        visited.add(node_id)
+        return _PathState(node_id, edge_label, self, self.depth + 1, visited)
+
+    def to_path_list(self):
+        path = []
+        state = self
+        while state is not None:
+            path.append((state.node_id, state.edge_label))
+            state = state.previous
+        path.reverse()
+        return path
+
+    def to_edge_list(self):
+        edges = []
+        state = self
+        while state.previous is not None:
+            edges.append(state.edge_label)
+            state = state.previous
+        edges.reverse()
+        return edges
+
+
 class _BfsNeighborExpander:
     """Yield BFS neighbors while expanding each family child list once."""
 
@@ -203,8 +244,8 @@ def bfs_find_dna_matches(start_id, individuals, families, top_n, max_depth,
 _UP_EDGES = frozenset({'father', 'mother'})
 
 
-def _path_kinship_signature(path):
-    """Return a canonical kinship tuple used to deduplicate genealogically equivalent paths.
+def _edge_kinship_signature(raw_edges):
+    """Return a canonical kinship tuple for an edge-label sequence.
 
     Two paths represent the same relationship type when they yield the same signature.
     Algorithm:
@@ -224,10 +265,9 @@ def _path_kinship_signature(path):
          a first cousin's sibling collapses to the same signature as the first cousin.
       5. Fall back to a normalized edge tuple for unusual paths.
     """
-    if len(path) <= 1:
+    raw = list(raw_edges)
+    if not raw:
         return ('self',)
-
-    raw = [e for _, e in path[1:]]
 
     # Step 1: strip interior spouse→child detours only.
     # spouse→sibling is a genuine lateral hop (e.g. father→mother→maternal aunt)
@@ -398,6 +438,11 @@ def _path_kinship_signature(path):
         return ('spouse', lead_sp, trail_sp)
     norm = tuple('up' if e in _UP_EDGES else e for e in edges)
     return ('chain', norm, lead_sp, trail_sp)
+
+
+def _path_kinship_signature(path):
+    """Return a canonical kinship tuple used to deduplicate paths."""
+    return _edge_kinship_signature(e for _, e in path[1:])
 
 
 def _is_spouse_detour_of(longer, shorter):
@@ -719,7 +764,8 @@ def bfs_find_all_paths(start_id, end_id, individuals, families, top_n=5,
     _seq = 0
 
     h0 = dist_to_end.get(start_id, length_limit + 1)
-    heap = [(h0, _seq, start_id, ((start_id, None),))]
+    start_state = _PathState(start_id, None, None, 0, {start_id})
+    heap = [(h0, _seq, start_state)]
     path_neighbors = _NeighborCache(individuals, families)
 
     # Oversample: collect more raw paths than top_n so _filter_spouse_detours
@@ -740,37 +786,57 @@ def bfs_find_all_paths(start_id, end_id, individuals, families, top_n=5,
         found.append(path_list)
         _label_cache[id(path_list)] = label
 
+    def _evaluate_path(path_list):
+        sig = _path_kinship_signature(path_list)
+        if sig in found_sigs:
+            return None
+        label = _describe_rel(path_list, individuals,
+                              ancestors=_start_ancestors,
+                              descendants=_start_descendants,
+                              families=_relationship_families)
+        if label in found_labels:
+            return None
+        return label, sig
+
+    def _evaluate_state(state):
+        sig = _edge_kinship_signature(state.to_edge_list())
+        if sig in found_sigs:
+            return None
+        path_list = state.to_path_list()
+        label = _describe_rel(path_list, individuals,
+                              ancestors=_start_ancestors,
+                              descendants=_start_descendants,
+                              families=_relationship_families)
+        if label in found_labels:
+            return None
+        return path_list, label, sig
+
     while heap and len(found) < _raw_n:
         _check_cancelled(cancel_event)
         if explored >= MAX_EXPLORE:
             truncated = True
             break
-        _, _, current_id, path = heapq.heappop(heap)
+        _, _, state = heapq.heappop(heap)
         explored += 1
 
-        g = len(path) - 1
-        path_visited = {nid for nid, _ in path}
-        for neighbor_id, edge_label in path_neighbors(current_id):
+        g = state.depth
+        for neighbor_id, edge_label in path_neighbors(state.node_id):
             _check_cancelled(cancel_event)
-            if neighbor_id in path_visited:
+            if neighbor_id in state.visited:
                 continue
             h = dist_to_end.get(neighbor_id, length_limit + 1)
             new_g = g + 1
             if new_g + h > length_limit:
                 continue
-            new_path = path + ((neighbor_id, edge_label),)
+            new_state = state.extend(neighbor_id, edge_label)
             if neighbor_id == end_id:
-                new_path_list = list(new_path)
-                label = _describe_rel(new_path_list, individuals,
-                                      ancestors=_start_ancestors,
-                                      descendants=_start_descendants,
-                                      families=_relationship_families)
-                sig = _path_kinship_signature(new_path_list)
-                if label not in found_labels and sig not in found_sigs:
+                evaluated = _evaluate_state(new_state)
+                if evaluated is not None:
+                    new_path_list, label, sig = evaluated
                     _add_path(new_path_list, label, sig)
             else:
                 _seq += 1
-                heapq.heappush(heap, (new_g + h, _seq, neighbor_id, new_path))
+                heapq.heappush(heap, (new_g + h, _seq, new_state))
 
     # Filter detours from the A* results before checking the count.
     found = _filter_spouse_detours(found)
@@ -798,12 +864,9 @@ def bfs_find_all_paths(start_id, end_id, individuals, families, top_n=5,
                 if spouse_path is None:
                     continue
                 full_path = spouse_path + [(end_id, 'spouse')]
-                label = _describe_rel(full_path, individuals,
-                                      ancestors=_start_ancestors,
-                                      descendants=_start_descendants,
-                                      families=_relationship_families)
-                sig = _path_kinship_signature(full_path)
-                if label not in found_labels and sig not in found_sigs:
+                evaluated = _evaluate_path(full_path)
+                if evaluated is not None:
+                    label, sig = evaluated
                     _add_path(full_path, label, sig)
 
     # Symmetric spouse expansion: also expand spouses of start_id.  This
@@ -829,12 +892,9 @@ def bfs_find_all_paths(start_id, end_id, individuals, families, top_n=5,
                 if spouse_path is None:
                     continue
                 full_path = [(start_id, None), (spouse_id, 'spouse')] + spouse_path[1:]
-                label = _describe_rel(full_path, individuals,
-                                      ancestors=_start_ancestors,
-                                      descendants=_start_descendants,
-                                      families=_relationship_families)
-                sig = _path_kinship_signature(full_path)
-                if label not in found_labels and sig not in found_sigs:
+                evaluated = _evaluate_path(full_path)
+                if evaluated is not None:
+                    label, sig = evaluated
                     _add_path(full_path, label, sig)
 
     # Marriage bridge expansion: find paths where X (near start) is married to Y

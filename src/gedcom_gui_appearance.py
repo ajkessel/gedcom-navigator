@@ -607,7 +607,7 @@ class AppearanceMixin:
              'darwin' else '<F1>', self._show_how_to_use)
         bind(f'<{_MOD_KEY}-k>' if sys.platform ==
              'darwin' else '<F2>', self._show_keyboard_shortcuts)
-        if sys.platform == 'win32':
+        if sys.platform != 'darwin':
             bind('<F3>', self._show_preferences)
         bind(f'<{_MOD_KEY}-f>', self._kb_focus_search)
         bind(f'<{_MOD_KEY}-i>', self._kb_focus_filter)

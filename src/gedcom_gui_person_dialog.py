@@ -8,7 +8,6 @@ Person profile and family-tree detail windows for GedcomNavigatorApp.
 import os
 import sys
 import tkinter as tk
-import tkinter.font as tkfont
 from tkinter import filedialog, messagebox
 
 import customtkinter as ctk

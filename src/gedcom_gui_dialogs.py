@@ -22,13 +22,63 @@ from gedcom_relationship import (
     get_descendant_depths,
 )
 from gedcom_strings import *  # pylint: disable=unused-wildcard-import
-from gedcom_i18n import get_available_languages
+from gedcom_i18n import _, get_available_languages
 from gedcom_theme import get_flag_bg
 from gedcom_tooltip import Tooltip
 
 
 class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
     """Mixin providing picker, path finder, and preferences dialogs."""
+
+    _PREFS_MIN_WIDTH = 500
+    _PREFS_MIN_HEIGHT = 420
+    _PREFS_PRE_SHOW_SETTLE_PASSES = 3
+    _PREFS_WIN_REVEAL_DELAY_MS = 75
+    _PREFS_HEIGHT_SETTLE_DELAYS_MS = (100, 250, 500)
+    _PREFS_LANG_WIDTH_OVERHEAD = 60
+
+    def _focus_person_picker_find_entry(self, dialog, search_entry):
+        """Move keyboard focus to the person picker Find entry."""
+        try:
+            dialog.focus_force()
+        except tk.TclError:
+            return
+
+        for widget in (search_entry, getattr(search_entry, "_entry", None)):
+            if widget is None:
+                continue
+            try:
+                widget.focus_set()
+                if hasattr(widget, "select_range"):
+                    widget.select_range(0, "end")
+            except tk.TclError:
+                continue
+
+    @staticmethod
+    def _preferences_dialog_target_height(
+        outer,
+        btn_frame,
+        screen_h,
+        *,
+        min_h=_PREFS_MIN_HEIGHT,
+        max_screen_ratio=0.9,
+    ):
+        """Return the compact Preferences height for current content metrics."""
+        content_h = outer.winfo_reqheight() + 32
+        btn_h = btn_frame.winfo_reqheight() + 16
+        max_h = max(min_h, min(int(screen_h * max_screen_ratio), screen_h - 32))
+        return max(min_h, min(content_h + btn_h, max_h))
+
+    @staticmethod
+    def _preferences_dialog_width(win, *, min_w=_PREFS_MIN_WIDTH):
+        """Return a usable Preferences window width during early layout."""
+        width = win.winfo_width()
+        if width <= 1:
+            try:
+                width = int(win.geometry().split('x', 1)[0])
+            except (tk.TclError, ValueError):
+                width = min_w
+        return max(min_w, width)
 
     def _view_tags(self):
         """Show tag-record definitions and allow choosing the DNA tag keyword."""
@@ -279,7 +329,13 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
             preferred_h=540,
         )
         dialog.deiconify()
-        search_entry.focus_set()
+
+        def focus_find_entry():
+            self._focus_person_picker_find_entry(dialog, search_entry)
+
+        focus_find_entry()
+        dialog.after_idle(focus_find_entry)
+        dialog.after(50, focus_find_entry)
         self._picker_open = True
         try:
             dialog.wait_window()
@@ -291,6 +347,8 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
         """Prompt for a target person and render paths from the current selection."""
         if self._busy:
             return
+        if self._path_prompt_cancelled_recently():
+            return
         sel = self.tree.selection()
         start_id = sel[0] if sel else self._active_id
         if not start_id:
@@ -299,6 +357,7 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
 
         target_id = self._pick_person(WIN_SELECT_TARGET)
         if not target_id:
+            self._suppress_path_prompt_after_cancel()
             return
         self._display_path_target_id = target_id
         self._set_display_mode('paths', refresh=False)
@@ -848,35 +907,76 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
         _layout_lang_buttons(_force_width=440)
         win.update_idletasks()
 
-        _pre_content_h = outer.winfo_reqheight() + 32
-        _pre_btn_h = btn_frame.winfo_reqheight() + 16
-        _pre_screen_h = win.winfo_screenheight()
-        _pre_max_h = max(420, min(int(_pre_screen_h * 0.9), _pre_screen_h - 32))
-        _pre_target_h = max(420, min(_pre_content_h + _pre_btn_h, _pre_max_h))
+        _pre_target_h = self._preferences_dialog_target_height(
+            outer, btn_frame, win.winfo_screenheight())
 
-        self._fit_window_to_content(win, min_w=500, min_h=420, preferred_h=_pre_target_h)
-        win.deiconify()
-        win.after(50, win.focus_force)
+        self._fit_window_to_content(
+            win,
+            min_w=self._PREFS_MIN_WIDTH,
+            min_h=self._PREFS_MIN_HEIGHT,
+            preferred_h=_pre_target_h,
+        )
 
         def _correct_prefs_height():
             # Re-layout at the actual window width and resize if the pre-computed
-            # height was off (e.g. actual scrollbar width differed from estimate).
-            # Runs at 100 ms so the _windows_set_titlebar_color revert (at ~15 ms)
-            # has completed and the window is fully shown.  maxsize() is unlocked
-            # first to avoid the CTkToplevel scaling lock blocking the resize.
-            _layout_lang_buttons()
+            # height was off.  Early Configure events can still report a width
+            # of 1, so fall back to the known window width minus the same
+            # scrollbar/padding allowance used for the pre-layout pass.
+            lang_width = lang_btns_frame.winfo_width()
+            if lang_width <= 1:
+                lang_width = (
+                    self._preferences_dialog_width(win)
+                    - self._PREFS_LANG_WIDTH_OVERHEAD
+                )
+            _layout_lang_buttons(_force_width=max(1, lang_width))
             win.update_idletasks()
-            content_h = outer.winfo_reqheight() + 32
-            btn_h = btn_frame.winfo_reqheight() + 16
-            screen_h = win.winfo_screenheight()
-            max_h = max(420, min(int(screen_h * 0.9), screen_h - 32))
-            target_h = max(420, min(content_h + btn_h, max_h))
+            target_h = self._preferences_dialog_target_height(
+                outer, btn_frame, win.winfo_screenheight())
             geo = win.geometry()
             current_h = int(geo.split('x')[1].split('+')[0])
             if abs(target_h - current_h) > 4:
                 fw = geo.split('x')[0]
                 pos = geo.split('+', 1)[1]
+                # Unlock CTkToplevel's scaling maxsize before resizing.
                 win.maxsize(10000, 10000)
                 win.geometry(f'{fw}x{target_h}+{pos}')
 
-        win.after(100, _correct_prefs_height)
+        for _ in range(self._PREFS_PRE_SHOW_SETTLE_PASSES):
+            _correct_prefs_height()
+
+        hidden_until_mapped = False
+        if sys.platform != 'darwin':
+            try:
+                win.attributes('-alpha', 0.0)
+                hidden_until_mapped = True
+            except tk.TclError:
+                hidden_until_mapped = False
+
+        win.deiconify()
+        win.update_idletasks()
+        for _ in range(self._PREFS_PRE_SHOW_SETTLE_PASSES):
+            _correct_prefs_height()
+
+        def _focus_prefs_window():
+            try:
+                win.focus_force()
+            except tk.TclError:
+                pass
+
+        def _reveal_prefs_window():
+            for _ in range(self._PREFS_PRE_SHOW_SETTLE_PASSES):
+                _correct_prefs_height()
+            if hidden_until_mapped:
+                try:
+                    win.attributes('-alpha', 1.0)
+                except tk.TclError:
+                    pass
+            _focus_prefs_window()
+
+        if hidden_until_mapped:
+            win.after(self._PREFS_WIN_REVEAL_DELAY_MS, _reveal_prefs_window)
+        else:
+            win.after(50, _focus_prefs_window)
+
+        for delay_ms in self._PREFS_HEIGHT_SETTLE_DELAYS_MS:
+            win.after(delay_ms, _correct_prefs_height)

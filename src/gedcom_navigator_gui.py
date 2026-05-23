@@ -524,6 +524,7 @@ class GedcomNavigatorApp(
                 self._display_mode_labels[self.display_mode.get()])
             def _on_paths_btn_release(*_):
                 if (self.display_mode.get() == 'paths'
+                        and not self._path_prompt_cancelled_recently()
                         and not getattr(self, '_picker_open', False)):
                     self._find_path()
             for mode, label in self._display_mode_labels.items():

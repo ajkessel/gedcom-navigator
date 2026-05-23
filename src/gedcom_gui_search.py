@@ -18,6 +18,35 @@ import gedcom_strings as gs
 class SearchMixin:
     """Provide load, filtering, and DNA-match search behavior for the GUI."""
 
+    def _suppress_path_prompt_after_cancel(self):
+        """Temporarily ignore immediate follow-on path prompts after Cancel."""
+        self._path_prompt_cancelled = True
+
+        root = getattr(self, "root", None)
+        if root is None or not hasattr(root, "after"):
+            return
+
+        after_id = getattr(self, "_path_prompt_cancel_after_id", None)
+        if after_id:
+            try:
+                root.after_cancel(after_id)
+            except tk.TclError:
+                pass
+
+        def clear_suppression():
+            self._path_prompt_cancelled = False
+            self._path_prompt_cancel_after_id = None
+
+        try:
+            self._path_prompt_cancel_after_id = root.after(
+                150, clear_suppression)
+        except tk.TclError:
+            self._path_prompt_cancel_after_id = None
+
+    def _path_prompt_cancelled_recently(self):
+        """Return True while an immediate post-cancel re-prompt should be ignored."""
+        return bool(getattr(self, "_path_prompt_cancelled", False))
+
     def _browse(self):
         """Prompt for a GEDCOM or ZIP file and load it when selected."""
         current = self.gedcom_path.get().strip()
@@ -226,10 +255,13 @@ class SearchMixin:
             target_id = getattr(self, '_display_path_target_id', None)
             if (not target_id or target_id not in self.individuals
                     or target_id == start_id):
+                if self._path_prompt_cancelled_recently():
+                    return
                 if not prompt_for_path:
                     return
                 target_id = self._pick_person(gs.WIN_SELECT_TARGET)
                 if not target_id:
+                    self._suppress_path_prompt_after_cancel()
                     return
                 self._display_path_target_id = target_id
             self._run_path_search(start_id, target_id)

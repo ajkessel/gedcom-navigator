@@ -38,7 +38,7 @@ class Model:
 
 
 class App(SearchMixin):
-    def __init__(self, mode='profile', selection=('@A@',)):
+    def __init__(self, mode='profile', selection=('@A@',), pick_results=None):
         self._busy = False
         self.individuals = {'@A@': {}, '@B@': {}, '@C@': {}}
         self.display_mode = Var(mode)
@@ -54,6 +54,8 @@ class App(SearchMixin):
             'paths': 'Paths',
         }
         self.calls = []
+        self.pick_results = (
+            list(pick_results) if pick_results is not None else ['@B@'])
 
     def _render_profile_result(self, start_id):
         self.calls.append(('profile', start_id))
@@ -63,7 +65,7 @@ class App(SearchMixin):
 
     def _pick_person(self, _title):
         self.calls.append(('pick', None))
-        return '@B@'
+        return self.pick_results.pop(0) if self.pick_results else '@B@'
 
     def _run_path_search(self, start_id, target_id):
         self.calls.append(('paths', start_id, target_id))
@@ -97,6 +99,15 @@ def test_paths_mode_prompts_once_then_reuses_target():
         ('paths', '@A@', '@B@'),
         ('paths', '@C@', '@B@'),
     ]
+
+
+def test_paths_mode_cancel_does_not_immediately_prompt_again():
+    app = App(mode='paths', pick_results=[None, '@B@'])
+
+    app._refresh_display_pane()
+    app._refresh_display_pane()
+
+    assert app.calls == [('pick', None)]
 
 
 def test_home_path_data_returns_none_without_home():
