@@ -1,233 +1,224 @@
-# Translations template for GEDCOM Navigator.
+# Translations template for PROJECT.
 # Copyright (C) 2026 ORGANIZATION
-# This file is distributed under the same license as the GEDCOM Navigator
-# project.
+# This file is distributed under the same license as the PROJECT project.
 # FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
 #
 #, fuzzy
 msgid ""
 msgstr ""
-"Project-Id-Version: GEDCOM Navigator VERSION\n"
-"Report-Msgid-Bugs-To: adam@rosi-kessel.org\n"
-"POT-Creation-Date: 2026-05-21 13:53-0400\n"
-"PO-Revision-Date: 2026-05-21 13:53-0400\n"
-"Last-Translator: Babel\n"
-"Language-Team: Babel\n"
+"Project-Id-Version: PROJECT VERSION\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2026-05-23 13:37-0400\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
 "Language: es\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 2.18.0\n"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:18
+#: src/gedcom_strings.py:19
 #, fuzzy
 msgid "GEDCOM Navigator"
 msgstr "GEDCOM Navegador"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:19
+#: src/gedcom_strings.py:20
 #, fuzzy
 msgid "No file loaded."
 msgstr "No se ha cargado ningún archivo."
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:24
+#: src/gedcom_strings.py:25
 #, fuzzy
 msgid "File"
 msgstr "Archivo"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:25
+#: src/gedcom_strings.py:26
 #, fuzzy
 msgid "Open GEDCOM File…"
 msgstr "Abrir GEDCOM Archivo…"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:26
+#: src/gedcom_strings.py:27
 #, fuzzy
 msgid "Open Recent"
 msgstr "Abrir Recientes"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:27
+#: src/gedcom_strings.py:28
 #, fuzzy
 msgid "No Recent Files"
 msgstr "No hay archivos recientes"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:28
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:507
+#: src/gedcom_strings.py:29 src/gedcom_strings.py:515
 #, fuzzy
 msgid "Help"
 msgstr "Ayuda"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:29
+#: src/gedcom_strings.py:30
 #, fuzzy
 msgid "Settings…"
 msgstr "Configuración…"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:29
+#: src/gedcom_strings.py:30
 #, fuzzy
 msgid "Preferences… (F3)"
 msgstr "Preferencias… (F3)"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:34
+#: src/gedcom_strings.py:35
 #, python-brace-format, fuzzy
 msgid "How to use ({mod}?)"
 msgstr "¿Cómo se usa ({mod}?)"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:36
+#: src/gedcom_strings.py:37
 #, fuzzy
 msgid "How to use (F1)"
 msgstr "Cómo utilizar (F1)"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:42
+#: src/gedcom_strings.py:43
 #, python-brace-format, fuzzy
 msgid "Keyboard shortcuts ({mod}K)"
 msgstr "Atajos de teclado ({mod}K)"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:44
+#: src/gedcom_strings.py:45
 #, fuzzy
 msgid "Keyboard Shortcuts (F2)"
 msgstr "Atajos de teclado (F2)"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:47
+#: src/gedcom_strings.py:48
 #, fuzzy
 msgid "Check for updates…"
 msgstr "Comprueba si hay actualizaciones…"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:48
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:485
+#: src/gedcom_strings.py:49 src/gedcom_strings.py:495
 #, fuzzy
 msgid "Privacy Policy"
 msgstr "Política de privacidad"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:49
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:484
+#: src/gedcom_strings.py:50 src/gedcom_strings.py:494
 #, fuzzy
 msgid "About"
 msgstr "Acerca de"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:50
+#: src/gedcom_strings.py:51
 #, fuzzy
 msgid "Quit"
 msgstr "Salir"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:55
+#: src/gedcom_strings.py:56
 #, fuzzy
 msgid "Select GEDCOM file"
 msgstr "Selecciona el archivo GEDCOM"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:60
+#: src/gedcom_strings.py:61
 #, fuzzy
 msgid "Tag keyword:"
 msgstr "Etiqueta:"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:61
+#: src/gedcom_strings.py:62
 #, fuzzy
 msgid "Page marker:"
 msgstr "Marcador de página:"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:62
+#: src/gedcom_strings.py:63
 #, fuzzy
 msgid "Select Tag"
 msgstr "Seleccionar etiqueta"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:63
-#, fuzzy
-msgid "Find Relationship Path"
-msgstr "Buscar Ruta de parentesco"
-
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:68
+#: src/gedcom_strings.py:68
 #, fuzzy
 msgid "Find:"
 msgstr "Buscar:"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:69
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:76
+#: src/gedcom_strings.py:69 src/gedcom_strings.py:76
 #, fuzzy
 msgid "Tagged"
 msgstr "Término 0"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:70
+#: src/gedcom_strings.py:70
 #, fuzzy
 msgid "Fuzzy"
 msgstr "Término 0"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:71
+#: src/gedcom_strings.py:71
 #, fuzzy
 msgid "Married"
 msgstr "Término 0"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:72
+#: src/gedcom_strings.py:72
 #, fuzzy
 msgid "Filter:"
 msgstr "Filtrar:"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:73
+#: src/gedcom_strings.py:73
 #, fuzzy
 msgid "Name"
 msgstr "Nombre"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:74
+#: src/gedcom_strings.py:74
 #, fuzzy
 msgid "Birth"
 msgstr "Nacimiento"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:75
+#: src/gedcom_strings.py:75
 #, fuzzy
 msgid "Death"
 msgstr "Muerte"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:81
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:380
+#: src/gedcom_strings.py:81 src/gedcom_strings.py:390
 #, fuzzy
 msgid "Results:"
 msgstr "Resultados:"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:82
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:381
+#: src/gedcom_strings.py:82 src/gedcom_strings.py:391
 #, fuzzy
 msgid "Max Depth:"
 msgstr "Profundidad máx.:"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:83
-#, fuzzy
-msgid "Find Matches"
-msgstr "Buscar Coincidencias"
-
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:84
+#: src/gedcom_strings.py:83 src/gedcom_strings.py:90
 #, fuzzy
 msgid "Profile"
 msgstr "Término 0"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:85
+#: src/gedcom_strings.py:84
 #, fuzzy
 msgid "Tree"
 msgstr "Término 0"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:86
+#: src/gedcom_strings.py:85
 #, fuzzy
 msgid "Set Home"
 msgstr "Término 0"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:91
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:309
+#: src/gedcom_strings.py:91
+#, fuzzy
+msgid "Matches"
+msgstr "Partidos"
+
+#: src/gedcom_strings.py:92 src/gedcom_strings.py:273
+#, fuzzy
+msgid "Paths"
+msgstr "Rutas"
+
+#: src/gedcom_strings.py:94 src/gedcom_strings.py:319
 #, fuzzy
 msgid "Copy"
 msgstr "Término 0"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:92
+#: src/gedcom_strings.py:95
 #, fuzzy
 msgid "Reverse"
 msgstr "Reverso"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:93
+#: src/gedcom_strings.py:96
 #, fuzzy
 msgid "Normal Path"
 msgstr "Ruta normal"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:94
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:308
+#: src/gedcom_strings.py:97 src/gedcom_strings.py:318
 #, fuzzy
 msgid "Save"
 msgstr "Término 0"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:99
+#: src/gedcom_strings.py:102
 #, python-brace-format, fuzzy
 msgid ""
 "Reverse ({mod}R)\n"
@@ -236,7 +227,7 @@ msgstr ""
 "Invertir ({mod}R)\n"
 "Invierte la dirección de todas las rutas de relación mostradas, calculando la relación desde la perspectiva de la otra persona. Vuelve a hacer clic para restablecer la ruta original."
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:111
+#: src/gedcom_strings.py:114
 #, python-brace-format, fuzzy
 msgid ""
 "Copy results ({mod}C)\n"
@@ -245,7 +236,16 @@ msgstr ""
 "Copiar resultados ({mod}C)\n"
 "Copiar todo el contenido del panel de resultados al portapapeles. Cuando el área de texto de resultados tiene el foco del teclado, {mod}C copia solo el texto seleccionado, como de costumbre."
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:119
+#: src/gedcom_strings.py:123
+#, python-brace-format, fuzzy
+msgid ""
+"Copy JSON ({mod}J)\n"
+"Copy the entire contents of the results pane as JSON to the clipboard. Used only for debugging."
+msgstr ""
+"Copiar JSON ({mod}J)\n"
+"Copiar todo el contenido del panel de resultados como JSON al portapapeles. Se utiliza únicamente para la depuración."
+
+#: src/gedcom_strings.py:130
 #, python-brace-format, fuzzy
 msgid ""
 "Save ({mod}S)\n"
@@ -254,29 +254,25 @@ msgstr ""
 "Guardar ({mod}S)\n"
 "Guardar los resultados en un archivo de texto."
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:124
+#: src/gedcom_strings.py:135
 #, python-brace-format, fuzzy
 msgid ""
 "Find ({mod}F)\n"
-"Type to filter the list of people. Search by any name variation. Use the filter box to search by other information in a person's GEDCOM record, such as geographic location. Press Enter to jump directly to the first match. Use the checkboxes to show only people matching tags, allow fuzzy name matching, or include married names."
+"Type to filter the list of people. Search by any name variation. Use the filter box to search by other information in a person's GEDCOM record, such as geographic location. Press Enter to jump directly to the first match. Use the checkboxes to show only people matching tags, allow fuzzy name matching (including Cyrillic and Hebrew characters), or include married names."
 msgstr ""
 "Buscar ({mod}F)\n"
-"Escribe para filtrar la lista de personas. Busca por cualquier variante del nombre. Utiliza el cuadro de filtro para buscar por otros datos del registro GEDCOM de una persona, como la ubicación geográfica. Pulsa Intro para ir directamente a la primera coincidencia. Utiliza las casillas de selección para mostrar solo las personas que coincidan con las etiquetas, permitir la búsqueda aproximada de nombres o incluir los apellidos de casada."
+"Escriba para filtrar la lista de personas. Busque por cualquier variante del nombre. Utilice el cuadro de filtro para buscar por otra información del registro GEDCOM de una persona, como la ubicación geográfica. Pulse Intro para ir directamente a la primera coincidencia. Utilice las casillas de verificación para mostrar solo las personas que coincidan con las etiquetas, permitir la coincidencia aproximada de nombres (incluidos los caracteres cirílicos y hebreos) o incluir los apellidos de casada."
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:135
+#: src/gedcom_strings.py:146
 #, python-brace-format, fuzzy
 msgid ""
-"Find Nearest Matches ({mod}N)\n"
-"Find the closest tagged matches to the selected person. The results are ranked by proximity to the selected person, with ties broken by the number of tags (if any) associated with the match. Use the 'Results' and 'Max Depth' settings to adjust how many results are returned and how far to search within the tree.\n"
-"\n"
-"Also triggered by pressing Enter when selecting a person."
+"Matches ({mod}N)\n"
+"Show the closest tagged matches to the selected person. The results are ranked by proximity to the selected person, with ties broken by the number of tags (if any) associated with the match. Use the 'Results' and 'Max Depth' settings to adjust how many results are returned and how far to search within the tree."
 msgstr ""
-"Buscar Coincidencias más cercanas ({mod}N)\n"
-"Buscar las coincidencias etiquetadas más cercanas a la persona seleccionada. Los resultados se ordenan por proximidad a la persona seleccionada, y en caso de empate se decide por el número de etiquetas (si las hay) asociadas a la coincidencia. Utilice los ajustes «Resultados» y «Profundidad máx.» para ajustar el número de resultados que se muestran y la profundidad de búsqueda en el árbol.\n"
-"\n"
-"También se activa al pulsar Intro al seleccionar una persona."
+"Coincidencias ({mod}N)\n"
+"Muestra las coincidencias etiquetadas más cercanas a la persona seleccionada. Los resultados se ordenan por proximidad a la persona seleccionada; en caso de empate, se decide por el número de etiquetas (si las hay) asociadas a la coincidencia. Utiliza los ajustes «Resultados» y «Profundidad máx.» para ajustar el número de resultados que se muestran y la profundidad de búsqueda en el árbol."
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:147
+#: src/gedcom_strings.py:157
 #, python-brace-format, fuzzy
 msgid ""
 "Filter ({mod}I)\n"
@@ -285,7 +281,7 @@ msgstr ""
 "Filtrar ({mod}I)\n"
 "Escriba aquí para filtrar la lista de personas según cualquier dato de su registro GEDCOM, como la ubicación geográfica. Este filtro se aplica además del cuadro Buscar anterior."
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:153
+#: src/gedcom_strings.py:163
 #, fuzzy
 msgid ""
 "Enter a keyword to filter the list of tags used for finding relationship "
@@ -297,7 +293,7 @@ msgstr ""
 "utilizar únicamente la palabra clave del marcador de página para buscar "
 "rutas de relación."
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:157
+#: src/gedcom_strings.py:167
 #, fuzzy
 msgid ""
 "Enter a unique keyword to use as a page marker when finding relationship "
@@ -309,25 +305,25 @@ msgstr ""
 "utilizar únicamente la palabra clave de la etiqueta para buscar rutas de "
 "relación."
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:163
+#: src/gedcom_strings.py:173
 #, python-brace-format, fuzzy
 msgid ""
 "Set Home Person ({mod}H)\n"
 "Set the selected person as the home person for finding relationship paths."
 msgstr ""
 "Establecer Persona principal ({mod}H)\n"
-"Establecer a la persona seleccionada como persona de referencia para determinar las relaciones."
+"Establecer a la persona seleccionada como persona de referencia para la búsqueda de relaciones."
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:167
-#, python-brace-format, fuzzy
+#: src/gedcom_strings.py:176
+#, fuzzy
 msgid ""
-"Profile ({mod}E)\n"
-"View the full GEDCOM record for the selected person, along with a summary of biographical and family information. Shift-Click for Tree View."
+"Profile\n"
+"Show the selected person's biographical, family, tag, and optional full GEDCOM record details in the Display Pane."
 msgstr ""
-"Perfil ({mod}E)\n"
-"Ver el registro completo GEDCOM de la persona seleccionada, junto con un resumen de la información biográfica y familiar. Shift: haz clic para ver Vista de árbol."
+"Perfil\n"
+"Mostrar en el panel de visualización los datos biográficos, familiares y de etiquetas de la persona seleccionada, así como los detalles opcionales del registro completo GEDCOM."
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:171
+#: src/gedcom_strings.py:180
 #, python-brace-format, fuzzy
 msgid ""
 "Tree View ({mod}E)\n"
@@ -336,25 +332,25 @@ msgstr ""
 "Vista de árbol ({mod}E)\n"
 "Abrir: vista del árbol genealógico de la persona seleccionada. Shift: haz clic para ver Vista de perfil."
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:175
+#: src/gedcom_strings.py:184
 #, python-brace-format, fuzzy
 msgid ""
-"Select Tag for Finding Paths ({mod}T)\n"
-"Select a new tag for finding the path between the selected person and the closest people with that tag."
+"Select Tag for Finding Matches ({mod}T)\n"
+"Select a tag to use when finding closest matches for the selected person."
 msgstr ""
-"Seleccionar etiqueta para Buscaring Paths ({mod}T)\n"
-"Selecciona una nueva etiqueta para encontrar la ruta entre la persona seleccionada y las personas más cercanas que tengan esa etiqueta."
+"Seleccionar etiqueta para Buscaring Coincidencias ({mod}T)\n"
+"Selecciona una etiqueta que se utilizará para buscar las coincidencias más cercanas para la persona seleccionada."
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:179
+#: src/gedcom_strings.py:188
 #, python-brace-format, fuzzy
 msgid ""
-"Find Relationship Paths ({mod}P)\n"
-"Find multiple paths between the selected person and any other person in your tree. Select any person in the results to find the relationships between the originally selected person and the newly-selected person."
+"Paths ({mod}P)\n"
+"Show relationship paths between the selected person and a target person. The first time you enter Paths mode, choose the target person."
 msgstr ""
-"Buscar Ruta de parentesco ({mod}P)\n"
-"Buscar: múltiples rutas entre la persona seleccionada y cualquier otra persona de tu árbol. Selecciona cualquier persona de los resultados para ver las relaciones entre la persona seleccionada inicialmente y la persona recién seleccionada."
+"Rutas ({mod}P)\n"
+"Muestra las rutas de relación entre la persona seleccionada y una persona de destino. La primera vez que accedas al modo Rutas, selecciona la persona de destino."
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:182
+#: src/gedcom_strings.py:191
 #, fuzzy
 msgid ""
 "Number of Results\n"
@@ -363,16 +359,16 @@ msgstr ""
 "Número de Resultados\n"
 "Especifica cuántos resultados se deben mostrar al buscar a las personas más cercanas que estén etiquetadas, así como el número de rutas entre la persona seleccionada y la persona de referencia."
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:188
+#: src/gedcom_strings.py:197
 #, fuzzy
 msgid ""
 "Maximum Depth For Finding Relationships\n"
 "Specify how far to search within the tree for tagged matches and relationship paths between two people. Higher values will find more distant connections but will take longer to find in large trees. Reasonable values are 10 for fast searching or 50 to find very distant but often interesting paths between people in your tree. To change this setting permanently, alter it in the preferences window."
 msgstr ""
 "Profundidad máxima para buscar Buscar en Parentesco\n"
-"Especifica hasta qué punto se debe buscar en el árbol para encontrar coincidencias etiquetadas y rutas de relación entre dos personas. Los valores más altos encontrarán conexiones más lejanas, pero tardarán más en encontrarlas en árboles grandes. Los valores razonables son 10 para una búsqueda rápida o 50 para encontrar rutas muy lejanas, pero a menudo interesantes, entre las personas de su árbol. Para cambiar esta configuración de forma permanente, modifíquela en la ventana de preferencias."
+"Especifica hasta qué punto se debe buscar en el árbol para encontrar coincidencias etiquetadas y rutas de relación entre dos personas. Los valores más altos encontrarán conexiones más lejanas, pero tardarán más en encontrarlas en árboles grandes. Los valores razonables son 10 para una búsqueda rápida o 50 para encontrar rutas muy lejanas, pero a menudo interesantes, entre personas de su árbol. Para cambiar esta configuración de forma permanente, modifíquela en la ventana de preferencias."
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:198
+#: src/gedcom_strings.py:207
 #, fuzzy
 msgid ""
 "Fuzzy Threshold\n"
@@ -381,34 +377,34 @@ msgstr ""
 "Búsqueda aproximada Umbral\n"
 "Umbral de similitud para la búsqueda difusa de nombres, de 0,00 a 1,00. Los valores más bajos permiten más coincidencias; los valores más altos son más estrictos."
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:203
+#: src/gedcom_strings.py:212
 #, fuzzy
 msgid ""
 "Maximum Search Results\n"
 "Maximum number of people shown in the search results list. Higher values may slow down filtering in very large trees."
 msgstr ""
 "Búsqueda máxima Resultados\n"
-"Número máximo de personas que se muestran en la lista de resultados de búsqueda. Los valores más altos pueden ralentizar el filtrado en árboles muy grandes."
+"Número máximo de personas que se muestran en la lista de resultados de búsqueda. Un valor más alto puede ralentizar el filtrado en árboles muy grandes."
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:210
+#: src/gedcom_strings.py:219
 #, python-brace-format, fuzzy
 msgid ""
 "Toggle Tagged Only ({mod}D)\n"
 "When checked, only people flagged as tagged will be shown in search results. Default Tags are DNA-related, but you can set other tag terms. Default is unchecked to show all people, but checking this focusses on tagged matches in large trees."
 msgstr ""
 "Alternar Etiquetado Solo ({mod}D)\n"
-"Si se marca esta opción, en los resultados de búsqueda solo aparecerán las personas marcadas como etiquetadas. Por defecto, Etiquetas se refiere a relaciones de ADN, pero puedes establecer otros términos de etiqueta. La opción está desmarcada por defecto para mostrar a todas las personas, pero al marcarla, la búsqueda se centra en las coincidencias etiquetadas en árboles genealógicos grandes."
+"Si se marca esta opción, en los resultados de búsqueda solo aparecerán las personas marcadas como etiquetadas. El valor predeterminado Etiquetas se refiere al ADN, pero se pueden establecer otros términos de etiqueta. La opción viene desmarcada por defecto para mostrar a todas las personas, pero al marcarla, la búsqueda se centra en las coincidencias etiquetadas en árboles genealógicos grandes."
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:214
+#: src/gedcom_strings.py:223
 #, python-brace-format, fuzzy
 msgid ""
 "Toggle Fuzzy Search ({mod}U)\n"
-"Allow fuzzy name matching in search results. Fuzzy matching uses a similarity ratio to find names similar to the search term, which can help find matches when names are misspelled or have minor variations."
+"Allow fuzzy name matching in search results. Fuzzy matching uses a similarity ratio to find names similar to the search term, which can help find matches when names are misspelled, have minor variations, or use cached Hebrew/Cyrillic transliterated aliases."
 msgstr ""
-"Activar/desactivar la búsqueda Búsqueda aproximada ({mod}U)\n"
-"Permitir la coincidencia aproximada de nombres en los resultados de búsqueda. La coincidencia Búsqueda aproximada utiliza un índice de similitud para encontrar nombres similares al término de búsqueda, lo que puede ayudar a encontrar coincidencias cuando los nombres están mal escritos o presentan variaciones menores."
+"Alternar Búsqueda aproximada Buscar ({mod}U)\n"
+"Permitir la coincidencia aproximada de nombres en los resultados de búsqueda. La coincidencia Búsqueda aproximada utiliza un índice de similitud para encontrar nombres similares al término de búsqueda, lo que puede ayudar a encontrar coincidencias cuando los nombres están mal escritos, presentan variaciones menores o utilizan alias transcritos al hebreo o al cirílico almacenados en caché."
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:218
+#: src/gedcom_strings.py:227
 #, python-brace-format, fuzzy
 msgid ""
 "Toggle Married Names ({mod}M)\n"
@@ -417,104 +413,102 @@ msgstr ""
 "Alternar Apellidos de casada Nombres ({mod}M)\n"
 "Incluir los apellidos de casada de las mujeres en las búsquedas de Buscar combinando el nombre de pila de cada mujer con los apellidos de sus maridos."
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:223
+#: src/gedcom_strings.py:232
 #, python-brace-format, fuzzy
 msgid "GEDCOM Record: {name}"
 msgstr "GEDCOM Registro: {name}"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:224
+#: src/gedcom_strings.py:233
 #, fuzzy
 msgid "Biography"
 msgstr "Biografía"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:225
+#: src/gedcom_strings.py:234
 #, python-brace-format, fuzzy
 msgid "  Born:    {event}"
 msgstr "  Nacido:    {event}"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:226
+#: src/gedcom_strings.py:235
 #, python-brace-format, fuzzy
 msgid "  Married: {spouses}"
 msgstr "  Apellidos de casada: {spouses}"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:227
+#: src/gedcom_strings.py:236
 #, python-brace-format, fuzzy
 msgid "  Died:    {event}"
 msgstr "  Fallecido:    {event}"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:228
+#: src/gedcom_strings.py:237
 #, python-brace-format, fuzzy
 msgid "  Buried:  {event}"
 msgstr "  Enterrado:  {event}"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:229
+#: src/gedcom_strings.py:238
 #, fuzzy
 msgid "  (no biographical information found)"
 msgstr "  (no se ha encontrado información biográfica)"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:230
+#: src/gedcom_strings.py:239
 #, fuzzy
 msgid "Family"
 msgstr "Familia"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:231
+#: src/gedcom_strings.py:240
 #, fuzzy
 msgid "  Parents:"
 msgstr "  Padres:"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:232
+#: src/gedcom_strings.py:241
 #, fuzzy
 msgid "  Siblings:"
 msgstr "  Hermanos:"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:233
+#: src/gedcom_strings.py:242
 #, fuzzy
 msgid "  Spouse:"
 msgstr "  Cónyuge:"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:234
+#: src/gedcom_strings.py:243
 #, fuzzy
 msgid "  Spouses:"
 msgstr "  Cónyuges:"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:235
+#: src/gedcom_strings.py:244
 #, fuzzy
 msgid "  Children:"
 msgstr "  Niños:"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:236
+#: src/gedcom_strings.py:245
 #, fuzzy
 msgid "  (no family information found)"
 msgstr "  (no se ha encontrado información sobre la familia)"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:237
+#: src/gedcom_strings.py:246
 #, fuzzy
 msgid "Tags"
 msgstr "Término 0"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:238
+#: src/gedcom_strings.py:247
 #, fuzzy
 msgid "Full GEDCOM Record"
 msgstr "Registro completo GEDCOM"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:239
+#: src/gedcom_strings.py:248
 #, fuzzy
 msgid "Close"
 msgstr "Término 0"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:240
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:401
+#: src/gedcom_strings.py:249
 #, fuzzy
 msgid "Tree View"
 msgstr "Término 0"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:241
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:400
+#: src/gedcom_strings.py:250
 #, fuzzy
 msgid "Profile View"
 msgstr "Término 0"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:245
+#: src/gedcom_strings.py:254
 #, python-brace-format, fuzzy
 msgid ""
 "Tree View ({mod}T)\n"
@@ -523,7 +517,7 @@ msgstr ""
 "Vista de árbol ({mod}T)\n"
 "Accede al árbol genealógico interactivo de esta persona."
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:249
+#: src/gedcom_strings.py:258
 #, python-brace-format, fuzzy
 msgid ""
 "Profile View ({mod}T)\n"
@@ -532,21 +526,21 @@ msgstr ""
 "Vista de perfil ({mod}T)\n"
 "Ir al perfil biográfico de esta persona."
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:251
+#: src/gedcom_strings.py:260
 #, fuzzy
 msgid "Save profile"
 msgstr "Perfil de Guardar"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:255
+#: src/gedcom_strings.py:264
 #, python-brace-format, fuzzy
 msgid ""
 "Save profile ({mod}S)\n"
 "Save this biographical profile to a text file."
 msgstr ""
 "Perfil de Guardar ({mod}S)\n"
-"Guardar este perfil biográfico a un archivo de texto."
+"Guardar este perfil biográfico en un archivo de texto."
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:259
+#: src/gedcom_strings.py:268
 #, python-brace-format, fuzzy
 msgid ""
 "Copy profile ({mod}C)\n"
@@ -555,172 +549,169 @@ msgstr ""
 "Perfil de Copiar ({mod}C)\n"
 "Copiar este perfil biográfico al portapapeles."
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:261
+#: src/gedcom_strings.py:270
 #, python-brace-format, fuzzy
 msgid "Family Tree: {name}"
 msgstr "Árbol genealógico: {name}"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:262
+#: src/gedcom_strings.py:271
 #, fuzzy
 msgid "Save family tree"
 msgstr "Árbol genealógico de Guardar"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:263
+#: src/gedcom_strings.py:272
 #, fuzzy
 msgid "Center"
 msgstr "Centro"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:264
+#: src/gedcom_strings.py:274
 #, fuzzy
 msgid "Expand All"
 msgstr "Mostrar todo"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:277
+#: src/gedcom_strings.py:287
 #, fuzzy
 msgid "Closest Tagged Matches"
 msgstr "Cerrar.ª coincidencia con Etiquetado"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:278
+#: src/gedcom_strings.py:288
 #, fuzzy
 msgid "  Note: this person has a matching tag."
 msgstr "  Nota: esta persona tiene una etiqueta coincidente."
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:279
+#: src/gedcom_strings.py:289
 #, fuzzy
 msgid "No tagged relatives found within the search depth."
 msgstr ""
 "No se han encontrado parientes etiquetados dentro del alcance de la "
 "búsqueda."
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:280
+#: src/gedcom_strings.py:290
 #, python-brace-format, fuzzy
 msgid "#{rank}: "
 msgstr "#{rank}: "
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:281
+#: src/gedcom_strings.py:291
 #, fuzzy
 msgid "   Tags:"
 msgstr "   Etiquetas:"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:282
+#: src/gedcom_strings.py:292
 #, python-brace-format, fuzzy
 msgid "Relationship: {rel}"
 msgstr "Parentesco: {rel}"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:283
+#: src/gedcom_strings.py:293
 #, fuzzy
 msgid "Show relationship graphically"
 msgstr "Mostrar la relación de forma gráfica"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:284
+#: src/gedcom_strings.py:294
 #, fuzzy
 msgid "Common ancestor: "
 msgstr "Antepasado común: "
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:285
+#: src/gedcom_strings.py:295
 #, fuzzy
 msgid "Common ancestors:"
 msgstr "Antepasados comunes:"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:286
+#: src/gedcom_strings.py:296
 #, fuzzy
 msgid "None found."
 msgstr "No se ha encontrado nada."
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:287
+#: src/gedcom_strings.py:297
 #, fuzzy
 msgid "Path:"
 msgstr "Ruta:"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:288
+#: src/gedcom_strings.py:298
 #, fuzzy
 msgid "Path to Home Person"
 msgstr "Ruta a Persona principal"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:289
+#: src/gedcom_strings.py:299
 #, fuzzy
 msgid "Home: "
 msgstr "Inicio: "
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:290
+#: src/gedcom_strings.py:300
 #, fuzzy
-msgid "No path found to home person within the current max depth."
-msgstr ""
-"No se ha encontrado ninguna ruta hacia la persona de referencia dentro de la"
-" profundidad máxima actual."
+msgid "None found within the current max depth."
+msgstr "No se ha encontrado ninguno dentro de la profundidad máxima actual."
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:293
+#: src/gedcom_strings.py:303
 #, fuzzy
 msgid "father"
 msgstr "padre"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:294
+#: src/gedcom_strings.py:304
 #, fuzzy
 msgid "mother"
 msgstr "madre"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:295
+#: src/gedcom_strings.py:305
 #, fuzzy
 msgid "sibling"
 msgstr "hermano"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:296
+#: src/gedcom_strings.py:306
 #, fuzzy
 msgid "spouse"
 msgstr "cónyuge"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:297
+#: src/gedcom_strings.py:307
 #, fuzzy
 msgid "child"
 msgstr "niño"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:299
+#: src/gedcom_strings.py:309
 #, fuzzy
 msgid "Relationship Graph"
 msgstr "Parentesco Gráfico"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:300
+#: src/gedcom_strings.py:310
 #, fuzzy
 msgid "Save results"
 msgstr "Resultados de Guardar"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:301
+#: src/gedcom_strings.py:311
 #, fuzzy
 msgid "Save relationship graph"
 msgstr "Guardar gráfico de relaciones"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:302
+#: src/gedcom_strings.py:312
 #, fuzzy
 msgid "Save graph layout debug data"
 msgstr "Guardar Datos de depuración de la disposición del gráfico"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:303
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:307
+#: src/gedcom_strings.py:313 src/gedcom_strings.py:317
 #, fuzzy
 msgid "Show Tree"
 msgstr "Mostrar Árbol"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:304
+#: src/gedcom_strings.py:314
 #, fuzzy
 msgid "Find Path"
 msgstr "Buscar Ruta"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:305
+#: src/gedcom_strings.py:315
 #, fuzzy
 msgid "Copy Name"
 msgstr "Copiar Nombre"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:306
+#: src/gedcom_strings.py:316
 #, fuzzy
 msgid "Show Profile"
 msgstr "Mostrar Perfil"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:310
+#: src/gedcom_strings.py:320
 #, fuzzy
 msgid "Debug JSON"
 msgstr "Depuración JSON"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:314
+#: src/gedcom_strings.py:324
 #, python-brace-format, fuzzy
 msgid ""
 "Save graphic ({mod}S)\n"
@@ -729,7 +720,7 @@ msgstr ""
 "Gráfico Guardar ({mod}S)\n"
 "Guardar esta representación gráfica en un archivo."
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:318
+#: src/gedcom_strings.py:328
 #, python-brace-format, fuzzy
 msgid ""
 "Copy graphic ({mod}C)\n"
@@ -738,7 +729,7 @@ msgstr ""
 "Gráfico Copiar ({mod}C)\n"
 "Copiar: copiar esta representación gráfica al portapapeles."
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:320
+#: src/gedcom_strings.py:330
 #, fuzzy
 msgid ""
 "Save layout debug JSON (Ctrl+Shift+D)\n"
@@ -747,89 +738,89 @@ msgstr ""
 "Guardar depuración de diseño JSON (Ctrl+Shift+D)\n"
 "Exportar los datos de diseño del gráfico sin los nombres de las personas."
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:321
+#: src/gedcom_strings.py:331
 #, fuzzy
 msgid "Show parents"
 msgstr "Mostrar a los padres"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:322
+#: src/gedcom_strings.py:332
 #, fuzzy
 msgid "Hide parents"
 msgstr "Ocultar elementos principales"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:323
+#: src/gedcom_strings.py:333
 #, fuzzy
 msgid "Show siblings"
 msgstr "Mostrar hermanos"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:324
+#: src/gedcom_strings.py:334
 #, fuzzy
 msgid "Hide siblings"
 msgstr "Ocultar elementos del mismo nivel"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:325
+#: src/gedcom_strings.py:335
 #, fuzzy
 msgid "Show spouses"
 msgstr "Mostrar cónyuges"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:326
+#: src/gedcom_strings.py:336
 #, fuzzy
 msgid "Hide spouses"
 msgstr "Ocultar a los cónyuges"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:327
+#: src/gedcom_strings.py:337
 #, fuzzy
 msgid "Show children"
 msgstr "Mostrar a los niños"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:328
+#: src/gedcom_strings.py:338
 #, fuzzy
 msgid "Hide children"
 msgstr "Ocultar elementos secundarios"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:329
+#: src/gedcom_strings.py:339
 #, fuzzy
 msgid "START"
 msgstr "INICIO"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:330
+#: src/gedcom_strings.py:340
 #, fuzzy
 msgid "END"
 msgstr "FIN"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:335
+#: src/gedcom_strings.py:345
 #, fuzzy
 msgid "Relationship path:"
 msgstr "Ruta de parentesco:"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:336
+#: src/gedcom_strings.py:346
 #, fuzzy
 msgid "  From: "
 msgstr "  De: "
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:337
+#: src/gedcom_strings.py:347
 #, fuzzy
 msgid "  To:   "
 msgstr "  Para:   "
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:338
+#: src/gedcom_strings.py:348
 #, fuzzy
 msgid "(Same person selected for both.)"
 msgstr "(Se ha elegido a la misma persona para ambos.)"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:339
+#: src/gedcom_strings.py:349
 #, python-brace-format, fuzzy
 msgid "No relationship path found within max depth {depth}."
 msgstr ""
 "No se ha encontrado ninguna ruta de relación dentro de la profundidad máxima"
 " {depth}."
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:340
+#: src/gedcom_strings.py:350
 #, python-brace-format, fuzzy
 msgid "Path #{rank}:"
 msgstr "Ruta #{rank}:"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:342
+#: src/gedcom_strings.py:352
 #, fuzzy
 msgid ""
 "(Search cap reached — there may be additional paths. Reduce Max depth to "
@@ -838,12 +829,12 @@ msgstr ""
 "(Se ha alcanzado el límite de búsqueda; puede que haya rutas adicionales. "
 "Reduce la profundidad máxima para buscar en un área más pequeña.)"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:349
+#: src/gedcom_strings.py:359
 #, fuzzy
 msgid "Tag definitions"
 msgstr "Definiciones de etiquetas"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:351
+#: src/gedcom_strings.py:361
 #, fuzzy
 msgid ""
 "No _MTTAG records found in the loaded file.\n"
@@ -854,122 +845,122 @@ msgstr ""
 "\n"
 "(Si aún no has cargado ningún archivo, haz clic primero en «Cargar»)."
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:354
+#: src/gedcom_strings.py:364
 #, fuzzy
 msgid "ID"
 msgstr "Número de identificación"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:355
+#: src/gedcom_strings.py:365
 #, fuzzy
 msgid "Tag Name"
 msgstr "Día Nombre"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:356
+#: src/gedcom_strings.py:366
 #, fuzzy
 msgid "OK"
 msgstr "De acuerdo"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:357
+#: src/gedcom_strings.py:367
 #, fuzzy
 msgid "Cancel"
 msgstr "Cancelar"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:362
+#: src/gedcom_strings.py:372
 #, fuzzy
 msgid "Select a Person"
 msgstr "Selecciona una persona"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:363
+#: src/gedcom_strings.py:373
 #, fuzzy
 msgid "Select Relationship Target"
-msgstr "Seleccionar Parentesco Destino"
+msgstr "Selecciona Parentesco Destino"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:364
+#: src/gedcom_strings.py:374
 #, fuzzy
 msgid "Select"
 msgstr "Seleccionar"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:369
+#: src/gedcom_strings.py:379
 #, fuzzy
 msgid "Settings"
 msgstr "Configuración"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:369
+#: src/gedcom_strings.py:379
 #, fuzzy
 msgid "Preferences"
 msgstr "Preferencias"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:370
+#: src/gedcom_strings.py:380
 #, fuzzy
 msgid "Appearance"
 msgstr "Apariencia"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:371
+#: src/gedcom_strings.py:381
 #, fuzzy
 msgid "Font size"
 msgstr "Tamaño de la fuente"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:372
+#: src/gedcom_strings.py:382
 #, fuzzy
 msgid "Small"
 msgstr "Pequeño"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:373
+#: src/gedcom_strings.py:383
 #, fuzzy
 msgid "Medium"
 msgstr "Medio"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:374
+#: src/gedcom_strings.py:384
 #, fuzzy
 msgid "Large"
 msgstr "Grande"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:375
+#: src/gedcom_strings.py:385
 #, fuzzy
 msgid "Jumbo"
 msgstr "Gigante"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:376
+#: src/gedcom_strings.py:386
 #, fuzzy
 msgid "Theme"
 msgstr "Tema"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:377
+#: src/gedcom_strings.py:387
 #, fuzzy
 msgid "Hide Tooltips"
 msgstr "Ocultar información sobre herramientas"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:378
+#: src/gedcom_strings.py:388
 #, fuzzy
 msgid "Hide popup explanations like this one."
-msgstr "Ocultar las explicaciones emergentes como esta."
+msgstr "Ocultar ventanas emergentes como esta."
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:379
+#: src/gedcom_strings.py:389
 #, fuzzy
 msgid "Search defaults"
 msgstr "Configuración predeterminada de búsqueda"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:382
+#: src/gedcom_strings.py:392
 #, fuzzy
 msgid "Fuzzy threshold:"
 msgstr "Búsqueda aproximada umbral:"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:383
+#: src/gedcom_strings.py:393
 #, fuzzy
 msgid "Max search results:"
 msgstr "Número máximo de resultados de búsqueda:"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:384
+#: src/gedcom_strings.py:394
 #, fuzzy
 msgid "Display"
 msgstr "Pantalla"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:385
+#: src/gedcom_strings.py:395
 #, fuzzy
 msgid "Show GEDCOM IDs"
 msgstr "Mostrar los ID GEDCOM"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:387
+#: src/gedcom_strings.py:397
 #, fuzzy
 msgid ""
 "When enabled, the GEDCOM ID for each person is shown in parentheses after "
@@ -981,12 +972,12 @@ msgstr ""
 "con el mismo nombre y te permite acceder a los identificadores sin procesar "
 "de GEDCOM para realizar investigaciones con otras herramientas."
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:391
+#: src/gedcom_strings.py:401
 #, fuzzy
 msgid "Show Full GEDCOM"
 msgstr "Mostrar todo GEDCOM"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:393
+#: src/gedcom_strings.py:403
 #, fuzzy
 msgid ""
 "When enabled, the Full GEDCOM Record section is included at the bottom of "
@@ -996,58 +987,71 @@ msgstr ""
 "parte inferior de la ventana Perfil, mostrando los datos sin procesar GEDCOM"
 " de la persona."
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:396
+#: src/gedcom_strings.py:406
 #, fuzzy
 msgid "Name format:"
 msgstr "Formato del nombre:"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:397
+#: src/gedcom_strings.py:407
 #, fuzzy
 msgid "First Last"
 msgstr "Nombre Apellido"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:398
+#: src/gedcom_strings.py:408
 #, fuzzy
 msgid "Last, First"
 msgstr "Apellido, nombre"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:399
+#: src/gedcom_strings.py:409
 #, fuzzy
-msgid "Default profile view:"
-msgstr "Vista predeterminada del perfil:"
+msgid "Default display:"
+msgstr "Visualización predeterminada:"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:402
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:468
+#: src/gedcom_strings.py:410 src/gedcom_strings.py:478
 #, fuzzy
 msgid "Cache"
 msgstr "Caché"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:403
+#: src/gedcom_strings.py:411
 #, fuzzy
 msgid "Clear Cache…"
 msgstr "Borrar caché…"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:404
+#: src/gedcom_strings.py:412
 #, fuzzy
 msgid "Remove all cached GEDCOM data"
 msgstr "Eliminar todos los datos almacenados en caché de GEDCOM"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:405
+#: src/gedcom_strings.py:413
 #, fuzzy
 msgid "Language:"
 msgstr "Idioma:"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:406
+#: src/gedcom_strings.py:414
 #, fuzzy
 msgid "System Default"
 msgstr "Configuración predeterminada del sistema"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:411
+#: src/gedcom_strings.py:415
+#, fuzzy
+msgid "Language Changed"
+msgstr "Se ha cambiado el idioma"
+
+#: src/gedcom_strings.py:416
+#, python-brace-format, fuzzy
+msgid ""
+"Language changed from {old} to {new}. Please restart the application for the"
+" change to take effect."
+msgstr ""
+"El idioma ha cambiado de {old} a {new}. Reinicia la aplicación para que el "
+"cambio surta efecto."
+
+#: src/gedcom_strings.py:421
 #, fuzzy
 msgid "Searching"
 msgstr "Buscando"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:412
+#: src/gedcom_strings.py:422
 #, fuzzy
 msgid ""
 "Searching for tagged matches…\n"
@@ -1056,7 +1060,7 @@ msgstr ""
 "Buscando coincidencias etiquetadas…\n"
 "(reduce el valor de «profundidad máxima» para acelerar la búsqueda)"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:413
+#: src/gedcom_strings.py:423
 #, fuzzy
 msgid ""
 "Finding relationship paths…\n"
@@ -1065,27 +1069,27 @@ msgstr ""
 "Buscar analizando rutas de relación…\n"
 "(reduce el valor de «profundidad máxima» para acelerar la búsqueda)"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:418
+#: src/gedcom_strings.py:428
 #, fuzzy
 msgid "Loading…"
 msgstr "Cargando…"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:419
+#: src/gedcom_strings.py:429
 #, fuzzy
 msgid "Load failed."
 msgstr "Error al cargar."
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:420
+#: src/gedcom_strings.py:430
 #, python-brace-format, fuzzy
 msgid "Loaded {count:,} individuals (from cache)."
 msgstr "Se han cargado los registros {count:,} (desde la caché)."
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:421
+#: src/gedcom_strings.py:431
 #, python-brace-format, fuzzy
 msgid "Loaded {count:,} individuals."
 msgstr "Se han cargado {count:,} personas."
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:423
+#: src/gedcom_strings.py:433
 #, python-brace-format, fuzzy
 msgid ""
 "Showing first {max_display:,} of {total_matches:,} matches. Refine your "
@@ -1094,14 +1098,14 @@ msgstr ""
 "Se muestran los primeros {max_display:,} de {total_matches:,} resultados. "
 "Refina tu búsqueda.  ({total:,} en total, {flagged} etiquetados)"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:426
+#: src/gedcom_strings.py:436
 #, python-brace-format, fuzzy
 msgid "{shown:,} match{plural} shown.  ({total:,} total, {flagged} tagged)"
 msgstr ""
 "{shown:,} coincidencia{plural} mostrada.  ({total:,} en total, {flagged} "
 "etiquetadas)"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:428
+#: src/gedcom_strings.py:438
 #, python-brace-format, fuzzy
 msgid ""
 "{total:,} individuals, {families:,} families, {flagged} tagged.  Type to "
@@ -1110,27 +1114,27 @@ msgstr ""
 "{total:,} personas, {families:,} familias, {flagged} etiquetados. Escribe "
 "para buscar."
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:431
+#: src/gedcom_strings.py:441
 #, python-brace-format, fuzzy
 msgid "Home person set: {name}"
 msgstr "Persona principal establecido: {name}"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:436
+#: src/gedcom_strings.py:446
 #, fuzzy
 msgid "No file"
 msgstr "No hay archivo"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:437
+#: src/gedcom_strings.py:447
 #, fuzzy
 msgid "Please choose a GEDCOM file first."
 msgstr "Por favor, elige primero un archivo GEDCOM."
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:438
+#: src/gedcom_strings.py:448
 #, fuzzy
 msgid "Not found"
 msgstr "No encontrado"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:439
+#: src/gedcom_strings.py:449
 #, python-brace-format, fuzzy
 msgid ""
 "File not found:\n"
@@ -1139,12 +1143,12 @@ msgstr ""
 "Archivo no encontrado:\n"
 "{path}"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:440
+#: src/gedcom_strings.py:450
 #, fuzzy
 msgid "ZIP error"
 msgstr "Error ZIP"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:441
+#: src/gedcom_strings.py:451
 #, python-brace-format, fuzzy
 msgid ""
 "Could not extract GEDCOM from ZIP:\n"
@@ -1155,12 +1159,12 @@ msgstr ""
 "\n"
 "{error}"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:442
+#: src/gedcom_strings.py:452
 #, fuzzy
 msgid "Parse error"
 msgstr "Parse error"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:443
+#: src/gedcom_strings.py:453
 #, python-brace-format, fuzzy
 msgid ""
 "Error reading GEDCOM:\n"
@@ -1171,57 +1175,57 @@ msgstr ""
 "\n"
 "{error}"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:444
+#: src/gedcom_strings.py:454
 #, fuzzy
 msgid "Encoding warning"
 msgstr "Advertencia sobre la codificación"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:445
+#: src/gedcom_strings.py:455
 #, fuzzy
 msgid "No data"
 msgstr "No hay datos"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:446
+#: src/gedcom_strings.py:456
 #, fuzzy
 msgid "Load a GEDCOM file first."
 msgstr "Carga primero un archivo GEDCOM."
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:447
+#: src/gedcom_strings.py:457
 #, fuzzy
 msgid "No selection"
 msgstr "Sin selección"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:448
+#: src/gedcom_strings.py:458
 #, fuzzy
 msgid "Select a person from the list first."
 msgstr "Selecciona primero a una persona de la lista."
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:449
+#: src/gedcom_strings.py:459
 #, fuzzy
 msgid "Bad value"
 msgstr "Valor incorrecto"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:450
+#: src/gedcom_strings.py:460
 #, fuzzy
 msgid "Results and Max Depth must be integers."
 msgstr "Resultados y Profundidad máx. deben ser números enteros."
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:451
+#: src/gedcom_strings.py:461
 #, fuzzy
 msgid "Max Depth must be an integer."
 msgstr "Profundidad máx. debe ser un número entero."
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:452
+#: src/gedcom_strings.py:462
 #, fuzzy
 msgid "Select a starting person from the main list first."
 msgstr "Selecciona primero una persona de la lista principal."
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:453
+#: src/gedcom_strings.py:463
 #, fuzzy
 msgid "File not found"
 msgstr "Archivo no encontrado"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:454
+#: src/gedcom_strings.py:464
 #, python-brace-format, fuzzy
 msgid ""
 "Could not open:\n"
@@ -1234,12 +1238,12 @@ msgstr ""
 "\n"
 "{error}"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:455
+#: src/gedcom_strings.py:465
 #, fuzzy
 msgid "Save error"
 msgstr "Error Guardar"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:456
+#: src/gedcom_strings.py:466
 #, python-brace-format, fuzzy
 msgid ""
 "Could not save relationship graph:\n"
@@ -1250,7 +1254,7 @@ msgstr ""
 "\n"
 "{error}"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:457
+#: src/gedcom_strings.py:467
 #, python-brace-format, fuzzy
 msgid ""
 "Could not save graph layout debug data:\n"
@@ -1261,7 +1265,7 @@ msgstr ""
 "\n"
 "{error}"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:458
+#: src/gedcom_strings.py:468
 #, python-brace-format, fuzzy
 msgid ""
 "Could not save results:\n"
@@ -1272,7 +1276,7 @@ msgstr ""
 "\n"
 "{error}"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:459
+#: src/gedcom_strings.py:469
 #, python-brace-format, fuzzy
 msgid ""
 "Could not save profile:\n"
@@ -1283,7 +1287,7 @@ msgstr ""
 "\n"
 "{error}"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:461
+#: src/gedcom_strings.py:471
 #, python-brace-format, fuzzy
 msgid ""
 "GEDCOM file not found:\n"
@@ -1296,17 +1300,17 @@ msgstr ""
 "\n"
 "Utiliza «Examinar…» para seleccionar otro archivo."
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:469
+#: src/gedcom_strings.py:479
 #, fuzzy
 msgid "No cache files found."
 msgstr "No se han encontrado archivos de caché."
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:470
+#: src/gedcom_strings.py:480
 #, fuzzy
 msgid "Clear cache"
 msgstr "Borrar caché"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:472
+#: src/gedcom_strings.py:482
 #, python-brace-format, fuzzy
 msgid ""
 "Delete {count} cached file(s)?\n"
@@ -1317,58 +1321,57 @@ msgstr ""
 "\n"
 "Nota: la caché puede contener información personal y registros sin procesar de sus archivos GEDCOM."
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:476
+#: src/gedcom_strings.py:486
 #, fuzzy
 msgid "Cache cleared"
 msgstr "Caché borrada"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:477
+#: src/gedcom_strings.py:487
 #, python-brace-format, fuzzy
 msgid "{deleted} file(s) deleted."
 msgstr "Se han eliminado los archivos {deleted}."
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:482
+#: src/gedcom_strings.py:492
 #, fuzzy
 msgid "How to Use"
 msgstr "Cómo utilizarlo"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:483
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:508
+#: src/gedcom_strings.py:493 src/gedcom_strings.py:516
 #, fuzzy
 msgid "Keyboard Shortcuts"
 msgstr "Atajos de teclado"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:486
+#: src/gedcom_strings.py:496
 #, fuzzy
 msgid "Checking for Updates"
 msgstr "Comprobación de actualizaciones"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:487
+#: src/gedcom_strings.py:497
 #, fuzzy
 msgid "Update Available"
 msgstr "Hay una actualización disponible"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:489
+#: src/gedcom_strings.py:499
 #, fuzzy
 msgid "Shortcut"
 msgstr "Atajo"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:490
+#: src/gedcom_strings.py:500
 #, fuzzy
 msgid "Action"
 msgstr "Acción"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:492
+#: src/gedcom_strings.py:502
 #, fuzzy
 msgid "Checking GitHub for the latest release…"
 msgstr "Comprobando GitHub para ver si hay una versión más reciente…"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:493
+#: src/gedcom_strings.py:503
 #, fuzzy
 msgid "Update check failed"
 msgstr "Error al comprobar las actualizaciones"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:494
+#: src/gedcom_strings.py:504
 #, python-brace-format, fuzzy
 msgid ""
 "Could not check for updates right now.\n"
@@ -1379,133 +1382,132 @@ msgstr ""
 "\n"
 "{error}"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:495
+#: src/gedcom_strings.py:505
 #, fuzzy
 msgid "No update available"
 msgstr "No hay actualizaciones disponibles"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:496
+#: src/gedcom_strings.py:506
 #, python-brace-format, fuzzy
 msgid "You are running the latest version ({current})."
 msgstr "Estás utilizando la última versión ({current})."
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:497
+#: src/gedcom_strings.py:507
 #, fuzzy
 msgid "A newer version is available."
 msgstr "Hay una versión más reciente disponible."
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:498
+#: src/gedcom_strings.py:508
 #, python-brace-format, fuzzy
 msgid "Installed version: {current}"
 msgstr "Versión instalada: {current}"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:499
+#: src/gedcom_strings.py:509
 #, python-brace-format, fuzzy
 msgid "Latest version: {latest}"
 msgstr "Última versión: {latest}"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:500
+#: src/gedcom_strings.py:510
 #, fuzzy
 msgid "Download the latest release from GitHub:"
 msgstr "Descarga el último lanzamiento de GitHub:"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:501
+#: src/gedcom_strings.py:511
 #, fuzzy
 msgid "Open GitHub Releases"
 msgstr "Abrir GitHub Publicaciones"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:506
+#: src/gedcom_strings.py:517
 #, fuzzy
-msgid "Close any dialog or pop-up window"
-msgstr "Cerrar cualquier cuadro de diálogo o ventana emergente"
+msgid "Open Preferences"
+msgstr "Abrir Preferencias"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:509
+#: src/gedcom_strings.py:518
 #, fuzzy
 msgid "Find Person"
 msgstr "Buscar Persona"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:510
+#: src/gedcom_strings.py:519
 #, fuzzy
 msgid "Filter Results"
 msgstr "Filtrar Resultados"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:511
+#: src/gedcom_strings.py:520
 #, fuzzy
 msgid "Toggle the tagged filter"
 msgstr "Activar el filtro por etiquetas"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:512
+#: src/gedcom_strings.py:521
 #, fuzzy
 msgid "Toggle fuzzy search mode"
 msgstr "Activar el modo de búsqueda aproximada"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:513
+#: src/gedcom_strings.py:522
 #, fuzzy
 msgid "Toggle married-name search mode"
 msgstr "Activar el modo de búsqueda por apellido de casada"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:514
+#: src/gedcom_strings.py:523
 #, fuzzy
 msgid "Open a new GEDCOM file"
 msgstr "Abrir un nuevo archivo GEDCOM"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:515
+#: src/gedcom_strings.py:524
 #, fuzzy
-msgid "Find Nearest Tagged Matches for the selected person"
-msgstr ""
-"Buscar Resultados más cercanos a Etiquetado para la persona seleccionada"
+msgid "Switch the Display Pane to Matches"
+msgstr "Cambia el panel de visualización a «Coincidencias»"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:516
+#: src/gedcom_strings.py:525
 #, fuzzy
-msgid "Show the full GEDCOM record for the selected person"
-msgstr "Mostrar el registro completo GEDCOM de la persona seleccionada"
+msgid "Open Tree View for selected person"
+msgstr "Abrir Vista de árbol para la persona seleccionada"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:517
+#: src/gedcom_strings.py:526
 #, fuzzy
 msgid "Set Home person to the selected person"
 msgstr "Establece Persona principal en la persona seleccionada"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:518
+#: src/gedcom_strings.py:527
 #, fuzzy
-msgid "Open the Find Relationship Paths dialog"
-msgstr "Abrir: el cuadro de diálogo de Buscar y Ruta de parentesco"
+msgid "Switch the Display Pane to Paths"
+msgstr "Cambia el panel de visualización a «Rutas»"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:519
+#: src/gedcom_strings.py:528
 #, fuzzy
 msgid "Select new tag for finding relationship paths"
 msgstr "Selecciona una nueva etiqueta para buscar rutas de relación"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:520
+#: src/gedcom_strings.py:530
 #, fuzzy
 msgid "Reverse/restore the direction of all relationship paths"
 msgstr "Invertir/restablecer la dirección de todas las rutas de relación"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:521
+#: src/gedcom_strings.py:531
 #, fuzzy
 msgid "Save results to a text file"
 msgstr "Guardar se guarda en un archivo de texto"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:522
+#: src/gedcom_strings.py:532
 #, fuzzy
 msgid "Copy result to clipboard"
 msgstr "Copiar: copiar el resultado al portapapeles"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:524
+#: src/gedcom_strings.py:533
 #, fuzzy
 msgid "Go back to the previous view"
 msgstr "Volver a la vista anterior"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:525
+#: src/gedcom_strings.py:534
 #, fuzzy
 msgid "Go forward to the next view"
 msgstr "Pasa a la siguiente vista"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:526
+#: src/gedcom_strings.py:535
 #, fuzzy
 msgid "Zoom the focused text or graph view"
-msgstr "Ampliar la vista del texto o gráfico seleccionado"
+msgstr "Ampliar el texto o el gráfico seleccionado"
 
-#: C:/apps/src/gedcom-navigator/src/gedcom_strings.py:527
+#: src/gedcom_strings.py:536
 #, fuzzy
 msgid "Reset zoom in the focused text or graph view"
 msgstr "Restablecer el zoom en el texto o gráfico seleccionado"

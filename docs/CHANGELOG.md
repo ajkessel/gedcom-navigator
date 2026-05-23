@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.9.3] - 2026-05-23
+- Updated translations
+
 ## [1.9.2] - 2026-05-23
 
 ### Added
