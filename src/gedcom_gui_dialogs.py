@@ -892,9 +892,13 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
             new_lang = lang_var.get()
             if old_lang != new_lang:
                 self._config.set_language(new_lang)
+                lang_name = {code: label for label, code in lang_options}
                 messagebox.showinfo(
                     _(LBL_LANGUAGE_CHANGED),
-                    _(MSG_LANGUAGE_CHANGED).format(old=old_lang, new=new_lang)
+                    _(MSG_LANGUAGE_CHANGED).format(
+                        old=lang_name.get(old_lang, old_lang),
+                        new=lang_name.get(new_lang, new_lang),
+                    )
                 )
 
             self._pop_sort_key = None
@@ -954,7 +958,7 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
                 win.maxsize(10000, 10000)
                 win.geometry(f'{fw}x{target_h}+{pos}')
 
-        for _ in range(self._PREFS_PRE_SHOW_SETTLE_PASSES):
+        for _i in range(self._PREFS_PRE_SHOW_SETTLE_PASSES):
             _correct_prefs_height()
 
         hidden_until_mapped = False
@@ -967,7 +971,7 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
 
         win.deiconify()
         win.update_idletasks()
-        for _ in range(self._PREFS_PRE_SHOW_SETTLE_PASSES):
+        for _i in range(self._PREFS_PRE_SHOW_SETTLE_PASSES):
             _correct_prefs_height()
 
         def _focus_prefs_window():
@@ -977,7 +981,7 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
                 pass
 
         def _reveal_prefs_window():
-            for _ in range(self._PREFS_PRE_SHOW_SETTLE_PASSES):
+            for _i in range(self._PREFS_PRE_SHOW_SETTLE_PASSES):
                 _correct_prefs_height()
             if hidden_until_mapped:
                 try:

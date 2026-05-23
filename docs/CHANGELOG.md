@@ -2,6 +2,7 @@
 
 ## [1.9.3] - 2026-05-23
 - Updated translations
+- Fixed language selection preferences
 
 ## [1.9.2] - 2026-05-23
 
