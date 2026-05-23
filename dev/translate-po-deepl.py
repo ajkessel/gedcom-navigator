@@ -59,9 +59,13 @@ DNT_LITERALS = [
 ]
 
 
-def _mk_token(prefix: str, i: int) -> str:
-    # Use bracket glyphs that translation engines generally leave intact
-    return f"⟦{prefix}{i}⟧"
+def _mk_token(i: int) -> str:
+    # Purely numeric content: translation engines translate words, not digit strings
+    return f"⟦{i:04d}⟧"
+
+
+# Matches any unrestored placeholder token in translated output
+UNRESTORED_TOKEN_RE = re.compile(r"⟦\d{4}⟧")
 
 
 @dataclass
@@ -70,10 +74,9 @@ class ProtectedText:
     restores: List[Tuple[str, str]]  # (token, original)
 
 
-def protect_patterns(text: str, patterns: List[re.Pattern], prefix: str) -> ProtectedText:
+def protect_patterns(text: str, patterns: List[re.Pattern], counter: List[int]) -> ProtectedText:
     restores: List[Tuple[str, str]] = []
     out = text
-    i = 0
 
     for pat in patterns:
         while True:
@@ -81,8 +84,8 @@ def protect_patterns(text: str, patterns: List[re.Pattern], prefix: str) -> Prot
             if not m:
                 break
             orig = m.group(0)
-            tok = _mk_token(prefix, i)
-            i += 1
+            tok = _mk_token(counter[0])
+            counter[0] += 1
             restores.append((tok, orig))
             out = out[: m.start()] + tok + out[m.end() :]
 
@@ -212,18 +215,17 @@ GLOSSARY: Dict[str, List[Tuple[str, str]]] = {
 }
 
 
-def apply_glossary_tokens(source: str, lang: str) -> ProtectedText:
+def apply_glossary_tokens(source: str, lang: str, counter: List[int]) -> ProtectedText:
     restores: List[Tuple[str, str]] = []
     out = source
 
     pairs = GLOSSARY.get(lang, [])
     pairs_sorted = sorted(pairs, key=lambda x: len(x[0]), reverse=True)
 
-    idx = 0
     for src_term, tgt_term in pairs_sorted:
         if src_term in out:
-            tok = _mk_token("TERM", idx)
-            idx += 1
+            tok = _mk_token(counter[0])
+            counter[0] += 1
             out = out.replace(src_term, tok)
             restores.append((tok, tgt_term))
 
@@ -326,29 +328,28 @@ def should_translate_entry(e: polib.POEntry, overwrite: bool) -> bool:
 
 def protect_all(source: str, lang: str) -> Tuple[str, List[Tuple[str, str]]]:
     restores: List[Tuple[str, str]] = []
+    counter = [0]  # shared mutable counter ensures unique numeric tokens per string
 
-    g = apply_glossary_tokens(source, lang)
+    g = apply_glossary_tokens(source, lang, counter)
     s = g.text
     restores.extend(g.restores)
 
-    # protect do-not-translate literals
-    idx = 0
     for lit in DNT_LITERALS:
         if lit in s:
-            tok = _mk_token("LIT", idx)
-            idx += 1
+            tok = _mk_token(counter[0])
+            counter[0] += 1
             s = s.replace(lit, tok)
             restores.append((tok, lit))
 
-    p1 = protect_patterns(s, [BRACE_RE], "BR")
+    p1 = protect_patterns(s, [BRACE_RE], counter)
     s = p1.text
     restores.extend(p1.restores)
 
-    p2 = protect_patterns(s, [PRINTF_RE], "PF")
+    p2 = protect_patterns(s, [PRINTF_RE], counter)
     s = p2.text
     restores.extend(p2.restores)
 
-    p3 = protect_patterns(s, SHORTCUT_RE_LIST, "KS")
+    p3 = protect_patterns(s, SHORTCUT_RE_LIST, counter)
     s = p3.text
     restores.extend(p3.restores)
 
@@ -364,7 +365,7 @@ def translate_po(
     mark_fuzzy: bool,
     batch_max_chars: int,
     batch_max_items: int,
-):
+) -> int:  # returns number of validation warnings
     po = polib.pofile(input_path)
     po.metadata["Language"] = lang
 
@@ -386,7 +387,7 @@ def translate_po(
 
     if not jobs:
         po.save(output_path)
-        return
+        return 0
 
     protected_texts = [j[2] for j in jobs]
     batches = chunk_texts(protected_texts, max_chars=batch_max_chars, max_items=batch_max_items)
@@ -401,8 +402,20 @@ def translate_po(
         idx += len(b)
 
     # Apply translations back
-    for (entry, kind, _ptxt, restores), raw in zip(jobs, translated_all):
+    warnings = 0
+    for (entry, kind, ptxt, restores), raw in zip(jobs, translated_all):
         t = restore_all(raw, restores)
+
+        # Detect tokens that DeepL mangled and restore_all couldn't match
+        if UNRESTORED_TOKEN_RE.search(t):
+            print(
+                f"WARNING [{lang}]: unrestored token in translation of {entry.msgid!r}",
+                file=sys.stderr,
+            )
+            print(f"  protected:  {ptxt!r}", file=sys.stderr)
+            print(f"  raw output: {raw!r}", file=sys.stderr)
+            print(f"  restored:   {t!r}", file=sys.stderr)
+            warnings += 1
 
         if kind == "single":
             entry.msgstr = t
@@ -423,6 +436,7 @@ def translate_po(
             entry.flags.append("fuzzy")
 
     po.save(output_path)
+    return warnings
 
 
 def main() -> int:
@@ -449,9 +463,10 @@ def main() -> int:
 
     backend = pick_backend(auth_key, prefer_official=args.prefer_official, use_free_api=args.use_free_api)
 
+    total_warnings = 0
     for lang in args.langs:
         out_path = os.path.join(args.outdir, f"gedcom_navigator_{lang}.po")
-        translate_po(
+        w = translate_po(
             input_path=args.input,
             output_path=out_path,
             lang=lang,
@@ -461,7 +476,19 @@ def main() -> int:
             batch_max_chars=args.batch_max_chars,
             batch_max_items=args.batch_max_items,
         )
-        print(f"Wrote {out_path}")
+        if w:
+            print(f"Wrote {out_path} ({w} translation warning(s))")
+        else:
+            print(f"Wrote {out_path}")
+        total_warnings += w
+
+    if total_warnings:
+        print(
+            f"ERROR: {total_warnings} translation(s) contain unrestored placeholder tokens "
+            f"— the output is likely corrupt. Re-run or inspect the WARNING lines above.",
+            file=sys.stderr,
+        )
+        return 3
 
     return 0
 

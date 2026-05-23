@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 Set-Location -Path $PSScriptRoot/..
 Get-Content .env | Foreach-Object {
     $name, $value = $_.split('=', 2)
@@ -28,6 +27,30 @@ try {
     exit 1
 }
 python ./dev/translate-po-deepl.py --input ./locales/gedcom_navigator.pot --outdir locales --langs de es fr he --prefer-official
+$exitCode = $LASTEXITCODE
+if ($exitCode -eq 3) {
+    Write-Error 'ERROR: Translation completed but placeholder tokens were not properly restored.'
+    Write-Error 'Check the WARNING lines above. The .po files may contain corrupt entries.'
+    exit 1
+} elseif ($exitCode -ne 0) {
+    Write-Error 'Translation failed. Is API key set in .env?'
+    exit 1
+}
+
+# Secondary check: scan output files for any remaining unrestored tokens (⟦NNNN⟧)
+$tokenErrors = 0
+Get-Item locales/*.po -ErrorAction SilentlyContinue | ForEach-Object {
+    $content = Get-Content $_.FullName -Raw -Encoding UTF8
+    if ($content -match '⟦') {
+        Write-Error "ERROR: $($_.FullName) contains unrestored placeholder tokens — translation is corrupt."
+        $tokenErrors++
+    }
+}
+if ($tokenErrors -gt 0) {
+    Write-Error "ERROR: $tokenErrors file(s) have corrupt translations. Aborting."
+    exit 1
+}
+
 get-item locales/*.po | ForEach-Object {
   if ( -not ($_.BaseName -like "*_*") ) {
     Write-Output "Skipping non-language PO file: $($_.FullName)"

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-05-23 13:37-0400\n"
+"POT-Creation-Date: 2026-05-23 13:51-0400\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -131,17 +131,17 @@ msgstr "חפש:"
 #: src/gedcom_strings.py:69 src/gedcom_strings.py:76
 #, fuzzy
 msgid "Tagged"
-msgstr "סמסטר 0"
+msgstr "מתויג"
 
 #: src/gedcom_strings.py:70
 #, fuzzy
 msgid "Fuzzy"
-msgstr "סמסטר 0"
+msgstr "חיפוש מקורב"
 
 #: src/gedcom_strings.py:71
 #, fuzzy
 msgid "Married"
-msgstr "סמסטר 0"
+msgstr "שמות נישואין"
 
 #: src/gedcom_strings.py:72
 #, fuzzy
@@ -176,17 +176,17 @@ msgstr "עומק מרבי:"
 #: src/gedcom_strings.py:83 src/gedcom_strings.py:90
 #, fuzzy
 msgid "Profile"
-msgstr "סמסטר 0"
+msgstr "פרופיל"
 
 #: src/gedcom_strings.py:84
 #, fuzzy
 msgid "Tree"
-msgstr "סמסטר 0"
+msgstr "עץ"
 
 #: src/gedcom_strings.py:85
 #, fuzzy
 msgid "Set Home"
-msgstr "סמסטר 0"
+msgstr "הגדר אדם ראשי"
 
 #: src/gedcom_strings.py:91
 #, fuzzy
@@ -201,7 +201,7 @@ msgstr "שבילים"
 #: src/gedcom_strings.py:94 src/gedcom_strings.py:319
 #, fuzzy
 msgid "Copy"
-msgstr "סמסטר 0"
+msgstr "העתק"
 
 #: src/gedcom_strings.py:95
 #, fuzzy
@@ -216,7 +216,7 @@ msgstr "המסלול הרגיל"
 #: src/gedcom_strings.py:97 src/gedcom_strings.py:318
 #, fuzzy
 msgid "Save"
-msgstr "סמסטר 0"
+msgstr "שמור"
 
 #: src/gedcom_strings.py:102
 #, python-brace-format, fuzzy
@@ -225,7 +225,7 @@ msgid ""
 "Reverse the direction of all relationship paths shown, computing the relationship from the other person's perspective. Click again to restore the original path."
 msgstr ""
 "הפוך ({mod}R)\n"
-"הפוך את כיוון כל נתיבי הקשרים המוצגים, תוך חישוב הקשר מנקודת המבט של האדם האחר. לחץ שוב כדי להחזיר את הנתיב המקורי."
+"הפוך את כיוון כל מסלולי הקשרים המוצגים, תוך חישוב הקשר מנקודת המבט של האדם האחר. לחץ שוב כדי להחזיר את המסלול המקורי."
 
 #: src/gedcom_strings.py:114
 #, python-brace-format, fuzzy
@@ -234,7 +234,7 @@ msgid ""
 "Copy the entire contents of the results pane to the clipboard. When the results text area has keyboard focus, {mod}C copies only the selected text as usual."
 msgstr ""
 "העתק תוצאות ({mod}C)\n"
-"העתק את כל תוכן חלונית התוצאות ללוח. כאשר אזור הטקסט של התוצאות נמצא בפוקוס המקלדת, {mod}C מעתיק רק את הטקסט שנבחר, כרגיל."
+"העתק את כל תוכן חלונית התוצאות ללוח. כאשר אזור הטקסט של התוצאות נמצא בפוקוס המקלדת, {mod}C מעתיק רק את הטקסט שנבחר כרגיל."
 
 #: src/gedcom_strings.py:123
 #, python-brace-format, fuzzy
@@ -243,7 +243,7 @@ msgid ""
 "Copy the entire contents of the results pane as JSON to the clipboard. Used only for debugging."
 msgstr ""
 "העתק JSON ({mod}J)\n"
-"העתק את כל תוכן חלונית התוצאות כ-JSON ללוח. משמש אך ורק לאיתור באגים."
+"העתק את כל תוכן חלונית התוצאות כ-JSON ללוח. משמש רק לצורך ניפוי באגים."
 
 #: src/gedcom_strings.py:130
 #, python-brace-format, fuzzy
@@ -261,7 +261,7 @@ msgid ""
 "Type to filter the list of people. Search by any name variation. Use the filter box to search by other information in a person's GEDCOM record, such as geographic location. Press Enter to jump directly to the first match. Use the checkboxes to show only people matching tags, allow fuzzy name matching (including Cyrillic and Hebrew characters), or include married names."
 msgstr ""
 "חפש ({mod}F)\n"
-"הקלד כדי לסנן את רשימת האנשים. חפש לפי כל וריאציה של השם. השתמש בתיבת הסינון כדי לחפש לפי מידע אחר ברשומת GEDCOM של האדם, כגון מיקום גיאוגרפי. לחץ על Enter כדי לקפוץ ישירות לתוצאה הראשונה. השתמש בתיבות הסימון כדי להציג רק אנשים התואמים לתגיות, לאפשר התאמת שמות לא מדויקת (כולל תווים קיריליים ועבריים), או לכלול שמות נישואין."
+"הקלד כדי לסנן את רשימת האנשים. חפש לפי כל וריאציה של שם. השתמש בתיבת הסינון כדי לחפש לפי מידע אחר ברשומת GEDCOM של אדם, כגון מיקום גיאוגרפי. לחץ על Enter כדי לקפוץ ישירות לתוצאה הראשונה. השתמש בתיבות הסימון כדי להציג רק אנשים התואמים לתגיות, לאפשר התאמת שמות לא מדויקת (כולל תווים קיריליים ועבריים) או לכלול שמות נישואין."
 
 #: src/gedcom_strings.py:146
 #, python-brace-format, fuzzy
@@ -269,8 +269,8 @@ msgid ""
 "Matches ({mod}N)\n"
 "Show the closest tagged matches to the selected person. The results are ranked by proximity to the selected person, with ties broken by the number of tags (if any) associated with the match. Use the 'Results' and 'Max Depth' settings to adjust how many results are returned and how far to search within the tree."
 msgstr ""
-"תוצאות התאמה ({mod}N)\n"
-"הצג את התוצאות המתויגות הקרובות ביותר לאדם הנבחר. התוצאות מדורגות לפי קרבתן לאדם הנבחר, ובמקרה של שוויון – לפי מספר התיוגים (אם ישנם) הקשורים לתוצאה. השתמש בהגדרות 'תוצאות' ו-'עומק מרבי' כדי לקבוע כמה תוצאות יוצגו ועד לאיזה מרחק בעץ יבוצע החיפוש."
+"התאמות ({mod}N)\n"
+"הצג את ההתאמות המתויגות הקרובות ביותר לאדם הנבחר. התוצאות ממוינות לפי קרבה לאדם הנבחר, ובמקרה של שוויון – לפי מספר התיוגים (אם יש) הקשורים להתאמה. השתמש בהגדרות 'תוצאות' ו-'עומק מרבי' כדי לקבוע כמה תוצאות יוצגו ועד לאיזה מרחק בעץ יבוצע החיפוש."
 
 #: src/gedcom_strings.py:157
 #, python-brace-format, fuzzy
@@ -279,7 +279,7 @@ msgid ""
 "Type to filter the list of people by any information in their GEDCOM record, such as geographic location. This filter is applied in addition to the Find box above."
 msgstr ""
 "סנן ({mod}I)\n"
-"הקלד כדי לסנן את רשימת האנשים לפי כל מידע המופיע ברשומת ה-GEDCOM שלהם, כגון מיקום גיאוגרפי. סינון זה מוחל בנוסף לתיבת ה-חפש שלעיל."
+"הקלד כדי לסנן את רשימת האנשים לפי כל מידע המופיע ברשומת הGEDCOM שלהם, כגון מיקום גיאוגרפי. סינון זה מוחל בנוסף לתיבה חפש שלעיל."
 
 #: src/gedcom_strings.py:163
 #, fuzzy
@@ -298,7 +298,7 @@ msgid ""
 "paths. Leave this blank to use only the tag keyword to find relationship "
 "paths."
 msgstr ""
-"הזן מילת מפתח ייחודית שתשמש כסימן דף בעת איתור נתיבי קשרים. השאר שדה זה ריק "
+"הזן מילת מפתח ייחודית שישמש כסימן דף בעת איתור נתיבי קשרים. השאר שדה זה ריק "
 "כדי להשתמש רק במילת המפתח של התגית לאיתור נתיבי קשרים."
 
 #: src/gedcom_strings.py:173
@@ -334,7 +334,7 @@ msgid ""
 "Select Tag for Finding Matches ({mod}T)\n"
 "Select a tag to use when finding closest matches for the selected person."
 msgstr ""
-"בחר תווית לחיפוש תוצאות עבור חפש ({mod}T)\n"
+"בחר תווית עבור חפש תוצאות התאמה ({mod}T)\n"
 "בחר תווית לשימוש בעת חיפוש התוצאות הקרובות ביותר לאדם שנבחר."
 
 #: src/gedcom_strings.py:188
@@ -353,7 +353,7 @@ msgid ""
 "Specify how many results to return when finding the closest people who are tagged as well as the number of paths between the selected person and the home person."
 msgstr ""
 "מספר תוצאות\n"
-"ציין כמה תוצאות להחזיר בעת איתור האנשים הקרובים ביותר המתויגים, וכן את מספר הנתיבים בין האדם הנבחר לאדם הביתי."
+"ציין כמה תוצאות להציג בעת איתור האנשים הקרובים ביותר שסומנו בתגית, וכן את מספר הנתיבים בין האדם הנבחר לאדם הביתי."
 
 #: src/gedcom_strings.py:197
 #, fuzzy
@@ -361,7 +361,7 @@ msgid ""
 "Maximum Depth For Finding Relationships\n"
 "Specify how far to search within the tree for tagged matches and relationship paths between two people. Higher values will find more distant connections but will take longer to find in large trees. Reasonable values are 10 for fast searching or 50 to find very distant but often interesting paths between people in your tree. To change this setting permanently, alter it in the preferences window."
 msgstr ""
-"עומק מרבי לחיפוש חפש ב-קשר משפחתי\n"
+"עומק מרבי לחיפוש חפש של קשר משפחתי\n"
 "ציין עד לאיזה עומק יש לחפש בתוך העץ אחר התאמות מתויגות ונתיבי קשרים בין שני אנשים. ערכים גבוהים יותר ימצאו קשרים מרוחקים יותר, אך ייקח זמן רב יותר למצוא אותם בעצים גדולים. ערכים סבירים הם 10 לחיפוש מהיר או 50 למציאת נתיבים מרוחקים מאוד אך לעתים קרובות מעניינים בין אנשים בעץ שלך. כדי לשנות הגדרה זו באופן קבוע, שנה אותה בחלון ההעדפות."
 
 #: src/gedcom_strings.py:207
@@ -380,7 +380,7 @@ msgid ""
 "Maximum number of people shown in the search results list. Higher values may slow down filtering in very large trees."
 msgstr ""
 "חיפוש מרבי תוצאות\n"
-"המספר המרבי של אנשים המוצגים ברשימת תוצאות החיפוש. ערכים גבוהים יותר עלולים להאט את תהליך הסינון בעצים גדולים מאוד."
+"המספר המרבי של אנשים המוצגים ברשימת תוצאות החיפוש. ערכים גבוהים יותר עלולים להאט את תהליך הסינון בעצים גדולים במיוחד."
 
 #: src/gedcom_strings.py:219
 #, python-brace-format, fuzzy
@@ -389,7 +389,7 @@ msgid ""
 "When checked, only people flagged as tagged will be shown in search results. Default Tags are DNA-related, but you can set other tag terms. Default is unchecked to show all people, but checking this focusses on tagged matches in large trees."
 msgstr ""
 "החלף מתויג בלבד ({mod}D)\n"
-"כאשר אפשרות זו מסומנת, רק אנשים המסומנים כתויגים יופיעו בתוצאות החיפוש. ברירת המחדל תגים קשורה ל-DNA, אך ניתן להגדיר מונחי תיוג אחרים. ברירת המחדל היא שהאפשרות אינה מסומנת, כך שמוצגים כל האנשים, אך סימון אפשרות זו מתמקד בהתאמות מתויגות בעצי משפחה גדולים."
+"כאשר אפשרות זו מסומנת, רק אנשים המסומנים כתויגים יופיעו בתוצאות החיפוש. ברירת המחדל תגים היא \"קשורים ל-DNA\", אך ניתן להגדיר מונחי תיוג אחרים. ברירת המחדל היא שהאפשרות אינה מסומנת, כך שמוצגים כל האנשים, אך סימון אפשרות זו מתמקד בהתאמות מתויגות בעצי משפחה גדולים."
 
 #: src/gedcom_strings.py:223
 #, python-brace-format, fuzzy
@@ -398,7 +398,7 @@ msgid ""
 "Allow fuzzy name matching in search results. Fuzzy matching uses a similarity ratio to find names similar to the search term, which can help find matches when names are misspelled, have minor variations, or use cached Hebrew/Cyrillic transliterated aliases."
 msgstr ""
 "החלף חיפוש מקורב חיפוש ({mod}U)\n"
-"אפשר התאמת שמות לא מדויקת בתוצאות החיפוש. התאמת חיפוש מקורב משתמשת ביחס דמיון כדי לאתר שמות הדומים למונח החיפוש, דבר שיכול לסייע באיתור התאמות כאשר שמות כתובים באופן שגוי, כוללים שינויים קלים או משתמשים בכינויים מתועתקים בעברית או בקירילית שנשמרו במטמון."
+"אפשר התאמת שמות לא מדויקת בתוצאות החיפוש. חיפוש מקורב ההתאמה משתמשת ביחס דמיון כדי לאתר שמות הדומים למונח החיפוש, דבר שיכול לסייע באיתור תוצאות תואמות כאשר שמות נכתבו באופן שגוי, כוללים שינויים קלים או משתמשים בכינויים מתועתקים בעברית/בקירילית שנשמרו במטמון."
 
 #: src/gedcom_strings.py:227
 #, python-brace-format, fuzzy
@@ -437,7 +437,7 @@ msgstr "  נפטר:    {event}"
 #: src/gedcom_strings.py:237
 #, python-brace-format, fuzzy
 msgid "  Buried:  {event}"
-msgstr "  קבור:  {event}"
+msgstr "  נקבר:  {event}"
 
 #: src/gedcom_strings.py:238
 #, fuzzy
@@ -482,7 +482,7 @@ msgstr "  (לא נמצאו פרטים על המשפחה)"
 #: src/gedcom_strings.py:246
 #, fuzzy
 msgid "Tags"
-msgstr "סמסטר 0"
+msgstr "תגים"
 
 #: src/gedcom_strings.py:247
 #, fuzzy
@@ -492,17 +492,17 @@ msgstr "רשומה מלאה GEDCOM"
 #: src/gedcom_strings.py:248
 #, fuzzy
 msgid "Close"
-msgstr "סמסטר 0"
+msgstr "סגור"
 
 #: src/gedcom_strings.py:249
 #, fuzzy
 msgid "Tree View"
-msgstr "סמסטר 0"
+msgstr "תצוגת עץ משפחה"
 
 #: src/gedcom_strings.py:250
 #, fuzzy
 msgid "Profile View"
-msgstr "סמסטר 0"
+msgstr "תצוגת פרופיל"
 
 #: src/gedcom_strings.py:254
 #, python-brace-format, fuzzy
@@ -568,7 +568,7 @@ msgstr "הרחב הכל"
 #: src/gedcom_strings.py:287
 #, fuzzy
 msgid "Closest Tagged Matches"
-msgstr "סגורst מתויג תוצאות"
+msgstr "סגור תוצאות ראשונות מתויג"
 
 #: src/gedcom_strings.py:288
 #, fuzzy
@@ -712,7 +712,7 @@ msgid ""
 "Save this graphical representation to a file."
 msgstr ""
 "שמור גרפי ({mod}S)\n"
-"שמור ייצוא ייצוג גרפי זה לקובץ."
+"שמור ייצוג גרפי זה לקובץ."
 
 #: src/gedcom_strings.py:328
 #, python-brace-format, fuzzy
@@ -729,7 +729,7 @@ msgid ""
 "Save layout debug JSON (Ctrl+Shift+D)\n"
 "Export graph layout data without person names."
 msgstr ""
-"שמור איתור באגים בפריסת הגרף JSON (Ctrl+Shift+D)\n"
+"שמור איתור באגים בפריסה JSON (Ctrl+Shift+D)\n"
 "ייצא נתוני פריסת הגרף ללא שמות אנשים."
 
 #: src/gedcom_strings.py:331
@@ -935,7 +935,7 @@ msgstr "הגדרות ברירת מחדל לחיפוש"
 #: src/gedcom_strings.py:392
 #, fuzzy
 msgid "Fuzzy threshold:"
-msgstr "חיפוש מקורב סף:"
+msgstr "סף חיפוש מקורב:"
 
 #: src/gedcom_strings.py:393
 #, fuzzy
@@ -950,7 +950,7 @@ msgstr "תצוגה"
 #: src/gedcom_strings.py:395
 #, fuzzy
 msgid "Show GEDCOM IDs"
-msgstr "הצג מזהים GEDCOM"
+msgstr "הצג GEDCOM מזהים"
 
 #: src/gedcom_strings.py:397
 #, fuzzy
@@ -959,14 +959,14 @@ msgid ""
 "their name. This can help disambiguate people with the same name and allows "
 "you to access the raw IDs for GEDCOM research with other tools."
 msgstr ""
-"כאשר אפשרות זו מופעלת, מזהה ה-GEDCOM של כל אדם מוצג בסוגריים לאחר שמו. הדבר "
+"כאשר האפשרות מופעלת, מזהה ה-GEDCOM של כל אדם מוצג בסוגריים לאחר שמו. הדבר "
 "יכול לסייע בהבחנה בין אנשים בעלי שם זהה ומאפשר לך לגשת למזהים הגולמיים לצורך"
 " מחקר GEDCOM באמצעות כלים אחרים."
 
 #: src/gedcom_strings.py:401
 #, fuzzy
 msgid "Show Full GEDCOM"
-msgstr "הצג את כל GEDCOM"
+msgstr "הצג הכל GEDCOM"
 
 #: src/gedcom_strings.py:403
 #, fuzzy
@@ -975,7 +975,7 @@ msgid ""
 "the Profile window, showing the raw GEDCOM data for the person."
 msgstr ""
 "כאשר האפשרות מופעלת, קטע \"תיעוד מלא GEDCOM\" מופיע בתחתית חלון פרופיל, "
-"ומציג את נתוני GEDCOM הגולמיים של האדם."
+"ומציג את נתוני הגלם GEDCOM של האדם."
 
 #: src/gedcom_strings.py:406
 #, fuzzy
@@ -1010,7 +1010,7 @@ msgstr "נקה את המטמון…"
 #: src/gedcom_strings.py:412
 #, fuzzy
 msgid "Remove all cached GEDCOM data"
-msgstr "נקה את כל נתוני המטמון של GEDCOM"
+msgstr "נקה את כל הנתונים המטמון של GEDCOM"
 
 #: src/gedcom_strings.py:413
 #, fuzzy
@@ -1056,7 +1056,7 @@ msgid ""
 "(reduce 'max depth' setting for faster search)"
 msgstr ""
 "חפש בחינת נתיבי הקשר…\n"
-"(הפחת את הגדרת 'עומק מקסימלי' כדי להאיץ את החיפוש)"
+"(הפחיתו את הגדרת 'עומק מקסימלי' כדי להאיץ את החיפוש)"
 
 #: src/gedcom_strings.py:428
 #, fuzzy
@@ -1090,7 +1090,7 @@ msgstr ""
 #: src/gedcom_strings.py:436
 #, python-brace-format, fuzzy
 msgid "{shown:,} match{plural} shown.  ({total:,} total, {flagged} tagged)"
-msgstr "{shown:,} התאמה{plural} מוצגת.  ({total:,} סה\"כ, {flagged} מתויגת)"
+msgstr "{shown:,} התאמה{plural} מוצגת.  ({total:,} סה\"כ, {flagged} מתויגות)"
 
 #: src/gedcom_strings.py:438
 #, python-brace-format, fuzzy
@@ -1098,12 +1098,12 @@ msgid ""
 "{total:,} individuals, {families:,} families, {flagged} tagged.  Type to "
 "search."
 msgstr ""
-"{total:,} יחידים, {families:,} משפחות, {flagged} מתויגים.  הקלד כדי לחפש."
+"{total:,} אנשים, {families:,} משפחות, {flagged} מתויגים.  הקלד כדי לחפש."
 
 #: src/gedcom_strings.py:441
 #, python-brace-format, fuzzy
 msgid "Home person set: {name}"
-msgstr "אדם ראשי מוגדר: {name}"
+msgstr "אדם ראשי נקבע: {name}"
 
 #: src/gedcom_strings.py:446
 #, fuzzy
@@ -1247,7 +1247,7 @@ msgid ""
 "\n"
 "{error}"
 msgstr ""
-"לא ניתן לשמור את נתוני האיתור והתיקון של פריסת הגרף:\n"
+"לא ניתן לשמור את נתוני האיתור באגים של פריסת הגרף:\n"
 "\n"
 "{error}"
 
@@ -1284,7 +1284,7 @@ msgstr ""
 "GEDCOM הקובץ לא נמצא:\n"
 "{path}\n"
 "\n"
-"השתמש ב\"עיון…\" כדי לבחור קובץ אחר."
+"השתמש ב'עיון...' כדי לבחור קובץ אחר."
 
 #: src/gedcom_strings.py:479
 #, fuzzy
@@ -1303,9 +1303,9 @@ msgid ""
 "\n"
 "Note: the cache may contain personal information and raw records from your GEDCOM files."
 msgstr ""
-"האם למחוק את הקובץ/ים המטמון של {count}?\n"
+"האם למחוק את הקובץ/ים המטמון {count}?\n"
 "\n"
-"הערה: המטמון עשוי להכיל מידע אישי ורשומות גולמיות מקבצי ה-GEDCOM שלך."
+"הערה: המטמון עשוי להכיל מידע אישי ורשומות גולמיות מהקובצים שלך GEDCOM."
 
 #: src/gedcom_strings.py:486
 #, fuzzy
@@ -1315,7 +1315,7 @@ msgstr "הזיכרון המטמון נמחק"
 #: src/gedcom_strings.py:487
 #, python-brace-format, fuzzy
 msgid "{deleted} file(s) deleted."
-msgstr "{deleted} הקובץ/ים נמחק/ו."
+msgstr "{deleted} קבצים נמחקו."
 
 #: src/gedcom_strings.py:492
 #, fuzzy
@@ -1396,7 +1396,7 @@ msgstr "הגרסה האחרונה: {latest}"
 #: src/gedcom_strings.py:510
 #, fuzzy
 msgid "Download the latest release from GitHub:"
-msgstr "הורד את הגרסה האחרונה של GitHub:"
+msgstr "הורד את המהדורה האחרונה של GitHub:"
 
 #: src/gedcom_strings.py:511
 #, fuzzy
@@ -1421,7 +1421,7 @@ msgstr "סנן תוצאות"
 #: src/gedcom_strings.py:520
 #, fuzzy
 msgid "Toggle the tagged filter"
-msgstr "הפעל/כבה את מסנן התגיות"
+msgstr "הפעל/כבה את מסנן התגים"
 
 #: src/gedcom_strings.py:521
 #, fuzzy
@@ -1436,7 +1436,7 @@ msgstr "הפעל/כבה את מצב החיפוש לפי שם נישואין"
 #: src/gedcom_strings.py:523
 #, fuzzy
 msgid "Open a new GEDCOM file"
-msgstr "פתח קובץ GEDCOM חדש"
+msgstr "פתח קובץ חדש GEDCOM"
 
 #: src/gedcom_strings.py:524
 #, fuzzy
@@ -1456,7 +1456,7 @@ msgstr "הגדר את אדם ראשי לאדם שנבחר"
 #: src/gedcom_strings.py:527
 #, fuzzy
 msgid "Switch the Display Pane to Paths"
-msgstr "החלף את חלונית התצוגה ל\"נתיבים\""
+msgstr "העבר את חלונית התצוגה למצב 'נתיבים'"
 
 #: src/gedcom_strings.py:528
 #, fuzzy
@@ -1471,12 +1471,12 @@ msgstr "הפוך/שחזר את כיוון כל נתיבי הקשרים"
 #: src/gedcom_strings.py:531
 #, fuzzy
 msgid "Save results to a text file"
-msgstr "שמור נשמר בקובץ טקסט"
+msgstr "שמור תוצאות לקובץ טקסט"
 
 #: src/gedcom_strings.py:532
 #, fuzzy
 msgid "Copy result to clipboard"
-msgstr "העתק הוסף את התוצאה ללוח"
+msgstr "העתק העתק את התוצאה ללוח"
 
 #: src/gedcom_strings.py:533
 #, fuzzy

@@ -21,12 +21,32 @@ pybabel extract -o locales/gedcom_navigator.pot src/ || {
   echo "Failed to extract strings with pybabel."
   exit 1
 }
-python ./dev/translate-po-deepl.py --input ./locales/gedcom_navigator.pot --outdir locales --langs de es fr he --prefer-official || {
+python ./dev/translate-po-deepl.py --input ./locales/gedcom_navigator.pot --outdir locales --langs de es fr he --prefer-official
+exit_code=$?
+if [[ $exit_code -eq 3 ]]; then
+  echo 'ERROR: Translation completed but placeholder tokens were not properly restored.'
+  echo 'Check the WARNING lines above. The .po files may contain corrupt entries.'
+  exit 1
+elif [[ $exit_code -ne 0 ]]; then
   echo 'Translation failed. Is API key set in .env?'
   exit 1
-}
+fi
+
+# Secondary check: scan output files for any remaining unrestored tokens (⟦NNNN⟧)
+token_errors=0
+for x in locales/*.po; do
+  if grep -qP '⟦\d{4}⟧' "${x}" 2>/dev/null || grep -q '⟦' "${x}" 2>/dev/null; then
+    echo "ERROR: ${x} contains unrestored placeholder tokens — translation is corrupt."
+    token_errors=$((token_errors + 1))
+  fi
+done
+if [[ $token_errors -gt 0 ]]; then
+  echo "ERROR: ${token_errors} file(s) have corrupt translations. Aborting."
+  exit 1
+fi
+
 for x in locales/*.po
-do 
+do
   msgfmt --check "${x}" || {
      echo "${x} failed msgfmt check. Exiting."
      continue
