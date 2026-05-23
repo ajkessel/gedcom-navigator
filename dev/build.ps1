@@ -96,12 +96,10 @@ try {
     if ($iscc -and ( Test-Path -Path ".\dev\gedcom-navigator.iss")) {
         Write-Output "Inno Setup found at $iscc. Building installer..."
         $initFile = Get-Content ".\gedcom_navigator\__init__.py" -Raw
-        (Get-Content ".\dev\gedcom-navigator.iss") -replace "^#define MyAppVersion.*", ('#define MyAppVersion "' + $version + '"') | Set-Content ".\dev\gedcom-navigator.iss"
-        (Get-Content "C:\path\to\file.txt") -replace "^Setting=.*", "Setting=NewValue" | Set-Content "C:\path\to\file.txt"
-
         if ($initFile -match '__version__\s*=\s*["'']([^"'']+)["'']') {
             $version = $Matches[1]
             Write-Output "Building installer for version $version"
+            (Get-Content ".\dev\gedcom-navigator.iss") -replace "^#define MyAppVersion.*", ('#define MyAppVersion "' + $version + '"') | Set-Content ".\dev\gedcom-navigator.iss"
             & $iscc /dMyAppVersion=$version ".\dev\gedcom-navigator.iss"
         }
     }
