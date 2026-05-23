@@ -9,6 +9,8 @@ venv/
 build/
 debug/
 dist/
+test-artifacts/
+.coverage
 *.zip
 *.log
 *.mo

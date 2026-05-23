@@ -6,6 +6,7 @@ Tooltip widget helper for customtkinter controls.
 
 import sys
 import tkinter as tk
+from weakref import WeakKeyDictionary
 from time import time
 
 from CTkToolTip import CTkToolTip as _CTkToolTip
@@ -212,18 +213,43 @@ class Tooltip(metaclass=_TooltipMeta):
 
     _enabled: bool = True
     _instances: list = []
+    _widget_texts = WeakKeyDictionary()
 
     def __init__(self, widget, text: str):
+        self.widget = widget
+        self.text = text
         self._impl = _SizedToolTip(
             widget, message=text, wraplength=360, justify='left', follow=True
         )
         if not Tooltip._enabled:
             self._impl.hide()
         Tooltip._instances.append(self)
+        self._remember_widget_text(widget, text)
 
     def update_text(self, text: str) -> None:
         """Update the tooltip message text."""
+        self.text = text
         self._impl._full_message = text
+        self._remember_widget_text(self.widget, text)
+
+    @classmethod
+    def _remember_widget_text(cls, widget, text: str) -> None:
+        try:
+            cls._widget_texts[widget] = text
+        except TypeError:
+            pass
+        try:
+            widget._gedcom_tooltip_text = text
+        except Exception:  # pylint: disable=broad-exception-caught
+            pass
+
+    @classmethod
+    def text_for(cls, widget):
+        """Return the registered tooltip text for a widget, if any."""
+        try:
+            return cls._widget_texts.get(widget)
+        except TypeError:
+            return getattr(widget, '_gedcom_tooltip_text', None)
 
 
 class TextTagTooltip:

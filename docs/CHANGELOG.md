@@ -5,10 +5,12 @@
 ### Added
 
 - **Hebrew and Cyrillic fuzzy search aliases** - the parser now generates cached English-letter aliases for Hebrew and Cyrillic names. Fuzzy search in both the GUI and CLI can use these aliases, while normal token search remains unchanged. Packaged/source builds include optional `cyrtranslit` and `hebrew` support, with built-in fallback mappings when those packages are unavailable.
+- **Cross-platform GUI smoke test workflow** - opt-in Tk/customtkinter smoke tests can now run on Linux/WSL, Windows-from-WSL, and macOS, with ignored failure artifacts under `test-artifacts/`.
 
 ### Tests
 
 - **Transliteration search coverage** - new tests cover Hebrew and Cyrillic alias generation, cache preservation, fuzzy-only matching, and fallback Hebrew aliases such as matching `moshe kohen` against a generated `msh khn` alias.
+- **Shortcut and tooltip coverage** - tests now verify that main-window shortcuts have no platform conflicts, shortcut help rows match the registered shortcut metadata, and app-specific action controls expose tooltips in the real GUI.
 
 ## [1.9.1] - 2026-05-20
 

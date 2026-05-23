@@ -86,6 +86,27 @@ pytest
 ```
 Tests are organized by module (e.g., `tests/test_data_model.py`).
 
+GUI smoke tests are opt-in because they create real Tk/customtkinter windows and
+need a working display session:
+```bash
+python -m pytest -m gui tests/test_gui_smoke.py
+scripts/test-gui.sh          # Linux / WSL Python
+scripts/wtest-gui.sh         # Windows Python from WSL
+scripts/test-gui.ps1         # Windows PowerShell
+```
+Run the same `python -m pytest -m gui tests/test_gui_smoke.py` command from the
+macOS checkout before a release. GUI failure diagnostics are written under the
+ignored `test-artifacts/` directory.
+
+For a report-only coverage snapshot, run:
+```bash
+dev/run_coverage.sh
+```
+or on Windows:
+```powershell
+.\dev\run_coverage.ps1
+```
+
 ### Caching
 To speed up loading, the application caches parsed GEDCOM data in a `cache` directory (usually in the user's home folder). If you change the data model schema, you should increment `_CACHE_VERSION` in `src/gedcom_data_model.py` to invalidate old caches.
 

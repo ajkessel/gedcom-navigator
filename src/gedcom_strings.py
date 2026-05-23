@@ -7,6 +7,7 @@ To access strings, import this module and use the constants.
 
 import sys
 from gedcom_i18n import _
+from gedcom_shortcuts import keyboard_shortcut_rows as _shortcut_rows
 
 # Helper for dynamic key labels
 def get_mod_key():
@@ -502,28 +503,33 @@ UPDATE_DOWNLOAD_PROMPT = _("Download the latest release from GitHub:")
 UPDATE_OPEN_RELEASES = _("Open GitHub Releases")
 
 def get_keyboard_shortcut_rows():
-    mod = get_mod_key()
+    actions = {
+        "close_or_clear": _("Close any dialog or pop-up window"),
+        "help": _("Help"),
+        "keyboard_shortcuts": _("Keyboard Shortcuts"),
+        "preferences": _("Open Preferences"),
+        "find_person": _("Find Person"),
+        "filter_results": _("Filter Results"),
+        "toggle_tagged_filter": _("Toggle the tagged filter"),
+        "toggle_fuzzy_search": _("Toggle fuzzy search mode"),
+        "toggle_married_name_search": _("Toggle married-name search mode"),
+        "open_gedcom": _("Open a new GEDCOM file"),
+        "display_matches": _("Switch the Display Pane to Matches"),
+        "display_profile": _("Switch the Display Pane to Profile"),
+        "set_home": _("Set Home person to the selected person"),
+        "display_paths": _("Switch the Display Pane to Paths"),
+        "select_tag": _("Select new tag for finding relationship paths"),
+        "reverse_results": _(
+            "Reverse/restore the direction of all relationship paths"),
+        "save_results": _("Save results to a text file"),
+        "copy_results": _("Copy result to clipboard"),
+        "clear_results": _("Clear the results"),
+        "back": _("Go back to the previous view"),
+        "forward": _("Go forward to the next view"),
+        "zoom_in_out": _("Zoom the focused text or graph view"),
+        "zoom_reset": _("Reset zoom in the focused text or graph view"),
+    }
     return [
-        ("Esc",            _("Close any dialog or pop-up window")),
-        (f"{mod}?" if sys.platform == 'darwin' else "F1", _("Help")),
-        (f"{mod}K" if sys.platform == 'darwin' else "F2", _("Keyboard Shortcuts")),
-        (f"{mod}F",     _("Find Person")),
-        (f"{mod}I",     _("Filter Results")),
-        (f"{mod}D",     _("Toggle the tagged filter")),
-        (f"{mod}U",     _("Toggle fuzzy search mode")),
-        (f"{mod}M",     _("Toggle married-name search mode")),
-        (f"{mod}O",     _("Open a new GEDCOM file")),
-        (f"{mod}N",     _("Switch the Display Pane to Matches")),
-        (f"{mod}E",     _("Switch the Display Pane to Profile")),
-        (f"{mod}H",     _("Set Home person to the selected person")),
-        (f"{mod}P",     _("Switch the Display Pane to Paths")),
-        (f"{mod}T",     _("Select new tag for finding relationship paths")),
-        (f"{mod}R",     _("Reverse/restore the direction of all relationship paths")),
-        (f"{mod}S",     _("Save results to a text file")),
-        (f"{mod}C",     _("Copy result to clipboard")),
-        (f"{mod}L",     _("Clear the results")),
-        ("⌘←" if sys.platform == 'darwin' else "Alt+←", _("Go back to the previous view")),
-        ("⌘→" if sys.platform == 'darwin' else "Alt+→", _("Go forward to the next view")),
-        (f"{mod}+Plus / {mod}+Minus", _("Zoom the focused text or graph view")),
-        (f"{mod}+0",     _("Reset zoom in the focused text or graph view")),
+        (shortcut.display, actions[shortcut.action_key])
+        for shortcut in _shortcut_rows(sys.platform)
     ]

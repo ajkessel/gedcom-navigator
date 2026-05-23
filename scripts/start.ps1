@@ -13,4 +13,4 @@ if ( -not ($env:virtual_env)) {
     pip install -r dev/requirements.txt
 }
 $env:GEDCOM_NAVIGATOR_DEBUG = 1
-& "./venv/Scripts/python.exe" src/gedcom_navigator_gui.py
+& "./venv/Scripts/python.exe" src/gedcom_navigator_gui.py @args

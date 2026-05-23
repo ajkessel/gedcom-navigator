@@ -16,4 +16,4 @@ cd "${SCRIPT_DIR}/.." || exit 1
 	source .venv/bin/activate || exit 1
 	pip install -r ./dev/requirements.txt || exit 1
 }
-python src/gedcom_navigator_gui.py
+python src/gedcom_navigator_gui.py "$@"
