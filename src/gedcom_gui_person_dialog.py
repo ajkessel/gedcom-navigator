@@ -652,6 +652,7 @@ class PersonDialogMixin:
                         _recenter_tree,
                         _show_profile_from_tree,
                         _find_matches_from_tree,
+                        _find_paths_from_tree,
                         _expand_all_tree,
                     )
                 )
@@ -765,6 +766,13 @@ class PersonDialogMixin:
                 self._select_person_in_main_tree(indi_id)
                 _on_destroy_person_win()
                 self.root.after_idle(self._find_matches)
+
+            def _find_paths_from_tree(indi_id):
+                center_id = state["person_id"]
+                self._select_person_in_main_tree(center_id)
+                _on_destroy_person_win()
+                self.root.after_idle(
+                    lambda: self._run_path_search(center_id, indi_id))
 
             def _expand_all_tree(indi_id, categories):
                 if self._expand_all_requests(

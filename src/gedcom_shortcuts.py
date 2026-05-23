@@ -84,7 +84,7 @@ def main_window_shortcuts(platform=None):
         _mod_shortcut("t", "select_tag", platform),
         _mod_shortcut("o", "open_gedcom", platform),
         _mod_shortcut("h", "set_home", platform),
-        _mod_shortcut("e", "display_profile", platform),
+        _mod_shortcut("e", "display_tree", platform),
         _mod_shortcut("s", "save_results", platform),
         _mod_shortcut("n", "display_matches", platform),
         _mod_shortcut("r", "reverse_results", platform),

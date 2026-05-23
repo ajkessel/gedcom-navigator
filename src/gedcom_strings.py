@@ -136,8 +136,8 @@ def get_tip_find():
           "Type to filter the list of people. Search by any name variation. Use the filter box "
           "to search by other information in a person's GEDCOM record, such as geographic location. "
           "Press Enter to jump directly to the first match. "
-          "Use the checkboxes to show only people matching tags, allow fuzzy name matching, "
-          "or include married names.").format(mod=mod)
+          "Use the checkboxes to show only people matching tags, allow fuzzy name matching "
+          "(including Cyrillic and Hebrew characters), or include married names.").format(mod=mod)
     )
 
 def get_tip_find_matches():
@@ -173,8 +173,7 @@ def get_tip_set_home():
     return _("Set Home Person ({mod}H)\nSet the selected person as the home person for finding relationship paths.").format(mod=mod)
 
 def get_tip_show_person():
-    mod = get_mod_key()
-    return _("Profile ({mod}E)\nShow the selected person's biographical, family, tag, and optional full GEDCOM record details in the Display Pane.").format(mod=mod)
+    return _("Profile\nShow the selected person's biographical, family, tag, and optional full GEDCOM record details in the Display Pane.")
 
 def get_tip_show_person_tree():
     mod = get_mod_key()
@@ -271,6 +270,7 @@ def get_tip_copy_profile():
 WIN_FAMILY_TREE = _("Family Tree: {name}")
 DLG_SAVE_FAMILY_TREE = _("Save family tree")
 TREE_MENU_RECENTER = _("Center")
+TREE_MENU_PATHS = _("Paths")
 TREE_MENU_EXPAND_ALL = _("Expand All")
 TREE_BUTTON_PARENTS = "↑"
 TREE_BUTTON_PARENTS_HIDE = "↓"
@@ -522,7 +522,7 @@ def get_keyboard_shortcut_rows():
         "toggle_married_name_search": _("Toggle married-name search mode"),
         "open_gedcom": _("Open a new GEDCOM file"),
         "display_matches": _("Switch the Display Pane to Matches"),
-        "display_profile": _("Switch the Display Pane to Profile"),
+        "display_tree": _("Open Tree View for selected person"),
         "set_home": _("Set Home person to the selected person"),
         "display_paths": _("Switch the Display Pane to Paths"),
         "select_tag": _("Select new tag for finding relationship paths"),

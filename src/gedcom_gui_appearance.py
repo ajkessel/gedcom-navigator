@@ -10,7 +10,7 @@ import tkinter.font as tkfont
 from tkinter import ttk, messagebox
 import sys
 import customtkinter as ctk
-from gedcom_debug import log_exception, log_exception_once
+from gedcom_debug import log_debug, log_exception, log_exception_once
 from gedcom_shortcuts import main_window_shortcuts, shortcut_by_action
 from gedcom_strings import *  # noqa: F401,F403 # pylint: disable=unused-wildcard-import
 from gedcom_theme import (
@@ -282,13 +282,11 @@ class AppearanceMixin:
         win.geometry(f"{w}x{h}+{x}+{y}")
 
         if getattr(self, '_debug', False):
-            import sys as _sys
-            print(
+            log_debug(
                 f'[debug] fit_window {win.title()!r}: '
                 f'req={req_w}x{req_h}  preferred={preferred_w}x{preferred_h}  '
                 f'min={min_w}x{min_h}  screen={screen_w}x{screen_h}  '
-                f'max={max_w}x{max_h}  -> {w}x{h}',
-                file=_sys.stderr, flush=True,
+                f'max={max_w}x{max_h}  -> {w}x{h}'
             )
 
         return w, h
@@ -626,7 +624,7 @@ class AppearanceMixin:
             'select_tag': self._view_tags,
             'open_gedcom': self._browse,
             'set_home': self._set_home_person,
-            'display_profile': lambda: self._set_display_mode('profile'),
+            'display_tree': lambda: self._show_person(initial_view='tree'),
             'save_results': self._save_results,
             'display_matches': lambda: self._set_display_mode('matches'),
             'reverse_results': self._reverse_results,

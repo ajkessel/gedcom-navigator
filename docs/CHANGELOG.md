@@ -4,6 +4,7 @@
 
 ### Added
 
+- **Paths from Tree View** - you can now find the relationship paths from the person who is centered in the Tree View and any other person by clicking on the other person and selecting "Paths".
 - **Internationalization (i18n)** — the GUI is now fully localized via GNU gettext. All user-facing strings pass through `gettext`/`_()`, the language can be selected in Preferences, and the choice is persisted across sessions. Shipping translations: German (de), Spanish (es), French (fr), and Hebrew (he). A `locales/` directory holds `.pot` template and per-language `.po` files; compiled `.mo` files are bundled into the release.
 - **DeepL translation tooling** — `dev/translate-po-deepl.py` automates gettext `.pot`/`.po` translation via the DeepL API. It preserves Python format placeholders, UI shortcut tokens, and applies a genealogy-specific glossary. Shell and PowerShell wrappers (`translate-po-deepl.sh`, `translate-po-deepl.ps1`) are included.
 - **Hebrew and Cyrillic fuzzy search aliases** — the parser generates Latin-script aliases for Hebrew and Cyrillic names at load time. Fuzzy search in both the GUI and CLI can match against these aliases while normal token search remains unchanged. Optional `cyrtranslit` and `hebrew` packages are used when available, with built-in fallback mappings.
@@ -26,6 +27,7 @@
 ### Fixed
 
 - **`Ctrl+L` / clear results removed** — the `_clear_results` action and its Escape/Ctrl+L shortcut have been removed. Clearing the results pane is now implicit in switching display modes.
+- **`Ctrl+E` / tree view fixed** - the "tree view" keyboard shortcut was not working; now it is.
 
 ### Tests
 
