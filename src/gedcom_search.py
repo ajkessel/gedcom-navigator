@@ -209,6 +209,14 @@ def _path_kinship_signature(path):
     Two paths represent the same relationship type when they yield the same signature.
     Algorithm:
       1. Strip interior spouse-detour hops (spouse immediately before child/sibling).
+      1.2. Collapse parent→child pairs to sibling (up then down = lateral).
+      1.3. Collapse child→sibling to child (already-descended sibling = same child).
+      1.5. Collapse consecutive sibling hops to one.
+      1.6. Apply kinship-identity simplifications iteratively:
+             A) child→parent  = spouse  (child's parent = co-parent)
+             B) sibling→parent = parent (sibling's parent = own parent)
+             C) parent→spouse  = other parent
+           Re-run 1.3 and 1.5 after each stable cycle.
       2. Peel bare leading/trailing spouse edges (in-law indicator).
       3. Classify the core as up* [sibling] down*, yielding (u, d, s).
       4. If a trailing sibling causes classification to fail, trim it — but only
@@ -275,6 +283,59 @@ def _path_kinship_signature(path):
             continue
         collapsed.append(e)
     edges = collapsed
+
+    # Step 1.6: kinship-identity simplifications (applied iteratively).
+    # Three rules reduce roundabout paths to direct equivalents:
+    #   A) child→parent  → spouse       (child's parent = co-parent)
+    #   B) sibling→parent → parent      (sibling's parent = own parent)
+    #   C) parent→spouse  → other-parent (parent's spouse = other parent)
+    # Each rule shrinks the sequence by one hop, so the loop always terminates.
+    # After each stable pass re-run steps 1.3 and 1.5, since new sibling/child
+    # patterns may have been created.
+    # Example: [child,father,sibling,father,spouse,father]
+    #   → A: [spouse,sibling,father,spouse,father]
+    #   → B: [spouse,father,spouse,father]
+    #   → C: [spouse,mother,father]
+    # which matches the direct "grandfather-in-law" path [spouse,mother,father].
+    changed = True
+    while changed:
+        changed = False
+        new_e = []
+        i = 0
+        while i < len(edges):
+            if i + 1 < len(edges):
+                e0, e1 = edges[i], edges[i + 1]
+                if e0 == 'child' and e1 in _UP_EDGES:           # Rule A
+                    new_e.append('spouse')
+                    i += 2
+                    changed = True
+                    continue
+                if e0 == 'sibling' and e1 in _UP_EDGES:         # Rule B
+                    new_e.append(e1)
+                    i += 2
+                    changed = True
+                    continue
+                if e0 in _UP_EDGES and e1 == 'spouse':          # Rule C
+                    new_e.append('mother' if e0 == 'father' else 'father')
+                    i += 2
+                    changed = True
+                    continue
+            new_e.append(edges[i])
+            i += 1
+        edges = new_e
+        # Re-collapse after each rule pass.
+        tmp = []
+        for e in edges:
+            if e == 'sibling' and tmp and tmp[-1] == 'child':
+                continue
+            tmp.append(e)
+        edges = tmp
+        tmp = []
+        for e in edges:
+            if e == 'sibling' and tmp and tmp[-1] == 'sibling':
+                continue
+            tmp.append(e)
+        edges = tmp
 
     # Step 2: peel leading/trailing bare spouse edges
     lead_sp = trail_sp = 0
