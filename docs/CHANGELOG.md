@@ -1,16 +1,43 @@
 # Changelog
 
-## Unreleased
+## [1.9.2] - 2026-05-23
 
 ### Added
 
-- **Hebrew and Cyrillic fuzzy search aliases** - the parser now generates cached English-letter aliases for Hebrew and Cyrillic names. Fuzzy search in both the GUI and CLI can use these aliases, while normal token search remains unchanged. Packaged/source builds include optional `cyrtranslit` and `hebrew` support, with built-in fallback mappings when those packages are unavailable.
-- **Cross-platform GUI smoke test workflow** - opt-in Tk/customtkinter smoke tests can now run on Linux/WSL, Windows-from-WSL, and macOS, with ignored failure artifacts under `test-artifacts/`.
+- **Internationalization (i18n)** — the GUI is now fully localized via GNU gettext. All user-facing strings pass through `gettext`/`_()`, the language can be selected in Preferences, and the choice is persisted across sessions. Shipping translations: German (de), Spanish (es), French (fr), and Hebrew (he). A `locales/` directory holds `.pot` template and per-language `.po` files; compiled `.mo` files are bundled into the release.
+- **DeepL translation tooling** — `dev/translate-po-deepl.py` automates gettext `.pot`/`.po` translation via the DeepL API. It preserves Python format placeholders, UI shortcut tokens, and applies a genealogy-specific glossary. Shell and PowerShell wrappers (`translate-po-deepl.sh`, `translate-po-deepl.ps1`) are included.
+- **Hebrew and Cyrillic fuzzy search aliases** — the parser generates Latin-script aliases for Hebrew and Cyrillic names at load time. Fuzzy search in both the GUI and CLI can match against these aliases while normal token search remains unchanged. Optional `cyrtranslit` and `hebrew` packages are used when available, with built-in fallback mappings.
+- **Debug logging module** — `gedcom_debug.py` provides rotating-file exception logging activated by the `GEDCOM_NAVIGATOR_DEBUG` environment variable (or `GEDCOM_NAVIGATOR_DEBUG_LOG` to set a custom path). `log_exception()` and `log_exception_once()` helpers are called at all silent `except` sites throughout the codebase, so debugging field issues no longer requires a source build.
+- **Centralized keyboard shortcut metadata** — `gedcom_shortcuts.py` defines `ShortcutSpec` named tuples for every main-window shortcut. `AppearanceMixin` now registers bindings by iterating `main_window_shortcuts()` rather than hard-coding each sequence, and tests can enumerate shortcuts without touching the GUI.
+- **Cross-platform GUI smoke test workflow** — opt-in Tk/customtkinter smoke tests (`tests/test_gui_smoke.py`) can now run on Linux/WSL, Windows-from-WSL, and macOS via `scripts/test-gui.sh`, `scripts/wtest-gui.sh`, and `scripts/test-gui.ps1`. Failure artifacts are written under the ignored `test-artifacts/` directory.
+
+### Changed
+
+- **Display Pane mode selector** — the "Show Person" and "Find Matches" action buttons have been replaced by a segmented button (Profile / Matches / Paths) that switches the main results pane between the three display modes. Selecting a person in the list immediately refreshes the active mode. The preferred startup mode is saved in Preferences.
+- **Person profile rendered in main results pane** — the profile view (formerly always a separate popup) is now rendered inline in the Display Pane. Clicking a person navigates to them and renders their biography, family summary, and path to the home person directly in the results area. The standalone Show Person window is still accessible and is used for the interactive family tree.
+- **DNA settings moved out of main window** — the Tag Keyword, Page Marker, and Select Tag controls have been removed from the main window's top bar. They now live exclusively in Preferences, reducing visual clutter in the toolbar.
+- **Preferences dialog is scrollable** — the Preferences window now uses a `CTkScrollableFrame`, so it stays usable on small displays even as new sections are added. The Language selector appears as a new section.
+- **`gedcom_strings.py` now uses gettext** — all string constants are wrapped with `_()`. Dynamic strings whose content depends on the platform (modifier key labels, menu items with shortcut hints) have been converted to accessor functions (`get_menu_how_to_use()`, `get_tip_find()`, etc.) so they are re-evaluated at call time with the active locale.
+- **Kinship signature improvements** — `_edge_kinship_signature()` (renamed from `_path_kinship_signature()`) adds three new simplification passes (steps 1.2, 1.3, and 1.6) that canonicalize roundabout paths through parent/child and sibling hops, improving deduplication of genealogically equivalent routes.
+- **Tooltip text tracking** — `Tooltip` now stores the text per-widget in a `WeakKeyDictionary` so `update_text()` keeps the stored value in sync, and tests can retrieve current tooltip text without instantiating the underlying CTkToolTip.
+- **`wstart.sh` script** — new helper `scripts/wstart.sh` launches the GUI from WSL using the Windows Python interpreter, mirroring how the released Windows build runs.
+- **`conftest.py` simplified** — the custom `tmp_path` fixture that worked around Windows ACL issues has been removed now that the CI environment handles this correctly.
+
+### Fixed
+
+- **`Ctrl+L` / clear results removed** — the `_clear_results` action and its Escape/Ctrl+L shortcut have been removed. Clearing the results pane is now implicit in switching display modes.
 
 ### Tests
 
-- **Transliteration search coverage** - new tests cover Hebrew and Cyrillic alias generation, cache preservation, fuzzy-only matching, and fallback Hebrew aliases such as matching `moshe kohen` against a generated `msh khn` alias.
-- **Shortcut and tooltip coverage** - tests now verify that main-window shortcuts have no platform conflicts, shortcut help rows match the registered shortcut metadata, and app-specific action controls expose tooltips in the real GUI.
+- **Debug logging tests** — `tests/test_debug_logging.py` covers `debug_enabled()`, `configure_debug_logging()`, `log_exception()`, `log_exception_once()`, and the process-wide exception hooks.
+- **Display Pane tests** — `tests/test_gui_display_pane.py` covers mode switching, result rendering for all three modes, and persistence of the selected mode across navigation.
+- **Keyboard shortcut tests** — `tests/test_gui_keybindings.py` verifies that main-window shortcuts have no platform conflicts, shortcut help rows match the registered metadata, and action controls expose tooltips in the real GUI.
+- **Person dialog tests** — `tests/test_gui_person_dialog.py` covers profile rendering, family tree navigation, and home-path display in the Display Pane.
+- **Preferences sizing tests** — `tests/test_preferences_dialog_sizing.py` verifies that the Preferences window correctly sizes itself around the language selector at various window widths.
+- **GUI dialog tests** — `tests/test_gui_dialogs.py` covers the Preferences, Tag picker, and person picker dialogs.
+- **Transliteration tests** — `tests/test_transliteration.py` covers Hebrew and Cyrillic alias generation, cache preservation, fuzzy-only matching, and fallback Hebrew alias matching.
+- **Extended results tests** — `tests/test_gui_results.py` extended with additional coverage for mode-aware reverse-button visibility and profile rendering.
+- **Config tests** — `tests/test_config.py` extended with coverage for `get_default_display`/`set_default_display` and `get_language`/`set_language`.
 
 ## [1.9.1] - 2026-05-20
 

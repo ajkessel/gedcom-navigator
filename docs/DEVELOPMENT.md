@@ -20,29 +20,43 @@ The application is structured into several layers to separate data management, b
 
 ### Core Logic (`src/`)
 
-| File                     | Description                                                                                  |
-| :----------------------- | :------------------------------------------------------------------------------------------- |
-| `gedcom_parser.py`       | Detects encoding and parses raw GEDCOM into structured dictionaries.                         |
-| `gedcom_data_model.py`   | The main `GedcomDataModel` class. Manages the lifecycle of loaded data and search results.   |
-| `gedcom_search.py`       | Implements the Breadth-First Search (BFS) algorithm to find the shortest relationship paths. |
-| `gedcom_relationship.py` | Translates raw paths into human-readable relationship terms (e.g., "3rd cousin 1x removed"). |
-| `gedcom_name_search.py`  | Token-based and fuzzy name searching logic.                                                  |
-| `gedcom_config.py`       | Manages application configuration and persistent settings.                                   |
-| `gedcom_strings.py`      | Centralized repository for UI strings and text constants.                                    |
+| File                        | Description                                                                                  |
+| :-------------------------- | :------------------------------------------------------------------------------------------- |
+| `gedcom_parser.py`          | Detects encoding and parses raw GEDCOM into structured dictionaries.                         |
+| `gedcom_data_model.py`      | The main `GedcomDataModel` class. Manages the lifecycle of loaded data and search results.   |
+| `gedcom_search.py`          | Implements the Breadth-First Search (BFS) algorithm to find the shortest relationship paths. |
+| `gedcom_relationship.py`    | Translates raw paths into human-readable relationship terms (e.g., "3rd cousin 1x removed"). |
+| `gedcom_name_search.py`     | Token-based and fuzzy name searching logic.                                                  |
+| `gedcom_config.py`          | Manages application configuration and persistent settings.                                   |
+| `gedcom_strings.py`         | UI string constants wrapped with gettext for localization.                                   |
+| `gedcom_i18n.py`            | Internationalization setup: `gettext` initialization, language detection, available-language enumeration. |
+| `gedcom_transliteration.py` | Generates Latin-script aliases for Hebrew and Cyrillic names to support fuzzy search.        |
+| `gedcom_shortcuts.py`       | Centralized keyboard shortcut metadata (`ShortcutSpec`) shared by the GUI and tests.         |
+| `gedcom_debug.py`           | Debug-only exception logging activated by the `GEDCOM_NAVIGATOR_DEBUG` environment variable. |
+
+### Localization (`locales/`)
+
+Translation files are stored in `locales/<lang>/LC_MESSAGES/gedcom_navigator.po`. The `.pot` template is at `locales/gedcom_navigator.pot`. Compiled `.mo` files are generated at build time. The `dev/translate-po-deepl.py` script automates translation via the DeepL API.
+
+Shipping translations: German (`de`), Spanish (`es`), French (`fr`), Hebrew (`he`).
 
 ### GUI Components (`src/`)
 
 The GUI is modularized into several files prefixed with `gedcom_gui_`:
 
-| File                          | Description                                                                  |
-| :---------------------------- | :--------------------------------------------------------------------------- |
-| `gedcom_navigator_gui.py`     | The main window and application entry point.                                 |
-| `gedcom_gui_background.py`    | Handles background worker threads to keep the UI responsive during searches. |
-| `gedcom_gui_search.py`        | The search sidebar and individual selection list.                            |
-| `gedcom_gui_results.py`       | The results pane showing relationship paths.                                 |
-| `gedcom_gui_dialogs.py`       | Common dialog boxes (About, Tag definitions, etc.).                          |
-| `gedcom_gui_person_dialog.py` | Detailed view for a single individual.                                       |
-| `gedcom_gui_graph_layout.py`  | Graph visualization logic for relationship paths.                            |
+| File                              | Description                                                                      |
+| :-------------------------------- | :------------------------------------------------------------------------------- |
+| `gedcom_navigator_gui.py`         | The main window and application entry point.                                     |
+| `gedcom_gui_background.py`        | Handles background worker threads to keep the UI responsive during searches.     |
+| `gedcom_gui_search.py`            | The search sidebar and individual selection list.                                 |
+| `gedcom_gui_results.py`           | The Display Pane: profile, DNA-match, and relationship-path result rendering.    |
+| `gedcom_gui_dialogs.py`           | Common dialog boxes (Preferences, Tag/person pickers, path finder).              |
+| `gedcom_gui_help_dialogs.py`      | Help, keyboard shortcuts, privacy policy, and About dialogs.                     |
+| `gedcom_gui_person_dialog.py`     | Detailed profile and family-tree view for a single individual.                   |
+| `gedcom_gui_graph_layout.py`      | Graph layout computation for relationship paths and family trees.                |
+| `gedcom_gui_graph_common.py`      | Shared canvas helpers, click handling, and export used by both graph views.      |
+| `gedcom_gui_path_graph.py`        | Relationship path graph canvas rendering.                                        |
+| `gedcom_gui_family_tree_render.py`| Family tree canvas rendering in the Show Person window.                          |
 
 ---
 
