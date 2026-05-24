@@ -193,12 +193,18 @@ try {
     }
     # Fill Winget Manifest
     $installersha256 = Get-FileHash ".\dist\gedcom-navigator-windows-installer.exe" -Algorithm SHA256 | Select-Object -ExpandProperty Hash
-    Get-ChildItem -Path .\dev\winget\*.template | ForEach-Object {
-        $manifestTemplate = Get-Content $_.FullName -Raw        
-        $manifest = $manifestTemplate.Replace("{VERSION}", $fourDigitVersion)
-        $manifest = $manifest.Replace("{VERSIONX}", $version)
-        $manifest = $manifest.Replace("{INSTALLERSHA256}", $installersha256)
-        $manifest | Out-File -FilePath ".\dist\$($_.BaseName).yaml" -Encoding utf8
+    if ( $installersha256 ) {
+        Write-Output "Generating Winget manifests..."
+        Get-ChildItem -Path .\dev\winget\*.template | ForEach-Object {
+            $manifestTemplate = Get-Content $_.FullName -Raw        
+            $manifest = $manifestTemplate.Replace("{VERSION}", $fourDigitVersion)
+            $manifest = $manifest.Replace("{VERSIONX}", $version)
+            $manifest = $manifest.Replace("{INSTALLERSHA256}", $installersha256)
+            $manifest | Out-File -FilePath ".\dist\$($_.BaseName).yaml" -Encoding utf8
+            Write-Output ("Generated .\dist\$($_.BaseName).yaml")
+        }
+    } else {
+        Write-Output "Installer SHA256 not found; skipping Winget manifest generation."
     }
 
     Compress-Archive -Path dist\* -DestinationPath .\dist\gedcom-navigator-windows-portable.zip -Force
