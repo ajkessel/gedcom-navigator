@@ -152,6 +152,11 @@ try {
         }
     }
 
+    if (Test-Path ".\dev\Output\gedcom-navigator-setup.exe") {
+        Move-Item -Force ".\dev\Output\gedcom-navigator-setup.exe" ".\dist\gedcom-navigator-windows-installer.exe"
+        Remove-Item -Recurse -Force ".\dev\Output"
+    }
+
     $filesToSign = @(".\dist\gedcom_navigator_cli.exe", ".\dist\gedcom-navigator.exe")
     if (Test-Path ".\dist\gedcom-navigator-windows-installer.exe") { $filesToSign += ".\dist\gedcom-navigator-windows-installer.exe" }
 
@@ -162,10 +167,14 @@ try {
     $dlibSearch = Get-ChildItem -Path "$env:LOCALAPPDATA\Microsoft.ArtifactSigning.Client" -Filter "Azure.CodeSigning.Dlib.dll" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
     if ( (Test-Path $trustedSigningMetadata) -and $dlibSearch -and (Test-Path $SignTool) ) {
         Write-Output "Signing with Azure Trusted Signing..."
-        az login --only-show-errors | Out-Null
+        az login --only-show-errors
         foreach ($f in $filesToSign) {
             if (Test-Path $f) {
-                & $SignTool sign /v /fd SHA256 /tr "http://timestamp.acs.microsoft.com" /td SHA256 /dlib $dlibSearch.FullName /dmdf $trustedSigningMetadata $f
+                Write-Output "Signing $f ..."
+                & $SignTool sign /v /debug /fd SHA256 /tr "http://timestamp.acs.microsoft.com" /td SHA256 /dlib $dlibSearch.FullName /dmdf $trustedSigningMetadata $f
+                if ($LASTEXITCODE -ne 0) { Write-Warning "SignTool failed for $f (exit code $LASTEXITCODE)" }
+            } else {
+                Write-Warning "File not found, skipping signing: $f"
             }
         }
     }
@@ -174,6 +183,7 @@ try {
         foreach ($f in $filesToSign) {
             if (Test-Path $f) {
                 & $SignTool sign /n $certName /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 $f
+                if ($LASTEXITCODE -ne 0) { Write-Warning "SignTool failed for $f (exit code $LASTEXITCODE)" }
             }
         }
     }
@@ -181,10 +191,6 @@ try {
         Write-Output "No signing credentials found; skipping signing."
     }
     Compress-Archive -Path dist\* -DestinationPath .\dist\gedcom-navigator-windows-portable.zip -Force
-    if (Test-Path ".\dev\Output\gedcom-navigator-setup.exe") {
-        Move-Item -Force ".\dev\Output\gedcom-navigator-setup.exe" ".\dist\gedcom-navigator-windows-installer.exe"
-        Remove-Item -Recurse -Force ".\dev\Output"
-    }
 }
 finally {
     Stop-Transcript
