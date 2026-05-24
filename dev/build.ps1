@@ -139,7 +139,7 @@ try {
             # Copy Executable (using the one-file EXE for simplicity)
             Copy-Item ".\dist\gedcom-navigator.exe" "$stagingDir\gedcom-navigator.exe"
 
-            # Fill Manifest
+            # Fill Appx Manifest
             $manifestTemplate = Get-Content ".\dev\AppxManifest.xml.template" -Raw
             $manifest = $manifestTemplate.Replace("{VERSION}", $fourDigitVersion)
             $manifest | Out-File -FilePath "$stagingDir\AppxManifest.xml" -Encoding utf8
@@ -173,7 +173,8 @@ try {
                 Write-Output "Signing $f ..."
                 & $SignTool sign /v /debug /fd SHA256 /tr "http://timestamp.acs.microsoft.com" /td SHA256 /dlib $dlibSearch.FullName /dmdf $trustedSigningMetadata $f
                 if ($LASTEXITCODE -ne 0) { Write-Warning "SignTool failed for $f (exit code $LASTEXITCODE)" }
-            } else {
+            }
+            else {
                 Write-Warning "File not found, skipping signing: $f"
             }
         }
@@ -190,6 +191,16 @@ try {
     else {
         Write-Output "No signing credentials found; skipping signing."
     }
+    # Fill Winget Manifest
+    $installersha256 = Get-FileHash ".\dist\gedcom-navigator-windows-installer.exe" -Algorithm SHA256 | Select-Object -ExpandProperty Hash
+    Get-ChildItem -Path .\dev\winget\*.template | ForEach-Object {
+        $manifestTemplate = Get-Content $_.FullName -Raw        
+        $manifest = $manifestTemplate.Replace("{VERSION}", $fourDigitVersion)
+        $manifest = $manifest.Replace("{VERSIONX}", $version)
+        $manifest = $manifest.Replace("{INSTALLERSHA256}", $installersha256)
+        $manifest | Out-File -FilePath ".\dist\$($_.BaseName).yaml" -Encoding utf8
+    }
+
     Compress-Archive -Path dist\* -DestinationPath .\dist\gedcom-navigator-windows-portable.zip -Force
 }
 finally {
