@@ -1,0 +1,14 @@
+# Created using wingetcreate 1.12.8.0
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.installer.1.12.0.schema.json
+
+PackageIdentifier: AdamKessel.GEDCOMNavigator
+PackageVersion: {VERSION}
+InstallerType: inno
+Installers:
+- Architecture: x64
+  InstallerUrl: https://github.com/ajkessel/gedcom-navigator/releases/download/{VERSIONX}/gedcom-navigator-windows-installer.exe
+  InstallerSha256: {INSTALLERSHA256}
+  ProductCode: '{D3F7B0B6-A2E4-4D6F-9C4B-6A5D5F5E5D5C}_is1'
+  Scope: user
+ManifestType: installer
+ManifestVersion: 1.12.0

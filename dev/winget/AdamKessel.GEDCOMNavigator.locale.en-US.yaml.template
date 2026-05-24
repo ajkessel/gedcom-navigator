@@ -1,0 +1,9 @@
+PackageIdentifier: AdamKessel.GEDCOMNavigator
+PackageVersion: {VERSION}
+PackageLocale: en-US
+Publisher: Adam Kessel
+PackageName: GEDCOM Navigator
+License: BSD 2-Clause License
+ShortDescription: GEDCOM Navigator Setup
+ManifestType: defaultLocale
+ManifestVersion: 1.12.0
