@@ -146,12 +146,30 @@ try {
         }
     }
 
-    if ( ( Get-ChildItem -Path Cert:\CurrentUser\My | Where-Object { $_.Subject -like ("CN=" + $certName) } ) -and ( Test-Path $SignTool ) ) {
-        & $SignTool sign /n $certName /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 ".\dist\gedcom_navigator_cli.exe" 
-        & $SignTool sign /n $certName /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 ".\dist\gedcom-navigator.exe" 
-        if (Test-Path ".\dist\gedcom-navigator-setup.exe") {
-            & $SignTool sign /n $certName /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 ".\dist\gedcom-navigator-setup.exe" 
+    $filesToSign = @(".\dist\gedcom_navigator_cli.exe", ".\dist\gedcom-navigator.exe")
+    if (Test-Path ".\dist\gedcom-navigator-windows-installer.exe") { $filesToSign += ".\dist\gedcom-navigator-windows-installer.exe" }
+
+    $trustedSigningMetadata = ".\dev\trusted-signing.json"
+    $dlibSearch = Get-ChildItem -Path "$env:LOCALAPPDATA\trusted-signing-client" -Filter "Azure.CodeSigning.Dlib.dll" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ( (Test-Path $trustedSigningMetadata) -and $dlibSearch -and (Test-Path $SignTool) ) {
+        Write-Output "Signing with Azure Trusted Signing..."
+        az login --only-show-errors | Out-Null
+        foreach ($f in $filesToSign) {
+            if (Test-Path $f) {
+                & $SignTool sign /v /fd SHA256 /tr "http://timestamp.acs.microsoft.com" /td SHA256 /dlib $dlibSearch.FullName /dmdf $trustedSigningMetadata $f
+            }
         }
+    }
+    elseif ( ( Get-ChildItem -Path Cert:\CurrentUser\My | Where-Object { $_.Subject -like ("CN=" + $certName) } ) -and ( Test-Path $SignTool ) ) {
+        Write-Output "Signing with local certificate..."
+        foreach ($f in $filesToSign) {
+            if (Test-Path $f) {
+                & $SignTool sign /n $certName /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 $f
+            }
+        }
+    }
+    else {
+        Write-Output "No signing credentials found; skipping signing."
     }
     Compress-Archive -Path dist\* -DestinationPath .\dist\gedcom-navigator-windows-portable.zip -Force
     if (Test-Path ".\dev\Output\gedcom-navigator-setup.exe") {
