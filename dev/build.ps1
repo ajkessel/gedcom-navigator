@@ -191,7 +191,7 @@ try {
     else {
         Write-Output "No signing credentials found; skipping signing."
     }
-    # Fill Winget Manifest
+    # Fill and commit Winget Manifest
     $installersha256 = Get-FileHash ".\dist\gedcom-navigator-windows-installer.exe" -Algorithm SHA256 | Select-Object -ExpandProperty Hash
     if ( $installersha256 ) {
         Write-Output "Generating Winget manifests..."
@@ -203,7 +203,19 @@ try {
             $manifest | Out-File -FilePath ".\dist\$($_.BaseName).yaml" -Encoding utf8
             Write-Output ("Generated .\dist\$($_.BaseName).yaml")
         }
-    } else {
+        if ( Test-Path -Path ..\winget-pkgs\manifests\a\AdamKessel\GEDCOMNavigator ) {
+            Write-Output "Found local Winget Github manifests directory, copying new manifests... (remember to create pull request for version $fourDigitVersion)"
+            New-Item -ItemType Directory -Path "..\winget-pkgs\manifests\a\AdamKessel\GEDCOMNavigator\$fourDigitVersion" -Force
+            Copy-Item -Path ".\dist\*.yaml" -Destination "..\winget-pkgs\manifests\a\AdamKessel\GEDCOMNavigator\$fourDigitVersion" -Force
+            Set-Location -Path "..\winget-pkgs\manifests\a\AdamKessel\GEDCOMNavigator\$fourDigitVersion"
+            git pull
+            git add *.yaml
+            git commit -m "Update Winget manifests for version $fourDigitVersion"
+            git push
+            Set-Location -Path $PSScriptRoot/..
+        }
+    }
+    else {
         Write-Output "Installer SHA256 not found; skipping Winget manifest generation."
     }
 
