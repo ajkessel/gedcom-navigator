@@ -8,6 +8,12 @@ Start-Transcript -Path "build-windows.log" -Append
 try {
     Write-Output("Starting build process for Windows...")
     Get-Date
+    if ( Test-Path -Path '.env' ) {
+        Get-Content .env | foreach { 
+            $name, $value = $_.split('=')
+            Set-Content env:\$name $value
+        }
+    }
     $searchPaths = ($env:ProgramData + "\miniforge3\scripts\"), ($env:localappdata + "\miniconda3\scripts\"), ($env:appdata + "\miniconda3\scripts\")
     $fileName = "conda.exe"
     $found_file = Get-ChildItem -Path $searchPaths -Filter $fileName -ErrorAction SilentlyContinue | Select-Object -First 1
@@ -150,7 +156,10 @@ try {
     if (Test-Path ".\dist\gedcom-navigator-windows-installer.exe") { $filesToSign += ".\dist\gedcom-navigator-windows-installer.exe" }
 
     $trustedSigningMetadata = ".\dev\trusted-signing.json"
-    $dlibSearch = Get-ChildItem -Path "$env:LOCALAPPDATA\trusted-signing-client" -Filter "Azure.CodeSigning.Dlib.dll" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+    # Azure.CodeSigning.Dlib.dll can be installed via this PowerShell command:
+    # nuget.exe install Microsoft.ArtifactSigning.Client -x -OutputDirectory "$env:LOCALAPPDATA\Microsoft.ArtifactSigning.Client"
+    # TODO convert to AzureSignTool [dotnet tool install --global AzureSignTool]
+    $dlibSearch = Get-ChildItem -Path "$env:LOCALAPPDATA\Microsoft.ArtifactSigning.Client" -Filter "Azure.CodeSigning.Dlib.dll" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
     if ( (Test-Path $trustedSigningMetadata) -and $dlibSearch -and (Test-Path $SignTool) ) {
         Write-Output "Signing with Azure Trusted Signing..."
         az login --only-show-errors | Out-Null
