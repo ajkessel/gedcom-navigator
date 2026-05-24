@@ -5,7 +5,6 @@
 .claudesync/
 .venv/
 .vscode/
-manifests/
 venv/
 build/
 debug/
