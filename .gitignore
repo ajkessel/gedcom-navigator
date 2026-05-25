@@ -25,6 +25,8 @@ gedcom_navigator/icons/
 dev/old/
 dev/gedcom-navigator.provisionprofile
 *.ged
+!samples/
+!samples/*.ged
 ?.json
 ?.png
 .pytest_cache/
