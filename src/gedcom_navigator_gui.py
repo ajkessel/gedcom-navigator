@@ -561,6 +561,8 @@ class GedcomNavigatorApp(
         self._results_header_label.pack(
             side='left', fill='x', expand=True, ipady=4)
         self._results_header_label.bind(
+            '<Button-1>', self._show_results_header_menu)
+        self._results_header_label.bind(
             '<Button-3>', self._show_results_header_menu)
         self._results_header_label.bind(
             '<Control-Button-1>', self._show_results_header_menu)
