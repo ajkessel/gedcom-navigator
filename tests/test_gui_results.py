@@ -49,6 +49,23 @@ def test_home_path_section_renders_missing_path_message():
     assert gs.RESULT_NO_HOME_PATH in lines
 
 
+def test_home_path_section_renders_loading_message():
+    app = _HomePathApp()
+    lines = []
+
+    rendered = app._render_home_path_section(
+        '@A@',
+        {'home_id': '@B@', 'loading': True},
+        nl=lambda text='', bold=False: lines.append(text),
+        person=lambda indi_id, prefix='': lines.append(prefix + indi_id),
+        relationship_line=lambda rel, path, prefix='': lines.append(rel),
+        common_ancestor_line=lambda ancestor_ids, prefix='', item_prefix='    ': None,
+    )
+
+    assert rendered is True
+    assert gs.RESULT_HOME_PATH_LOADING in lines
+
+
 def test_home_path_section_renders_same_person_message():
     app = _HomePathApp()
     lines = []

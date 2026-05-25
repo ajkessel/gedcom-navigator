@@ -135,6 +135,11 @@ class GedcomNavigatorApp(
         self.tag_records = {}
         self.sorted_ids = []
         self._home_person_id = None
+        self._home_path_cache = {}
+        self._profile_home_path_request_id = 0
+        self._profile_home_path_pending_key = None
+        self._profile_home_path_pending_request_id = None
+        self._profile_home_path_cancel_event = None
 
         # UI state variables
         self.gedcom_path = tk.StringVar()

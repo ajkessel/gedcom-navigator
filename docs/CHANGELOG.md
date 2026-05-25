@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.9.4] - 2026-05-25
+
+### Added
+
+- **Fictional genealogy sample file** — `samples/fictional_genealogy.ged` contains 1,000 fictional people illustrating complicated family structures (multiple marriages, half-siblings, cousins, etc.). Released under the Unlicense. A generator script (`dev/generate_sample_gedcom.py`) and a `samples/README.md` are also included. The README now links to this file as a first option for users who want to try the app without uploading their own data.
+- **Asynchronous home-path computation in profile view** — the relationship path to the home person is now computed in a background thread when rendering a person profile. A "Calculating path…" placeholder is shown immediately while the BFS runs, so navigating between people no longer blocks the UI. Results are posted back via `root.after()` and replace the placeholder once ready. Stale results (from a cancelled lookup) are discarded.
+- **Home-path result cache** — computed home paths are cached by `(start_id, home_id, max_depth)` key and reused on repeat visits. The cache is invalidated automatically when a new GEDCOM file is loaded or the home person is changed.
+
+### Fixed
+
+- **Ghost expansion buttons in family tree** — collapse/expand toggle buttons no longer appear for categories that have no visible relatives. `_show_expansion_button` now receives the resolved `members` dict and returns `False` when the expanded category contains no real targets, eliminating phantom buttons on nodes with empty spouse, sibling, parent, or child groups.
+
+### Tests
+
+- **Home-path caching tests** — `test_home_path_data_uses_cache_for_revisited_person` verifies that a second call for the same person returns the cached result without re-running BFS.
+- **Background home-path lookup tests** — `test_profile_home_path_render_starts_background_lookup` confirms the render method returns a loading placeholder and triggers the background worker; `test_stale_profile_home_path_result_is_ignored` confirms outdated results from cancelled lookups are discarded.
+- **Loading message rendering test** — `test_home_path_section_renders_loading_message` in `test_gui_results.py` verifies the "Calculating path…" string is emitted when home-path data carries `loading: True`.
+- **Expansion button visibility tests** — new `tests/test_gui_expansion_buttons.py` covers the two key cases: an expanded category with no members hides its button; an expanded category with at least one visible member keeps it.
+
 ## [1.9.3] - 2026-05-23
 - Updated translations
 - Fixed language selection preferences

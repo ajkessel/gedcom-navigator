@@ -360,6 +360,7 @@ class FamilyTreeRenderMixin:
                     font=label_font,
                     width=label_width, justify='center',
                     tags=('family_tree_node', node_tag))
+            members = self._family_tree_members_for(node_id)
             options = family_tree_expansion_options(
                 node_id, visible_set, self._family_tree_members_for)
             hidden_categories = tuple(
@@ -435,7 +436,7 @@ class FamilyTreeRenderMixin:
             }
             for category in EXPANDABLE_TREE_CATEGORIES:
                 if not self._show_expansion_button(
-                        options, expanded_set, node_id, category):
+                        options, expanded_set, node_id, category, members):
                     continue
                 bx, by = button_specs[category]
                 button_side = 'right' if bx > x else 'left'

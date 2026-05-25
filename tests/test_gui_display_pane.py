@@ -1,5 +1,7 @@
 """Tests for Display Pane mode routing."""
 
+import threading
+
 from gedcom_gui_search import SearchMixin
 
 
@@ -68,8 +70,8 @@ class App(SearchMixin):
         self.pick_results = (
             list(pick_results) if pick_results is not None else ['@B@'])
 
-    def _render_profile_result(self, start_id):
-        self.calls.append(('profile', start_id))
+    def _render_profile_result(self, start_id, home_paths=None):
+        self.calls.append(('profile', start_id, home_paths))
 
     def _find_matches(self):
         self.calls.append(('matches', self._selected_or_active_id()))
@@ -87,7 +89,7 @@ def test_profile_mode_renders_selected_person():
 
     app._refresh_display_pane()
 
-    assert app.calls == [('profile', '@A@')]
+    assert app.calls == [('profile', '@A@', None)]
     assert app._reverse_btn.visible is False
     assert app._reverse_btn.config['state'] == 'disabled'
     assert app._matches_settings_frame.visible is False
@@ -173,3 +175,54 @@ def test_home_path_data_finds_path_to_home_person():
         'paths': path,
     }
     assert app._model.calls == [('@A@', '@B@', 1, 12, None)]
+
+
+def test_home_path_data_uses_cache_for_revisited_person():
+    path = [[('@A@', None), ('@B@', 'father')]]
+    app = App()
+    app._home_person_id = '@B@'
+    app._model = Model(paths=path)
+
+    first = app._find_home_path_data('@A@', 12)
+    second = app._find_home_path_data('@A@', 12)
+
+    assert first == second == {'home_id': '@B@', 'paths': path}
+    assert app._model.calls == [('@A@', '@B@', 1, 12, None)]
+
+
+def test_profile_home_path_render_starts_background_lookup():
+    app = App()
+    app._home_person_id = '@B@'
+    started = []
+    app._start_profile_home_path_lookup = (
+        lambda start_id, max_depth, key:
+        started.append((start_id, max_depth, key)))
+
+    result = app._profile_home_path_for_render('@A@', 12)
+
+    assert result == {'home_id': '@B@', 'loading': True}
+    assert started == [('@A@', 12, ('@A@', '@B@', 12))]
+    assert app._model.calls == []
+
+
+def test_stale_profile_home_path_result_is_ignored():
+    app = App()
+    app._home_person_id = '@B@'
+    app._last_result = {'type': 'profile', 'start_id': '@A@'}
+    app._profile_home_path_request_id = 2
+    key = ('@A@', '@B@', 12)
+    app._profile_home_path_pending_key = key
+    app._profile_home_path_pending_request_id = 2
+
+    app._finish_profile_home_path_lookup(
+        1,
+        key,
+        '@A@',
+        {'home_id': '@B@', 'paths': []},
+        None,
+        threading.Event(),
+    )
+
+    assert app.calls == []
+    assert app._profile_home_path_pending_key == key
+    assert app._profile_home_path_pending_request_id == 2

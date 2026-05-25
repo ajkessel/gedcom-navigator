@@ -469,9 +469,19 @@ class GraphCommonMixin:
         return changed
 
     @staticmethod
-    def _show_expansion_button(options, expanded, node_id, category):
+    def _show_expansion_button(
+            options, expanded, node_id, category, members=None):
         """Return whether an expansion toggle should be rendered."""
-        return bool(options.get(category)) or (node_id, category) in expanded
+        if options.get(category):
+            return True
+        if (node_id, category) not in expanded:
+            return False
+        if members is None:
+            return True
+        return any(
+            target_id and target_id != node_id
+            for target_id in members.get(category, ())
+        )
 
     @staticmethod
     def _expansion_button_text(expanded, node_id, category, side='left'):

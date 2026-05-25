@@ -383,6 +383,7 @@ class PathGraphMixin:
                     node_tag, '<Control-Button-1>', _show_node_menu)
 
                 if on_expand:
+                    members = self._family_tree_members_for(node_id)
                     options = family_tree_expansion_options(
                         node_id, visible_ids, self._family_tree_members_for)
                     button_specs = {
@@ -403,7 +404,8 @@ class PathGraphMixin:
                     }
                     for category in EXPANDABLE_TREE_CATEGORIES:
                         if not self._show_expansion_button(
-                                options, expanded_set, node_id, category):
+                                options, expanded_set, node_id, category,
+                                members):
                             continue
                         bx, by = button_specs[category]
                         button_side = 'right' if bx > x else 'left'

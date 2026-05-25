@@ -6,6 +6,7 @@ GEDCOM loading, person-list filtering, and DNA-match search handlers.
 """
 
 import os
+import sys
 import threading
 import tkinter as tk
 from tkinter import filedialog, messagebox
@@ -159,6 +160,7 @@ class SearchMixin:
             self.tag_records = self._model.tag_records
             self._display_path_target_id = None
             self._last_result = None
+            self._clear_home_path_cache()
             if encoding_warning:
                 messagebox.showwarning(gs.ERR_ENCODING_TITLE, encoding_warning)
             self.sorted_ids = sorted(
@@ -199,17 +201,133 @@ class SearchMixin:
         self._model.reflag(dna_keyword, page_marker)
         self._populate_tree()
 
-    def _find_home_path_data(self, start_id, max_depth, cancel_event=None):
-        """Return path data from start_id to the configured home person."""
-        home_id = self._home_person_id
+    def _clear_home_path_cache(self):
+        """Clear cached home paths and cancel any stale profile lookup."""
+        self._home_path_cache = {}
+        self._profile_home_path_request_id = (
+            getattr(self, '_profile_home_path_request_id', 0) + 1)
+        cancel_event = getattr(self, '_profile_home_path_cancel_event', None)
+        if cancel_event is not None:
+            cancel_event.set()
+        self._profile_home_path_cancel_event = None
+        self._profile_home_path_pending_key = None
+        self._profile_home_path_pending_request_id = None
+
+    def _home_path_cache_key(self, start_id, max_depth):
+        """Return the cache key for a home-path lookup, or None."""
+        home_id = getattr(self, '_home_person_id', None)
         if not home_id or home_id not in self.individuals:
             return None
+        return (start_id, home_id, int(max_depth))
+
+    def _find_home_path_data(self, start_id, max_depth, cancel_event=None):
+        """Return path data from start_id to the configured home person."""
+        key = self._home_path_cache_key(start_id, max_depth)
+        if key is None:
+            return None
+        cache = getattr(self, '_home_path_cache', None)
+        if cache is None:
+            cache = self._home_path_cache = {}
+        cached = cache.get(key)
+        if cached is not None:
+            return cached
+        _, home_id, _ = key
         if home_id == start_id:
-            return {'home_id': home_id, 'paths': [[(start_id, None)]]}
+            home_data = {'home_id': home_id, 'paths': [[(start_id, None)]]}
+            cache[key] = home_data
+            return home_data
         home_paths, _ = self._model.find_all_paths(
             start_id, home_id, top_n=1, max_depth=max_depth,
             cancel_event=cancel_event)
-        return {'home_id': home_id, 'paths': home_paths}
+        home_data = {'home_id': home_id, 'paths': home_paths}
+        if cancel_event is None or not cancel_event.is_set():
+            cache[key] = home_data
+        return home_data
+
+    def _profile_home_path_for_render(self, start_id, max_depth):
+        """Return cached profile home-path data or a loading placeholder."""
+        key = self._home_path_cache_key(start_id, max_depth)
+        if key is None:
+            return None
+        cache = getattr(self, '_home_path_cache', None)
+        if cache is None:
+            cache = self._home_path_cache = {}
+        cached = cache.get(key)
+        if cached is not None:
+            return cached
+        _, home_id, _ = key
+        if home_id == start_id:
+            return self._find_home_path_data(start_id, max_depth)
+        self._start_profile_home_path_lookup(start_id, max_depth, key)
+        return {'home_id': home_id, 'loading': True}
+
+    def _start_profile_home_path_lookup(self, start_id, max_depth, key):
+        """Compute a profile home path in the background for the current view."""
+        if getattr(self, '_profile_home_path_pending_key', None) == key:
+            return
+        cancel_event = getattr(self, '_profile_home_path_cancel_event', None)
+        if cancel_event is not None:
+            cancel_event.set()
+        request_id = getattr(self, '_profile_home_path_request_id', 0) + 1
+        self._profile_home_path_request_id = request_id
+        cancel_event = threading.Event()
+        self._profile_home_path_cancel_event = cancel_event
+        self._profile_home_path_pending_key = key
+        self._profile_home_path_pending_request_id = request_id
+        switch_interval = sys.getswitchinterval()
+
+        def _worker():
+            result = None
+            error = None
+            try:
+                if switch_interval > 0.001:
+                    sys.setswitchinterval(0.0005)
+                result = self._find_home_path_data(
+                    start_id, max_depth, cancel_event=cancel_event)
+            except Exception as exc:  # pylint: disable=broad-exception-caught
+                if not cancel_event.is_set():
+                    log_exception("finding profile home path")
+                    error = exc
+            finally:
+                if switch_interval > 0.001:
+                    sys.setswitchinterval(switch_interval)
+            try:
+                self.root.after(
+                    0,
+                    lambda: self._finish_profile_home_path_lookup(
+                        request_id, key, start_id, result, error,
+                        cancel_event),
+                )
+            except tk.TclError:
+                pass
+
+        threading.Thread(target=_worker, daemon=True).start()
+
+    def _finish_profile_home_path_lookup(
+            self, request_id, key, start_id, result, error, cancel_event):
+        """Apply a completed profile home-path lookup if it is still current."""
+        pending_request_id = getattr(
+            self, '_profile_home_path_pending_request_id', None)
+        if (getattr(self, '_profile_home_path_pending_key', None) == key
+                and pending_request_id == request_id):
+            self._profile_home_path_pending_key = None
+            self._profile_home_path_pending_request_id = None
+            self._profile_home_path_cancel_event = None
+        if cancel_event.is_set() or error is not None:
+            return
+        if request_id != getattr(self, '_profile_home_path_request_id', None):
+            return
+        if key != self._home_path_cache_key(start_id, key[2]):
+            return
+        if result is not None:
+            self._home_path_cache[key] = result
+        if (self.display_mode.get() != 'profile'
+                or self._selected_or_active_id() != start_id
+                or not self._last_result
+                or self._last_result.get('type') != 'profile'
+                or self._last_result.get('start_id') != start_id):
+            return
+        self._render_profile_result(start_id, result)
 
     def _find_dna_result_data(self, start_id, top_n, max_depth, cancel_event=None):
         """Return DNA search results plus the optional path to the home person."""
@@ -312,8 +430,7 @@ class SearchMixin:
         kind = self._last_result['type']
         start_id = self._last_result['start_id']
         if kind == 'profile':
-            self._render_profile_result(
-                start_id, self._find_home_path_data(start_id, max_depth))
+            self._render_profile_result(start_id)
             return
         self._show_progress()
         self._set_busy(True)

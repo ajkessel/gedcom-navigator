@@ -99,9 +99,12 @@ class ResultsMixin(GraphRenderMixin, GraphLayoutMixin):
                 max_depth = int(self.max_depth.get())
             except (tk.TclError, ValueError):
                 max_depth = 1
-            home_path_data = self._find_home_path_data(start_id, max_depth)
+            home_path_data = self._profile_home_path_for_render(
+                start_id, max_depth)
         if self._last_result and self._last_result.get('type') == 'profile':
-            self._last_result['home_paths'] = home_path_data
+            if not (isinstance(home_path_data, dict)
+                    and home_path_data.get('loading')):
+                self._last_result['home_paths'] = home_path_data
 
         self._insert_person_profile(
             w, start_id, self._navigate_to, tag_callback=_on_tag_click,
@@ -132,6 +135,10 @@ class ResultsMixin(GraphRenderMixin, GraphLayoutMixin):
             separator()
         nl(gs.RESULT_PATH_SECTION, bold=True)
         person(home_id, prefix=gs.RESULT_HOME)
+        if home_data.get('loading'):
+            nl(gs.RESULT_HOME_PATH_LOADING)
+            nl()
+            return True
         paths = home_data.get('paths') or []
         if not paths:
             nl(gs.RESULT_NO_HOME_PATH)

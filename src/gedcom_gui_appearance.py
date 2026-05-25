@@ -598,6 +598,7 @@ class AppearanceMixin:
         if not gedcom_path:
             return
         self._home_person_id = indi_id
+        self._clear_home_path_cache()
         self._save_home_person(gedcom_path, indi_id)
         name = self.individuals[indi_id]['name'] or indi_id
         self.status_text.set(STATUS_HOME_SET.format(name=name))

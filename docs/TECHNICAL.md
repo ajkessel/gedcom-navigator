@@ -81,6 +81,9 @@ sudo dnf install python3-tkinter
 sudo pacman -S tk
 ```
 
+For Linux-specific GUI troubleshooting notes, including WSL/X server checks and
+CustomTkinter font warnings, see [Linux Issues](LINUX_ISSUES.md).
+
 ### Run from source
 
 ```
