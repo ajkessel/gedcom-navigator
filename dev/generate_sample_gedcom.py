@@ -520,6 +520,8 @@ def write_gedcom(tree: SampleTree, output: Path) -> None:
         "2 FORM LINEAGE-LINKED",
         "1 CHAR UTF-8",
         "1 NOTE Synthetic GEDCOM sample. All people, places, and relationships are fictional.",
+        '1 NOTE This GEDCOM file is released under the Unlicense which has no requirements. It is intended to be equivalent to "public domain" rights. Do whatever you want with it.',
+        "1 NOTE See https://unlicense.org for more information",
         f"0 {SOURCE_ID} SOUR",
         "1 TITL Synthetic DNA match citation",
         "0 @T1@ _MTTAG",
