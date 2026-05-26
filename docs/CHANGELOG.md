@@ -2,10 +2,21 @@
 
 ## [1.9.5] - 2026-05-26
 
+### Added
+
+- **App Store screenshot and preview generator** — `scripts/generate-appstore-assets.py` automates production of all Mac App Store screenshots (`screenshot_01_main.png` through `screenshot_05_tree.png`), an animated GIF (`screen_recording.gif`), and an H.264 App Preview video (`app_preview.mp4`). Captures are driven by AppKit's `NSThemeFrame` so no Screen Recording permission is required. A lightweight HTTP capture-coordination helper (`scripts/_capture_server.py`) synchronises the screenshot timing with live GUI state.
+- **App Store screenshot assets** — generated screenshots and preview video are committed under `docs/screenshots/appstore/`.
+
 ### Fixed
 
-- **Conflicting MacOS keyboard shorcuts** — Cmd-H (Home) and Cmd-M (Toggle Married Names) are reserved on MacOS; the new keyboard shortcuts add shift.
-- **MacOS crash on save** — the "save graphic" dialog wasn't working on MacOS, now fixed.
+- **Conflicting MacOS keyboard shortcuts** — `Cmd-H` (hide application) and `Cmd-M` (minimize window) are intercepted by macOS at the window-server level before Tkinter sees them. The Set Home and Toggle Married Names actions now use `Cmd-Shift-H` / `Cmd-Shift-M` on macOS. A new `_mod_shift_shortcut` helper in `gedcom_shortcuts.py` encodes this platform difference, and tooltip text for both actions is updated to display the correct platform-specific key sequence via `shortcut_by_action()`.
+- **MacOS crash on save** — all `filedialog.asksaveasfilename` and `filedialog.askdirectory` calls now pass their `parent=` argument through a new `filedialog_parent()` helper in `gedcom_platform.py`. On macOS the helper returns `None`, preventing the dialog from being shown as an AppKit sheet (which triggers an assertion abort in PyInstaller builds). Affected save paths: save results, save graph PNG/SVG, save graph debug JSON, and save profile text.
+- **Left-click on results header** — the results-pane header label now responds to left-click (`<Button-1>`) in addition to right-click, making the header context menu easier to discover.
+
+### Tests
+
+- **OS-reserved shortcut conflict tests** — `tests/test_gui_keybindings.py` gains four new tests: `test_no_macos_system_shortcut_conflicts` and `test_no_windows_system_shortcut_conflicts` verify no registered shortcut collides with OS-level sequences; `test_macos_cmd_h_and_cmd_m_use_shift` asserts the corrected Shift sequences on macOS; `test_windows_linux_use_standard_ctrl_for_h_and_m` verifies the non-macOS bindings are unchanged.
+- **`filedialog_parent` enforcement test** — `tests/test_filedialog_parent.py` uses AST analysis to assert that every `filedialog.*` call in `src/` that passes `parent=` wraps the value in `filedialog_parent()`, preventing regressions of the macOS save-dialog crash.
 
 ## [1.9.4] - 2026-05-25
 
