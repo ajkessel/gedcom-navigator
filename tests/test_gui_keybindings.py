@@ -174,3 +174,82 @@ def test_keyboard_shortcut_rows_match_metadata(monkeypatch):
         rows = get_keyboard_shortcut_rows()
 
         assert [shortcut for shortcut, _action in rows] == expected
+
+
+# ---------------------------------------------------------------------------
+# OS-reserved shortcut conflict tests
+# ---------------------------------------------------------------------------
+
+# macOS intercepts these sequences at the window-server level before Tkinter
+# sees the event, making them impossible to override in a Tkinter app.
+_MACOS_SYSTEM_SEQUENCES = frozenset({
+    "<Command-h>",  # Hide application
+    "<Command-m>",  # Minimize window to Dock
+    "<Command-q>",  # Quit application
+    "<Command-w>",  # Close window
+})
+
+# Windows OS-level shortcuts that are consumed before reaching the app.
+_WINDOWS_SYSTEM_SEQUENCES = frozenset({
+    "<Alt-F4>",          # Close window
+    "<Control-Escape>",  # Open Start menu
+})
+
+
+def test_no_macos_system_shortcut_conflicts():
+    """No app shortcut may use a sequence that macOS intercepts system-wide."""
+    conflicts = [
+        shortcut
+        for shortcut in main_window_shortcuts("darwin")
+        if shortcut.sequence in _MACOS_SYSTEM_SEQUENCES
+    ]
+    assert not conflicts, (
+        "App shortcuts conflict with macOS system sequences: "
+        + ", ".join(f"{s.action_key!r} -> {s.sequence!r}" for s in conflicts)
+    )
+
+
+def test_no_windows_system_shortcut_conflicts():
+    """No app shortcut may use a sequence Windows consumes before the app."""
+    conflicts = [
+        shortcut
+        for shortcut in main_window_shortcuts("win32")
+        if shortcut.sequence in _WINDOWS_SYSTEM_SEQUENCES
+    ]
+    assert not conflicts, (
+        "App shortcuts conflict with Windows system sequences: "
+        + ", ".join(f"{s.action_key!r} -> {s.sequence!r}" for s in conflicts)
+    )
+
+
+def test_macos_cmd_h_and_cmd_m_use_shift():
+    """set_home and toggle_married_name_search must use Shift on macOS.
+
+    Cmd+H (hide app) and Cmd+M (minimize) are intercepted by macOS before
+    Tkinter sees them, so these actions require Cmd+Shift on macOS.
+    """
+    set_home = shortcut_by_action("set_home", "darwin")
+    assert set_home.sequence == "<Command-Shift-h>", (
+        f"set_home uses macOS-reserved <Command-h>; expected <Command-Shift-h>, "
+        f"got {set_home.sequence!r}"
+    )
+
+    married = shortcut_by_action("toggle_married_name_search", "darwin")
+    assert married.sequence == "<Command-Shift-m>", (
+        f"toggle_married_name_search uses macOS-reserved <Command-m>; "
+        f"expected <Command-Shift-m>, got {married.sequence!r}"
+    )
+
+
+def test_windows_linux_use_standard_ctrl_for_h_and_m():
+    """On Windows and Linux, H and M keep the standard Ctrl+ modifier."""
+    for platform in ("linux", "win32"):
+        set_home = shortcut_by_action("set_home", platform)
+        assert set_home.sequence == "<Control-h>", (
+            f"set_home on {platform}: expected <Control-h>, got {set_home.sequence!r}"
+        )
+        married = shortcut_by_action("toggle_married_name_search", platform)
+        assert married.sequence == "<Control-m>", (
+            f"toggle_married_name_search on {platform}: expected <Control-m>, "
+            f"got {married.sequence!r}"
+        )
