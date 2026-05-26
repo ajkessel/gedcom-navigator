@@ -18,6 +18,7 @@ ctktooltip
 customtkinter
 darkcolor
 DEAT
+deepl
 docstrings
 famc
 FAMC
@@ -102,6 +103,7 @@ Treeviews
 troughcolor
 wingetcreate
 wraplength
+wtest
 xcrun
 yscrollcommand
 Владимир

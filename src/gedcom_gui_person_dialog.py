@@ -14,6 +14,7 @@ import customtkinter as ctk
 from gedcom_debug import debug_enabled
 from gedcom_display import describe
 from gedcom_family_tree import INITIAL_TREE_CATEGORIES
+from gedcom_platform import filedialog_parent
 from gedcom_relationship import _extract_event
 from gedcom_strings import *  # pylint: disable=unused-wildcard-import
 from gedcom_tooltip import Tooltip
@@ -564,7 +565,7 @@ class PersonDialogMixin:
                 if not content:
                     return "break"
                 path = filedialog.asksaveasfilename(
-                    parent=win,
+                    parent=filedialog_parent(win),
                     title=DLG_SAVE_PROFILE,
                     defaultextension=".txt",
                     filetypes=[

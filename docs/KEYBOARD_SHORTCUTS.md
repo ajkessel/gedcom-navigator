@@ -9,11 +9,11 @@
 | **Ctrl+I** | F**i**lter Results |
 | **Ctrl+D** | Toggle the **D**NA (or other tag) filter |
 | **Ctrl+U** | Toggle f**u**zzy search mode |
-| **Ctrl+M** | Toggle **m**arried-name search mode |
+| **Ctrl+M** / **⌘⇧M** | Toggle **m**arried-name search mode |
 | **Ctrl+O** | **O**pen a new GEDCOM file |
 | **Ctrl+N** | Switch the Display Pane to **N**earest Matches |
 | **Ctrl+E** | Switch the Display Pane to Profil**e** |
-| **Ctrl+H** | Set **H**ome person to the selected person |
+| **Ctrl+H** / **⌘⇧H** | Set **H**ome person to the selected person |
 | **Ctrl+P** | Switch the Display Pane to Relationship **P**aths |
 | **Ctrl+T** | Select new **t**ag for finding relationship paths |
 | **Ctrl+R** | **R**everse/restore the direction of all relationship paths |

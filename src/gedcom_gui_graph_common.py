@@ -18,6 +18,7 @@ from gedcom_debug import log_exception
 from gedcom_display import lifespan
 from gedcom_family_tree import EXPANDABLE_TREE_CATEGORIES
 from gedcom_graph_export import canvas_to_png_bytes, canvas_to_svg
+from gedcom_platform import filedialog_parent
 from gedcom_strings import *  # pylint: disable=unused-wildcard-import
 from gedcom_theme import get_link_color, ttk_colors
 from gedcom_tooltip import CanvasTagTooltip
@@ -591,7 +592,7 @@ class GraphCommonMixin:
         """Save a full graph canvas as PNG or SVG."""
         canvas.update_idletasks()
         path = filedialog.asksaveasfilename(
-            parent=parent,
+            parent=filedialog_parent(parent),
             title=title,
             defaultextension='.png',
             filetypes=[
@@ -794,7 +795,7 @@ class GraphCommonMixin:
         if not payload:
             return 'break'
         path = filedialog.asksaveasfilename(
-            parent=parent,
+            parent=filedialog_parent(parent),
             title=DLG_SAVE_GRAPH_DEBUG,
             defaultextension='.json',
             filetypes=[

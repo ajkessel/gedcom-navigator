@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.9.5] - 2026-05-26
+
+### Fixed
+
+- **Conflicting MacOS keyboard shorcuts** — Cmd-H (Home) and Cmd-M (Toggle Married Names) are reserved on MacOS; the new keyboard shortcuts add shift.
+- **MacOS crash on save** — the "save graphic" dialog wasn't working on MacOS, now fixed.
+
 ## [1.9.4] - 2026-05-25
 
 ### Added

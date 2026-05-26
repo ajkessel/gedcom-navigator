@@ -23,6 +23,7 @@ from gedcom_relationship import (
     get_descendant_depths,
 )
 import gedcom_strings as gs
+from gedcom_platform import filedialog_parent
 from gedcom_theme import get_link_color, ttk_colors
 from gedcom_tooltip import TextTagTooltip
 
@@ -465,7 +466,7 @@ class ResultsMixin(GraphRenderMixin, GraphLayoutMixin):
         if header:
             text = header + '\n\n' + text
         path = filedialog.asksaveasfilename(
-            parent=self.root,
+            parent=filedialog_parent(self.root),
             title=gs.DLG_SAVE_RESULTS,
             defaultextension='.txt',
             filetypes=[

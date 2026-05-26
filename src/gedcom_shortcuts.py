@@ -54,6 +54,24 @@ def _mod_shortcut(key, action_key, platform=None, scope="main"):
     )
 
 
+def _mod_shift_shortcut(key, action_key, platform=None, scope="main"):
+    """Like _mod_shortcut but adds Shift on macOS to avoid system-reserved shortcuts.
+
+    Cmd+H (hide app) and Cmd+M (minimize) are intercepted by macOS before
+    Tkinter sees them, so those actions use Cmd+Shift+H / Cmd+Shift+M instead.
+    """
+    platform = _platform(platform)
+    if platform == "darwin":
+        return ShortcutSpec(
+            key=key,
+            sequence=f"<Command-Shift-{key.lower()}>",
+            display=f"⌘⇧{key.upper()}",
+            action_key=action_key,
+            scope=scope,
+        )
+    return _mod_shortcut(key, action_key, platform, scope)
+
+
 def main_window_shortcuts(platform=None):
     """Return shortcuts registered on the main application window."""
     platform = _platform(platform)
@@ -79,11 +97,11 @@ def main_window_shortcuts(platform=None):
         _mod_shortcut("i", "filter_results", platform),
         _mod_shortcut("d", "toggle_tagged_filter", platform),
         _mod_shortcut("u", "toggle_fuzzy_search", platform),
-        _mod_shortcut("m", "toggle_married_name_search", platform),
+        _mod_shift_shortcut("m", "toggle_married_name_search", platform),
         _mod_shortcut("p", "display_paths", platform),
         _mod_shortcut("t", "select_tag", platform),
         _mod_shortcut("o", "open_gedcom", platform),
-        _mod_shortcut("h", "set_home", platform),
+        _mod_shift_shortcut("h", "set_home", platform),
         _mod_shortcut("e", "display_tree", platform),
         _mod_shortcut("s", "save_results", platform),
         _mod_shortcut("n", "display_matches", platform),

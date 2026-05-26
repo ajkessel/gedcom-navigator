@@ -7,7 +7,7 @@ To access strings, import this module and use the constants.
 
 import sys
 from gedcom_i18n import _
-from gedcom_shortcuts import keyboard_shortcut_rows as _shortcut_rows
+from gedcom_shortcuts import keyboard_shortcut_rows as _shortcut_rows, shortcut_by_action as _shortcut_by_action
 
 # Helper for dynamic key labels
 def get_mod_key():
@@ -169,8 +169,8 @@ TIP_PAGE_MARKER = _(
 )
 
 def get_tip_set_home():
-    mod = get_mod_key()
-    return _("Set Home Person ({mod}H)\nSet the selected person as the home person for finding relationship paths.").format(mod=mod)
+    display = _shortcut_by_action('set_home').display
+    return _("Set Home Person ({display})\nSet the selected person as the home person for finding relationship paths.").format(display=display)
 
 def get_tip_show_person():
     return _("Profile\nShow the selected person's biographical, family, tag, and optional full GEDCOM record details in the Display Pane.")
@@ -223,8 +223,8 @@ def get_tip_fuzzy():
     return _("Toggle Fuzzy Search ({mod}U)\nAllow fuzzy name matching in search results. Fuzzy matching uses a similarity ratio to find names similar to the search term, which can help find matches when names are misspelled, have minor variations, or use cached Hebrew/Cyrillic transliterated aliases.").format(mod=mod)
 
 def get_tip_married_names():
-    mod = get_mod_key()
-    return _("Toggle Married Names ({mod}M)\nInclude women's married names in Find searches by combining each woman's given name with the last names of her husbands.").format(mod=mod)
+    display = _shortcut_by_action('toggle_married_name_search').display
+    return _("Toggle Married Names ({display})\nInclude women's married names in Find searches by combining each woman's given name with the last names of her husbands.").format(display=display)
 
 # ---------------------------------------------------------------------------
 # Profile window
