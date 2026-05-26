@@ -229,15 +229,15 @@ def test_macos_cmd_h_and_cmd_m_use_shift():
     Tkinter sees them, so these actions require Cmd+Shift on macOS.
     """
     set_home = shortcut_by_action("set_home", "darwin")
-    assert set_home.sequence == "<Command-Shift-h>", (
-        f"set_home uses macOS-reserved <Command-h>; expected <Command-Shift-h>, "
+    assert set_home.sequence == "<Command-Shift-H>", (
+        f"set_home uses macOS-reserved <Command-h>; expected <Command-Shift-H>, "
         f"got {set_home.sequence!r}"
     )
 
     married = shortcut_by_action("toggle_married_name_search", "darwin")
-    assert married.sequence == "<Command-Shift-m>", (
+    assert married.sequence == "<Command-Shift-M>", (
         f"toggle_married_name_search uses macOS-reserved <Command-m>; "
-        f"expected <Command-Shift-m>, got {married.sequence!r}"
+        f"expected <Command-Shift-M>, got {married.sequence!r}"
     )
 
 

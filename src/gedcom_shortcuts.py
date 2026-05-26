@@ -64,7 +64,7 @@ def _mod_shift_shortcut(key, action_key, platform=None, scope="main"):
     if platform == "darwin":
         return ShortcutSpec(
             key=key,
-            sequence=f"<Command-Shift-{key.lower()}>",
+            sequence=f"<Command-Shift-{key.upper()}>",
             display=f"⌘⇧{key.upper()}",
             action_key=action_key,
             scope=scope,

@@ -846,7 +846,13 @@ class PersonDialogMixin:
                     if sys.platform == "win32":
                         win.state("zoomed")
                     else:
-                        win.attributes("-zoomed", True)
+                        try:
+                            win.attributes("-zoomed", True)
+                        except tk.TclError:
+                            win.geometry(
+                                f"{state['_tree_needed_w']}"
+                                f"x{state['_tree_needed_h']}+0+0"
+                            )
                 else:
                     _tcur_w = win.winfo_width()
                     _tcur_h = win.winfo_height()

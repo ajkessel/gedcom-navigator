@@ -189,6 +189,42 @@ def test_main_window_loads_fixture_and_exercises_core_views(gui_app, tmp_path):
 
 
 @pytest.mark.gui
+def test_tree_view_opens_when_zoomed_attribute_raises(gui_app, tmp_path, monkeypatch):
+    """Tree view must not crash when win.attributes('-zoomed', True) raises TclError.
+
+    Regression: -zoomed is invalid on macOS Aqua Tk. The maximize path must
+    fall back to geometry() instead of propagating the error.
+    """
+    ged_path = tmp_path / "tree.ged"
+    ged_path.write_text(GUI_GED, encoding="utf-8")
+    app = gui_app
+    app.gedcom_path.set(str(ged_path))
+    app._load_file()
+    _mainloop_until(app.root, lambda: not app._busy)
+
+    # Shrink the apparent screen so _twants_max becomes True even for a tiny tree.
+    monkeypatch.setattr(app.root, "winfo_screenwidth", lambda: 100)
+    monkeypatch.setattr(app.root, "winfo_screenheight", lambda: 100)
+
+    # Simulate macOS Aqua Tk: any attempt to read or set -zoomed raises TclError.
+    original = tk.Wm.wm_attributes
+
+    def _no_zoomed(self, *args, **kw):
+        if args and args[0] == "-zoomed":
+            raise tk.TclError('bad attribute "-zoomed"')
+        return original(self, *args, **kw)
+
+    monkeypatch.setattr(tk.Wm, "wm_attributes", _no_zoomed)
+
+    app._show_person_for("@I1@", initial_view="tree")
+    _pump_until(app.root, lambda: getattr(app, "_secondary_win", None) is not None)
+
+    win = app._secondary_win
+    assert win.winfo_exists()
+    assert win.winfo_width() > 0
+
+
+@pytest.mark.gui
 def test_main_window_action_controls_have_tooltips(gui_app):
     app = gui_app
     app.root.update_idletasks()

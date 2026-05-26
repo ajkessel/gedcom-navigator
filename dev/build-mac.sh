@@ -4,6 +4,10 @@ if [[ "$OSTYPE" != "darwin"* ]]; then
 	echo "${OSTYPE} detected, exiting."
 	exit 1
 fi
+if [[ "$STDBUF_ACTIVE" != "1" ]]; then
+        export STDBUF_ACTIVE=1
+        exec stdbuf -oL "$0" "$@"
+fi
 output_file="gedcom-navigator-mac.zip"
 while getopts "hnco:" opt; do
 	case $opt in
