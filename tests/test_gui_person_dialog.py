@@ -61,16 +61,11 @@ def test_show_person_for_missing_id_warns_without_opening_window(monkeypatch):
     assert not hasattr(app, '_secondary_win')
 
 
-def test_tree_context_profile_closes_window_and_shows_display_profile():
-    """Tree View Profile action moves the selected person to the Display Pane."""
-
-    class Root:
-        def after_idle(self, callback):
-            callback()
+def test_tree_context_profile_stays_in_person_window():
+    """Tree View Profile action navigates within the person detail window."""
 
     class App(PersonDialogMixin):
         def __init__(self):
-            self.root = Root()
             self.calls = []
 
         def _select_person_in_main_tree(self, indi_id):
@@ -80,12 +75,12 @@ def test_tree_context_profile_closes_window_and_shows_display_profile():
             self.calls.append(('display', mode))
 
     app = App()
-    closed = []
+    navigated = []
 
-    app._show_profile_from_tree_context('@P1@', lambda: closed.append(True))
+    app._show_profile_from_tree_context('@P1@', lambda iid: navigated.append(iid))
 
-    assert closed == [True]
-    assert app.calls == [('select', '@P1@'), ('display', 'profile')]
+    assert navigated == ['@P1@']
+    assert app.calls == []
 
 
 def test_profile_home_path_appears_between_bio_and_full_gedcom():

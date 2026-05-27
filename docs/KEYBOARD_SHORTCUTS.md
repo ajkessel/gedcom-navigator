@@ -25,12 +25,12 @@
 | **Ctrl+0** | Reset zoom in the focused text or graph view |
 | **F3** | Open Preferences |
 
-## Profile / Tree View Window
+## Profile / Graph View Window
 
 | Shortcut | Action |
 | --- | --- |
-| **Ctrl+T** | **T**oggle between Profile View and Tree View |
-| **Ctrl+S** | **S**ave profile or tree to a file |
-| **Ctrl+C** | **C**opy profile or tree to clipboard |
+| **Ctrl+T** | Cycle between Tree View, Pedigree View, Descendant View, and Profile View |
+| **Ctrl+S** | **S**ave profile text or the current graph to a file |
+| **Ctrl+C** | **C**opy profile text or the current graph to clipboard |
 | **Alt+←** / **Cmd+←** | Go back to the previously viewed person |
 | **Alt+→** / **Cmd+→** | Go forward to the next viewed person |

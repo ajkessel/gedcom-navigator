@@ -102,6 +102,103 @@ def build_family_tree_graph(center_id, expanded, family_lookup,
     return visible, edges
 
 
+def build_pedigree_tree_graph(center_id, individuals, families):
+    """Return all recorded ancestor links for a left-to-right pedigree view."""
+    visible = [center_id]
+    visible_set = {center_id}
+    edges = []
+    edge_set = set()
+    queue = deque([center_id])
+    processed = set()
+
+    def add_visible(target_id):
+        if target_id not in visible_set:
+            visible.append(target_id)
+            visible_set.add(target_id)
+
+    def add_edge(source_id, target_id):
+        edge = (source_id, target_id, 'parents')
+        if edge not in edge_set:
+            edges.append(edge)
+            edge_set.add(edge)
+
+    while queue:
+        source_id = queue.popleft()
+        if source_id in processed:
+            continue
+        processed.add(source_id)
+        indi = individuals.get(source_id)
+        if not indi:
+            continue
+        for fam_id in indi.get('famc', ()):
+            fam = families.get(fam_id)
+            if not fam:
+                continue
+            for parent_id in (fam.get('husb'), fam.get('wife')):
+                if (not parent_id or parent_id == source_id
+                        or parent_id not in individuals):
+                    continue
+                add_visible(parent_id)
+                add_edge(source_id, parent_id)
+                if parent_id not in processed:
+                    queue.append(parent_id)
+
+    return visible, edges
+
+
+def build_descendant_tree_graph(center_id, expanded, individuals, families):
+    """Return expanded descendant branches plus needed co-parent context."""
+    expanded = set(expanded or ())
+    visible = [center_id]
+    visible_set = {center_id}
+    edges = []
+    edge_set = set()
+    queue = deque([center_id])
+    queued = {center_id}
+
+    def add_visible(target_id):
+        if target_id not in visible_set:
+            visible.append(target_id)
+            visible_set.add(target_id)
+
+    def add_edge(source_id, target_id, category):
+        edge = (source_id, target_id, category)
+        if edge not in edge_set:
+            edges.append(edge)
+            edge_set.add(edge)
+
+    while queue:
+        parent_id = queue.popleft()
+        indi = individuals.get(parent_id)
+        if not indi or parent_id not in expanded:
+            continue
+        for fam_id in indi.get('fams', ()):
+            fam = families.get(fam_id)
+            if not fam:
+                continue
+            children = [
+                child_id for child_id in fam.get('chil', ())
+                if child_id and child_id != parent_id and child_id in individuals
+            ]
+            if not children:
+                continue
+            spouse_id = (
+                fam.get('wife') if fam.get('husb') == parent_id
+                else fam.get('husb')
+            )
+            if spouse_id and spouse_id in individuals:
+                add_visible(spouse_id)
+                add_edge(parent_id, spouse_id, 'spouses')
+            for child_id in children:
+                add_visible(child_id)
+                add_edge(parent_id, child_id, 'children')
+                if child_id in expanded and child_id not in queued:
+                    queue.append(child_id)
+                    queued.add(child_id)
+
+    return visible, edges
+
+
 def family_tree_expansion_options(indi_id, visible_ids, family_lookup):
     """Return expandable categories that have hidden relatives."""
     visible = set(visible_ids)
@@ -113,6 +210,250 @@ def family_tree_expansion_options(indi_id, visible_ids, family_lookup):
         ]
         for category in EXPANDABLE_TREE_CATEGORIES
     }
+
+
+def descendant_tree_expanded_requests(visible_ids, expanded, family_lookup):
+    """Return visible descendant branches that should render collapse buttons."""
+    expanded = set(expanded or ())
+    requests = []
+    for indi_id in visible_ids:
+        if indi_id not in expanded:
+            continue
+        if family_lookup(indi_id).get('children'):
+            requests.append((indi_id, 'children'))
+    return requests
+
+
+def descendant_tree_expansion_options(indi_id, visible_ids, family_lookup):
+    """Return hidden child branches for the descendant-only graph mode."""
+    visible = set(visible_ids)
+    return {
+        'children': [
+            target_id
+            for target_id in family_lookup(indi_id).get('children', ())
+            if target_id and target_id not in visible and target_id != indi_id
+        ]
+    }
+
+
+def layout_pedigree_tree(center_id, visible_ids, edges):
+    """Return pedigree nodes with ancestor depth as column coordinates."""
+    parents_by_child = defaultdict(list)
+    for source_id, target_id, category in edges:
+        if category == 'parents':
+            parents_by_child[source_id].append(target_id)
+
+    depths = {center_id: 0}
+    queue = deque([center_id])
+    while queue:
+        source_id = queue.popleft()
+        next_depth = depths[source_id] + 1
+        for parent_id in parents_by_child.get(source_id, ()):
+            if parent_id in depths and depths[parent_id] <= next_depth:
+                continue
+            depths[parent_id] = next_depth
+            queue.append(parent_id)
+
+    rows = {}
+    next_row = [0.0]
+    visiting = set()
+
+    def assign_row(indi_id):
+        if indi_id in rows:
+            return rows[indi_id]
+        if indi_id in visiting:
+            rows[indi_id] = next_row[0]
+            next_row[0] += 1.0
+            return rows[indi_id]
+        visiting.add(indi_id)
+        parent_rows = [
+            assign_row(parent_id)
+            for parent_id in parents_by_child.get(indi_id, ())
+            if parent_id in depths
+        ]
+        visiting.discard(indi_id)
+        if parent_rows:
+            rows[indi_id] = sum(parent_rows) / len(parent_rows)
+        else:
+            rows[indi_id] = next_row[0]
+            next_row[0] += 1.0
+        return rows[indi_id]
+
+    assign_row(center_id)
+    for indi_id in visible_ids:
+        if indi_id in depths:
+            assign_row(indi_id)
+
+    return [
+        {
+            'id': indi_id,
+            'generation': rows.get(indi_id, 0.0),
+            'column': depths.get(indi_id, 0),
+            'is_center': indi_id == center_id,
+            'expanded_from': None,
+            'expanded_category': None,
+        }
+        for indi_id in visible_ids
+        if indi_id in depths
+    ]
+
+
+def layout_descendant_tree(center_id, visible_ids, edges):
+    """Return a fast top-down layout for descendant-only graphs."""
+    visible = set(visible_ids)
+    children_by_parent = defaultdict(list)
+    spouse_edges = []
+    for source_id, target_id, category in edges:
+        if source_id not in visible or target_id not in visible:
+            continue
+        if category == 'children':
+            children_by_parent[source_id].append(target_id)
+        elif category == 'spouses':
+            spouse_edges.append((source_id, target_id))
+
+    descendant_ids = set()
+    generation = {}
+    queue = deque([(center_id, 0)])
+    while queue:
+        indi_id, depth = queue.popleft()
+        if indi_id in descendant_ids:
+            continue
+        descendant_ids.add(indi_id)
+        generation[indi_id] = depth
+        for child_id in children_by_parent.get(indi_id, ()):
+            if child_id in visible and child_id not in descendant_ids:
+                queue.append((child_id, depth + 1))
+
+    columns = {}
+    next_column = [0.0]
+    visiting = set()
+
+    def assign_column(indi_id):
+        if indi_id in columns:
+            return columns[indi_id]
+        if indi_id in visiting:
+            columns[indi_id] = next_column[0]
+            next_column[0] += 1.0
+            return columns[indi_id]
+        visiting.add(indi_id)
+        child_columns = [
+            assign_column(child_id)
+            for child_id in children_by_parent.get(indi_id, ())
+            if child_id in descendant_ids
+        ]
+        visiting.discard(indi_id)
+        if child_columns:
+            columns[indi_id] = (
+                min(child_columns) + max(child_columns)) / 2
+        else:
+            columns[indi_id] = next_column[0]
+            next_column[0] += 1.0
+        return columns[indi_id]
+
+    assign_column(center_id)
+    for indi_id in visible_ids:
+        if indi_id in descendant_ids:
+            assign_column(indi_id)
+
+    occupied = defaultdict(set)
+    for indi_id in descendant_ids:
+        occupied[generation[indi_id]].add(columns[indi_id])
+
+    def reserve_context_column(row, preferred):
+        candidates = [preferred]
+        for distance in range(1, max(20, len(visible_ids) + 1)):
+            candidates.extend((preferred + distance, preferred - distance))
+        for candidate in candidates:
+            if not any(
+                    abs(candidate - used) < MIN_COLUMN_SPACING
+                    for used in occupied[row]):
+                occupied[row].add(candidate)
+                return candidate
+        occupied[row].add(preferred)
+        return preferred
+
+    context_positions = {}
+    context_partner_by_spouse = {}
+    for left_id, right_id in spouse_edges:
+        if left_id in descendant_ids and right_id not in descendant_ids:
+            partner_id, spouse_id = left_id, right_id
+        elif right_id in descendant_ids and left_id not in descendant_ids:
+            partner_id, spouse_id = right_id, left_id
+        else:
+            continue
+        row = generation[partner_id]
+        preferred = columns[partner_id] + 1.0
+        context_positions[spouse_id] = (
+            row, reserve_context_column(row, preferred))
+        context_partner_by_spouse[spouse_id] = partner_id
+
+    layout = []
+    for indi_id in visible_ids:
+        if indi_id in descendant_ids:
+            row = generation[indi_id]
+            column = columns[indi_id]
+        elif indi_id in context_positions:
+            row, column = context_positions[indi_id]
+        else:
+            continue
+        layout.append({
+            'id': indi_id,
+            'generation': row,
+            'column': column,
+            'is_center': indi_id == center_id,
+            'expanded_from': None,
+            'expanded_category': None,
+        })
+
+    layout_by_id = {node['id']: node for node in layout}
+    layout_index = {node['id']: index for index, node in enumerate(layout)}
+    by_generation = defaultdict(list)
+    for index, node in enumerate(layout):
+        by_generation[node['generation']].append((node['column'], index))
+
+    def ordered_row_with_spouses(row):
+        ordered = [index for _column, index in sorted(row)]
+        spouses_by_partner = defaultdict(list)
+        for spouse_id, partner_id in context_partner_by_spouse.items():
+            spouse_node = layout_by_id.get(spouse_id)
+            partner_node = layout_by_id.get(partner_id)
+            if not spouse_node or not partner_node:
+                continue
+            if spouse_node['generation'] != partner_node['generation']:
+                continue
+            spouses_by_partner[partner_id].append(spouse_id)
+        if not spouses_by_partner:
+            return ordered, set()
+
+        moved_spouse_ids = set()
+        for spouse_ids in spouses_by_partner.values():
+            spouse_ids.sort(key=lambda spouse_id: layout_index[spouse_id])
+            moved_spouse_ids.update(spouse_ids)
+
+        reordered = []
+        for index in ordered:
+            node_id = layout[index]['id']
+            if node_id in moved_spouse_ids:
+                continue
+            reordered.append(index)
+            for spouse_id in spouses_by_partner.get(node_id, ()):
+                reordered.append(layout_index[spouse_id])
+        return reordered, moved_spouse_ids
+
+    for row in by_generation.values():
+        ordered, moved_spouse_ids = ordered_row_with_spouses(row)
+        previous_column = None
+        for index in ordered:
+            node = layout[index]
+            column = node['column']
+            if node['id'] in moved_spouse_ids and previous_column is not None:
+                column = previous_column + MIN_COLUMN_SPACING
+            elif previous_column is not None and (
+                    column - previous_column < MIN_COLUMN_SPACING):
+                column = previous_column + MIN_COLUMN_SPACING
+            layout[index]['column'] = column
+            previous_column = column
+    return layout
 
 
 def _centered_offsets(count, step=1.4):
