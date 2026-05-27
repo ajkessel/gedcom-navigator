@@ -157,31 +157,63 @@ class FamilyTreeRenderMixin:
     def _render_family_tree_canvas(self, canvas, center_id, expanded, colors,
                                    win, zoom, on_expand, on_recenter,
                                    on_profile=None, on_find_matches=None,
-                                   on_find_paths=None, on_expand_all=None):
-        """Draw an expandable immediate-family tree graph."""
+                                   on_find_paths=None, on_expand_all=None,
+                                   graph_builder=None,
+                                   layout_builder=layout_family_tree,
+                                   expandable_categories=None,
+                                   expansion_options_lookup=None,
+                                   expanded_for_buttons=None,
+                                   orientation='vertical',
+                                   expand_all_categories_lookup=None,
+                                   progress_callback=None):
+        """Draw a family-tree-style graph canvas."""
         zoom = max(0.5, min(2.5, float(zoom)))
-        visible_ids, edges = build_family_tree_graph(
-            center_id, expanded, self._family_tree_members_for,
-            self._co_parents_for_children)
-        layout = layout_family_tree(center_id, visible_ids, edges)
+        progress_units = {'count': 0}
+
+        def pulse_progress(step=1):
+            if progress_callback is None:
+                return
+            progress_units['count'] += step
+            if progress_units['count'] >= 60:
+                progress_units['count'] = 0
+                progress_callback()
+
+        expandable_categories = (
+            tuple(EXPANDABLE_TREE_CATEGORIES)
+            if expandable_categories is None else tuple(expandable_categories)
+        )
+        if graph_builder is None:
+            visible_ids, edges = build_family_tree_graph(
+                center_id, expanded, self._family_tree_members_for,
+                self._co_parents_for_children)
+        else:
+            visible_ids, edges = graph_builder()
+        layout = layout_builder(center_id, visible_ids, edges)
         visible_set = set(visible_ids)
-        expanded_set = set(expanded)
+        expanded_set = set(
+            expanded if expanded_for_buttons is None else expanded_for_buttons)
         self._clear_canvas_tag_tooltips(canvas)
 
         def scale(value, minimum=1):
             return max(minimum, int(round(value * zoom)))
 
         ui_family, ui_size = self._graph_ui_font()
+        label_size = scale(ui_size)
+        center_label_size = scale(ui_size)
+        button_label_size = scale(ui_size - 2)
+        if orientation == 'horizontal':
+            label_size = scale(ui_size - 3, minimum=6)
+            center_label_size = scale(ui_size - 3, minimum=6)
         label_font = tkfont.Font(
             family=ui_family,
-            size=max(scale(ui_size), 7))
+            size=max(label_size, 7 if orientation != 'horizontal' else 6))
         center_label_font = tkfont.Font(
             family=ui_family,
-            size=max(scale(ui_size), 7),
+            size=max(center_label_size, 7 if orientation != 'horizontal' else 6),
             weight='bold')
         button_font = tkfont.Font(
             family=ui_family,
-            size=max(scale(ui_size - 2), 6),
+            size=max(button_label_size, 6),
             weight='bold')
 
         labels = [
@@ -202,7 +234,10 @@ class FamilyTreeRenderMixin:
                 *(label_font.measure(line)
                   for line in detail_label.splitlines()),
             )
-        node_w = min(max(longest + scale(24), scale(112)), scale(190))
+        if orientation == 'horizontal':
+            node_w = min(max(longest + scale(18), scale(78)), scale(150))
+        else:
+            node_w = min(max(longest + scale(24), scale(112)), scale(190))
         label_width = node_w - scale(24)
         wrapped_label_blocks = []
         for node, label in zip(layout, labels):
@@ -233,10 +268,16 @@ class FamilyTreeRenderMixin:
             in zip(layout, wrapped_label_blocks)
         ]
         max_label_h = max(block_heights, default=line_space)
-        node_h = max(scale(84), max_label_h + scale(26))
-        h_gap = node_w + scale(48)
-        v_gap = max(node_h + scale(88), scale(150))
-        margin = scale(56)
+        if orientation == 'horizontal':
+            node_h = max(scale(34), max_label_h + scale(12))
+            h_gap = node_w + scale(34)
+            v_gap = max(node_h + scale(4), scale(30))
+            margin = scale(36)
+        else:
+            node_h = max(scale(84), max_label_h + scale(26))
+            h_gap = node_w + scale(48)
+            v_gap = max(node_h + scale(88), scale(150))
+            margin = scale(56)
         button_size = scale(22)
 
         min_generation = min(node['generation'] for node in layout)
@@ -245,9 +286,16 @@ class FamilyTreeRenderMixin:
         max_column = max(node['column'] for node in layout)
         positions = {}
         for node in layout:
-            x = margin + node_w / 2 + (node['column'] - min_column) * h_gap
-            y = margin + node_h / 2 + (
-                node['generation'] - min_generation) * v_gap
+            if orientation == 'horizontal':
+                x = margin + node_w / 2 + (
+                    node['column'] - min_column) * h_gap
+                y = margin + node_h / 2 + (
+                    node['generation'] - min_generation) * v_gap
+            else:
+                x = margin + node_w / 2 + (
+                    node['column'] - min_column) * h_gap
+                y = margin + node_h / 2 + (
+                    node['generation'] - min_generation) * v_gap
             positions[node['id']] = (x, y)
         canvas._family_tree_center = positions.get(center_id, (0, 0))
         spouse_edges = [
@@ -263,62 +311,89 @@ class FamilyTreeRenderMixin:
             center_id, expanded, zoom, canvas_w, canvas_h, visible_ids,
             edges, layout, self._family_tree_members_for)
 
-        for generation in range(min_generation, max_generation + 1):
-            y = margin + node_h / 2 + (
-                generation - min_generation) * v_gap
-            canvas.create_line(
-                margin / 2, y, canvas_w - margin / 2, y,
-                fill=colors['guide'], dash=(scale(3), scale(8)))
-
-        for source_id, target_id, category in edges:
-            if source_id not in positions or target_id not in positions:
-                continue
-            sx, sy = positions[source_id]
-            tx, ty = positions[target_id]
-            if category == 'spouses':
-                start_x = sx + (node_w / 2 if tx >= sx else -node_w / 2)
-                end_x = tx - node_w / 2 if tx >= sx else tx + node_w / 2
-                self._draw_spouse_line(
-                    canvas, start_x, sy, end_x, ty, colors['spouse'], scale)
-                continue
-            if category == 'siblings':
-                start_x = sx + (-node_w / 2 if tx < sx else node_w / 2)
-                end_x = tx + (node_w / 2 if tx < sx else -node_w / 2)
-                self._draw_sibling_line(
-                    canvas, start_x, sy, end_x, ty,
-                    colors['sibling'], scale)
-        for group in self._family_tree_child_edge_groups(
-                edges, positions, self._co_parents_for_children,
-                spouse_edges):
-            parent_x = group['parent_x']
-            parent_y = group['parent_y']
-            parent_h = node_h if group['parent_h'] is None else group['parent_h']
-            start_y = parent_y + parent_h / 2
-            child_tops = [
-                positions[child_id][1] - node_h / 2
-                for child_id in group['children']
-            ]
-            end_y = min(child_tops)
-            mid_y = (start_y + end_y) / 2
-            child_xs = [positions[child_id][0]
-                        for child_id in group['children']]
-            bus_start_x, bus_end_x = self._family_tree_child_bus_span(
-                parent_x, child_xs)
-            canvas.create_line(
-                parent_x, start_y, parent_x, mid_y,
-                fill=colors['parent'], width=scale(3))
-            canvas.create_line(
-                bus_start_x, mid_y, bus_end_x, mid_y,
-                fill=colors['parent'], width=scale(3))
-            for child_id in group['children']:
-                child_x, child_y = positions[child_id]
+        if orientation == 'horizontal':
+            for column in range(int(min_column), int(max_column) + 1):
+                x = margin + node_w / 2 + (column - min_column) * h_gap
                 canvas.create_line(
-                    child_x, mid_y, child_x, child_y - node_h / 2,
-                    fill=colors['parent'], width=scale(3), arrow='last',
-                    arrowshape=(scale(12), scale(14), scale(5)))
+                    x, margin / 2, x, canvas_h - margin / 2,
+                    fill=colors['guide'], dash=(scale(3), scale(8)))
+            for source_id, target_id, category in edges:
+                pulse_progress()
+                if (category != 'parents'
+                        or source_id not in positions
+                        or target_id not in positions):
+                    continue
+                sx, sy = positions[source_id]
+                tx, ty = positions[target_id]
+                start_x = sx + node_w / 2
+                end_x = tx - node_w / 2
+                mid_x = (start_x + end_x) / 2
+                canvas.create_line(
+                    start_x, sy, mid_x, sy, mid_x, ty, end_x, ty,
+                    fill=colors['parent'], width=scale(3), smooth=False)
+        else:
+            for generation in range(
+                    int(min_generation), int(max_generation) + 1):
+                y = margin + node_h / 2 + (
+                    generation - min_generation) * v_gap
+                canvas.create_line(
+                    margin / 2, y, canvas_w - margin / 2, y,
+                    fill=colors['guide'], dash=(scale(3), scale(8)))
+
+            for source_id, target_id, category in edges:
+                pulse_progress()
+                if source_id not in positions or target_id not in positions:
+                    continue
+                sx, sy = positions[source_id]
+                tx, ty = positions[target_id]
+                if category == 'spouses':
+                    start_x = sx + (node_w / 2 if tx >= sx else -node_w / 2)
+                    end_x = tx - node_w / 2 if tx >= sx else tx + node_w / 2
+                    self._draw_spouse_line(
+                        canvas, start_x, sy, end_x, ty, colors['spouse'], scale)
+                    continue
+                if category == 'siblings':
+                    start_x = sx + (-node_w / 2 if tx < sx else node_w / 2)
+                    end_x = tx + (node_w / 2 if tx < sx else -node_w / 2)
+                    self._draw_sibling_line(
+                        canvas, start_x, sy, end_x, ty,
+                        colors['sibling'], scale)
+            for group in self._family_tree_child_edge_groups(
+                    edges, positions, self._co_parents_for_children,
+                    spouse_edges):
+                pulse_progress()
+                parent_x = group['parent_x']
+                parent_y = group['parent_y']
+                parent_h = (
+                    node_h if group['parent_h'] is None else group['parent_h'])
+                start_y = parent_y + parent_h / 2
+                child_tops = [
+                    positions[child_id][1] - node_h / 2
+                    for child_id in group['children']
+                ]
+                end_y = min(child_tops)
+                mid_y = (start_y + end_y) / 2
+                child_xs = [positions[child_id][0]
+                            for child_id in group['children']]
+                bus_start_x, bus_end_x = self._family_tree_child_bus_span(
+                    parent_x, child_xs)
+                canvas.create_line(
+                    parent_x, start_y, parent_x, mid_y,
+                    fill=colors['parent'], width=scale(3))
+                canvas.create_line(
+                    bus_start_x, mid_y, bus_end_x, mid_y,
+                    fill=colors['parent'], width=scale(3))
+                for child_id in group['children']:
+                    pulse_progress()
+                    child_x, child_y = positions[child_id]
+                    canvas.create_line(
+                        child_x, mid_y, child_x, child_y - node_h / 2,
+                        fill=colors['parent'], width=scale(3), arrow='last',
+                        arrowshape=(scale(12), scale(14), scale(5)))
 
         for index, (node, label_block) in enumerate(
                 zip(layout, wrapped_label_blocks)):
+            pulse_progress()
             node_id = node['id']
             x, y = positions[node_id]
             x1 = x - node_w / 2
@@ -361,11 +436,19 @@ class FamilyTreeRenderMixin:
                     width=label_width, justify='center',
                     tags=('family_tree_node', node_tag))
             members = self._family_tree_members_for(node_id)
-            options = family_tree_expansion_options(
-                node_id, visible_set, self._family_tree_members_for)
+            if expansion_options_lookup is None:
+                options = family_tree_expansion_options(
+                    node_id, visible_set, self._family_tree_members_for)
+            else:
+                options = expansion_options_lookup(node_id, visible_set)
             hidden_categories = tuple(
-                category for category in EXPANDABLE_TREE_CATEGORIES
+                category for category in expandable_categories
                 if options.get(category))
+            if expand_all_categories_lookup is None:
+                expand_all_categories = hidden_categories
+            else:
+                expand_all_categories = tuple(
+                    expand_all_categories_lookup(node_id, visible_set))
 
             if node_id in self.individuals:
                 canvas.tag_bind(
@@ -376,7 +459,7 @@ class FamilyTreeRenderMixin:
                     lambda *_: canvas.configure(cursor=''))
 
                 def _show_node_menu(event, indi_id=node_id,
-                                    categories=hidden_categories):
+                                    categories=expand_all_categories):
                     if getattr(canvas, '_family_tree_dragged', False):
                         return 'break'
                     _menu_kw = {'font': tkfont.nametofont('TkMenuFont')} if sys.platform == 'win32' else {}
@@ -399,11 +482,10 @@ class FamilyTreeRenderMixin:
                         command=(
                             lambda: on_find_paths(indi_id)
                             if on_find_paths else None))
-                    menu.add_command(
-                        label=TREE_MENU_EXPAND_ALL,
-                        command=(
-                            lambda: on_expand_all(indi_id, categories)
-                            if on_expand_all else None))
+                    if categories and on_expand_all:
+                        menu.add_command(
+                            label=TREE_MENU_EXPAND_ALL,
+                            command=lambda: on_expand_all(indi_id, categories))
                     try:
                         menu.tk_popup(event.x_root, event.y_root)
                     finally:
@@ -434,7 +516,8 @@ class FamilyTreeRenderMixin:
                 ),
                 'children': (x, y2 + button_size / 2),
             }
-            for category in EXPANDABLE_TREE_CATEGORIES:
+            for category in expandable_categories:
+                pulse_progress()
                 if not self._show_expansion_button(
                         options, expanded_set, node_id, category, members):
                     continue
@@ -486,5 +569,6 @@ class FamilyTreeRenderMixin:
                 canvas.tag_bind(button_tag, '<Leave>', _on_button_leave)
                 canvas.tag_bind(button_tag, '<Button-1>', _on_expand)
 
+        pulse_progress(60)
         self._center_graph_canvas(canvas, canvas_w, canvas_h)
         return canvas_w, canvas_h

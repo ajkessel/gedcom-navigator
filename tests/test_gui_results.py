@@ -2,9 +2,15 @@
 
 from gedcom_family_tree import (
     _nearest_unblocked_column,
+    build_descendant_tree_graph,
     build_family_tree_graph,
+    build_pedigree_tree_graph,
+    descendant_tree_expanded_requests,
+    descendant_tree_expansion_options,
     family_tree_expansion_options,
+    layout_descendant_tree,
     layout_family_tree,
+    layout_pedigree_tree,
 )
 from gedcom_gui_results import ResultsMixin
 import gedcom_strings as gs
@@ -166,6 +172,168 @@ def test_path_graph_layout_avoids_duplicate_node_positions():
     positions = {(node['generation'], node['column']) for node in layout}
 
     assert len(positions) == len(layout)
+
+
+def test_pedigree_tree_graph_includes_all_recorded_parent_families():
+    individuals = {
+        '@ME@': {'name': 'Me', 'sex': 'M', 'famc': ['@F1@', '@F2@'], 'fams': []},
+        '@DAD@': {'name': 'Dad', 'sex': 'M', 'famc': ['@F3@'], 'fams': ['@F1@']},
+        '@MOM@': {'name': 'Mom', 'sex': 'F', 'famc': [], 'fams': ['@F1@']},
+        '@OTHER@': {'name': 'Other', 'sex': 'M', 'famc': [], 'fams': ['@F2@']},
+        '@PGF@': {'name': 'Pgf', 'sex': 'M', 'famc': [], 'fams': ['@F3@']},
+        '@PGM@': {'name': 'Pgm', 'sex': 'F', 'famc': [], 'fams': ['@F3@']},
+    }
+    families = {
+        '@F1@': {'husb': '@DAD@', 'wife': '@MOM@', 'chil': ['@ME@']},
+        '@F2@': {'husb': '@OTHER@', 'wife': '', 'chil': ['@ME@']},
+        '@F3@': {'husb': '@PGF@', 'wife': '@PGM@', 'chil': ['@DAD@']},
+    }
+
+    visible, edges = build_pedigree_tree_graph('@ME@', individuals, families)
+    layout = layout_pedigree_tree('@ME@', visible, edges)
+    columns = {node['id']: node['column'] for node in layout}
+    rows = {node['id']: node['generation'] for node in layout}
+
+    assert visible == ['@ME@', '@DAD@', '@MOM@', '@OTHER@', '@PGF@', '@PGM@']
+    assert ('@ME@', '@OTHER@', 'parents') in edges
+    assert columns['@ME@'] == 0
+    assert columns['@DAD@'] == 1
+    assert columns['@MOM@'] == 1
+    assert columns['@OTHER@'] == 1
+    assert columns['@PGF@'] == 2
+    assert columns['@PGM@'] == 2
+    assert rows['@ME@'] == (
+        rows['@DAD@'] + rows['@MOM@'] + rows['@OTHER@']) / 3
+    assert rows['@DAD@'] == (rows['@PGF@'] + rows['@PGM@']) / 2
+
+
+def test_descendant_tree_graph_includes_coparents_and_collapses_branches():
+    individuals = {
+        '@ME@': {'name': 'Me', 'sex': 'M', 'famc': [], 'fams': ['@F1@']},
+        '@SPOUSE@': {
+            'name': 'Spouse', 'sex': 'F', 'famc': [], 'fams': ['@F1@']},
+        '@CHILD@': {
+            'name': 'Child', 'sex': 'F', 'famc': ['@F1@'], 'fams': ['@F2@']},
+        '@CHILDSPOUSE@': {
+            'name': 'Child Spouse', 'sex': 'M', 'famc': [], 'fams': ['@F2@']},
+        '@GC@': {
+            'name': 'Grandchild', 'sex': 'M', 'famc': ['@F2@'], 'fams': []},
+    }
+    families = {
+        '@F1@': {'husb': '@ME@', 'wife': '@SPOUSE@', 'chil': ['@CHILD@']},
+        '@F2@': {
+            'husb': '@CHILDSPOUSE@', 'wife': '@CHILD@', 'chil': ['@GC@']},
+    }
+
+    def members_for(indi_id):
+        parents, siblings, spouses, children = [], [], [], []
+        for fam_id in individuals[indi_id].get('famc', ()):
+            fam = families[fam_id]
+            parents.extend(pid for pid in (fam['husb'], fam['wife']) if pid)
+            siblings.extend(
+                child_id for child_id in fam['chil'] if child_id != indi_id)
+        for fam_id in individuals[indi_id].get('fams', ()):
+            fam = families[fam_id]
+            spouse_id = fam['wife'] if fam['husb'] == indi_id else fam['husb']
+            if spouse_id:
+                spouses.append(spouse_id)
+            children.extend(fam['chil'])
+        return {
+            'parents': parents,
+            'siblings': siblings,
+            'spouses': spouses,
+            'children': children,
+        }
+
+    visible, edges = build_descendant_tree_graph(
+        '@ME@', {'@ME@'}, individuals, families)
+    expanded = descendant_tree_expanded_requests(
+        visible, {'@ME@'}, members_for)
+
+    assert visible == ['@ME@', '@SPOUSE@', '@CHILD@']
+    assert ('@ME@', '@SPOUSE@', 'spouses') in edges
+    assert ('@ME@', 'children') in expanded
+    child_options = descendant_tree_expansion_options(
+        '@CHILD@', visible, members_for)
+
+    assert child_options == {'children': ['@GC@']}
+
+    child_visible, child_edges = build_descendant_tree_graph(
+        '@ME@', {'@ME@', '@CHILD@'}, individuals, families)
+    child_expanded = descendant_tree_expanded_requests(
+        child_visible, {'@ME@', '@CHILD@'}, members_for)
+
+    assert child_visible == [
+        '@ME@', '@SPOUSE@', '@CHILD@', '@CHILDSPOUSE@', '@GC@']
+    assert ('@CHILD@', '@CHILDSPOUSE@', 'spouses') in child_edges
+    assert ('@CHILD@', '@GC@', 'children') in child_edges
+    assert ('@CHILD@', 'children') in child_expanded
+
+
+def test_descendant_tree_layout_is_top_down_and_keeps_spouses_on_same_row():
+    visible = [
+        '@ME@', '@SPOUSE@', '@A@', '@B@', '@A_SPOUSE@', '@A1@', '@A2@',
+    ]
+    edges = [
+        ('@ME@', '@SPOUSE@', 'spouses'),
+        ('@ME@', '@A@', 'children'),
+        ('@ME@', '@B@', 'children'),
+        ('@A@', '@A_SPOUSE@', 'spouses'),
+        ('@A@', '@A1@', 'children'),
+        ('@A@', '@A2@', 'children'),
+    ]
+
+    layout = layout_descendant_tree('@ME@', visible, edges)
+    positions = {node['id']: (node['generation'], node['column'])
+                 for node in layout}
+
+    assert positions['@ME@'][0] == 0
+    assert positions['@A@'][0] == 1
+    assert positions['@B@'][0] == 1
+    assert positions['@A1@'][0] == 2
+    assert positions['@A2@'][0] == 2
+    assert positions['@SPOUSE@'][0] == positions['@ME@'][0]
+    assert positions['@A_SPOUSE@'][0] == positions['@A@'][0]
+    assert positions['@A@'][1] == (
+        positions['@A1@'][1] + positions['@A2@'][1]) / 2
+    for generation in {node['generation'] for node in layout}:
+        columns = sorted(
+            node['column'] for node in layout
+            if node['generation'] == generation)
+        assert all(
+            right - left >= 1.0
+            for left, right in zip(columns, columns[1:]))
+
+
+def test_descendant_tree_layout_inserts_spouse_before_same_row_cousins():
+    """A spouse context node reserves the adjacent slot beside its partner."""
+    visible = [
+        '@ME@', '@A@', '@B@', '@PARTNER@', '@COUSIN1@', '@COUSIN2@',
+        '@COUSIN3@', '@SPOUSE@', '@CHILD@',
+    ]
+    edges = [
+        ('@ME@', '@A@', 'children'),
+        ('@ME@', '@B@', 'children'),
+        ('@A@', '@PARTNER@', 'children'),
+        ('@B@', '@COUSIN1@', 'children'),
+        ('@B@', '@COUSIN2@', 'children'),
+        ('@B@', '@COUSIN3@', 'children'),
+        ('@PARTNER@', '@SPOUSE@', 'spouses'),
+        ('@PARTNER@', '@CHILD@', 'children'),
+    ]
+
+    layout = layout_descendant_tree('@ME@', visible, edges)
+    positions = {node['id']: (node['generation'], node['column'])
+                 for node in layout}
+
+    assert positions['@SPOUSE@'][0] == positions['@PARTNER@'][0]
+    assert positions['@SPOUSE@'][1] - positions['@PARTNER@'][1] == 1.0
+    same_row = sorted(
+        column for generation, column in positions.values()
+        if generation == positions['@PARTNER@'][0])
+    assert all(
+        right - left >= 1.0
+        for left, right in zip(same_row, same_row[1:]))
 
 
 def test_path_graph_expansion_adds_hidden_family_without_moving_endpoints():

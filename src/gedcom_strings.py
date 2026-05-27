@@ -247,15 +247,25 @@ TAGS_SECTION = _("Tags")
 GEDCOM_SECTION = _("Full GEDCOM Record")
 BTN_CLOSE = _("Close")
 BTN_TREE_VIEW = _("Tree View")
+BTN_PEDIGREE_VIEW = _("Pedigree View")
+BTN_DESCENDANT_VIEW = _("Descendant View")
 BTN_PERSON_VIEW = _("Profile View")
 
 def get_tip_tree_view_btn():
     mod = get_mod_key()
-    return _("Tree View ({mod}T)\nSwitch to the interactive family tree for this person.").format(mod=mod)
+    return _("Tree View ({mod}T cycles views)\nShow the interactive family tree for this person.").format(mod=mod)
+
+def get_tip_pedigree_view_btn():
+    mod = get_mod_key()
+    return _("Pedigree View ({mod}T cycles views)\nShow this person's ancestors in a compact pedigree chart.").format(mod=mod)
+
+def get_tip_descendant_view_btn():
+    mod = get_mod_key()
+    return _("Descendant View ({mod}T cycles views)\nShow this person's descendants with expandable child branches.").format(mod=mod)
 
 def get_tip_person_view_btn():
     mod = get_mod_key()
-    return _("Profile View ({mod}T)\nSwitch to the biographical profile for this person.").format(mod=mod)
+    return _("Profile View ({mod}T cycles views)\nShow the biographical profile for this person.").format(mod=mod)
 
 DLG_SAVE_PROFILE = _("Save profile")
 
@@ -268,7 +278,11 @@ def get_tip_copy_profile():
     return _("Copy profile ({mod}C)\nCopy this biographical profile to clipboard.").format(mod=mod)
 
 WIN_FAMILY_TREE = _("Family Tree: {name}")
+WIN_PEDIGREE_TREE = _("Pedigree Tree: {name}")
+WIN_DESCENDANT_TREE = _("Descendant Tree: {name}")
 DLG_SAVE_FAMILY_TREE = _("Save family tree")
+DLG_SAVE_PEDIGREE_TREE = _("Save pedigree tree")
+DLG_SAVE_DESCENDANT_TREE = _("Save descendant tree")
 TREE_MENU_RECENTER = _("Center")
 TREE_MENU_PATHS = _("Paths")
 TREE_MENU_EXPAND_ALL = _("Expand All")
@@ -422,6 +436,7 @@ MSG_LANGUAGE_CHANGED = _("Language changed from {old} to {new}. Please restart t
 PROGRESS_SEARCHING_TITLE = _("Searching")
 PROGRESS_SEARCHING = _("Searching for tagged matches…\n(reduce 'max depth' setting for faster search)")
 PROGRESS_FINDING_PATH = _("Finding relationship paths…\n(reduce 'max depth' setting for faster search)")
+PROGRESS_EXPANDING_DESCENDANTS = _("Expanding descendant branches…")
 
 # ---------------------------------------------------------------------------
 # Status bar messages

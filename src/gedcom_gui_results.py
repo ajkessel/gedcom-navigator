@@ -429,6 +429,8 @@ class ResultsMixin(GraphRenderMixin, GraphLayoutMixin):
             self.root.clipboard_clear()
             self.root.clipboard_append(
                 self._display_name(self.individuals[indi_id]))
+            if self.show_ids.get():
+                self.root.clipboard_append(f" ({indi_id})")
 
         menu.add_command(
             label=gs.RESULTS_HEADER_MENU_COPY_NAME,
