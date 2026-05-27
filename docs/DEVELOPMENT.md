@@ -33,6 +33,16 @@ The application is structured into several layers to separate data management, b
 | `gedcom_transliteration.py` | Generates Latin-script aliases for Hebrew and Cyrillic names to support fuzzy search.        |
 | `gedcom_shortcuts.py`       | Centralized keyboard shortcut metadata (`ShortcutSpec`) shared by the GUI and tests.         |
 | `gedcom_debug.py`           | Debug-only exception logging activated by the `GEDCOM_NAVIGATOR_DEBUG` environment variable. |
+| `gedcom_core.py`            | Compatibility facade: re-exports parser, display, and search symbols under a single import.  |
+| `gedcom_display.py`         | Formatting helpers: `describe()` and `lifespan()` for individual summaries.                  |
+| `gedcom_family_tree.py`     | Pure helpers for building and laying out immediate-family graphs.                             |
+| `gedcom_graph_export.py`    | SVG and PNG export for relationship graph canvases.                                          |
+| `gedcom_update.py`          | GitHub release check for newer versions.                                                     |
+| `gedcom_platform.py`        | Platform integration hooks (e.g., Windows `AppUserModelID`).                                 |
+| `gedcom_theme.py`           | Theme constants and OS dark-mode detection.                                                  |
+| `gedcom_tooltip.py`         | Tooltip widget (wraps `CTkToolTip`, supports bold first line).                               |
+| `gedcom_zoom.py`            | Shared zoom keyboard/mouse shortcut helpers.                                                 |
+| `gedcom_markdown.py`        | Markdown renderer used in help and about dialogs.                                            |
 
 ### Localization (`locales/`)
 
@@ -47,6 +57,7 @@ The GUI is modularized into several files prefixed with `gedcom_gui_`:
 | File                              | Description                                                                      |
 | :-------------------------------- | :------------------------------------------------------------------------------- |
 | `gedcom_navigator_gui.py`         | The main window and application entry point.                                     |
+| `gedcom_gui_appearance.py`        | `AppearanceMixin`: theming, fonts, menus, and keybindings.                       |
 | `gedcom_gui_background.py`        | Handles background worker threads to keep the UI responsive during searches.     |
 | `gedcom_gui_search.py`            | The search sidebar and individual selection list.                                 |
 | `gedcom_gui_results.py`           | The Display Pane: profile, DNA-match, and relationship-path result rendering.    |
@@ -55,6 +66,7 @@ The GUI is modularized into several files prefixed with `gedcom_gui_`:
 | `gedcom_gui_person_dialog.py`     | Detailed profile and family-tree view for a single individual.                   |
 | `gedcom_gui_graph_layout.py`      | Graph layout computation for relationship paths and family trees.                |
 | `gedcom_gui_graph_common.py`      | Shared canvas helpers, click handling, and export used by both graph views.      |
+| `gedcom_gui_graph_render.py`      | Thin forwarding stub for the path graph renderer.                                |
 | `gedcom_gui_path_graph.py`        | Relationship path graph canvas rendering.                                        |
 | `gedcom_gui_family_tree_render.py`| Family tree canvas rendering in the Show Person window.                          |
 
@@ -87,7 +99,7 @@ The tool uses a Breadth-First Search (BFS) to find paths between individuals. Th
 3. Activate the environment:
    - Windows: `.venv\Scripts\activate`
    - Linux/macOS: `source .venv/bin/activate`
-4. Install dependencies: `pip install -r dev/requirements.txt`
+4. Install dependencies: `pip install -r dev/requirements-dev.txt`
 
 ### Running the Application
 - **GUI**: `python src/gedcom_navigator_gui.py`
@@ -136,3 +148,17 @@ The `dev/` directory contains everything needed to package the application:
 - `build-mac-appstore.sh`: custom script to build and submit the application to the App Store. Only works if you have all of the App Store infrastructure and keys available locally.
 
 When adding new files to `src/`, ensure they are included in the `.spec` files if they are not automatically picked up by PyInstaller's analysis.
+
+---
+
+## PyPI Package (`gedcom_navigator/`)
+
+The `gedcom_navigator/` top-level package is a thin shim for PyPI installation. It contains only three files:
+
+| File          | Description                                                      |
+| :------------ | :--------------------------------------------------------------- |
+| `__init__.py` | Canonical version: `__version__` and `__release_date__`.         |
+| `cli.py`      | Entry point for `gedcom-navigator` CLI; delegates to `src/`.     |
+| `gui.py`      | Entry point for `gedcom-navigator-gui`; delegates to `src/`.     |
+
+All substantive logic lives in `src/`; these files exist solely to satisfy pip entry-point conventions.
