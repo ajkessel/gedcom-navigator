@@ -65,6 +65,42 @@ def test_pedigree_single_parent_connector_exits_horizontally():
         ]
 
 
+def test_expansion_button_tab_rounds_only_outer_edge():
+    class FakeCanvas:
+        def __init__(self):
+            self.polygons = []
+
+        def create_polygon(self, *args, **kwargs):
+            self.polygons.append((args, kwargs))
+
+    canvas = FakeCanvas()
+
+    FamilyTreeRenderMixin._draw_expansion_button_tab(
+        canvas,
+        50,
+        60,
+        20,
+        'parents',
+        'right',
+        '#336699',
+        '#d0d0d0',
+        ('family_tree_button', 'node_button'),
+    )
+
+    assert canvas.polygons == [(
+        (40.0, 70.0, 40.0, 55.0, 45.0, 50.0,
+         55.0, 50.0, 60.0, 55.0, 60.0, 70.0),
+        {
+            'fill': '#336699',
+            'outline': '#d0d0d0',
+            'width': 1,
+            'smooth': True,
+            'splinesteps': 8,
+            'tags': ('family_tree_button', 'node_button'),
+        },
+    )]
+
+
 def test_home_path_section_renders_missing_path_message():
     app = _HomePathApp()
     lines = []
