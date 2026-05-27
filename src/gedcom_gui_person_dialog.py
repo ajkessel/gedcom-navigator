@@ -261,7 +261,6 @@ class PersonDialogMixin:
         add("")
 
         self._render_home_path_section(
-            current_id,
             home_paths,
             nl=add,
             person=person,

@@ -9,7 +9,7 @@ try {
     Write-Output("Starting build process for Windows...")
     Get-Date
     if ( Test-Path -Path '.env' ) {
-        Get-Content .env | foreach { 
+        Get-Content .env | ForEach-Object { 
             $name, $value = $_.split('=')
             Set-Content env:\$name $value
         }

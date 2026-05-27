@@ -2,7 +2,7 @@
 """
 Generate Mac App Store screenshots and animated preview assets.
 
-Run from the project root:
+Run from the project root on MacOS:
     python scripts/generate-appstore-assets.py
 
 Produces in docs/screenshots/appstore/:
@@ -180,19 +180,31 @@ def build_mp4(frame_dir: Path, out_path: Path, fps: int = 5):
     cmd = [
         "ffmpeg",
         "-y",
-        "-framerate", str(fps),
-        "-i", pattern,
-        "-f", "lavfi",
-        "-i", "anullsrc",
-        "-vf", "scale=1920:1200:flags=lanczos,crop=1920:1080:0:60",
-        "-r", "30",          # output at 30 fps (App Store minimum); frames are duped
-        "-c:v", "libx264",
-        "-preset", "slow",
-        "-crf", "18",
-        "-c:a", "aac",
-        "-pix_fmt", "yuv420p",
-        "-movflags", "+faststart",
-        "-shortest",         # stop audio when video stream ends
+        "-framerate",
+        str(fps),
+        "-i",
+        pattern,
+        "-f",
+        "lavfi",
+        "-i",
+        "anullsrc",
+        "-vf",
+        "scale=1920:1200:flags=lanczos,crop=1920:1080:0:60",
+        "-r",
+        "30",  # output at 30 fps (App Store minimum); frames are duped
+        "-c:v",
+        "libx264",
+        "-preset",
+        "slow",
+        "-crf",
+        "18",
+        "-c:a",
+        "aac",
+        "-pix_fmt",
+        "yuv420p",
+        "-movflags",
+        "+faststart",
+        "-shortest",  # stop audio when video stream ends
         str(out_path),
     ]
     result = subprocess.run(cmd, capture_output=True, text=True)
