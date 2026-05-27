@@ -182,6 +182,15 @@ class ConfigManager:
         """Save the startup Display Pane mode."""
         self.save_value('default_display', value)
 
+    def get_default_tree(self):
+        """Return the default person detail tree view mode."""
+        val = self.load_value('default_tree', 'tree')
+        return val if val in ('tree', 'pedigree', 'descendant') else 'tree'
+
+    def set_default_tree(self, value):
+        """Save the default person detail tree view mode."""
+        self.save_value('default_tree', value)
+
     def get_tag_keyword(self, default="DNA"):
         """Return the saved DNA tag keyword."""
         val = self.load_value('tag_keyword', default)

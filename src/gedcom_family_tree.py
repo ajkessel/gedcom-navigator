@@ -254,35 +254,66 @@ def layout_pedigree_tree(center_id, visible_ids, edges):
             depths[parent_id] = next_depth
             queue.append(parent_id)
 
-    rows = {}
-    next_row = [0.0]
-    visiting = set()
+    visible_order = {indi_id: index for index, indi_id in enumerate(visible_ids)}
+    nodes_by_depth = defaultdict(list)
+    for indi_id, depth in depths.items():
+        nodes_by_depth[depth].append(indi_id)
 
-    def assign_row(indi_id):
-        if indi_id in rows:
-            return rows[indi_id]
-        if indi_id in visiting:
-            rows[indi_id] = next_row[0]
-            next_row[0] += 1.0
-            return rows[indi_id]
-        visiting.add(indi_id)
-        parent_rows = [
-            assign_row(parent_id)
+    def merge_hints(target, source, shift):
+        for indi_id, source_rows in source.items():
+            target[indi_id].extend(row + shift for row in source_rows)
+
+    def layout_subtree(indi_id, depth, path=()):
+        parents = [
+            parent_id
             for parent_id in parents_by_child.get(indi_id, ())
-            if parent_id in depths
+            if depths.get(parent_id) == depth + 1
         ]
-        visiting.discard(indi_id)
-        if parent_rows:
-            rows[indi_id] = sum(parent_rows) / len(parent_rows)
-        else:
-            rows[indi_id] = next_row[0]
-            next_row[0] += 1.0
-        return rows[indi_id]
+        if not parents or indi_id in path:
+            return {indi_id: [0.0]}, 0.0, 0.0, 0.0
 
-    assign_row(center_id)
-    for indi_id in visible_ids:
-        if indi_id in depths:
-            assign_row(indi_id)
+        hints = defaultdict(list)
+        placed_rows = []
+        previous_max = None
+        parent_roots = []
+        for parent_id in parents:
+            parent_hints, parent_root, parent_min, parent_max = (
+                layout_subtree(parent_id, depth + 1, path + (indi_id,)))
+            subtree_min = parent_min - parent_root
+            subtree_max = parent_max - parent_root
+            if previous_max is None:
+                parent_shift = 0.0
+            else:
+                parent_shift = previous_max + MIN_COLUMN_SPACING - subtree_min
+            shifted_by = parent_shift - parent_root
+            merge_hints(hints, parent_hints, shifted_by)
+            placed_rows.extend(
+                row + shifted_by
+                for source_rows in parent_hints.values()
+                for row in source_rows
+            )
+            parent_roots.append(parent_shift)
+            previous_max = subtree_max + parent_shift
+
+        root_row = sum(parent_roots) / len(parent_roots)
+        hints[indi_id].append(root_row)
+        placed_rows.append(root_row)
+        return hints, root_row, min(placed_rows), max(placed_rows)
+
+    row_hints, root_row, _min_row, _max_row = layout_subtree(center_id, 0)
+    rows = {
+        indi_id: (sum(hints) / len(hints)) - root_row
+        for indi_id, hints in row_hints.items()
+    }
+
+    next_row = max(rows.values(), default=0.0) + MIN_COLUMN_SPACING
+    for depth in sorted(nodes_by_depth):
+        for indi_id in sorted(
+                nodes_by_depth[depth],
+                key=lambda row_id: visible_order.get(row_id, 0)):
+            if indi_id not in rows:
+                rows[indi_id] = next_row
+                next_row += MIN_COLUMN_SPACING
 
     return [
         {
@@ -411,22 +442,71 @@ def layout_descendant_tree(center_id, visible_ids, edges):
     for index, node in enumerate(layout):
         by_generation[node['generation']].append((node['column'], index))
 
+    spouses_by_partner = defaultdict(list)
+    for spouse_id, partner_id in context_partner_by_spouse.items():
+        if spouse_id in layout_by_id and partner_id in layout_by_id:
+            spouses_by_partner[partner_id].append(spouse_id)
+
+    def descendant_subtree_ids(root_id):
+        subtree_ids = set()
+        stack = [root_id]
+        while stack:
+            node_id = stack.pop()
+            if node_id in subtree_ids:
+                continue
+            if node_id in layout_by_id:
+                subtree_ids.add(node_id)
+            for spouse_id in spouses_by_partner.get(node_id, ()):
+                if spouse_id in layout_by_id:
+                    subtree_ids.add(spouse_id)
+            for child_id in children_by_parent.get(node_id, ()):
+                if child_id in descendant_ids:
+                    stack.append(child_id)
+        return subtree_ids
+
+    def shift_subtree(root_id, delta):
+        if abs(delta) < 0.001:
+            return
+        for node_id in descendant_subtree_ids(root_id):
+            layout_by_id[node_id]['column'] += delta
+
+    def enforce_row_spacing():
+        for generation_id in sorted({node['generation'] for node in layout}):
+            previous_column = None
+            for node in sorted(
+                    (node for node in layout
+                     if node['generation'] == generation_id),
+                    key=lambda item: item['column']):
+                column = node['column']
+                if previous_column is not None and (
+                        column - previous_column < MIN_COLUMN_SPACING):
+                    delta = previous_column + MIN_COLUMN_SPACING - column
+                    if node['id'] in descendant_ids:
+                        shift_subtree(node['id'], delta)
+                    else:
+                        node['column'] += delta
+                    column += delta
+                previous_column = column
+
     def ordered_row_with_spouses(row):
         ordered = [index for _column, index in sorted(row)]
-        spouses_by_partner = defaultdict(list)
-        for spouse_id, partner_id in context_partner_by_spouse.items():
-            spouse_node = layout_by_id.get(spouse_id)
+        same_row_spouses_by_partner = defaultdict(list)
+        for partner_id, spouse_ids in spouses_by_partner.items():
             partner_node = layout_by_id.get(partner_id)
-            if not spouse_node or not partner_node:
+            if not partner_node:
                 continue
-            if spouse_node['generation'] != partner_node['generation']:
-                continue
-            spouses_by_partner[partner_id].append(spouse_id)
-        if not spouses_by_partner:
+            for spouse_id in spouse_ids:
+                spouse_node = layout_by_id.get(spouse_id)
+                if not spouse_node:
+                    continue
+                if spouse_node['generation'] != partner_node['generation']:
+                    continue
+                same_row_spouses_by_partner[partner_id].append(spouse_id)
+        if not same_row_spouses_by_partner:
             return ordered, set()
 
         moved_spouse_ids = set()
-        for spouse_ids in spouses_by_partner.values():
+        for spouse_ids in same_row_spouses_by_partner.values():
             spouse_ids.sort(key=lambda spouse_id: layout_index[spouse_id])
             moved_spouse_ids.update(spouse_ids)
 
@@ -436,7 +516,7 @@ def layout_descendant_tree(center_id, visible_ids, edges):
             if node_id in moved_spouse_ids:
                 continue
             reordered.append(index)
-            for spouse_id in spouses_by_partner.get(node_id, ()):
+            for spouse_id in same_row_spouses_by_partner.get(node_id, ()):
                 reordered.append(layout_index[spouse_id])
         return reordered, moved_spouse_ids
 
@@ -453,6 +533,43 @@ def layout_descendant_tree(center_id, visible_ids, edges):
                 column = previous_column + MIN_COLUMN_SPACING
             layout[index]['column'] = column
             previous_column = column
+
+    for parent_id in sorted(
+            descendant_ids,
+            key=lambda node_id: (
+                layout_by_id.get(node_id, {}).get('generation', 0),
+                layout_by_id.get(node_id, {}).get('column', 0),
+            )):
+        parent_node = layout_by_id.get(parent_id)
+        if not parent_node:
+            continue
+        same_row_spouse_columns = [
+            layout_by_id[spouse_id]['column']
+            for spouse_id in spouses_by_partner.get(parent_id, ())
+            if (spouse_id in layout_by_id
+                and layout_by_id[spouse_id]['generation']
+                == parent_node['generation'])
+        ]
+        if not same_row_spouse_columns:
+            continue
+        child_ids = [
+            child_id for child_id in children_by_parent.get(parent_id, ())
+            if child_id in descendant_ids and child_id in layout_by_id
+        ]
+        if not child_ids:
+            continue
+        parent_midpoint = (
+            parent_node['column'] + sum(same_row_spouse_columns)
+            / len(same_row_spouse_columns)
+        ) / 2
+        child_columns = [layout_by_id[child_id]['column']
+                         for child_id in child_ids]
+        child_midpoint = (min(child_columns) + max(child_columns)) / 2
+        delta = parent_midpoint - child_midpoint
+        for child_id in child_ids:
+            shift_subtree(child_id, delta)
+
+    enforce_row_spacing()
     return layout
 
 

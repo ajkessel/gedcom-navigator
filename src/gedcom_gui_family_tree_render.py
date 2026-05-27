@@ -22,6 +22,57 @@ from gedcom_strings import *  # pylint: disable=unused-wildcard-import
 class FamilyTreeRenderMixin:
     """Family tree graph rendering helpers."""
 
+    @staticmethod
+    def _horizontal_tree_font_shrink(zoom):
+        """Return extra pedigree font shrink applied only at low zoom."""
+        if zoom >= 1.0:
+            return 0
+        return min(3, max(0, int(round((1.0 - zoom) * 6))))
+
+    @staticmethod
+    def _horizontal_parent_connector_segments(source_right_x, source_y,
+                                              parent_points, node_h):
+        """Return right-angle horizontal-pedigree parent connector segments."""
+        if not parent_points:
+            return []
+        if len(parent_points) == 1:
+            end_x, target_y = parent_points[0]
+            if abs(target_y - source_y) < 0.001:
+                return [(source_right_x, source_y, end_x, target_y)]
+            bus_x = FamilyTreeRenderMixin._horizontal_parent_bus_x(
+                source_right_x, end_x, node_h)
+            return [(
+                source_right_x, source_y,
+                bus_x, source_y,
+                bus_x, target_y,
+                end_x, target_y,
+            )]
+
+        parent_left_x = min(end_x for end_x, _target_y in parent_points)
+        bus_x = FamilyTreeRenderMixin._horizontal_parent_bus_x(
+            source_right_x, parent_left_x, node_h)
+        parent_ys = [target_y for _end_x, target_y in parent_points]
+        min_y = min(parent_ys + [source_y])
+        max_y = max(parent_ys + [source_y])
+        segments = [
+            (source_right_x, source_y, bus_x, source_y),
+            (bus_x, min_y, bus_x, max_y),
+        ]
+        segments.extend(
+            (bus_x, target_y, end_x, target_y)
+            for end_x, target_y in parent_points
+        )
+        return segments
+
+    @staticmethod
+    def _horizontal_parent_bus_x(source_right_x, parent_left_x, node_h):
+        """Return the vertical connector bus x-position between generations."""
+        gap = parent_left_x - source_right_x
+        if gap <= 0:
+            return (source_right_x + parent_left_x) / 2
+        offset = min(max(node_h * 0.45, gap * 0.18), gap * 0.5)
+        return source_right_x + offset
+
     def _family_tree_members_for(self, indi_id):
         """Return family tree relationship lists for one individual."""
         if indi_id not in self.individuals:
@@ -202,8 +253,9 @@ class FamilyTreeRenderMixin:
         center_label_size = scale(ui_size)
         button_label_size = scale(ui_size - 2)
         if orientation == 'horizontal':
-            label_size = scale(ui_size - 3, minimum=6)
-            center_label_size = scale(ui_size - 3, minimum=6)
+            font_shrink = self._horizontal_tree_font_shrink(zoom)
+            label_size = scale(ui_size - font_shrink, minimum=6)
+            center_label_size = scale(ui_size - font_shrink, minimum=6)
         label_font = tkfont.Font(
             family=ui_family,
             size=max(label_size, 7 if orientation != 'horizontal' else 6))
@@ -317,20 +369,29 @@ class FamilyTreeRenderMixin:
                 canvas.create_line(
                     x, margin / 2, x, canvas_h - margin / 2,
                     fill=colors['guide'], dash=(scale(3), scale(8)))
+            parent_edges_by_source = {}
             for source_id, target_id, category in edges:
+                if category != 'parents':
+                    continue
+                parent_edges_by_source.setdefault(source_id, []).append(
+                    target_id)
+            for source_id, target_ids in parent_edges_by_source.items():
                 pulse_progress()
-                if (category != 'parents'
-                        or source_id not in positions
-                        or target_id not in positions):
+                if source_id not in positions:
                     continue
                 sx, sy = positions[source_id]
-                tx, ty = positions[target_id]
-                start_x = sx + node_w / 2
-                end_x = tx - node_w / 2
-                mid_x = (start_x + end_x) / 2
-                canvas.create_line(
-                    start_x, sy, mid_x, sy, mid_x, ty, end_x, ty,
-                    fill=colors['parent'], width=scale(3), smooth=False)
+                parent_points = []
+                for target_id in target_ids:
+                    if target_id not in positions:
+                        continue
+                    tx, ty = positions[target_id]
+                    parent_points.append((tx - node_w / 2, ty))
+                for points in self._horizontal_parent_connector_segments(
+                        sx + node_w / 2, sy, parent_points, node_h):
+                    pulse_progress()
+                    canvas.create_line(
+                        *points, fill=colors['parent'], width=scale(3),
+                        smooth=False)
         else:
             for generation in range(
                     int(min_generation), int(max_generation) + 1):

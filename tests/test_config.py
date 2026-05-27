@@ -308,6 +308,32 @@ class TestDefaultDisplay:
 
 
 # ===========================================================================
+# default_tree
+# ===========================================================================
+
+class TestDefaultTree:
+    def test_default_is_tree(self, tmp_path):
+        mgr = _mgr(tmp_path)
+        assert mgr.get_default_tree() == "tree"
+
+    def test_set_pedigree(self, tmp_path):
+        mgr = _mgr(tmp_path)
+        mgr.set_default_tree("pedigree")
+        assert mgr.get_default_tree() == "pedigree"
+
+    def test_set_descendant(self, tmp_path):
+        mgr = _mgr(tmp_path)
+        mgr.set_default_tree("descendant")
+        assert mgr.get_default_tree() == "descendant"
+
+    def test_invalid_falls_back_to_tree(self, tmp_path):
+        p = tmp_path / "settings.json"
+        p.write_text(json.dumps({"default_tree": "profile"}), encoding="utf-8")
+        mgr = ConfigManager(p)
+        assert mgr.get_default_tree() == "tree"
+
+
+# ===========================================================================
 # window_geometry (generic key/value pass-through)
 # ===========================================================================
 

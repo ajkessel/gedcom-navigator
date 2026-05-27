@@ -33,9 +33,43 @@ from gedcom_zoom import TextZoomController, bind_zoom_shortcuts
 class PersonDialogMixin:
     """Person detail window helpers."""
 
+    _TREE_VIEW_MODES = ("tree", "pedigree", "descendant")
+
     def _show_profile_from_tree_context(self, indi_id, show_person_view):
         """Show indi_id's profile in the current person detail window."""
         show_person_view(indi_id)
+
+    def _search_tree_center_context(self, pick_person, recenter_tree):
+        """Prompt for a person and recenter the current tree if selected."""
+        indi_id = pick_person()
+        if indi_id:
+            recenter_tree(indi_id)
+        return indi_id
+
+    def _default_tree_view_mode(self):
+        """Return the configured initial tree view for person detail windows."""
+        config = getattr(self, "_config", None)
+        if config is None or not hasattr(config, "get_default_tree"):
+            return "tree"
+        return config.get_default_tree()
+
+    def _resolve_initial_person_view(self, initial_view):
+        """Normalize the requested starting view for a person detail window."""
+        initial_view = initial_view or "profile"
+        if initial_view == "tree":
+            return self._default_tree_view_mode()
+        if initial_view in self._TREE_VIEW_MODES:
+            return initial_view
+        return "profile"
+
+    @staticmethod
+    def _button_bar_needed_width(btn_frame):
+        """Return the requested width needed to show a dialog button bar."""
+        try:
+            btn_frame.update_idletasks()
+            return btn_frame.winfo_reqwidth() + 24
+        except tk.TclError:
+            return 0
 
     def _show_person(self, initial_view=None):
         """Open the GEDCOM record viewer for the selected person."""
@@ -335,6 +369,7 @@ class PersonDialogMixin:
 
         copy_shortcut = "<Command-c>" if sys.platform == "darwin" else "<Control-c>"
         save_shortcut = "<Command-s>" if sys.platform == "darwin" else "<Control-s>"
+        find_shortcut = "<Command-f>" if sys.platform == "darwin" else "<Control-f>"
         toggle_shortcut = "<Command-t>" if sys.platform == "darwin" else "<Control-t>"
         state = {
             "person_id": indi_id,
@@ -532,6 +567,7 @@ class PersonDialogMixin:
             select_window_view,
             copy_graph,
             save_graph,
+            search_graph,
             save_debug=None,
         ):
             _clear_buttons()
@@ -549,6 +585,11 @@ class PersonDialogMixin:
             )
             save_btn.pack(side="right", padx=(0, 8))
             Tooltip(save_btn, get_tip_save_graph())
+            search_btn = ctk.CTkButton(
+                btn_frame, text=BTN_SEARCH_GRAPH, width=80, command=search_graph
+            )
+            search_btn.pack(side="right", padx=(0, 8))
+            Tooltip(search_btn, get_tip_search_graph())
             if save_debug:
                 debug_btn = ctk.CTkButton(
                     btn_frame, text=BTN_DEBUG_GRAPH, width=100, command=save_debug
@@ -1046,6 +1087,13 @@ class PersonDialogMixin:
                 finally:
                     btn_frame.pack(fill="x", pady=(4, 8))
 
+            def _search_tree_center(*_):
+                self._search_tree_center_context(
+                    lambda: self._pick_person(WIN_SELECT_PERSON, owner=win),
+                    _recenter_tree,
+                )
+                return "break"
+
             def _save_tree_debug(*_):
                 win.update_idletasks()
                 try:
@@ -1059,6 +1107,8 @@ class PersonDialogMixin:
             bind_zoom_shortcuts(canvas, _zoom_tree_in, _zoom_tree_out, _zoom_tree_reset)
             win.bind(copy_shortcut, _copy_tree)
             win.bind(save_shortcut, _save_tree)
+            win.bind(find_shortcut, _search_tree_center)
+            canvas.bind(find_shortcut, _search_tree_center)
             graph_debug_enabled = debug_enabled()
             if graph_debug_enabled:
                 win.bind("<Control-Shift-D>", _save_tree_debug)
@@ -1067,8 +1117,11 @@ class PersonDialogMixin:
                 _select_window_view,
                 _copy_tree,
                 _save_tree,
+                _search_tree_center,
                 _save_tree_debug if graph_debug_enabled else None,
             )
+            state["_tree_button_needed_w"] = self._button_bar_needed_width(
+                btn_frame)
             canvas.focus_set()
             canvas.after_idle(_center_tree_on_current)
 
@@ -1084,6 +1137,7 @@ class PersonDialogMixin:
             _tmax_h = int(_tsh * 0.9)
             _tnw = int(graph_state["canvas_w"]) + 65
             _tnh = int(graph_state["canvas_h"]) + 105
+            _tnw = max(_tnw, state.get("_tree_button_needed_w", 0))
             _twants_max = _tnw > _tmax_w or _tnh > _tmax_h
             state["_tree_wants_max"] = _twants_max
             state["_tree_needed_w"] = min(_tnw, _tmax_w)
@@ -1124,9 +1178,9 @@ class PersonDialogMixin:
 
         win.bind(toggle_shortcut, _toggle_view)
 
-        initial_view = initial_view or "profile"
-        if initial_view == "tree":
-            _show_tree_view(indi_id)
+        initial_view = self._resolve_initial_person_view(initial_view)
+        if initial_view in self._TREE_VIEW_MODES:
+            _show_tree_view(indi_id, tree_mode=initial_view)
         else:
             _show_person_view(indi_id)
 
