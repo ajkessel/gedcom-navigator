@@ -25,6 +25,7 @@ App Store requirements satisfied
 * Screenshots: 2560×1600 @2x Retina (accepted Mac App Store size).
 * App Preview: H.264, ~17 s (within 15–30 s requirement).
 """
+
 import os
 import subprocess
 import sys
@@ -46,7 +47,7 @@ OUTPUT_DIR = PROJECT_DIR / "docs" / "screenshots" / "appstore"
 FRAMES_DIR = OUTPUT_DIR / "frames"
 
 WIN_W = 1280
-WIN_CONTENT_H = 772   # +28 px title bar → 800 px total
+WIN_CONTENT_H = 772  # +28 px title bar → 800 px total
 WIN_X, WIN_Y = 60, 60
 
 # Home person for the DNA results demo: Maya's paternal grandfather.
@@ -58,7 +59,7 @@ HOME_PERSON_ID = "@I6@"
 # callback dispatch (which causes a GIL crash in Python 3.13 + PyObjC 12.1)
 # ---------------------------------------------------------------------------
 import AppKit  # noqa: E402  (pyobjc-framework-Cocoa)
-import objc    # noqa: E402
+import objc  # noqa: E402
 from Foundation import NSObject, NSNumber  # noqa: E402
 
 
@@ -87,7 +88,8 @@ class _AppKitCapturer(NSObject):
         rep = theme_frame.bitmapImageRepForCachingDisplayInRect_(bounds)
         theme_frame.cacheDisplayInRect_toBitmapImageRep_(bounds, rep)
         data = rep.representationUsingType_properties_(
-            AppKit.NSBitmapImageFileTypePNG, None)
+            AppKit.NSBitmapImageFileTypePNG, None
+        )
         out_path.parent.mkdir(parents=True, exist_ok=True)
         data.writeToFile_atomically_(str(out_path), True)
         _AppKitCapturer._pending_ok = True
@@ -117,7 +119,7 @@ def _capture(title_fragment: str, out_path: Path) -> bool:
 # ---------------------------------------------------------------------------
 # Cross-thread UI helper — Tkinter operations only (no AppKit here)
 # ---------------------------------------------------------------------------
-_root_ref = None   # set before mainloop starts
+_root_ref = None  # set before mainloop starts
 
 
 def _ui(fn, *args, timeout: float = 30.0):
@@ -156,10 +158,18 @@ def build_gif(frame_dir: Path, out_path: Path, fps: int = 5):
         img = Image.open(f).resize((WIN_W, 800), Image.LANCZOS)
         images.append(img.convert("P", palette=Image.ADAPTIVE, colors=256))
     duration = 1000 // fps
-    images[0].save(out_path, save_all=True, append_images=images[1:],
-                   loop=0, duration=duration, optimize=True)
+    images[0].save(
+        out_path,
+        save_all=True,
+        append_images=images[1:],
+        loop=0,
+        duration=duration,
+        optimize=True,
+    )
     size_mb = out_path.stat().st_size / 1_048_576
-    print(f"  GIF: {out_path.name}  ({len(images)} frames @ {fps} fps, {size_mb:.1f} MB)")
+    print(
+        f"  GIF: {out_path.name}  ({len(images)} frames @ {fps} fps, {size_mb:.1f} MB)"
+    )
 
 
 def build_mp4(frame_dir: Path, out_path: Path, fps: int = 5):
@@ -168,13 +178,28 @@ def build_mp4(frame_dir: Path, out_path: Path, fps: int = 5):
     # 1920×1200 first, then crop 60 px from top and bottom to reach 1080.
     pattern = str(frame_dir / "frame_%05d.png")
     cmd = [
-        "ffmpeg", "-y",
-        "-framerate", str(fps),
-        "-i", pattern,
-        "-vf", "scale=1920:1200:flags=lanczos,crop=1920:1080:0:60",
-        "-c:v", "libx264", "-preset", "slow", "-crf", "18",
-        "-pix_fmt", "yuv420p",
-        "-movflags", "+faststart",
+        "ffmpeg",
+        "-y",
+        "-framerate",
+        str(fps),
+        "-i",
+        pattern,
+        "-vf",
+        "scale=1920:1200:flags=lanczos,crop=1920:1080:0:60",
+        "-c:v",
+        "libx264",
+        "-preset",
+        "slow",
+        "-crf",
+        "18",
+        "-i",
+        "anullsrc",
+        "-c:a",
+        "aac",
+        "-pix_fmt",
+        "yuv420p",
+        "-movflags",
+        "+faststart",
         str(out_path),
     ]
     result = subprocess.run(cmd, capture_output=True, text=True)
@@ -274,6 +299,7 @@ def _open_graph_for_best_result(app) -> bool:
         return False
     try:
         from gedcom_relationship import describe_relationship  # noqa: PLC0415
+
         rel = describe_relationship(path, app.individuals, app.families)
     except Exception:  # pylint: disable=broad-exception-caught
         rel = "relationship"
@@ -311,6 +337,7 @@ def _open_tree_view(app) -> bool:
 # ---------------------------------------------------------------------------
 # Automation worker thread
 # ---------------------------------------------------------------------------
+
 
 def automation(app, done_event: threading.Event):
     """Screenshot automation — runs in the worker thread."""
@@ -369,8 +396,9 @@ def automation(app, done_event: threading.Event):
         # 3. Run DNA match search for Maya
         # ---------------------------------------------------------------
         print("\n[3/7] Running DNA match search …")
-        _ui(lambda: (app.tree.selection_set(sel_id),
-                     setattr(app, "_active_id", sel_id)))
+        _ui(
+            lambda: (app.tree.selection_set(sel_id), setattr(app, "_active_id", sel_id))
+        )
         _ui(app._find_matches)
 
         _snaps(6, "searching", pause=0.6)
@@ -411,8 +439,10 @@ def automation(app, done_event: threading.Event):
             _cached_dna_path = list(_raw_path)
             try:
                 from gedcom_relationship import describe_relationship  # noqa: PLC0415
+
                 _cached_dna_rel = describe_relationship(
-                    _cached_dna_path, app.individuals, app.families)
+                    _cached_dna_path, app.individuals, app.families
+                )
             except Exception:  # pylint: disable=broad-exception-caught
                 pass
 
@@ -442,13 +472,13 @@ def automation(app, done_event: threading.Event):
         time.sleep(1.2)
 
         # Position graph window offset from the main window.
-        graph_win = getattr(app, "_path_graph_win", None) or \
-                    getattr(app, "_secondary_win", None)
+        graph_win = getattr(app, "_path_graph_win", None) or getattr(
+            app, "_secondary_win", None
+        )
         if graph_win is not None:
             try:
                 if _ui(lambda: graph_win.winfo_exists()):
-                    _ui(lambda: graph_win.geometry(
-                        f"+{WIN_X + 160}+{WIN_Y + 80}"))
+                    _ui(lambda: graph_win.geometry(f"+{WIN_X + 160}+{WIN_Y + 80}"))
                     time.sleep(0.5)
             except Exception:  # pylint: disable=broad-exception-caught
                 pass
@@ -457,18 +487,23 @@ def automation(app, done_event: threading.Event):
         _screenshot(OUTPUT_DIR / "screenshot_04_with_graph.png")
 
         # Graph-only screenshot — resize to 1280×772 for 2560×1600 Retina.
-        graph_win = (getattr(app, "_path_graph_win", None) or
-                     getattr(app, "_secondary_win", None))
+        graph_win = getattr(app, "_path_graph_win", None) or getattr(
+            app, "_secondary_win", None
+        )
         if graph_win is not None:
             try:
                 if _ui(lambda: graph_win.winfo_exists()):
-                    _ui(lambda: graph_win.geometry(
-                        f"{WIN_W}x{WIN_CONTENT_H}+{WIN_X + 160}+{WIN_Y + 80}"))
+                    _ui(
+                        lambda: graph_win.geometry(
+                            f"{WIN_W}x{WIN_CONTENT_H}+{WIN_X + 160}+{WIN_Y + 80}"
+                        )
+                    )
                     time.sleep(0.6)
             except Exception:  # pylint: disable=broad-exception-caught
                 pass
-        _screenshot(OUTPUT_DIR / "screenshot_04_graph_only.png",
-                    title="Relationship Gr")
+        _screenshot(
+            OUTPUT_DIR / "screenshot_04_graph_only.png", title="Relationship Gr"
+        )
 
         # ---------------------------------------------------------------
         # 7. Family tree view: Daniel Hart — 20 nodes
@@ -481,15 +516,17 @@ def automation(app, done_event: threading.Event):
         if tree_win is not None:
             try:
                 if _ui(lambda: tree_win.winfo_exists()):
-                    _ui(lambda: tree_win.geometry(
-                        f"{WIN_W}x{WIN_CONTENT_H}+{WIN_X}+{WIN_Y + 60}"))
+                    _ui(
+                        lambda: tree_win.geometry(
+                            f"{WIN_W}x{WIN_CONTENT_H}+{WIN_X}+{WIN_Y + 60}"
+                        )
+                    )
                     time.sleep(0.8)
             except Exception:  # pylint: disable=broad-exception-caught
                 pass
 
         _snaps(5, "tree view", pause=0.4)
-        _screenshot(OUTPUT_DIR / "screenshot_05_tree.png",
-                    title="Family Tree")
+        _screenshot(OUTPUT_DIR / "screenshot_05_tree.png", title="Family Tree")
 
         # ---------------------------------------------------------------
         # Compile video assets
@@ -500,6 +537,7 @@ def automation(app, done_event: threading.Event):
         build_mp4(FRAMES_DIR, OUTPUT_DIR / "app_preview.mp4", fps=5)
 
         import shutil
+
         shutil.rmtree(FRAMES_DIR, ignore_errors=True)
 
         print(f"\nAll assets written to: {OUTPUT_DIR}")
@@ -510,6 +548,7 @@ def automation(app, done_event: threading.Event):
 
     except Exception:  # pylint: disable=broad-exception-caught
         import traceback
+
         traceback.print_exc()
     finally:
         done_event.set()
@@ -519,6 +558,7 @@ def automation(app, done_event: threading.Event):
 # ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
+
 
 def main():
     global _root_ref
