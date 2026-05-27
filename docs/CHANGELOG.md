@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+
+- **Copy name now includes GEDCOM ID** — if you have "show GEDCOM IDs" enabled, clicking on the name at the top of the profile and selecting "copy" will also include the GEDCOM ID.
+
 ## [1.9.5] - 2026-05-26
 
 ### Added
