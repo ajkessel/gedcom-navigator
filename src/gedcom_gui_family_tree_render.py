@@ -73,6 +73,44 @@ class FamilyTreeRenderMixin:
         offset = min(max(node_h * 0.45, gap * 0.18), gap * 0.5)
         return source_right_x + offset
 
+    @staticmethod
+    def _draw_expansion_button_tab(canvas, bx, by, button_size, category,
+                                   side, fill, outline, tags):
+        """Draw an expand/collapse button as an attached rounded-edge tab."""
+        half = button_size / 2
+        radius = min(button_size / 3, 5)
+        x1, y1 = bx - half, by - half
+        x2, y2 = bx + half, by + half
+        if category == 'parents':
+            points = (
+                x1, y2, x1, y1 + radius, x1 + radius, y1,
+                x2 - radius, y1, x2, y1 + radius, x2, y2,
+            )
+        elif category == 'children':
+            points = (
+                x1, y1, x1, y2 - radius, x1 + radius, y2,
+                x2 - radius, y2, x2, y2 - radius, x2, y1,
+            )
+        elif side == 'left':
+            points = (
+                x2, y1, x1 + radius, y1, x1, y1 + radius,
+                x1, y2 - radius, x1 + radius, y2, x2, y2,
+            )
+        else:
+            points = (
+                x1, y1, x2 - radius, y1, x2, y1 + radius,
+                x2, y2 - radius, x2 - radius, y2, x1, y2,
+            )
+        canvas.create_polygon(
+            *points,
+            fill=fill,
+            outline=outline,
+            width=1,
+            smooth=True,
+            splinesteps=8,
+            tags=tags,
+        )
+
     def _family_tree_members_for(self, indi_id):
         """Return family tree relationship lists for one individual."""
         if indi_id not in self.individuals:
@@ -600,15 +638,14 @@ class FamilyTreeRenderMixin:
                 )
                 button_text = self._readable_text_color(button_fill)
                 button_tag = f'family_tree_expand_{index}_{category}'
-                canvas.create_rectangle(
-                    bx - button_size / 2, by - button_size / 2,
-                    bx + button_size / 2, by + button_size / 2,
-                    fill=button_fill, outline=button_fill,
-                    tags=('family_tree_button', button_tag))
+                button_tags = ('family_tree_button', button_tag)
+                self._draw_expansion_button_tab(
+                    canvas, bx, by, button_size, category, button_side,
+                    button_fill, colors['guide'], button_tags)
                 canvas.create_text(
                     bx, by, text=text, fill=button_text,
                     font=button_font, anchor='center',
-                    tags=('family_tree_button', button_tag))
+                    tags=button_tags)
 
                 def _on_expand(_, indi_id=node_id, rel=category):
                     on_expand(indi_id, rel)
