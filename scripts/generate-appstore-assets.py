@@ -163,12 +163,15 @@ def build_gif(frame_dir: Path, out_path: Path, fps: int = 5):
 
 
 def build_mp4(frame_dir: Path, out_path: Path, fps: int = 5):
+    # App Preview requirement: 1920×1080 (16:9).
+    # Source frames are 2560×1600 (16:10 Retina capture), so scale to
+    # 1920×1200 first, then crop 60 px from top and bottom to reach 1080.
     pattern = str(frame_dir / "frame_%05d.png")
     cmd = [
         "ffmpeg", "-y",
         "-framerate", str(fps),
         "-i", pattern,
-        "-vf", f"scale={WIN_W}:800:flags=lanczos",
+        "-vf", "scale=1920:1200:flags=lanczos,crop=1920:1080:0:60",
         "-c:v", "libx264", "-preset", "slow", "-crf", "18",
         "-pix_fmt", "yuv420p",
         "-movflags", "+faststart",
