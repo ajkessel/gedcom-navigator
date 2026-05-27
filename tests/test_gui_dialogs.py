@@ -18,6 +18,16 @@ class _BrokenDialog:
         raise tk.TclError("window is gone")
 
 
+class _Owner:
+    def __init__(self, exists=True):
+        self._exists = exists
+
+    def winfo_exists(self):
+        if self._exists == "error":
+            raise tk.TclError("window is gone")
+        return self._exists
+
+
 class _FocusEntry:
     def __init__(self, name, calls, inner=None):
         self._name = name
@@ -55,3 +65,16 @@ def test_person_picker_focus_helper_ignores_destroyed_dialog():
     DialogsMixin()._focus_person_picker_find_entry(_BrokenDialog(), entry)
 
     assert calls == []
+
+
+def test_valid_dialog_owner_prefers_live_owner_window():
+    class App(DialogsMixin):
+        def __init__(self):
+            self.root = _Owner()
+
+    app = App()
+    owner = _Owner()
+
+    assert app._valid_dialog_owner(owner) is owner
+    assert app._valid_dialog_owner(_Owner(False)) is app.root
+    assert app._valid_dialog_owner(_Owner("error")) is app.root

@@ -177,7 +177,7 @@ def get_tip_show_person():
 
 def get_tip_show_person_tree():
     mod = get_mod_key()
-    return _("Tree View ({mod}E)\nOpen the family tree view for the selected person. Shift-Click for Profile View.").format(mod=mod)
+    return _("Tree View ({mod}E)\nOpen the configured default tree view for the selected person. Shift-Click for Profile View.").format(mod=mod)
 
 def get_tip_select_tag():
     mod = get_mod_key()
@@ -332,6 +332,7 @@ RESULTS_HEADER_MENU_SHOW_PROFILE = _("Show Profile")
 RESULTS_HEADER_MENU_SHOW_TREE = _("Show Tree")
 BTN_SAVE_GRAPH = _("Save")
 BTN_COPY_GRAPH = _("Copy")
+BTN_SEARCH_GRAPH = _("Search")
 BTN_DEBUG_GRAPH = _("Debug JSON")
 
 def get_tip_save_graph():
@@ -341,6 +342,10 @@ def get_tip_save_graph():
 def get_tip_copy_graph():
     mod = get_mod_key()
     return _("Copy graphic ({mod}C)\nCopy this graphical representation to clipboard.").format(mod=mod)
+
+def get_tip_search_graph():
+    mod = get_mod_key()
+    return _("Search ({mod}F)\nSelect a person and make them the center of this graphical view.").format(mod=mod)
 
 TIP_DEBUG_GRAPH = _("Save layout debug JSON (Ctrl+Shift+D)\nExport graph layout data without person names.")
 TIP_SHOW_PARENTS = _("Show parents")
@@ -422,6 +427,10 @@ LBL_NAME_FORMAT = _("Name format:")
 NAME_FIRST_LAST = _("First Last")
 NAME_LAST_FIRST = _("Last, First")
 LBL_DEFAULT_DISPLAY = _("Default display:")
+LBL_DEFAULT_TREE = _("Default tree:")
+TREE_MODE_TREE = _("Tree")
+TREE_MODE_PEDIGREE = _("Pedigree")
+TREE_MODE_DESCENDANTS = _("Descendants")
 FRAME_CACHE = _("Cache")
 BTN_CLEAR_CACHE = _("Clear Cache…")
 LBL_CACHE_NOTE = _("Remove all cached GEDCOM data")

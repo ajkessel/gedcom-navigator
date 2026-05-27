@@ -12,6 +12,7 @@ from gedcom_family_tree import (
     layout_family_tree,
     layout_pedigree_tree,
 )
+from gedcom_gui_family_tree_render import FamilyTreeRenderMixin
 from gedcom_gui_results import ResultsMixin
 import gedcom_strings as gs
 
@@ -35,6 +36,33 @@ class _HomePathApp(ResultsMixin):
 
     def _path_edge_prefix(self, edge, indent='  '):
         return f'{indent}{edge}: '
+
+
+def test_pedigree_font_extra_shrink_only_applies_below_normal_zoom():
+    assert FamilyTreeRenderMixin._horizontal_tree_font_shrink(1.0) == 0
+    assert FamilyTreeRenderMixin._horizontal_tree_font_shrink(1.5) == 0
+    assert FamilyTreeRenderMixin._horizontal_tree_font_shrink(0.9) == 1
+    assert FamilyTreeRenderMixin._horizontal_tree_font_shrink(0.75) == 2
+    assert FamilyTreeRenderMixin._horizontal_tree_font_shrink(0.5) == 3
+
+
+def test_pedigree_parent_connectors_are_orthogonal():
+    assert FamilyTreeRenderMixin._horizontal_parent_connector_segments(
+        140, 50, [(200, 20), (200, 80)], 40) == [
+            (140, 50, 158.0, 50),
+            (158.0, 20, 158.0, 80),
+            (158.0, 20, 200, 20),
+            (158.0, 80, 200, 80),
+        ]
+
+
+def test_pedigree_single_parent_connector_exits_horizontally():
+    assert FamilyTreeRenderMixin._horizontal_parent_connector_segments(
+        140, 50, [(200, 50)], 40) == [(140, 50, 200, 50)]
+    assert FamilyTreeRenderMixin._horizontal_parent_connector_segments(
+        140, 50, [(200, 20)], 40) == [
+            (140, 50, 158.0, 50, 158.0, 20, 200, 20),
+        ]
 
 
 def test_home_path_section_renders_missing_path_message():
@@ -202,9 +230,143 @@ def test_pedigree_tree_graph_includes_all_recorded_parent_families():
     assert columns['@OTHER@'] == 1
     assert columns['@PGF@'] == 2
     assert columns['@PGM@'] == 2
-    assert rows['@ME@'] == (
-        rows['@DAD@'] + rows['@MOM@'] + rows['@OTHER@']) / 3
+    assert abs(
+        rows['@ME@'] - (
+            rows['@DAD@'] + rows['@MOM@'] + rows['@OTHER@']) / 3
+    ) < 0.0001
     assert rows['@DAD@'] == (rows['@PGF@'] + rows['@PGM@']) / 2
+
+
+def test_pedigree_tree_layout_centers_people_between_their_parents():
+    """Pedigree rows expand outward so parent pairs frame each child."""
+    visible = [
+        '@ME@',
+        '@DAD@', '@MOM@',
+        '@PGF@', '@PGM@', '@MGF@', '@MGM@',
+        '@PGGF@', '@PGGM@', '@PMGF@', '@PMGM@',
+        '@MGGF@', '@MGGM@', '@MMGF@', '@MMGM@',
+    ]
+    edges = [
+        ('@ME@', '@DAD@', 'parents'),
+        ('@ME@', '@MOM@', 'parents'),
+        ('@DAD@', '@PGF@', 'parents'),
+        ('@DAD@', '@PGM@', 'parents'),
+        ('@MOM@', '@MGF@', 'parents'),
+        ('@MOM@', '@MGM@', 'parents'),
+        ('@PGF@', '@PGGF@', 'parents'),
+        ('@PGF@', '@PGGM@', 'parents'),
+        ('@PGM@', '@PMGF@', 'parents'),
+        ('@PGM@', '@PMGM@', 'parents'),
+        ('@MGF@', '@MGGF@', 'parents'),
+        ('@MGF@', '@MGGM@', 'parents'),
+        ('@MGM@', '@MMGF@', 'parents'),
+        ('@MGM@', '@MMGM@', 'parents'),
+    ]
+
+    layout = layout_pedigree_tree('@ME@', visible, edges)
+    rows = {node['id']: node['generation'] for node in layout}
+    columns = {node['id']: node['column'] for node in layout}
+
+    assert rows['@ME@'] == 0.0
+    assert rows['@ME@'] == (rows['@DAD@'] + rows['@MOM@']) / 2
+    assert rows['@DAD@'] == (rows['@PGF@'] + rows['@PGM@']) / 2
+    assert rows['@MOM@'] == (rows['@MGF@'] + rows['@MGM@']) / 2
+    assert rows['@PGF@'] == (rows['@PGGF@'] + rows['@PGGM@']) / 2
+    assert rows['@PGM@'] == (rows['@PMGF@'] + rows['@PMGM@']) / 2
+    assert rows['@MGF@'] == (rows['@MGGF@'] + rows['@MGGM@']) / 2
+    assert rows['@MGM@'] == (rows['@MMGF@'] + rows['@MMGM@']) / 2
+    assert columns['@DAD@'] == columns['@MOM@'] == 1
+    assert max(rows[node['id']] for node in layout if node['column'] == 3) > (
+        max(rows[node['id']] for node in layout if node['column'] == 1))
+    assert min(rows[node['id']] for node in layout if node['column'] == 3) < (
+        min(rows[node['id']] for node in layout if node['column'] == 1))
+
+    for column in {node['column'] for node in layout}:
+        same_column = sorted(
+            node['generation'] for node in layout
+            if node['column'] == column)
+        assert all(
+            right - left >= 1.0
+            for left, right in zip(same_column, same_column[1:]))
+
+
+def test_pedigree_tree_layout_keeps_deep_parent_pairs_adjacent():
+    """Crowded ancestor columns keep each child's parents as a contiguous pair."""
+    visible = [
+        '@ME@',
+        '@DAD@', '@MOM@',
+        '@PGF@', '@PGM@', '@MGF@', '@MGM@',
+        '@PGGF@', '@PGGM@', '@PMGF@', '@PMGM@',
+        '@MGGF@', '@MGGM@', '@MMGF@', '@MMGM@',
+        '@PMGM_DAD@', '@PMGM_MOM@', '@MGGF_DAD@', '@MGGF_MOM@',
+    ]
+    edges = [
+        ('@ME@', '@DAD@', 'parents'),
+        ('@ME@', '@MOM@', 'parents'),
+        ('@DAD@', '@PGF@', 'parents'),
+        ('@DAD@', '@PGM@', 'parents'),
+        ('@MOM@', '@MGF@', 'parents'),
+        ('@MOM@', '@MGM@', 'parents'),
+        ('@PGF@', '@PGGF@', 'parents'),
+        ('@PGF@', '@PGGM@', 'parents'),
+        ('@PGM@', '@PMGF@', 'parents'),
+        ('@PGM@', '@PMGM@', 'parents'),
+        ('@MGF@', '@MGGF@', 'parents'),
+        ('@MGF@', '@MGGM@', 'parents'),
+        ('@MGM@', '@MMGF@', 'parents'),
+        ('@MGM@', '@MMGM@', 'parents'),
+        ('@PMGM@', '@PMGM_DAD@', 'parents'),
+        ('@PMGM@', '@PMGM_MOM@', 'parents'),
+        ('@MGGF@', '@MGGF_DAD@', 'parents'),
+        ('@MGGF@', '@MGGF_MOM@', 'parents'),
+    ]
+
+    layout = layout_pedigree_tree('@ME@', visible, edges)
+    row_order = [
+        node['id']
+        for node in sorted(
+            (node for node in layout if node['column'] == 4),
+            key=lambda item: item['generation'])
+    ]
+
+    for parent_pair in (
+            ('@PMGM_DAD@', '@PMGM_MOM@'),
+            ('@MGGF_DAD@', '@MGGF_MOM@')):
+        indexes = sorted(row_order.index(parent_id)
+                         for parent_id in parent_pair)
+        assert indexes[1] - indexes[0] == 1
+
+
+def test_pedigree_tree_layout_spreads_crowded_rows_before_parent_blocks():
+    """Crowded generations keep each parent pair centered around its child."""
+    visible = ['@ME@']
+    edges = []
+    previous_generation = ['@ME@']
+    for depth in range(4):
+        next_generation = []
+        for child_id in previous_generation:
+            father_id = f'{child_id}F'
+            mother_id = f'{child_id}M'
+            visible.extend((father_id, mother_id))
+            edges.extend((
+                (child_id, father_id, 'parents'),
+                (child_id, mother_id, 'parents'),
+            ))
+            next_generation.extend((father_id, mother_id))
+        previous_generation = next_generation
+
+    layout = layout_pedigree_tree('@ME@', visible, edges)
+    rows = {node['id']: node['generation'] for node in layout}
+    columns = {node['id']: node['column'] for node in layout}
+
+    for child_id, father_id, _category in edges[::2]:
+        mother_id = f'{child_id}M'
+        assert columns[father_id] == columns[mother_id] == (
+            columns[child_id] + 1)
+        assert abs(
+            rows[child_id] - (
+                rows[father_id] + rows[mother_id]) / 2
+        ) < 0.0001
 
 
 def test_descendant_tree_graph_includes_coparents_and_collapses_branches():
@@ -294,8 +456,9 @@ def test_descendant_tree_layout_is_top_down_and_keeps_spouses_on_same_row():
     assert positions['@A2@'][0] == 2
     assert positions['@SPOUSE@'][0] == positions['@ME@'][0]
     assert positions['@A_SPOUSE@'][0] == positions['@A@'][0]
-    assert positions['@A@'][1] == (
-        positions['@A1@'][1] + positions['@A2@'][1]) / 2
+    assert (
+        positions['@A@'][1] + positions['@A_SPOUSE@'][1]) / 2 == (
+            positions['@A1@'][1] + positions['@A2@'][1]) / 2
     for generation in {node['generation'] for node in layout}:
         columns = sorted(
             node['column'] for node in layout
@@ -334,6 +497,42 @@ def test_descendant_tree_layout_inserts_spouse_before_same_row_cousins():
     assert all(
         right - left >= 1.0
         for left, right in zip(same_row, same_row[1:]))
+
+
+def test_descendant_tree_layout_centers_children_under_visible_couple():
+    """Visible children stay centered under the displayed parent couple."""
+    visible = [
+        '@ME@', '@A@', '@B@', '@PARENT@', '@COUSIN1@', '@COUSIN2@',
+        '@COUSIN3@', '@SPOUSE@', '@CHILD1@', '@CHILD2@',
+    ]
+    edges = [
+        ('@ME@', '@A@', 'children'),
+        ('@ME@', '@B@', 'children'),
+        ('@A@', '@PARENT@', 'children'),
+        ('@B@', '@COUSIN1@', 'children'),
+        ('@B@', '@COUSIN2@', 'children'),
+        ('@B@', '@COUSIN3@', 'children'),
+        ('@PARENT@', '@SPOUSE@', 'spouses'),
+        ('@PARENT@', '@CHILD1@', 'children'),
+        ('@PARENT@', '@CHILD2@', 'children'),
+    ]
+
+    layout = layout_descendant_tree('@ME@', visible, edges)
+    positions = {node['id']: (node['generation'], node['column'])
+                 for node in layout}
+    couple_midpoint = (
+        positions['@PARENT@'][1] + positions['@SPOUSE@'][1]) / 2
+    child_midpoint = (
+        positions['@CHILD1@'][1] + positions['@CHILD2@'][1]) / 2
+
+    assert positions['@SPOUSE@'][0] == positions['@PARENT@'][0]
+    assert child_midpoint == couple_midpoint
+    same_child_row = sorted(
+        column for generation, column in positions.values()
+        if generation == positions['@CHILD1@'][0])
+    assert all(
+        right - left >= 1.0
+        for left, right in zip(same_child_row, same_child_row[1:]))
 
 
 def test_path_graph_expansion_adds_hidden_family_without_moving_endpoints():

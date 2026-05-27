@@ -83,6 +83,61 @@ def test_tree_context_profile_stays_in_person_window():
     assert app.calls == []
 
 
+def test_tree_initial_view_uses_configured_default_tree():
+    """Opening Tree View starts with the configured tree subview."""
+
+    class Config:
+        def get_default_tree(self):
+            return 'pedigree'
+
+    class App(PersonDialogMixin):
+        def __init__(self):
+            self._config = Config()
+
+    app = App()
+
+    assert app._resolve_initial_person_view('tree') == 'pedigree'
+    assert app._resolve_initial_person_view('descendant') == 'descendant'
+    assert app._resolve_initial_person_view('profile') == 'profile'
+    assert app._resolve_initial_person_view(None) == 'profile'
+
+
+def test_button_bar_needed_width_includes_window_padding():
+    """Tree View initial sizing accounts for the full button row."""
+
+    class ButtonFrame:
+        def __init__(self):
+            self.updated = False
+
+        def update_idletasks(self):
+            self.updated = True
+
+        def winfo_reqwidth(self):
+            return 820
+
+    frame = ButtonFrame()
+
+    assert PersonDialogMixin._button_bar_needed_width(frame) == 844
+    assert frame.updated is True
+
+
+def test_tree_search_recenters_only_when_person_selected():
+    """Tree search leaves the current center unchanged when the picker is cancelled."""
+
+    class App(PersonDialogMixin):
+        pass
+
+    app = App()
+    recentered = []
+
+    selected = app._search_tree_center_context(lambda: '@P1@', recentered.append)
+    cancelled = app._search_tree_center_context(lambda: None, recentered.append)
+
+    assert selected == '@P1@'
+    assert cancelled is None
+    assert recentered == ['@P1@']
+
+
 def test_profile_home_path_appears_between_bio_and_full_gedcom():
     """Profile mode inserts the home path before later profile sections."""
 

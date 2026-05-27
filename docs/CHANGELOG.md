@@ -5,6 +5,11 @@
 ### Fixed
 
 - **Copy name now includes GEDCOM ID** — if you have "show GEDCOM IDs" enabled, clicking on the name at the top of the profile and selecting "copy" will also include the GEDCOM ID.
+- **Family tree window crash on Linux when tree is large** — `win.state("zoomed")` is a Windows-only Tk call; on Linux it raises `TclError: bad argument "zoomed"`. The tree-view window-sizing code now uses `win.attributes("-zoomed", True)` on non-Windows platforms (with a `geometry()` fallback for macOS, where `-zoomed` is also unsupported). Two sites were affected: the initial window placement in `_show_person_for` (which crashed), and `_maybe_grow_tree_win` (which silently failed to maximize after a user expansion).
+
+### Tests
+
+- **Regression test for tree-view zoomed crash** — `tests/test_gui_smoke.py` gains `test_tree_view_opens_when_zoomed_attribute_raises`, which monkeypatches `wm_attributes` to raise `TclError` on `-zoomed` (simulating macOS/Linux Aqua Tk) and forces `_twants_max = True` via a tiny fake screen size, then asserts the tree-view window opens without error.
 
 ## [1.9.5] - 2026-05-26
 
