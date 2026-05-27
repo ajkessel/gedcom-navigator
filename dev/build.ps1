@@ -219,7 +219,7 @@ try {
         Write-Output "Installer SHA256 not found; skipping Winget manifest generation."
     }
 
-    Compress-Archive -Path dist\* -DestinationPath .\dist\gedcom-navigator-windows-portable.zip -Force
+    Compress-Archive -Path dist\gedcom_navigator_cli.exe,dist\gedcom-navigator.exe,dist\LICENSE.txt -DestinationPath .\dist\gedcom-navigator-windows-portable.zip -Force
 }
 finally {
     Stop-Transcript
