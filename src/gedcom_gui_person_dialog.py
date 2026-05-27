@@ -889,7 +889,10 @@ class PersonDialogMixin:
                     tnw = int(graph_state["canvas_w"]) + 65
                     tnh = int(graph_state["canvas_h"]) + 105
                     if tnw > int(tsw * 0.9) or tnh > int(tsh * 0.9):
-                        win.state("zoomed")
+                        if sys.platform == "win32":
+                            win.state("zoomed")
+                        else:
+                            win.attributes("-zoomed", True)
                     else:
                         cur_w = win.winfo_width()
                         cur_h = win.winfo_height()
@@ -1188,7 +1191,17 @@ class PersonDialogMixin:
         win.geometry(f"{int(_w)}x{int(_h)}+{int(_x)}+{int(_y)}")
         self._raise_window(win)
         if _twm:
-            win.state("zoomed")
+            if sys.platform == "win32":
+                win.state("zoomed")
+            else:
+                try:
+                    win.attributes("-zoomed", True)
+                except tk.TclError:
+                    win.geometry(
+                        f"{state.get('_tree_needed_w', _mw)}"
+                        f"x{state.get('_tree_needed_h', _mh)}"
+                        f"+{_x}+{_y}"
+                    )
 
     @staticmethod
     def _reused_person_window_bindings():
