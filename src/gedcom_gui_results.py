@@ -24,7 +24,6 @@ from gedcom_relationship import (
 )
 import gedcom_strings as gs
 from gedcom_platform import filedialog_parent
-from gedcom_theme import get_link_color, ttk_colors
 from gedcom_tooltip import TextTagTooltip
 
 
@@ -125,7 +124,7 @@ class ResultsMixin(GraphRenderMixin, GraphLayoutMixin):
         return {'home_id': home_id, 'paths': home_paths}
 
     def _render_home_path_section(
-            self, start_id, home_paths, nl, person, relationship_line,
+            self, home_paths, nl, person, relationship_line,
             common_ancestor_line, separator=None, reverse=False):
         """Render the shared Path to Home Person section."""
         home_data = self._coerce_home_path_data(home_paths)
@@ -306,7 +305,7 @@ class ResultsMixin(GraphRenderMixin, GraphLayoutMixin):
         else:
             hr()
             if self._results_reversed:
-                for rank, (dist, path) in enumerate(results, 1):
+                for rank, (_, path) in enumerate(results, 1):
                     match_id = path[-1][0]
                     rev_path = self._reverse_path(path, self.individuals)
                     m_anc = get_ancestor_depths(
@@ -342,7 +341,7 @@ class ResultsMixin(GraphRenderMixin, GraphLayoutMixin):
                     start_id, self.individuals, self.families)
                 descendants = get_descendant_depths(
                     start_id, self.individuals, self.families)
-                for rank, (dist, path) in enumerate(results, 1):
+                for rank, (_, path) in enumerate(results, 1):
                     end_id = path[-1][0]
                     person(end_id,
                            prefix=gs.RESULT_RANK_PREFIX.format(rank=rank),
@@ -400,7 +399,6 @@ class ResultsMixin(GraphRenderMixin, GraphLayoutMixin):
         nl()
 
         self._render_home_path_section(
-            start_id,
             home_paths,
             nl=nl,
             person=person,

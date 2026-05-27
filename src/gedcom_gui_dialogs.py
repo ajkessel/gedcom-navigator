@@ -576,7 +576,6 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
         nl()
 
         self._render_home_path_section(
-            start_id,
             home_paths,
             nl=nl,
             person=person,
