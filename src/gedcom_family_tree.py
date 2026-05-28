@@ -588,7 +588,7 @@ def layout_descendant_tree(center_id, visible_ids, edges):
                 for node_id in unit_ids
             ]
             if (max(interval_columns) - min(interval_columns)
-                    > MIN_COLUMN_SPACING * 24):
+                    > MIN_COLUMN_SPACING * 32):
                 continue
 
             unit_mins = {}
@@ -810,7 +810,11 @@ def layout_descendant_tree(center_id, visible_ids, edges):
         for child_id in child_ids:
             shift_subtree(child_id, delta)
 
-    for _ in range(min(20, len(layout))):
+    for _ in range(len(layout)):
+        if not compact_interleaved_descendant_child_units():
+            break
+    enforce_row_spacing()
+    for _ in range(len(layout)):
         if not compact_interleaved_descendant_child_units():
             break
     enforce_row_spacing()

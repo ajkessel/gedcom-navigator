@@ -777,7 +777,7 @@ class GraphCommonMixin:
             'visible_ids': visible_ids,
             'edges': [
                 cls._graph_debug_edge(edge)
-                for edge in sorted(edges)
+                for edge in edges
             ],
             'layout': [
                 cls._family_tree_debug_node(node)
