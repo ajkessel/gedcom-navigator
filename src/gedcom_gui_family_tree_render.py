@@ -10,6 +10,7 @@ import sys
 import tkinter as tk
 import tkinter.font as tkfont
 
+from gedcom_debug import debug_enabled
 from gedcom_display import lifespan
 from gedcom_family_tree import (
     EXPANDABLE_TREE_CATEGORIES,
@@ -419,10 +420,13 @@ class FamilyTreeRenderMixin:
         canvas_w = margin * 2 + node_w + (max_column - min_column) * h_gap
         canvas_h = margin * 2 + node_h + (
             max_generation - min_generation) * v_gap
-        canvas._family_tree_debug_payload = self._family_tree_debug_payload(
-            center_id, expanded, zoom, canvas_w, canvas_h, visible_ids,
-            edges, layout, self._family_tree_members_for,
-            graph_type=graph_type)
+        if debug_enabled():
+            canvas._family_tree_debug_payload = self._family_tree_debug_payload(
+                center_id, expanded, zoom, canvas_w, canvas_h, visible_ids,
+                edges, layout, self._family_tree_members_for,
+                graph_type=graph_type)
+        else:
+            canvas._family_tree_debug_payload = None
 
         if orientation == 'horizontal':
             for column in range(int(min_column), int(max_column) + 1):
