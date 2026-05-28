@@ -41,8 +41,8 @@ if ( Test-Path -Path "..\winget-pkgs" ) {
       Write-Output "Branch $fourDigitVersion already exists, switching to it..."
    }
    git switch $fourDigitVersion 
-   New-Item -ItemType Directory -Path "$fourDigitVersion" -Force
-   Copy-Item -Path "$PSScriptRoot/../dist/*.yaml" -Destination "$fourDigitVersion" -Force
+   $null = New-Item -ItemType Directory -Path "$fourDigitVersion" -Force
+   $null = Copy-Item -Path "$PSScriptRoot/../dist/*.yaml" -Destination "$fourDigitVersion" -Force
    git add $fourDigitVersion/*.yaml
    git commit -m "Update Winget manifests for version $fourDigitVersion"
    git push --set-upstream origin $fourDigitVersion
