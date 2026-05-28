@@ -1,5 +1,7 @@
 #Requires -version 5.1
-param ( [Parameter(Mandatory = $false, HelpMessage = "clean build")][switch]$clean)
+param ( [Parameter(Mandatory = $false, HelpMessage = "clean build")][switch]$clean,
+    [Parameter(Mandatory = $false, HelpMessage = "skip signing")][switch]$nosign
+)
 # optional configuration for signing executables
 # create self-signed certificate with powershell script like the following:
 # New-SelfSignedCertificate -Type CodeSigningCert -Subject "gedcom-navigator" -CertStoreLocation Cert:\CurrentUser\My
@@ -158,39 +160,45 @@ try {
         Remove-Item -Recurse -Force ".\dev\Output"
     }
 
-    $filesToSign = @(".\dist\gedcom_navigator_cli.exe", ".\dist\gedcom-navigator.exe")
-    if (Test-Path ".\dist\gedcom-navigator-windows-installer.exe") { $filesToSign += ".\dist\gedcom-navigator-windows-installer.exe" }
-
-    $trustedSigningMetadata = ".\dev\trusted-signing.json"
-    # Azure.CodeSigning.Dlib.dll can be installed via this PowerShell command:
-    # nuget.exe install Microsoft.ArtifactSigning.Client -x -OutputDirectory "$env:LOCALAPPDATA\Microsoft.ArtifactSigning.Client"
-    # TODO convert to AzureSignTool [dotnet tool install --global AzureSignTool]
-    $dlibSearch = Get-ChildItem -Path "$env:LOCALAPPDATA\Microsoft.ArtifactSigning.Client" -Filter "Azure.CodeSigning.Dlib.dll" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
-    if ( (Test-Path $trustedSigningMetadata) -and $dlibSearch -and (Test-Path $SignTool) ) {
-        Write-Output "Signing with Azure Trusted Signing..."
-        az login --only-show-errors
-        foreach ($f in $filesToSign) {
-            if (Test-Path $f) {
-                Write-Output "Signing $f ..."
-                & $SignTool sign /v /debug /fd SHA256 /tr "http://timestamp.acs.microsoft.com" /td SHA256 /dlib $dlibSearch.FullName /dmdf $trustedSigningMetadata $f
-                if ($LASTEXITCODE -ne 0) { Write-Warning "SignTool failed for $f (exit code $LASTEXITCODE)" }
-            }
-            else {
-                Write-Warning "File not found, skipping signing: $f"
-            }
-        }
-    }
-    elseif ( ( Get-ChildItem -Path Cert:\CurrentUser\My | Where-Object { $_.Subject -like ("CN=" + $certName) } ) -and ( Test-Path $SignTool ) ) {
-        Write-Output "Signing with local certificate..."
-        foreach ($f in $filesToSign) {
-            if (Test-Path $f) {
-                & $SignTool sign /n $certName /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 $f
-                if ($LASTEXITCODE -ne 0) { Write-Warning "SignTool failed for $f (exit code $LASTEXITCODE)" }
-            }
-        }
+    if ($nosign) {
+        Write-Output "Skipping signing as per command line argument."
     }
     else {
-        Write-Output "No signing credentials found; skipping signing."
+        Write-Output "Starting signing process..."
+        $filesToSign = @(".\dist\gedcom_navigator_cli.exe", ".\dist\gedcom-navigator.exe")
+        if (Test-Path ".\dist\gedcom-navigator-windows-installer.exe") { $filesToSign += ".\dist\gedcom-navigator-windows-installer.exe" }
+
+        $trustedSigningMetadata = ".\dev\trusted-signing.json"
+        # Azure.CodeSigning.Dlib.dll can be installed via this PowerShell command:
+        # nuget.exe install Microsoft.ArtifactSigning.Client -x -OutputDirectory "$env:LOCALAPPDATA\Microsoft.ArtifactSigning.Client"
+        # TODO convert to AzureSignTool [dotnet tool install --global AzureSignTool]
+        $dlibSearch = Get-ChildItem -Path "$env:LOCALAPPDATA\Microsoft.ArtifactSigning.Client" -Filter "Azure.CodeSigning.Dlib.dll" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ( (Test-Path $trustedSigningMetadata) -and $dlibSearch -and (Test-Path $SignTool) ) {
+            Write-Output "Signing with Azure Trusted Signing..."
+            az login --only-show-errors
+            foreach ($f in $filesToSign) {
+                if (Test-Path $f) {
+                    Write-Output "Signing $f ..."
+                    & $SignTool sign /v /debug /fd SHA256 /tr "http://timestamp.acs.microsoft.com" /td SHA256 /dlib $dlibSearch.FullName /dmdf $trustedSigningMetadata $f
+                    if ($LASTEXITCODE -ne 0) { Write-Warning "SignTool failed for $f (exit code $LASTEXITCODE)" }
+                }
+                else {
+                    Write-Warning "File not found, skipping signing: $f"
+                }
+            }
+        }
+        elseif ( ( Get-ChildItem -Path Cert:\CurrentUser\My | Where-Object { $_.Subject -like ("CN=" + $certName) } ) -and ( Test-Path $SignTool ) ) {
+            Write-Output "Signing with local certificate..."
+            foreach ($f in $filesToSign) {
+                if (Test-Path $f) {
+                    & $SignTool sign /n $certName /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 $f
+                    if ($LASTEXITCODE -ne 0) { Write-Warning "SignTool failed for $f (exit code $LASTEXITCODE)" }
+                }
+            }
+        }
+        else {
+            Write-Output "No signing credentials found; skipping signing."
+        }
     }
     Compress-Archive -Path dist\gedcom_navigator_cli.exe, dist\gedcom-navigator.exe, dist\LICENSE.txt -DestinationPath .\dist\gedcom-navigator-windows-portable.zip -Force
 }
