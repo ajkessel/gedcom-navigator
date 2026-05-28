@@ -347,7 +347,22 @@ class FamilyTreeRenderMixin:
                   for line in detail_label.splitlines()),
             )
         if orientation == 'horizontal':
-            node_w = min(max(longest + scale(18), scale(78)), scale(150))
+            # The canvas text wrapper only breaks lines at spaces, so a single
+            # name token wider than label_width gets split character-by-character
+            # (e.g. "Christophe" / "r"). Make sure the compact pedigree box can
+            # still hold a typical-length first or last name on one line, while
+            # not growing unbounded for unusually long tokens.
+            typical_token_w = center_label_font.measure('Christopher')
+            widest_token = 0
+            for box_node, box_label in zip(layout, labels):
+                token_font = (
+                    center_label_font if box_node['is_center'] else label_font)
+                for token in box_label.split():
+                    widest_token = max(widest_token, token_font.measure(token))
+            min_token_fit = min(widest_token, typical_token_w) + scale(24)
+            node_w = min(
+                max(longest + scale(18), min_token_fit, scale(78)),
+                max(scale(150), min_token_fit))
         else:
             node_w = min(max(longest + scale(24), scale(112)), scale(190))
         label_width = node_w - scale(24)
