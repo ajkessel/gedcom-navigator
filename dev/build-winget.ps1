@@ -33,10 +33,14 @@ if ( Test-Path -Path "..\winget-pkgs" ) {
       New-Item -ItemType Directory -Path "..\winget-pkgs\manifests\a\AdamKessel\GEDCOMNavigator\$fourDigitVersion" -Force
       Copy-Item -Path ".\dist\*.yaml" -Destination "..\winget-pkgs\manifests\a\AdamKessel\GEDCOMNavigator\$fourDigitVersion" -Force
       Set-Location -Path "..\winget-pkgs\manifests\a\AdamKessel\GEDCOMNavigator\$fourDigitVersion"
+      git switch master
       git pull
+      git branch $fourDigitVersion
+      git switch $fourDigitVersion 
       git add *.yaml
       git commit -m "Update Winget manifests for version $fourDigitVersion"
-      git push
+      git push --set-upstream origin $fourDigitVersion
+      git switch master
       Set-Location -Path $PSScriptRoot/..
    }
 }
