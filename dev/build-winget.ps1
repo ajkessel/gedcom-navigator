@@ -28,7 +28,7 @@ Get-ChildItem -Path .\dev\winget\*.template | ForEach-Object {
 }
 if ( Test-Path -Path "..\winget-pkgs" ) {
    Write-Output "Found local Winget Github manifests directory, copying new manifests... (remember to create pull request for branch $fourDigitVersion)"
-   Set-Location -Path "..\winget-pkgs\manifests\a\AdamKessel\GEDCOMNavigator\$fourDigitVersion"
+   Set-Location -Path "..\winget-pkgs\manifests\a\AdamKessel\GEDCOMNavigator"
    git switch master
    gh repo sync --force
    git pull
