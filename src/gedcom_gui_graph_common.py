@@ -748,7 +748,8 @@ class GraphCommonMixin:
     @classmethod
     def _family_tree_debug_payload(cls, center_id, expanded, zoom,
                                    canvas_w, canvas_h, visible_ids,
-                                   edges, layout, family_lookup):
+                                   edges, layout, family_lookup,
+                                   graph_type='family_tree'):
         """Return deterministic Tree View layout debug data."""
         visible_ids = sorted(visible_ids)
         family_members = {}
@@ -760,7 +761,7 @@ class GraphCommonMixin:
             }
         return {
             'version': 1,
-            'graph_type': 'family_tree',
+            'graph_type': graph_type,
             'center_id': center_id,
             'zoom': zoom,
             'canvas': {
