@@ -369,6 +369,7 @@ class PersonDialogMixin:
         copy_shortcut = "<Command-c>" if sys.platform == "darwin" else "<Control-c>"
         save_shortcut = "<Command-s>" if sys.platform == "darwin" else "<Control-s>"
         find_shortcut = "<Command-f>" if sys.platform == "darwin" else "<Control-f>"
+        jump_shortcut = "<Command-j>" if sys.platform == "darwin" else "<Control-j>"
         toggle_shortcut = "<Command-t>" if sys.platform == "darwin" else "<Control-t>"
         state = {
             "person_id": indi_id,
@@ -567,6 +568,7 @@ class PersonDialogMixin:
             copy_graph,
             save_graph,
             search_graph,
+            jump_graph,
             save_debug=None,
         ):
             _clear_buttons()
@@ -584,6 +586,11 @@ class PersonDialogMixin:
             )
             save_btn.pack(side="right", padx=(0, 8))
             Tooltip(save_btn, get_tip_save_graph())
+            jump_btn = ctk.CTkButton(
+                btn_frame, text=BTN_JUMP_GRAPH, width=80, command=jump_graph
+            )
+            jump_btn.pack(side="right", padx=(0, 8))
+            Tooltip(jump_btn, get_tip_jump_graph())
             search_btn = ctk.CTkButton(
                 btn_frame, text=BTN_SEARCH_GRAPH, width=80, command=search_graph
             )
@@ -1093,6 +1100,29 @@ class PersonDialogMixin:
                 )
                 return "break"
 
+            def _jump_tree_center(*_):
+                visible = set(getattr(canvas, "_family_tree_positions", {}).keys())
+                indi_id = self._pick_person(WIN_SELECT_PERSON, owner=win,
+                                            filter_ids=visible if visible else None)
+                if not indi_id:
+                    return "break"
+                positions = getattr(canvas, "_family_tree_positions", {})
+                if indi_id not in positions:
+                    return "break"
+                node_x, node_y = positions[indi_id]
+                canvas.update_idletasks()
+                view_w = max(canvas.winfo_width(), 1)
+                view_h = max(canvas.winfo_height(), 1)
+                canvas_w = max(graph_state["canvas_w"], 1)
+                canvas_h = max(graph_state["canvas_h"], 1)
+                max_x = max(0, 1 - (view_w / canvas_w))
+                max_y = max(0, 1 - (view_h / canvas_h))
+                x_pos = max(0, min(max_x, (node_x - view_w / 2) / canvas_w))
+                y_pos = max(0, min(max_y, (node_y - view_h / 2) / canvas_h))
+                canvas.xview_moveto(x_pos)
+                canvas.yview_moveto(y_pos)
+                return "break"
+
             def _save_tree_debug(*_):
                 win.update_idletasks()
                 try:
@@ -1108,6 +1138,8 @@ class PersonDialogMixin:
             win.bind(save_shortcut, _save_tree)
             win.bind(find_shortcut, _search_tree_center)
             canvas.bind(find_shortcut, _search_tree_center)
+            win.bind(jump_shortcut, _jump_tree_center)
+            canvas.bind(jump_shortcut, _jump_tree_center)
             graph_debug_enabled = debug_enabled()
             if graph_debug_enabled:
                 win.bind("<Control-Shift-D>", _save_tree_debug)
@@ -1117,6 +1149,7 @@ class PersonDialogMixin:
                 _copy_tree,
                 _save_tree,
                 _search_tree_center,
+                _jump_tree_center,
                 _save_tree_debug if graph_debug_enabled else None,
             )
             state["_tree_button_needed_w"] = self._button_bar_needed_width(

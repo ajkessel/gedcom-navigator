@@ -333,6 +333,7 @@ RESULTS_HEADER_MENU_SHOW_TREE = _("Show Tree")
 BTN_SAVE_GRAPH = _("Save")
 BTN_COPY_GRAPH = _("Copy")
 BTN_SEARCH_GRAPH = _("Search")
+BTN_JUMP_GRAPH = _("Jump")
 BTN_DEBUG_GRAPH = _("Debug JSON")
 
 def get_tip_save_graph():
@@ -346,6 +347,10 @@ def get_tip_copy_graph():
 def get_tip_search_graph():
     mod = get_mod_key()
     return _("Search ({mod}F)\nSelect a person and make them the center of this graphical view.").format(mod=mod)
+
+def get_tip_jump_graph():
+    mod = get_mod_key()
+    return _("Jump ({mod}J)\nPan to a person who is already visible in this graph view.").format(mod=mod)
 
 TIP_DEBUG_GRAPH = _("Save layout debug JSON (Ctrl+Shift+D)\nExport graph layout data without person names.")
 TIP_SHOW_PARENTS = _("Show parents")

@@ -30,6 +30,8 @@
 | Shortcut | Action |
 | --- | --- |
 | **Ctrl+T** | Cycle between Tree View, Pedigree View, Descendant View, and Profile View |
+| **Ctrl+F** | **S**earch — select a person and re-center the graph on them |
+| **Ctrl+J** | **J**ump — pan to a person already visible in the current graph without re-centering |
 | **Ctrl+S** | **S**ave profile text or the current graph to a file |
 | **Ctrl+C** | **C**opy profile text or the current graph to clipboard |
 | **Alt+←** / **Cmd+←** | Go back to the previously viewed person |
