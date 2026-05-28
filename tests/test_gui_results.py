@@ -1,13 +1,135 @@
 """Tests for result-pane path rendering helpers."""
 
+import json
+from collections import defaultdict
+from pathlib import Path
+
+import pytest
+
 from gedcom_family_tree import (
     _nearest_unblocked_column,
+    build_descendant_tree_graph,
     build_family_tree_graph,
+    build_pedigree_tree_graph,
+    descendant_tree_expanded_requests,
+    descendant_tree_expansion_options,
     family_tree_expansion_options,
+    layout_descendant_tree,
     layout_family_tree,
+    layout_pedigree_tree,
 )
+from gedcom_gui_family_tree_render import FamilyTreeRenderMixin
 from gedcom_gui_results import ResultsMixin
 import gedcom_strings as gs
+
+
+def _load_debug_family_tree_layout(name):
+    path = Path('debug') / f'{name}.json'
+    if not path.exists():
+        pytest.skip(f'debug/{name}.json not found')
+    payload = json.loads(path.read_text())
+    edges = [
+        (edge['source'], edge['target'], edge['category'])
+        for edge in payload['edges']
+    ]
+    return (
+        layout_family_tree(
+            payload['center_id'], payload['visible_ids'], edges),
+        edges,
+    )
+
+
+def _debug_edges_in_family_member_order(payload):
+    """Return debug edges in the graph-builder order, not JSON sort order."""
+    edges = [
+        (edge['source'], edge['target'], edge['category'])
+        for edge in payload['edges']
+    ]
+    edge_set = set(edges)
+    ordered_edges = []
+    seen_edges = set()
+    for source_id in payload['visible_ids']:
+        members = payload.get('family_members', {}).get(source_id, {})
+        for spouse_id in members.get('spouses', ()):
+            edge = (source_id, spouse_id, 'spouses')
+            if edge in edge_set and edge not in seen_edges:
+                ordered_edges.append(edge)
+                seen_edges.add(edge)
+        for child_id in members.get('children', ()):
+            edge = (source_id, child_id, 'children')
+            if edge in edge_set and edge not in seen_edges:
+                ordered_edges.append(edge)
+                seen_edges.add(edge)
+    ordered_edges.extend(edge for edge in edges if edge not in seen_edges)
+    return ordered_edges
+
+
+def _assert_no_same_row_conflicts(layout):
+    for index, left in enumerate(layout):
+        for right in layout[index + 1:]:
+            if left['generation'] != right['generation']:
+                continue
+            assert abs(left['column'] - right['column']) >= 1.0 - 1e-9
+
+
+def _assert_visible_spouses_adjacent(layout, edges):
+    by_id = {node['id']: node for node in layout}
+    for source_id, target_id, category in edges:
+        if category != 'spouses':
+            continue
+        if source_id not in by_id or target_id not in by_id:
+            continue
+        if by_id[source_id]['generation'] != by_id[target_id]['generation']:
+            continue
+        assert abs(
+            abs(by_id[source_id]['column'] - by_id[target_id]['column'])
+            - 1.0) <= 1e-9
+
+
+def _max_family_tree_row_width(layout):
+    by_generation = {}
+    for node in layout:
+        by_generation.setdefault(node['generation'], []).append(node['column'])
+    return max(max(columns) - min(columns)
+               for columns in by_generation.values())
+
+
+def _assert_visible_child_groups_near_parents(layout, edges):
+    by_id = {node['id']: node for node in layout}
+    for source_id in {source_id for source_id, _target_id, _category in edges}:
+        if source_id not in by_id:
+            continue
+        child_ids = [
+            target_id for edge_source, target_id, category in edges
+            if edge_source == source_id
+            and category == 'children'
+            and target_id in by_id
+        ]
+        if not child_ids:
+            continue
+        spouse_ids = [
+            target_id for edge_source, target_id, category in edges
+            if edge_source == source_id
+            and category == 'spouses'
+            and target_id in by_id
+            and by_id[target_id]['generation'] == by_id[source_id]['generation']
+        ]
+        spouse_ids.extend(
+            edge_source for edge_source, target_id, category in edges
+            if target_id == source_id
+            and category == 'spouses'
+            and edge_source in by_id
+            and by_id[edge_source]['generation']
+            == by_id[source_id]['generation']
+        )
+        parent_column = by_id[source_id]['column']
+        if spouse_ids:
+            parent_column = (
+                parent_column + by_id[spouse_ids[0]]['column']) / 2
+        child_columns = [by_id[child_id]['column'] for child_id in child_ids]
+        child_column = (min(child_columns) + max(child_columns)) / 2
+
+        assert abs(parent_column - child_column) <= 1.1
 
 
 class _HomeModel:
@@ -29,6 +151,68 @@ class _HomePathApp(ResultsMixin):
 
     def _path_edge_prefix(self, edge, indent='  '):
         return f'{indent}{edge}: '
+
+
+def test_pedigree_font_extra_shrink_only_applies_below_normal_zoom():
+    assert FamilyTreeRenderMixin._horizontal_tree_font_shrink(1.0) == 0
+    assert FamilyTreeRenderMixin._horizontal_tree_font_shrink(1.5) == 0
+    assert FamilyTreeRenderMixin._horizontal_tree_font_shrink(0.9) == 1
+    assert FamilyTreeRenderMixin._horizontal_tree_font_shrink(0.75) == 2
+    assert FamilyTreeRenderMixin._horizontal_tree_font_shrink(0.5) == 3
+
+
+def test_pedigree_parent_connectors_are_orthogonal():
+    assert FamilyTreeRenderMixin._horizontal_parent_connector_segments(
+        140, 50, [(200, 20), (200, 80)], 40) == [
+            (140, 50, 158.0, 50),
+            (158.0, 20, 158.0, 80),
+            (158.0, 20, 200, 20),
+            (158.0, 80, 200, 80),
+        ]
+
+
+def test_pedigree_single_parent_connector_exits_horizontally():
+    assert FamilyTreeRenderMixin._horizontal_parent_connector_segments(
+        140, 50, [(200, 50)], 40) == [(140, 50, 200, 50)]
+    assert FamilyTreeRenderMixin._horizontal_parent_connector_segments(
+        140, 50, [(200, 20)], 40) == [
+            (140, 50, 158.0, 50, 158.0, 20, 200, 20),
+        ]
+
+
+def test_expansion_button_tab_rounds_only_outer_edge():
+    class FakeCanvas:
+        def __init__(self):
+            self.polygons = []
+
+        def create_polygon(self, *args, **kwargs):
+            self.polygons.append((args, kwargs))
+
+    canvas = FakeCanvas()
+
+    FamilyTreeRenderMixin._draw_expansion_button_tab(
+        canvas,
+        50,
+        60,
+        20,
+        'spouses',
+        'right',
+        '#336699',
+        '#d0d0d0',
+        ('family_tree_button', 'node_button'),
+    )
+
+    points, kwargs = canvas.polygons[0]
+
+    assert points[:4] == (40.0, 50.0, 50.0, 50.0)
+    assert points[-2:] == (40.0, 70.0)
+    assert max(points[0::2]) == 60.0
+    assert kwargs == {
+        'fill': '#336699',
+        'outline': '#d0d0d0',
+        'width': 1,
+        'tags': ('family_tree_button', 'node_button'),
+    }
 
 
 def test_home_path_section_renders_missing_path_message():
@@ -166,6 +350,511 @@ def test_path_graph_layout_avoids_duplicate_node_positions():
     positions = {(node['generation'], node['column']) for node in layout}
 
     assert len(positions) == len(layout)
+
+
+def test_pedigree_tree_graph_includes_all_recorded_parent_families():
+    individuals = {
+        '@ME@': {'name': 'Me', 'sex': 'M', 'famc': ['@F1@', '@F2@'], 'fams': []},
+        '@DAD@': {'name': 'Dad', 'sex': 'M', 'famc': ['@F3@'], 'fams': ['@F1@']},
+        '@MOM@': {'name': 'Mom', 'sex': 'F', 'famc': [], 'fams': ['@F1@']},
+        '@OTHER@': {'name': 'Other', 'sex': 'M', 'famc': [], 'fams': ['@F2@']},
+        '@PGF@': {'name': 'Pgf', 'sex': 'M', 'famc': [], 'fams': ['@F3@']},
+        '@PGM@': {'name': 'Pgm', 'sex': 'F', 'famc': [], 'fams': ['@F3@']},
+    }
+    families = {
+        '@F1@': {'husb': '@DAD@', 'wife': '@MOM@', 'chil': ['@ME@']},
+        '@F2@': {'husb': '@OTHER@', 'wife': '', 'chil': ['@ME@']},
+        '@F3@': {'husb': '@PGF@', 'wife': '@PGM@', 'chil': ['@DAD@']},
+    }
+
+    visible, edges = build_pedigree_tree_graph('@ME@', individuals, families)
+    layout = layout_pedigree_tree('@ME@', visible, edges)
+    columns = {node['id']: node['column'] for node in layout}
+    rows = {node['id']: node['generation'] for node in layout}
+
+    assert visible == ['@ME@', '@DAD@', '@MOM@', '@OTHER@', '@PGF@', '@PGM@']
+    assert ('@ME@', '@OTHER@', 'parents') in edges
+    assert columns['@ME@'] == 0
+    assert columns['@DAD@'] == 1
+    assert columns['@MOM@'] == 1
+    assert columns['@OTHER@'] == 1
+    assert columns['@PGF@'] == 2
+    assert columns['@PGM@'] == 2
+    assert abs(
+        rows['@ME@'] - (
+            rows['@DAD@'] + rows['@MOM@'] + rows['@OTHER@']) / 3
+    ) < 0.0001
+    assert rows['@DAD@'] == (rows['@PGF@'] + rows['@PGM@']) / 2
+
+
+def test_pedigree_tree_layout_centers_people_between_their_parents():
+    """Pedigree rows expand outward so parent pairs frame each child."""
+    visible = [
+        '@ME@',
+        '@DAD@', '@MOM@',
+        '@PGF@', '@PGM@', '@MGF@', '@MGM@',
+        '@PGGF@', '@PGGM@', '@PMGF@', '@PMGM@',
+        '@MGGF@', '@MGGM@', '@MMGF@', '@MMGM@',
+    ]
+    edges = [
+        ('@ME@', '@DAD@', 'parents'),
+        ('@ME@', '@MOM@', 'parents'),
+        ('@DAD@', '@PGF@', 'parents'),
+        ('@DAD@', '@PGM@', 'parents'),
+        ('@MOM@', '@MGF@', 'parents'),
+        ('@MOM@', '@MGM@', 'parents'),
+        ('@PGF@', '@PGGF@', 'parents'),
+        ('@PGF@', '@PGGM@', 'parents'),
+        ('@PGM@', '@PMGF@', 'parents'),
+        ('@PGM@', '@PMGM@', 'parents'),
+        ('@MGF@', '@MGGF@', 'parents'),
+        ('@MGF@', '@MGGM@', 'parents'),
+        ('@MGM@', '@MMGF@', 'parents'),
+        ('@MGM@', '@MMGM@', 'parents'),
+    ]
+
+    layout = layout_pedigree_tree('@ME@', visible, edges)
+    rows = {node['id']: node['generation'] for node in layout}
+    columns = {node['id']: node['column'] for node in layout}
+
+    assert rows['@ME@'] == 0.0
+    assert rows['@ME@'] == (rows['@DAD@'] + rows['@MOM@']) / 2
+    assert rows['@DAD@'] == (rows['@PGF@'] + rows['@PGM@']) / 2
+    assert rows['@MOM@'] == (rows['@MGF@'] + rows['@MGM@']) / 2
+    assert rows['@PGF@'] == (rows['@PGGF@'] + rows['@PGGM@']) / 2
+    assert rows['@PGM@'] == (rows['@PMGF@'] + rows['@PMGM@']) / 2
+    assert rows['@MGF@'] == (rows['@MGGF@'] + rows['@MGGM@']) / 2
+    assert rows['@MGM@'] == (rows['@MMGF@'] + rows['@MMGM@']) / 2
+    assert columns['@DAD@'] == columns['@MOM@'] == 1
+    assert max(rows[node['id']] for node in layout if node['column'] == 3) > (
+        max(rows[node['id']] for node in layout if node['column'] == 1))
+    assert min(rows[node['id']] for node in layout if node['column'] == 3) < (
+        min(rows[node['id']] for node in layout if node['column'] == 1))
+
+    for column in {node['column'] for node in layout}:
+        same_column = sorted(
+            node['generation'] for node in layout
+            if node['column'] == column)
+        assert all(
+            right - left >= 1.0
+            for left, right in zip(same_column, same_column[1:]))
+
+
+def test_pedigree_tree_layout_keeps_deep_parent_pairs_adjacent():
+    """Crowded ancestor columns keep each child's parents as a contiguous pair."""
+    visible = [
+        '@ME@',
+        '@DAD@', '@MOM@',
+        '@PGF@', '@PGM@', '@MGF@', '@MGM@',
+        '@PGGF@', '@PGGM@', '@PMGF@', '@PMGM@',
+        '@MGGF@', '@MGGM@', '@MMGF@', '@MMGM@',
+        '@PMGM_DAD@', '@PMGM_MOM@', '@MGGF_DAD@', '@MGGF_MOM@',
+    ]
+    edges = [
+        ('@ME@', '@DAD@', 'parents'),
+        ('@ME@', '@MOM@', 'parents'),
+        ('@DAD@', '@PGF@', 'parents'),
+        ('@DAD@', '@PGM@', 'parents'),
+        ('@MOM@', '@MGF@', 'parents'),
+        ('@MOM@', '@MGM@', 'parents'),
+        ('@PGF@', '@PGGF@', 'parents'),
+        ('@PGF@', '@PGGM@', 'parents'),
+        ('@PGM@', '@PMGF@', 'parents'),
+        ('@PGM@', '@PMGM@', 'parents'),
+        ('@MGF@', '@MGGF@', 'parents'),
+        ('@MGF@', '@MGGM@', 'parents'),
+        ('@MGM@', '@MMGF@', 'parents'),
+        ('@MGM@', '@MMGM@', 'parents'),
+        ('@PMGM@', '@PMGM_DAD@', 'parents'),
+        ('@PMGM@', '@PMGM_MOM@', 'parents'),
+        ('@MGGF@', '@MGGF_DAD@', 'parents'),
+        ('@MGGF@', '@MGGF_MOM@', 'parents'),
+    ]
+
+    layout = layout_pedigree_tree('@ME@', visible, edges)
+    row_order = [
+        node['id']
+        for node in sorted(
+            (node for node in layout if node['column'] == 4),
+            key=lambda item: item['generation'])
+    ]
+
+    for parent_pair in (
+            ('@PMGM_DAD@', '@PMGM_MOM@'),
+            ('@MGGF_DAD@', '@MGGF_MOM@')):
+        indexes = sorted(row_order.index(parent_id)
+                         for parent_id in parent_pair)
+        assert indexes[1] - indexes[0] == 1
+
+
+def test_pedigree_tree_layout_spreads_crowded_rows_before_parent_blocks():
+    """Crowded generations keep each parent pair centered around its child."""
+    visible = ['@ME@']
+    edges = []
+    previous_generation = ['@ME@']
+    for depth in range(4):
+        next_generation = []
+        for child_id in previous_generation:
+            father_id = f'{child_id}F'
+            mother_id = f'{child_id}M'
+            visible.extend((father_id, mother_id))
+            edges.extend((
+                (child_id, father_id, 'parents'),
+                (child_id, mother_id, 'parents'),
+            ))
+            next_generation.extend((father_id, mother_id))
+        previous_generation = next_generation
+
+    layout = layout_pedigree_tree('@ME@', visible, edges)
+    rows = {node['id']: node['generation'] for node in layout}
+    columns = {node['id']: node['column'] for node in layout}
+
+    for child_id, father_id, _category in edges[::2]:
+        mother_id = f'{child_id}M'
+        assert columns[father_id] == columns[mother_id] == (
+            columns[child_id] + 1)
+        assert abs(
+            rows[child_id] - (
+                rows[father_id] + rows[mother_id]) / 2
+        ) < 0.0001
+
+
+def test_descendant_tree_graph_includes_coparents_and_collapses_branches():
+    individuals = {
+        '@ME@': {'name': 'Me', 'sex': 'M', 'famc': [], 'fams': ['@F1@']},
+        '@SPOUSE@': {
+            'name': 'Spouse', 'sex': 'F', 'famc': [], 'fams': ['@F1@']},
+        '@CHILD@': {
+            'name': 'Child', 'sex': 'F', 'famc': ['@F1@'], 'fams': ['@F2@']},
+        '@CHILDSPOUSE@': {
+            'name': 'Child Spouse', 'sex': 'M', 'famc': [], 'fams': ['@F2@']},
+        '@GC@': {
+            'name': 'Grandchild', 'sex': 'M', 'famc': ['@F2@'], 'fams': []},
+    }
+    families = {
+        '@F1@': {'husb': '@ME@', 'wife': '@SPOUSE@', 'chil': ['@CHILD@']},
+        '@F2@': {
+            'husb': '@CHILDSPOUSE@', 'wife': '@CHILD@', 'chil': ['@GC@']},
+    }
+
+    def members_for(indi_id):
+        parents, siblings, spouses, children = [], [], [], []
+        for fam_id in individuals[indi_id].get('famc', ()):
+            fam = families[fam_id]
+            parents.extend(pid for pid in (fam['husb'], fam['wife']) if pid)
+            siblings.extend(
+                child_id for child_id in fam['chil'] if child_id != indi_id)
+        for fam_id in individuals[indi_id].get('fams', ()):
+            fam = families[fam_id]
+            spouse_id = fam['wife'] if fam['husb'] == indi_id else fam['husb']
+            if spouse_id:
+                spouses.append(spouse_id)
+            children.extend(fam['chil'])
+        return {
+            'parents': parents,
+            'siblings': siblings,
+            'spouses': spouses,
+            'children': children,
+        }
+
+    visible, edges = build_descendant_tree_graph(
+        '@ME@', {'@ME@'}, individuals, families)
+    expanded = descendant_tree_expanded_requests(
+        visible, {'@ME@'}, members_for)
+
+    assert visible == ['@ME@', '@SPOUSE@', '@CHILD@']
+    assert ('@ME@', '@SPOUSE@', 'spouses') in edges
+    assert ('@ME@', 'children') in expanded
+    child_options = descendant_tree_expansion_options(
+        '@CHILD@', visible, members_for)
+
+    assert child_options == {'children': ['@GC@']}
+
+    child_visible, child_edges = build_descendant_tree_graph(
+        '@ME@', {'@ME@', '@CHILD@'}, individuals, families)
+    child_expanded = descendant_tree_expanded_requests(
+        child_visible, {'@ME@', '@CHILD@'}, members_for)
+
+    assert child_visible == [
+        '@ME@', '@SPOUSE@', '@CHILD@', '@CHILDSPOUSE@', '@GC@']
+    assert ('@CHILD@', '@CHILDSPOUSE@', 'spouses') in child_edges
+    assert ('@CHILD@', '@GC@', 'children') in child_edges
+    assert ('@CHILD@', 'children') in child_expanded
+
+
+def test_descendant_tree_layout_is_top_down_and_keeps_spouses_on_same_row():
+    visible = [
+        '@ME@', '@SPOUSE@', '@A@', '@B@', '@A_SPOUSE@', '@A1@', '@A2@',
+    ]
+    edges = [
+        ('@ME@', '@SPOUSE@', 'spouses'),
+        ('@ME@', '@A@', 'children'),
+        ('@ME@', '@B@', 'children'),
+        ('@A@', '@A_SPOUSE@', 'spouses'),
+        ('@A@', '@A1@', 'children'),
+        ('@A@', '@A2@', 'children'),
+    ]
+
+    layout = layout_descendant_tree('@ME@', visible, edges)
+    positions = {node['id']: (node['generation'], node['column'])
+                 for node in layout}
+
+    assert positions['@ME@'][0] == 0
+    assert positions['@A@'][0] == 1
+    assert positions['@B@'][0] == 1
+    assert positions['@A1@'][0] == 2
+    assert positions['@A2@'][0] == 2
+    assert positions['@SPOUSE@'][0] == positions['@ME@'][0]
+    assert positions['@A_SPOUSE@'][0] == positions['@A@'][0]
+    assert (
+        positions['@A@'][1] + positions['@A_SPOUSE@'][1]) / 2 == (
+            positions['@A1@'][1] + positions['@A2@'][1]) / 2
+    for generation in {node['generation'] for node in layout}:
+        columns = sorted(
+            node['column'] for node in layout
+            if node['generation'] == generation)
+        assert all(
+            right - left >= 1.0
+            for left, right in zip(columns, columns[1:]))
+
+
+def test_descendant_tree_layout_inserts_spouse_before_same_row_cousins():
+    """A spouse context node reserves the adjacent slot beside its partner."""
+    visible = [
+        '@ME@', '@A@', '@B@', '@PARTNER@', '@COUSIN1@', '@COUSIN2@',
+        '@COUSIN3@', '@SPOUSE@', '@CHILD@',
+    ]
+    edges = [
+        ('@ME@', '@A@', 'children'),
+        ('@ME@', '@B@', 'children'),
+        ('@A@', '@PARTNER@', 'children'),
+        ('@B@', '@COUSIN1@', 'children'),
+        ('@B@', '@COUSIN2@', 'children'),
+        ('@B@', '@COUSIN3@', 'children'),
+        ('@PARTNER@', '@SPOUSE@', 'spouses'),
+        ('@PARTNER@', '@CHILD@', 'children'),
+    ]
+
+    layout = layout_descendant_tree('@ME@', visible, edges)
+    positions = {node['id']: (node['generation'], node['column'])
+                 for node in layout}
+
+    assert positions['@SPOUSE@'][0] == positions['@PARTNER@'][0]
+    assert positions['@SPOUSE@'][1] - positions['@PARTNER@'][1] == 1.0
+    same_row = sorted(
+        column for generation, column in positions.values()
+        if generation == positions['@PARTNER@'][0])
+    assert all(
+        right - left >= 1.0
+        for left, right in zip(same_row, same_row[1:]))
+
+
+def test_descendant_tree_layout_centers_children_under_visible_couple():
+    """Visible children stay centered under the displayed parent couple."""
+    visible = [
+        '@ME@', '@A@', '@B@', '@PARENT@', '@COUSIN1@', '@COUSIN2@',
+        '@COUSIN3@', '@SPOUSE@', '@CHILD1@', '@CHILD2@',
+    ]
+    edges = [
+        ('@ME@', '@A@', 'children'),
+        ('@ME@', '@B@', 'children'),
+        ('@A@', '@PARENT@', 'children'),
+        ('@B@', '@COUSIN1@', 'children'),
+        ('@B@', '@COUSIN2@', 'children'),
+        ('@B@', '@COUSIN3@', 'children'),
+        ('@PARENT@', '@SPOUSE@', 'spouses'),
+        ('@PARENT@', '@CHILD1@', 'children'),
+        ('@PARENT@', '@CHILD2@', 'children'),
+    ]
+
+    layout = layout_descendant_tree('@ME@', visible, edges)
+    positions = {node['id']: (node['generation'], node['column'])
+                 for node in layout}
+    couple_midpoint = (
+        positions['@PARENT@'][1] + positions['@SPOUSE@'][1]) / 2
+    child_midpoint = (
+        positions['@CHILD1@'][1] + positions['@CHILD2@'][1]) / 2
+
+    assert positions['@SPOUSE@'][0] == positions['@PARENT@'][0]
+    assert child_midpoint == couple_midpoint
+    same_child_row = sorted(
+        column for generation, column in positions.values()
+        if generation == positions['@CHILD1@'][0])
+    assert all(
+        right - left >= 1.0
+        for left, right in zip(same_child_row, same_child_row[1:]))
+
+
+def test_descendant_tree_debug_keeps_child_family_units_together():
+    """Expanded descendant branches keep one parent's children contiguous."""
+    cases = [
+        (
+            '5',
+            [
+                '@I102681749719@',
+                '@I102681750190@',
+                '@I102681764495@',
+                '@I102681764496@',
+                '@I102681764719@',
+                '@I102681764720@',
+                '@I102681764721@',
+                '@I102681764722@',
+                '@I102681764723@',
+            ],
+        ),
+        (
+            '6',
+            [
+                '@I102681749719@',
+                '@I102681750190@',
+                '@I102681750195@',
+                '@I102681750197@',
+                '@I102681750198@',
+                '@I102681751293@',
+                '@I102681750199@',
+                '@I102681750200@',
+                '@I102681750201@',
+                '@I102681750205@',
+                '@I102681750206@',
+                '@I102681750207@',
+            ],
+        ),
+        (
+            '7',
+            [
+                '@I102681749719@',
+                '@I102681750190@',
+                '@I102681750195@',
+                '@I102681750197@',
+                '@I102681750198@',
+                '@I102681751293@',
+                '@I102681750199@',
+                '@I102681750200@',
+                '@I102681750201@',
+                '@I102681750205@',
+                '@I102681750206@',
+                '@I102681750207@',
+            ],
+        ),
+        (
+            '10',
+            [
+                '@I102681749719@',
+                '@I102681750190@',
+                '@I102681750195@',
+                '@I102681750197@',
+                '@I102681750198@',
+                '@I102681751293@',
+                '@I102681750199@',
+                '@I102681750200@',
+                '@I102681750201@',
+                '@I102681750205@',
+                '@I102681750206@',
+                '@I102681750207@',
+            ],
+        ),
+    ]
+
+    for fixture_name, family_units in cases:
+        debug_path = Path('debug') / f'{fixture_name}.json'
+        if not debug_path.exists():
+            continue
+        payload = json.loads(debug_path.read_text())
+        edges = _debug_edges_in_family_member_order(payload)
+        layout = layout_descendant_tree(
+            payload['center_id'], payload['visible_ids'], edges)
+        by_id = {node['id']: node for node in layout}
+        same_generation = by_id['@I102681750190@']['generation']
+        family_columns = [
+            by_id[person_id]['column'] for person_id in family_units
+        ]
+        interposed_ids = {
+            node['id'] for node in layout
+            if node['generation'] == same_generation
+            and min(family_columns) <= node['column'] <= max(family_columns)
+        } - set(family_units)
+
+        _assert_no_same_row_conflicts(layout)
+        assert by_id['@I102681749719@']['column'] == (
+            by_id['@I102681750190@']['column'] - 1.0)
+        assert not interposed_ids
+
+
+def test_descendant_tree_debug_keeps_same_row_spouses_adjacent():
+    """Later descendant compaction must not split displayed spouse pairs."""
+    debug_path = Path('debug') / '12.json'
+    if not debug_path.exists():
+        return
+
+    payload = json.loads(debug_path.read_text())
+    edges = [
+        (edge['source'], edge['target'], edge['category'])
+        for edge in payload['edges']
+    ]
+    layout = layout_descendant_tree(
+        payload['center_id'], payload['visible_ids'], edges)
+    by_id = {node['id']: node for node in layout}
+    spouses_by_person = defaultdict(set)
+    for source_id, target_id, category in edges:
+        if category == 'spouses':
+            spouses_by_person[source_id].add(target_id)
+            spouses_by_person[target_id].add(source_id)
+
+    _assert_no_same_row_conflicts(layout)
+    for source_id, target_id, category in edges:
+        if category != 'spouses':
+            continue
+        source_node = by_id.get(source_id)
+        target_node = by_id.get(target_id)
+        if not source_node or not target_node:
+            continue
+        if source_node['generation'] != target_node['generation']:
+            continue
+        left_column = min(source_node['column'], target_node['column'])
+        right_column = max(source_node['column'], target_node['column'])
+        interposed_ids = {
+            node['id'] for node in layout
+            if node['generation'] == source_node['generation']
+            and left_column < node['column'] < right_column
+        }
+        allowed_ids = (
+            spouses_by_person[source_id] | spouses_by_person[target_id])
+        assert not (interposed_ids - allowed_ids)
+
+
+def test_descendant_tree_debug_keeps_spouse_aware_sibling_units_together():
+    """Expanded sibling groups stay contiguous with their displayed spouses."""
+    debug_path = Path('debug') / '12.json'
+    if not debug_path.exists():
+        return
+
+    payload = json.loads(debug_path.read_text())
+    edges = [
+        (edge['source'], edge['target'], edge['category'])
+        for edge in payload['edges']
+    ]
+    layout = layout_descendant_tree(
+        payload['center_id'], payload['visible_ids'], edges)
+    by_id = {node['id']: node for node in layout}
+    family_units = {
+        '@I102667033170@',
+        '@I102667033171@',
+        '@I102667033176@',
+        '@I102667033188@',
+        '@I102667033177@',
+        '@I102667033190@',
+    }
+    same_generation = by_id['@I102667033170@']['generation']
+    family_columns = [by_id[person_id]['column']
+                      for person_id in family_units]
+    interposed_ids = {
+        node['id'] for node in layout
+        if node['generation'] == same_generation
+        and min(family_columns) <= node['column'] <= max(family_columns)
+    } - family_units
+
+    _assert_no_same_row_conflicts(layout)
+    assert not interposed_ids
 
 
 def test_path_graph_expansion_adds_hidden_family_without_moving_endpoints():
@@ -4209,6 +4898,222 @@ def test_family_tree_parent_siblings_stay_on_spouse_opposite_sides():
     assert all(column > by_id['@PARENT_R@']['column']
                for column in right_siblings)
     assert sorted(right_siblings) == right_siblings
+
+
+def test_family_tree_spouse_pair_keeps_each_partner_family_siblings_grouped():
+    """Spouses keep their own sibling groups outside the couple."""
+    visible = [
+        '@LEFT@',
+        '@RIGHT@',
+        '@LEFT_PARENT@',
+        '@LEFT_PARENT_SP@',
+        '@LEFT_SIB1@',
+        '@LEFT_SIB2@',
+        '@LEFT_SIB3@',
+        '@RIGHT_SIB1@',
+        '@RIGHT_SIB2@',
+        '@RIGHT_SIB3@',
+    ]
+    edges = [
+        ('@LEFT@', '@RIGHT@', 'spouses'),
+        ('@LEFT_PARENT@', '@LEFT_PARENT_SP@', 'spouses'),
+        ('@LEFT_PARENT@', '@LEFT@', 'children'),
+        ('@LEFT_PARENT@', '@LEFT_SIB1@', 'children'),
+        ('@LEFT_PARENT@', '@LEFT_SIB2@', 'children'),
+        ('@LEFT_PARENT@', '@LEFT_SIB3@', 'children'),
+        ('@RIGHT@', '@RIGHT_SIB1@', 'siblings'),
+        ('@RIGHT@', '@RIGHT_SIB2@', 'siblings'),
+        ('@RIGHT@', '@RIGHT_SIB3@', 'siblings'),
+    ]
+
+    layout = layout_family_tree('@LEFT@', visible, edges)
+    by_id = {node['id']: node for node in layout}
+    left_siblings = [
+        by_id['@LEFT_SIB1@']['column'],
+        by_id['@LEFT_SIB2@']['column'],
+        by_id['@LEFT_SIB3@']['column'],
+    ]
+    right_siblings = [
+        by_id['@RIGHT_SIB1@']['column'],
+        by_id['@RIGHT_SIB2@']['column'],
+        by_id['@RIGHT_SIB3@']['column'],
+    ]
+
+    assert by_id['@LEFT@']['column'] < by_id['@RIGHT@']['column']
+    assert by_id['@RIGHT@']['column'] == by_id['@LEFT@']['column'] + 1.0
+    assert all(column < by_id['@LEFT@']['column']
+               for column in left_siblings)
+    assert all(column > by_id['@RIGHT@']['column']
+               for column in right_siblings)
+    assert [
+        round(right - left, 1)
+        for left, right in zip(
+            sorted(left_siblings), sorted(left_siblings)[1:])
+    ] == [1.0, 1.0]
+    assert [
+        round(right - left, 1)
+        for left, right in zip(
+            sorted(right_siblings), sorted(right_siblings)[1:])
+    ] == [1.0, 1.0]
+
+
+def test_family_tree_compacts_sibling_branch_with_children_as_block():
+    """Sibling branches with children slide closer without skewing the branch."""
+    visible = [
+        '@CENTER@',
+        '@CENTER_SP@',
+        '@CENTER_CH1@',
+        '@CENTER_CH2@',
+        '@PARENT@',
+        '@PARENT_SP@',
+        '@CENTER_SIB1@',
+        '@CENTER_SIB2@',
+        '@AUNT@',
+        '@UNCLE@',
+        '@AUNT_SP@',
+        '@AUNT_CH1@',
+        '@AUNT_CH2@',
+        '@AUNT_CH3@',
+    ]
+    edges = [
+        ('@CENTER@', '@CENTER_SP@', 'spouses'),
+        ('@CENTER@', '@CENTER_CH1@', 'children'),
+        ('@CENTER@', '@CENTER_CH2@', 'children'),
+        ('@CENTER@', '@PARENT@', 'parents'),
+        ('@CENTER@', '@PARENT_SP@', 'parents'),
+        ('@CENTER@', '@CENTER_SIB1@', 'siblings'),
+        ('@CENTER@', '@CENTER_SIB2@', 'siblings'),
+        ('@PARENT@', '@PARENT_SP@', 'spouses'),
+        ('@PARENT@', '@AUNT@', 'siblings'),
+        ('@PARENT@', '@UNCLE@', 'siblings'),
+        ('@AUNT@', '@AUNT_SP@', 'spouses'),
+        ('@AUNT@', '@AUNT_CH1@', 'children'),
+        ('@AUNT@', '@AUNT_CH2@', 'children'),
+        ('@AUNT@', '@AUNT_CH3@', 'children'),
+    ]
+
+    layout = layout_family_tree('@CENTER@', visible, edges)
+    by_id = {node['id']: node for node in layout}
+    parent_left_gap = (
+        by_id['@PARENT@']['column'] - by_id['@AUNT_SP@']['column'])
+
+    assert 1.0 <= parent_left_gap <= 2.0
+    assert by_id['@AUNT_SP@']['column'] == by_id['@AUNT@']['column'] + 1.0
+    assert by_id['@AUNT_CH2@']['column'] == (
+        by_id['@AUNT@']['column'] + by_id['@AUNT_SP@']['column']) / 2
+
+
+def test_family_tree_debug_fixtures_preserve_layout_invariants():
+    """Saved graph exports replay without overlap, spouse gaps, or drift."""
+    max_width_by_fixture = {
+        '1': 12.0,
+        'aa': 4.3,
+        'bb': 8.3,
+        'cc': 12.0,
+    }
+
+    for name, max_width in max_width_by_fixture.items():
+        layout, edges = _load_debug_family_tree_layout(name)
+
+        _assert_no_same_row_conflicts(layout)
+        _assert_visible_spouses_adjacent(layout, edges)
+        _assert_visible_child_groups_near_parents(layout, edges)
+        assert _max_family_tree_row_width(layout) <= max_width
+
+
+def test_family_tree_debug_parent_couple_moves_above_child_when_unblocked():
+    """A displayed parent couple shifts over its child when space permits."""
+    layout, edges = _load_debug_family_tree_layout('2')
+    by_id = {node['id']: node for node in layout}
+    parent_midpoint = (
+        by_id['@I102698315410@']['column']
+        + by_id['@I102698315502@']['column']
+    ) / 2
+
+    _assert_no_same_row_conflicts(layout)
+    _assert_visible_spouses_adjacent(layout, edges)
+    assert abs(
+        parent_midpoint - by_id['@I102667033207@']['column']) <= 0.5
+
+
+def test_family_tree_debug_large_tree_preserves_target_spouse_adjacency():
+    """Large debug exports keep spouses adjacent around sibling branches."""
+    for fixture_name in ('3', '4', '5'):
+        layout, _edges = _load_debug_family_tree_layout(fixture_name)
+        by_id = {node['id']: node for node in layout}
+        target_generation = by_id['@I102667033170@']['generation']
+        same_row = [
+            node for node in layout
+            if node['generation'] == target_generation
+        ]
+        right_of_target = sorted(
+            (
+                node for node in same_row
+                if node['column'] > by_id['@I102667033170@']['column']
+            ),
+            key=lambda node: node['column'],
+        )
+        nearest_non_spouse = next(
+            node for node in right_of_target
+            if node['id'] != '@I102667033171@')
+        sibling_unit_ids = {
+            '@I102667033170@',
+            '@I102667033171@',
+            '@I102667033176@',
+            '@I102667033177@',
+            '@I102667033188@',
+            '@I102667033190@',
+        }
+        sibling_unit_columns = [
+            by_id[person_id]['column'] for person_id in sibling_unit_ids
+        ]
+        interposed_ids = {
+            node['id'] for node in same_row
+            if min(sibling_unit_columns) <= node['column']
+            <= max(sibling_unit_columns)
+        } - sibling_unit_ids
+
+        _assert_no_same_row_conflicts(layout)
+        assert by_id['@I102667033281@']['column'] == (
+            by_id['@I102667033206@']['column'] + 1.0)
+        assert nearest_non_spouse['id'] == '@I102667033176@'
+        assert not interposed_ids
+
+
+def test_family_tree_debug_large_tree_keeps_neighbor_family_units_together():
+    """Adjacent child families stay grouped instead of interleaving branches."""
+    layout, _edges = _load_debug_family_tree_layout('4')
+    by_id = {node['id']: node for node in layout}
+    same_generation = by_id['@I102667033170@']['generation']
+    family_a = [
+        '@I102667033170@',
+        '@I102667033171@',
+        '@I102667033176@',
+        '@I102667033188@',
+        '@I102667033177@',
+        '@I102667033190@',
+    ]
+    family_b = [
+        '@I102667033204@',
+        '@I102667033276@',
+        '@I102667033205@',
+        '@I102667033278@',
+        '@I102667033206@',
+        '@I102667033281@',
+    ]
+    ordered_row = [
+        node['id'] for node in sorted(
+            (
+                node for node in layout
+                if node['generation'] == same_generation
+                and node['id'] in {*family_a, *family_b}
+            ),
+            key=lambda node: node['column'],
+        )
+    ]
+
+    _assert_no_same_row_conflicts(layout)
+    assert ordered_row == family_a + family_b
 
 
 def test_family_tree_child_alignment_keeps_adjusted_siblings_separate():

@@ -177,7 +177,7 @@ def get_tip_show_person():
 
 def get_tip_show_person_tree():
     mod = get_mod_key()
-    return _("Tree View ({mod}E)\nOpen the family tree view for the selected person. Shift-Click for Profile View.").format(mod=mod)
+    return _("Tree View ({mod}E)\nOpen the configured default tree view for the selected person. Shift-Click for Profile View.").format(mod=mod)
 
 def get_tip_select_tag():
     mod = get_mod_key()
@@ -247,15 +247,25 @@ TAGS_SECTION = _("Tags")
 GEDCOM_SECTION = _("Full GEDCOM Record")
 BTN_CLOSE = _("Close")
 BTN_TREE_VIEW = _("Tree View")
+BTN_PEDIGREE_VIEW = _("Pedigree View")
+BTN_DESCENDANT_VIEW = _("Descendant View")
 BTN_PERSON_VIEW = _("Profile View")
 
 def get_tip_tree_view_btn():
     mod = get_mod_key()
-    return _("Tree View ({mod}T)\nSwitch to the interactive family tree for this person.").format(mod=mod)
+    return _("Tree View ({mod}T cycles views)\nShow the interactive family tree for this person.").format(mod=mod)
+
+def get_tip_pedigree_view_btn():
+    mod = get_mod_key()
+    return _("Pedigree View ({mod}T cycles views)\nShow this person's ancestors in a compact pedigree chart.").format(mod=mod)
+
+def get_tip_descendant_view_btn():
+    mod = get_mod_key()
+    return _("Descendant View ({mod}T cycles views)\nShow this person's descendants with expandable child branches.").format(mod=mod)
 
 def get_tip_person_view_btn():
     mod = get_mod_key()
-    return _("Profile View ({mod}T)\nSwitch to the biographical profile for this person.").format(mod=mod)
+    return _("Profile View ({mod}T cycles views)\nShow the biographical profile for this person.").format(mod=mod)
 
 DLG_SAVE_PROFILE = _("Save profile")
 
@@ -268,10 +278,15 @@ def get_tip_copy_profile():
     return _("Copy profile ({mod}C)\nCopy this biographical profile to clipboard.").format(mod=mod)
 
 WIN_FAMILY_TREE = _("Family Tree: {name}")
+WIN_PEDIGREE_TREE = _("Pedigree Tree: {name}")
+WIN_DESCENDANT_TREE = _("Descendant Tree: {name}")
 DLG_SAVE_FAMILY_TREE = _("Save family tree")
+DLG_SAVE_PEDIGREE_TREE = _("Save pedigree tree")
+DLG_SAVE_DESCENDANT_TREE = _("Save descendant tree")
 TREE_MENU_RECENTER = _("Center")
 TREE_MENU_PATHS = _("Paths")
 TREE_MENU_EXPAND_ALL = _("Expand All")
+GRAPH_MENU_HIGHLIGHT = _("Highlight")
 TREE_BUTTON_PARENTS = "↑"
 TREE_BUTTON_PARENTS_HIDE = "↓"
 TREE_BUTTON_SIBLINGS_LEFT = "←"
@@ -318,6 +333,8 @@ RESULTS_HEADER_MENU_SHOW_PROFILE = _("Show Profile")
 RESULTS_HEADER_MENU_SHOW_TREE = _("Show Tree")
 BTN_SAVE_GRAPH = _("Save")
 BTN_COPY_GRAPH = _("Copy")
+BTN_SEARCH_GRAPH = _("Search")
+BTN_JUMP_GRAPH = _("Jump")
 BTN_DEBUG_GRAPH = _("Debug JSON")
 
 def get_tip_save_graph():
@@ -327,6 +344,14 @@ def get_tip_save_graph():
 def get_tip_copy_graph():
     mod = get_mod_key()
     return _("Copy graphic ({mod}C)\nCopy this graphical representation to clipboard.").format(mod=mod)
+
+def get_tip_search_graph():
+    mod = get_mod_key()
+    return _("Search ({mod}F)\nSelect a person and make them the center of this graphical view.").format(mod=mod)
+
+def get_tip_jump_graph():
+    mod = get_mod_key()
+    return _("Jump ({mod}J)\nPan to a person who is already visible in this graph view.").format(mod=mod)
 
 TIP_DEBUG_GRAPH = _("Save layout debug JSON (Ctrl+Shift+D)\nExport graph layout data without person names.")
 TIP_SHOW_PARENTS = _("Show parents")
@@ -408,6 +433,10 @@ LBL_NAME_FORMAT = _("Name format:")
 NAME_FIRST_LAST = _("First Last")
 NAME_LAST_FIRST = _("Last, First")
 LBL_DEFAULT_DISPLAY = _("Default display:")
+LBL_DEFAULT_TREE = _("Default tree:")
+TREE_MODE_TREE = _("Tree")
+TREE_MODE_PEDIGREE = _("Pedigree")
+TREE_MODE_DESCENDANTS = _("Descendants")
 FRAME_CACHE = _("Cache")
 BTN_CLEAR_CACHE = _("Clear Cache…")
 LBL_CACHE_NOTE = _("Remove all cached GEDCOM data")
@@ -422,6 +451,7 @@ MSG_LANGUAGE_CHANGED = _("Language changed from {old} to {new}. Please restart t
 PROGRESS_SEARCHING_TITLE = _("Searching")
 PROGRESS_SEARCHING = _("Searching for tagged matches…\n(reduce 'max depth' setting for faster search)")
 PROGRESS_FINDING_PATH = _("Finding relationship paths…\n(reduce 'max depth' setting for faster search)")
+PROGRESS_EXPANDING_DESCENDANTS = _("Expanding descendant branches…")
 
 # ---------------------------------------------------------------------------
 # Status bar messages

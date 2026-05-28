@@ -9,18 +9,19 @@ import logging
 from logging.handlers import RotatingFileHandler
 import os
 from pathlib import Path
+import subprocess
 import sys
 import tempfile
 import threading
 
-
-_DEBUG_ENV = 'GEDCOM_NAVIGATOR_DEBUG'
-_LOG_PATH_ENV = 'GEDCOM_NAVIGATOR_DEBUG_LOG'
-_LOGGER_NAME = 'gedcom_navigator'
+_DEBUG_ENV = "GEDCOM_NAVIGATOR_DEBUG"
+_LOG_PATH_ENV = "GEDCOM_NAVIGATOR_DEBUG_LOG"
+_LOGGER_NAME = "gedcom_navigator"
 _MAX_LOG_BYTES = 1_000_000
 _BACKUP_COUNT = 3
 
 _configured_path = None
+_app_version_string = None
 _previous_sys_excepthook = None
 _previous_threading_excepthook = None
 _previous_tk_report_callback_exception = None
@@ -41,27 +42,25 @@ def _getenv(name, default=None):
 
 def debug_enabled():
     """Return whether debug diagnostics are enabled for this process."""
-    return _getenv(_DEBUG_ENV, '').strip().lower() in {
-        '1', 'true', 'yes', 'on'
-    }
+    return _getenv(_DEBUG_ENV, "").strip().lower() in {"1", "true", "yes", "on"}
 
 
 def set_debug_enabled(enabled=True):
     """Set or clear the environment flag used by all debug-only helpers."""
     if enabled:
-        os.environ[_DEBUG_ENV] = '1'
+        os.environ[_DEBUG_ENV] = "1"
     else:
         os.environ.pop(_DEBUG_ENV, None)
 
 
 def _default_debug_log_path():
-    if sys.platform == 'win32':
-        base = Path(os.environ.get('APPDATA', Path.home()))
-    elif sys.platform == 'darwin':
-        base = Path.home() / 'Library' / 'Application Support'
+    if sys.platform == "win32":
+        base = Path(os.environ.get("APPDATA", Path.home()))
+    elif sys.platform == "darwin":
+        base = Path.home() / "Library" / "Application Support"
     else:
-        base = Path(os.environ.get('XDG_CONFIG_HOME', Path.home() / '.config'))
-    return base / 'gedcom-navigator' / 'debug.log'
+        base = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config"))
+    return base / "gedcom-navigator" / "debug.log"
 
 
 def debug_log_path():
@@ -100,27 +99,29 @@ def configure_debug_logging(*, enabled=None):
             path,
             maxBytes=_MAX_LOG_BYTES,
             backupCount=_BACKUP_COUNT,
-            encoding='utf-8',
+            encoding="utf-8",
         )
     except OSError:
         fallback_dir = Path(tempfile.gettempdir())
-        path = fallback_dir / 'gedcom-navigator-debug.log'
+        path = fallback_dir / "gedcom-navigator-debug.log"
         fallback_dir.mkdir(parents=True, exist_ok=True)
         handler = RotatingFileHandler(
             path,
             maxBytes=_MAX_LOG_BYTES,
             backupCount=_BACKUP_COUNT,
-            encoding='utf-8',
+            encoding="utf-8",
         )
 
     handler.setLevel(logging.DEBUG)
-    handler.setFormatter(logging.Formatter(
-        '%(asctime)s %(levelname)s [%(threadName)s] %(name)s: %(message)s'
-    ))
+    handler.setFormatter(
+        logging.Formatter(
+            "%(asctime)s %(levelname)s [%(threadName)s] %(name)s: %(message)s"
+        )
+    )
     logger.addHandler(handler)
     _configured_path = path
     logger.debug(
-        'Debug logging enabled: executable=%r argv=%r log_path=%s',
+        "Debug logging enabled: executable=%r argv=%r log_path=%s",
         sys.executable,
         sys.argv,
         path,
@@ -141,7 +142,7 @@ def log_exception(context):
     if not debug_enabled():
         return
     configure_debug_logging()
-    get_debug_logger().debug('Recovered exception: %s', context, exc_info=True)
+    get_debug_logger().debug("Recovered exception: %s", context, exc_info=True)
 
 
 def log_exception_once(key, context):
@@ -155,6 +156,57 @@ def log_exception_once(key, context):
 def _log_unhandled_exception(context, exc_info):
     configure_debug_logging()
     get_debug_logger().critical(context, exc_info=exc_info)
+
+
+def _read_version():
+    try:
+        from gedcom_navigator import __version__
+
+        return __version__
+    except ImportError:
+        pass
+    try:
+        init_path = Path(__file__).parent.parent / "gedcom_navigator" / "__init__.py"
+        for line in init_path.read_text(encoding="utf-8").splitlines():
+            if line.startswith("__version__"):
+                return line.split("=", 1)[1].strip().strip("\"'")
+    except Exception:  # noqa: BLE001
+        pass
+    return "unknown"
+
+
+def app_version_string():
+    """Return a version string combining release version and git commit hash.
+
+    Format: "1.9.6 (76297af)" in development, or "1.9.6" if git is unavailable
+    (e.g. in frozen PyInstaller builds).
+
+    The result is memoized so the underlying ``git`` subprocess runs at most
+    once per process. This is intended to be called only in debug mode, since
+    spawning ``git`` is expensive (and, in a windowed PyInstaller build on
+    Windows, briefly flashes a console window) per call.
+    """
+    global _app_version_string
+    if _app_version_string is not None:
+        return _app_version_string
+
+    __version__ = _read_version() + f" ({sys.platform})"
+    try:
+        commit = (
+            subprocess.check_output(
+                ["git", "rev-parse", "--short", "HEAD"],
+                stderr=subprocess.DEVNULL,
+                timeout=2,
+            )
+            .decode()
+            .strip()
+        )
+        if commit:
+            __version__ = f"{__version__} ({commit})"
+    except Exception:  # noqa: BLE001
+        pass
+    _app_version_string = __version__
+    return __version__
 
 
 def install_exception_hooks(root=None):
@@ -172,20 +224,19 @@ def install_exception_hooks(root=None):
 
         def _sys_excepthook(exc_type, exc_value, traceback):
             _log_unhandled_exception(
-                'Unhandled main-thread exception',
+                "Unhandled main-thread exception",
                 (exc_type, exc_value, traceback),
             )
             _previous_sys_excepthook(exc_type, exc_value, traceback)
 
         sys.excepthook = _sys_excepthook
 
-    if (_previous_threading_excepthook is None
-            and hasattr(threading, 'excepthook')):
+    if _previous_threading_excepthook is None and hasattr(threading, "excepthook"):
         _previous_threading_excepthook = threading.excepthook
 
         def _threading_excepthook(args):
             _log_unhandled_exception(
-                f'Unhandled thread exception in {args.thread!r}',
+                f"Unhandled thread exception in {args.thread!r}",
                 (args.exc_type, args.exc_value, args.exc_traceback),
             )
             _previous_threading_excepthook(args)
@@ -197,10 +248,9 @@ def install_exception_hooks(root=None):
 
         def _report_callback_exception(exc_type, exc_value, traceback):
             _log_unhandled_exception(
-                'Unhandled Tk callback exception',
+                "Unhandled Tk callback exception",
                 (exc_type, exc_value, traceback),
             )
-            _previous_tk_report_callback_exception(
-                exc_type, exc_value, traceback)
+            _previous_tk_report_callback_exception(exc_type, exc_value, traceback)
 
         root.report_callback_exception = _report_callback_exception

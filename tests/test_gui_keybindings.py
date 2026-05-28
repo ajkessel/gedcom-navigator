@@ -1,5 +1,9 @@
 """Tests for main-window keyboard shortcut registration."""
 
+import inspect
+import pathlib
+
+import gedcom_strings as _gs
 from gedcom_gui_appearance import AppearanceMixin
 from gedcom_shortcuts import (
     keyboard_shortcut_rows,
@@ -7,6 +11,33 @@ from gedcom_shortcuts import (
     shortcut_by_action,
 )
 from gedcom_strings import get_keyboard_shortcut_rows
+
+_DOCS_ROOT = pathlib.Path(__file__).parent.parent / "docs"
+
+# Shortcuts that legitimately have no UI button with a tooltip:
+# help/keyboard_shortcuts/preferences → F-key only, no button
+# open_gedcom → accessible via File menu, no dedicated toolbar button
+# back/forward → keyboard-only navigation; no button in the toolbar
+# zoom_in_out/zoom_reset → global modifier shortcuts; no dedicated button
+_NO_BUTTON_TOOLTIP_ACTIONS = frozenset({
+    "help",
+    "keyboard_shortcuts",
+    "preferences",
+    "open_gedcom",
+    "back",
+    "forward",
+    "zoom_in_out",
+    "zoom_reset",
+})
+
+
+def _all_tip_text():
+    """Return joined output of every get_tip_* function in gedcom_strings."""
+    return "\n".join(
+        fn()
+        for name, fn in inspect.getmembers(_gs)
+        if name.startswith("get_tip_") and callable(fn)
+    )
 
 
 class _Bindable:
@@ -252,4 +283,99 @@ def test_windows_linux_use_standard_ctrl_for_h_and_m():
         assert married.sequence == "<Control-m>", (
             f"toggle_married_name_search on {platform}: expected <Control-m>, "
             f"got {married.sequence!r}"
+        )
+
+
+# ---------------------------------------------------------------------------
+# Coverage tests: tooltip text, KEYBOARD_SHORTCUTS.md, in-app help dialog
+# ---------------------------------------------------------------------------
+
+def test_every_button_shortcut_has_tooltip_mentioning_it(monkeypatch):
+    """Every shortcut bound to a UI button must appear in at least one tooltip string.
+
+    Shortcuts in _NO_BUTTON_TOOLTIP_ACTIONS are exempt because they are
+    keyboard-only (F-keys, zoom), menu-only (Open), or navigation-only
+    (Back/Forward) with no labeled toolbar button.
+    """
+    for platform in ("linux", "darwin"):
+        monkeypatch.setattr("gedcom_strings.sys.platform", platform)
+        monkeypatch.setattr("gedcom_shortcuts.sys.platform", platform)
+        all_tips = _all_tip_text()
+        missing = [
+            f"  {s.display!r} (action={s.action_key!r})"
+            for s in keyboard_shortcut_rows(platform)
+            if (s.sequence is not None
+                and s.action_key not in _NO_BUTTON_TOOLTIP_ACTIONS
+                and s.display not in all_tips)
+        ]
+        assert not missing, (
+            f"Shortcuts on {platform!r} with no tooltip text that mentions them:\n"
+            + "\n".join(missing)
+        )
+
+
+def test_every_shortcut_in_keyboard_shortcuts_md():
+    """Every Linux/Windows shortcut must be listed in docs/KEYBOARD_SHORTCUTS.md.
+
+    The doc uses Ctrl+ notation (Linux/Windows) throughout.  On macOS,
+    ⌘ replaces Ctrl+ for most shortcuts — that replacement is implied by
+    convention and not verified here.  The exception is shortcuts that use a
+    non-obvious macOS key combination (⌘⇧M, ⌘⇧H), which are explicitly
+    called out in the doc and must stay there.
+    """
+    content = (_DOCS_ROOT / "KEYBOARD_SHORTCUTS.md").read_text(encoding="utf-8")
+
+    # Check Linux/Windows display strings.
+    missing = [
+        f"  {s.display!r} (action={s.action_key!r})"
+        for s in keyboard_shortcut_rows("linux")
+        if s.sequence is not None and s.display not in content
+    ]
+    assert not missing, (
+        "Shortcuts missing from docs/KEYBOARD_SHORTCUTS.md:\n" + "\n".join(missing)
+    )
+
+    # Verify macOS shortcuts that deviate from the standard ⌘+letter pattern
+    # are still explicitly present.  Standard conversions (Ctrl+F → ⌘F, etc.)
+    # are not checked because the doc doesn't list them individually.
+    linux_by_action = {s.action_key: s.display for s in keyboard_shortcut_rows("linux")}
+    macos_missing = []
+    for s in keyboard_shortcut_rows("darwin"):
+        if s.sequence is None:
+            continue
+        # Keyboard-only / menu-only shortcuts whose macOS form differs from the
+        # Linux F-key or Alt+* form need not be listed explicitly in the doc
+        # (their Linux equivalents are already there).
+        if s.action_key in _NO_BUTTON_TOOLTIP_ACTIONS:
+            continue
+        linux_display = linux_by_action.get(s.action_key, "")
+        # Build the "trivially converted" macOS display: drop "Ctrl+" and prepend "⌘".
+        trivial_mac = (
+            "⌘" + linux_display[len("Ctrl+"):]
+            if linux_display.startswith("Ctrl+")
+            else ""
+        )
+        if s.display == trivial_mac:
+            continue  # implied by doc convention — no explicit entry required
+        if s.display not in content:
+            macos_missing.append(f"  {s.display!r} (action={s.action_key!r}, macOS)")
+    assert not macos_missing, (
+        "Non-standard macOS shortcuts missing from docs/KEYBOARD_SHORTCUTS.md:\n"
+        + "\n".join(macos_missing)
+    )
+
+
+def test_every_shortcut_in_app_help_rows(monkeypatch):
+    """Every registered shortcut must appear in the in-app keyboard help dialog."""
+    for platform in ("linux", "darwin"):
+        monkeypatch.setattr("gedcom_strings.sys.platform", platform)
+        rows_displayed = {key for key, _ in get_keyboard_shortcut_rows()}
+        missing = [
+            f"  {s.display!r} (action={s.action_key!r})"
+            for s in keyboard_shortcut_rows(platform)
+            if s.display not in rows_displayed
+        ]
+        assert not missing, (
+            f"Shortcuts on {platform!r} missing from in-app keyboard help dialog:\n"
+            + "\n".join(missing)
         )

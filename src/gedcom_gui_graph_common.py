@@ -14,7 +14,7 @@ import tkinter as tk
 import tkinter.font as tkfont
 from tkinter import filedialog, messagebox
 
-from gedcom_debug import log_exception
+from gedcom_debug import app_version_string, log_exception
 from gedcom_display import lifespan
 from gedcom_family_tree import EXPANDABLE_TREE_CATEGORIES
 from gedcom_graph_export import canvas_to_png_bytes, canvas_to_svg
@@ -33,6 +33,8 @@ class GraphCommonMixin:
     PERSON_BOX_FILL_FEMALE = '#ffe1ec'
     PERSON_BOX_FILL_NEUTRAL = '#f2f2f2'
     PERSON_BOX_TEXT = '#1a1a1a'
+    PERSON_BOX_FILL_HIGHLIGHT = '#FFD700'
+    PERSON_BOX_OUTLINE_HIGHLIGHT = '#B8860B'
 
     @staticmethod
     def _mix_hex_color(color_a, color_b, weight_b):
@@ -693,6 +695,7 @@ class GraphCommonMixin:
             }
         return {
             'version': 1,
+            'app_version': app_version_string(),
             'graph_type': 'relationship_path',
             'relationship': graph_state.get('relationship'),
             'start_id': graph_state.get('start_id'),
@@ -748,7 +751,8 @@ class GraphCommonMixin:
     @classmethod
     def _family_tree_debug_payload(cls, center_id, expanded, zoom,
                                    canvas_w, canvas_h, visible_ids,
-                                   edges, layout, family_lookup):
+                                   edges, layout, family_lookup,
+                                   graph_type='family_tree'):
         """Return deterministic Tree View layout debug data."""
         visible_ids = sorted(visible_ids)
         family_members = {}
@@ -760,7 +764,8 @@ class GraphCommonMixin:
             }
         return {
             'version': 1,
-            'graph_type': 'family_tree',
+            'app_version': app_version_string(),
+            'graph_type': graph_type,
             'center_id': center_id,
             'zoom': zoom,
             'canvas': {
@@ -774,7 +779,7 @@ class GraphCommonMixin:
             'visible_ids': visible_ids,
             'edges': [
                 cls._graph_debug_edge(edge)
-                for edge in sorted(edges)
+                for edge in edges
             ],
             'layout': [
                 cls._family_tree_debug_node(node)

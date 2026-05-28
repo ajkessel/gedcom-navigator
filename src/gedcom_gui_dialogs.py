@@ -177,16 +177,17 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
             tag_tree.selection_set(target)
             tag_tree.see(target)
 
-    def _pick_person(self, title=WIN_SELECT_PERSON):
+    def _pick_person(self, title=WIN_SELECT_PERSON, owner=None, filter_ids=None):
         """Modal dialog to pick one person from the loaded GEDCOM. Returns indi_id or None."""
         if not self.individuals:
             messagebox.showwarning(ERR_NO_DATA_TITLE, ERR_NO_DATA_MSG)
             return None
 
-        dialog = ctk.CTkToplevel(self.root)
+        owner = self._valid_dialog_owner(owner)
+        dialog = ctk.CTkToplevel(owner)
         dialog.withdraw()
         dialog.title(title)
-        dialog.transient(self.root)
+        dialog.transient(owner)
         dialog.grab_set()
         dialog.focus_force()
 
@@ -261,6 +262,8 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
             )
             shown = 0
             for indi_id in self.sorted_ids:
+                if filter_ids is not None and indi_id not in filter_ids:
+                    continue
                 indi = self.individuals[indi_id]
                 if flagged_only and not indi['dna_markers']:
                     continue
@@ -354,6 +357,17 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
         finally:
             self._picker_open = False
         return result[0]
+
+    def _valid_dialog_owner(self, owner):
+        """Return a live dialog owner, falling back to the main window."""
+        if owner is None:
+            return self.root
+        try:
+            if owner.winfo_exists():
+                return owner
+        except tk.TclError:
+            pass
+        return self.root
 
     def _find_path(self):
         """Prompt for a target person and render paths from the current selection."""
@@ -564,7 +578,6 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
         nl()
 
         self._render_home_path_section(
-            start_id,
             home_paths,
             nl=nl,
             person=person,
@@ -794,6 +807,18 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
         _radiobutton(default_display_row, text=DISPLAY_MODE_PATHS,
                      variable=default_display_var, value='paths').pack(side='left')
 
+        default_tree_row = ctk.CTkFrame(display_frame, fg_color='transparent')
+        default_tree_row.pack(anchor='w', pady=(6, 0))
+        ctk.CTkLabel(default_tree_row, text=LBL_DEFAULT_TREE).pack(
+            side='left', padx=(0, 8))
+        default_tree_var = tk.StringVar(value=self._config.get_default_tree())
+        _radiobutton(default_tree_row, text=TREE_MODE_TREE,
+                     variable=default_tree_var, value='tree').pack(side='left', padx=(0, 8))
+        _radiobutton(default_tree_row, text=TREE_MODE_PEDIGREE,
+                     variable=default_tree_var, value='pedigree').pack(side='left', padx=(0, 8))
+        _radiobutton(default_tree_row, text=TREE_MODE_DESCENDANTS,
+                     variable=default_tree_var, value='descendant').pack(side='left')
+
         # Language row (wraps to multiple rows on narrow windows)
         lang_row = ctk.CTkFrame(display_section, fg_color='transparent')
         lang_row.pack(fill='x', padx=12, pady=(0, 10))
@@ -886,6 +911,7 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
             self._name_order = name_order_var.get()
             self._config.set_name_order(self._name_order)
             self._config.set_default_display(default_display_var.get())
+            self._config.set_default_tree(default_tree_var.get())
             
             # Check if language has changed
             old_lang = self._config.get_language()

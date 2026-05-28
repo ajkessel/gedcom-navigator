@@ -49,11 +49,14 @@ class BackgroundTaskMixin:
         self._copy_btn.grid()
 
     def _run_background_task(self, work, done, *, popup_message=None,
-                             cancelable=False, on_cancel=None):
+                             cancelable=False, on_cancel=None,
+                             popup_delay_ms=0, popup_owner=None):
         """Run CPU-heavy work in a thread and deliver its result on the Tk thread."""
         result_queue = queue.Queue(maxsize=1)
         cancel_event = threading.Event() if cancelable else None
         cancelled = {'value': False}
+        finished = {'value': False}
+        popup_after_id = {'value': None}
         switch_interval = sys.getswitchinterval()
         using_fast_switch = switch_interval > 0.001
 
@@ -73,6 +76,13 @@ class BackgroundTaskMixin:
             cancelled['value'] = True
             cancel_event.set()
             self._background_cancel_event = None
+            after_id = popup_after_id.get('value')
+            if after_id is not None:
+                try:
+                    self.root.after_cancel(after_id)
+                except tk.TclError:
+                    pass
+                popup_after_id['value'] = None
             self._hide_search_popup()
             if on_cancel:
                 on_cancel()
@@ -83,6 +93,14 @@ class BackgroundTaskMixin:
             except queue.Empty:
                 self.root.after(50, _poll_result)
                 return
+            finished['value'] = True
+            after_id = popup_after_id.get('value')
+            if after_id is not None:
+                try:
+                    self.root.after_cancel(after_id)
+                except tk.TclError:
+                    pass
+                popup_after_id['value'] = None
             if using_fast_switch:
                 sys.setswitchinterval(switch_interval)
             if cancel_event is not None and self._background_cancel_event is cancel_event:
@@ -102,13 +120,25 @@ class BackgroundTaskMixin:
         if cancel_event is not None:
             self._background_cancel_event = cancel_event
         if popup_message:
-            self._show_search_popup(
-                popup_message,
-                on_cancel=_cancel_task if cancelable else None,
-            )
-            # Let Tk process the popup's map/expose events before starting a
-            # CPU-heavy Python thread that will compete with the GUI for the GIL.
-            self.root.after(100, _start_worker)
+            def _show_delayed_popup():
+                popup_after_id['value'] = None
+                if finished['value'] or cancelled['value']:
+                    return
+                self._show_search_popup(
+                    popup_message,
+                    on_cancel=_cancel_task if cancelable else None,
+                    owner=popup_owner,
+                )
+
+            if popup_delay_ms:
+                popup_after_id['value'] = self.root.after(
+                    popup_delay_ms, _show_delayed_popup)
+                _start_worker()
+            else:
+                _show_delayed_popup()
+                # Let Tk process the popup's map/expose events before starting a
+                # CPU-heavy Python thread that will compete with the GUI for the GIL.
+                self.root.after(100, _start_worker)
         else:
             _start_worker()
 
@@ -135,18 +165,23 @@ class BackgroundTaskMixin:
         """Predict whether a BFS DNA-match search will be noticeably slow."""
         return max_depth * n_individuals > BackgroundTaskMixin._SLOW_SEARCH_THRESHOLD
 
-    def _show_search_popup(self, message=PROGRESS_SEARCHING, on_cancel=None):
+    def _show_search_popup(self, message=PROGRESS_SEARCHING, on_cancel=None,
+                           owner=None):
         """Show a centered progress dialog for slow searches."""
         if self._search_popup is not None:
             return
+        owner = self._valid_popup_owner(owner)
         # Use tk.Toplevel rather than ctk.CTkToplevel to avoid the Windows-only
         # deferred deiconify callback in CTkToplevel that races with destroy()
         # when the search finishes before the ~10 ms title bar-color timer fires.
-        popup = tk.Toplevel(self.root)
+        popup = tk.Toplevel(owner)
         popup.withdraw()  # hide until positioned to avoid flash at 0,0
         popup.title(PROGRESS_SEARCHING_TITLE)
         popup.resizable(False, False)
-        popup.transient(self.root)
+        try:
+            popup.transient(owner)
+        except tk.TclError:
+            popup.transient(self.root)
         popup.protocol("WM_DELETE_WINDOW", lambda: None)
 
         # Use plain ttk widgets — CTk widgets defer rendering via after() timers
@@ -182,11 +217,48 @@ class BackgroundTaskMixin:
                 ttk.Button(frame, text=BTN_CANCEL, command=on_cancel).pack()
 
         self._fit_window_to_content(popup, min_w=300, min_h=80)
+        if owner is not self.root:
+            self._center_popup_on_owner(popup, owner)
         popup.deiconify()
-        popup.lift()
+        try:
+            popup.lift(owner)
+        except tk.TclError:
+            popup.lift()
         self._search_popup = popup
         self._search_popup_bar = bar
         self._tick_search_popup_progress()
+
+    def _valid_popup_owner(self, owner):
+        """Return a live window suitable as a transient owner."""
+        if owner is None:
+            return self.root
+        try:
+            if owner.winfo_exists():
+                return owner
+        except tk.TclError:
+            pass
+        return self.root
+
+    def _center_popup_on_owner(self, popup, owner):
+        """Center popup over owner instead of over the main app window."""
+        try:
+            popup.update_idletasks()
+            owner.update_idletasks()
+            w = popup.winfo_width()
+            h = popup.winfo_height()
+            owner_x = owner.winfo_x()
+            owner_y = owner.winfo_y()
+            owner_w = owner.winfo_width()
+            owner_h = owner.winfo_height()
+            screen_w = popup.winfo_screenwidth()
+            screen_h = popup.winfo_screenheight()
+            x = owner_x + (owner_w - w) // 2
+            y = owner_y + (owner_h - h) // 2
+            x = max(0, min(x, screen_w - w))
+            y = max(0, min(y, screen_h - h))
+            popup.geometry(f"{w}x{h}+{x}+{y}")
+        except tk.TclError:
+            pass
 
     def _tick_search_popup_progress(self):
         """Advance the search popup's progress bar one step."""
@@ -200,6 +272,16 @@ class BackgroundTaskMixin:
             return
         self._search_popup_anim_id = self.root.after(
             50, self._tick_search_popup_progress)
+
+    def _pulse_search_popup_progress(self):
+        """Advance the search popup immediately during synchronous GUI work."""
+        if self._search_popup is None or self._search_popup_bar is None:
+            return
+        try:
+            self._search_popup_bar.step(6)
+            self._search_popup.update_idletasks()
+        except tk.TclError:
+            pass
 
     def _hide_search_popup(self):
         """Destroy the search progress dialog."""

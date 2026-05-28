@@ -17,6 +17,10 @@ source .venv/bin/activate || {
 	echo 'Failed to activate virtual environment.'
 	exit 1
 }
+mkdir -p locales || {
+  echo 'Failed to create locales directory.'
+  exit 1
+}
 pybabel extract -o locales/gedcom_navigator.pot src/ || {
   echo "Failed to extract strings with pybabel."
   exit 1

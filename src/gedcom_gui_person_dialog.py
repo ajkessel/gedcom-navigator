@@ -13,7 +13,16 @@ import customtkinter as ctk
 
 from gedcom_debug import debug_enabled
 from gedcom_display import describe
-from gedcom_family_tree import INITIAL_TREE_CATEGORIES
+from gedcom_family_tree import (
+    INITIAL_TREE_CATEGORIES,
+    build_descendant_tree_graph,
+    build_pedigree_tree_graph,
+    descendant_tree_expanded_requests,
+    descendant_tree_expansion_options,
+    layout_descendant_tree,
+    layout_family_tree,
+    layout_pedigree_tree,
+)
 from gedcom_platform import filedialog_parent
 from gedcom_relationship import _extract_event
 from gedcom_strings import *  # pylint: disable=unused-wildcard-import
@@ -24,11 +33,43 @@ from gedcom_zoom import TextZoomController, bind_zoom_shortcuts
 class PersonDialogMixin:
     """Person detail window helpers."""
 
-    def _show_profile_from_tree_context(self, indi_id, close_tree_window):
-        """Close Tree View and show indi_id in the main Display Pane profile."""
-        self._select_person_in_main_tree(indi_id)
-        close_tree_window()
-        self.root.after_idle(lambda: self._set_display_mode("profile"))
+    _TREE_VIEW_MODES = ("tree", "pedigree", "descendant")
+
+    def _show_profile_from_tree_context(self, indi_id, show_person_view):
+        """Show indi_id's profile in the current person detail window."""
+        show_person_view(indi_id)
+
+    def _search_tree_center_context(self, pick_person, recenter_tree):
+        """Prompt for a person and recenter the current tree if selected."""
+        indi_id = pick_person()
+        if indi_id:
+            recenter_tree(indi_id)
+        return indi_id
+
+    def _default_tree_view_mode(self):
+        """Return the configured initial tree view for person detail windows."""
+        config = getattr(self, "_config", None)
+        if config is None or not hasattr(config, "get_default_tree"):
+            return "tree"
+        return config.get_default_tree()
+
+    def _resolve_initial_person_view(self, initial_view):
+        """Normalize the requested starting view for a person detail window."""
+        initial_view = initial_view or "profile"
+        if initial_view == "tree":
+            return self._default_tree_view_mode()
+        if initial_view in self._TREE_VIEW_MODES:
+            return initial_view
+        return "profile"
+
+    @staticmethod
+    def _button_bar_needed_width(btn_frame):
+        """Return the requested width needed to show a dialog button bar."""
+        try:
+            btn_frame.update_idletasks()
+            return btn_frame.winfo_reqwidth() + 24
+        except tk.TclError:
+            return 0
 
     def _show_person(self, initial_view=None):
         """Open the GEDCOM record viewer for the selected person."""
@@ -220,7 +261,6 @@ class PersonDialogMixin:
         add("")
 
         self._render_home_path_section(
-            current_id,
             home_paths,
             nl=add,
             person=person,
@@ -328,11 +368,15 @@ class PersonDialogMixin:
 
         copy_shortcut = "<Command-c>" if sys.platform == "darwin" else "<Control-c>"
         save_shortcut = "<Command-s>" if sys.platform == "darwin" else "<Control-s>"
+        find_shortcut = "<Command-f>" if sys.platform == "darwin" else "<Control-f>"
+        jump_shortcut = "<Command-j>" if sys.platform == "darwin" else "<Control-j>"
         toggle_shortcut = "<Command-t>" if sys.platform == "darwin" else "<Control-t>"
         state = {
             "person_id": indi_id,
             "mode": "person",
+            "tree_view_mode": "tree",
             "tree_expanded": [(indi_id, cat) for cat in INITIAL_TREE_CATEGORIES],
+            "descendant_expanded": {indi_id},
             "tree_zoom": 1.0,
             "zoom_controller": None,
             "history": [],
@@ -441,16 +485,73 @@ class PersonDialogMixin:
             canvas.bind("<B1-Motion>", _on_drag_motion, add="+")
             canvas.bind("<ButtonRelease-1>", _on_drag_release, add="+")
 
-        def _render_person_buttons(show_tree_view, copy_profile, save_profile):
+        view_mode_labels = {
+            "tree": BTN_TREE_VIEW,
+            "pedigree": BTN_PEDIGREE_VIEW,
+            "descendant": BTN_DESCENDANT_VIEW,
+            "person": BTN_PERSON_VIEW,
+        }
+        view_mode_by_label = {
+            label: mode for mode, label in view_mode_labels.items()
+        }
+        view_mode_tooltips = {
+            "tree": get_tip_tree_view_btn(),
+            "pedigree": get_tip_pedigree_view_btn(),
+            "descendant": get_tip_descendant_view_btn(),
+            "person": get_tip_person_view_btn(),
+        }
+        view_mode_values = [
+            view_mode_labels["tree"],
+            view_mode_labels["pedigree"],
+            view_mode_labels["descendant"],
+            view_mode_labels["person"],
+        ]
+
+        def _current_window_view():
+            return (
+                "person" if state["mode"] == "person"
+                else state["tree_view_mode"]
+            )
+
+        def _render_view_selector(select_window_view):
+            mode_frame = ctk.CTkFrame(btn_frame, fg_color="transparent")
+            mode_frame.pack(side="left", padx=8)
+
+            def _select_mode(value):
+                select_window_view(view_mode_by_label.get(value, "tree"))
+
+            if hasattr(ctk, "CTkSegmentedButton"):
+                mode_selector = ctk.CTkSegmentedButton(
+                    mode_frame,
+                    values=view_mode_values,
+                    command=_select_mode,
+                )
+                mode_selector.pack(side="left")
+                mode_selector.set(view_mode_labels[_current_window_view()])
+                for mode, label in view_mode_labels.items():
+                    button = mode_selector._buttons_dict.get(label)
+                    if button is not None:
+                        Tooltip(button, view_mode_tooltips[mode])
+            else:
+                mode_var = tk.StringVar(
+                    value=view_mode_labels[_current_window_view()])
+                for mode, value in view_mode_labels.items():
+                    radio = ctk.CTkRadioButton(
+                        mode_frame,
+                        text=value,
+                        variable=mode_var,
+                        value=value,
+                        command=lambda v=value: _select_mode(v),
+                    )
+                    radio.pack(side="left", padx=(0, 6))
+                    Tooltip(radio, view_mode_tooltips[mode])
+
+        def _render_person_buttons(select_window_view, copy_profile, save_profile):
             _clear_buttons()
+            _render_view_selector(select_window_view)
             ctk.CTkButton(
                 btn_frame, text=BTN_CLOSE, width=80, command=win.destroy
             ).pack(side="right", padx=8)
-            tree_btn = ctk.CTkButton(
-                btn_frame, text=BTN_TREE_VIEW, width=90, command=show_tree_view
-            )
-            tree_btn.pack(side="right", padx=(0, 8))
-            Tooltip(tree_btn, get_tip_tree_view_btn())
             copy_btn = ctk.CTkButton(
                 btn_frame, text=BTN_COPY_GRAPH, width=80, command=copy_profile
             )
@@ -463,9 +564,15 @@ class PersonDialogMixin:
             Tooltip(save_btn, get_tip_save_profile())
 
         def _render_tree_buttons(
-            show_person_view, copy_graph, save_graph, save_debug=None
+            select_window_view,
+            copy_graph,
+            save_graph,
+            search_graph,
+            jump_graph,
+            save_debug=None,
         ):
             _clear_buttons()
+            _render_view_selector(select_window_view)
             ctk.CTkButton(
                 btn_frame, text=BTN_CLOSE, width=80, command=win.destroy
             ).pack(side="right", padx=8)
@@ -479,6 +586,16 @@ class PersonDialogMixin:
             )
             save_btn.pack(side="right", padx=(0, 8))
             Tooltip(save_btn, get_tip_save_graph())
+            jump_btn = ctk.CTkButton(
+                btn_frame, text=BTN_JUMP_GRAPH, width=80, command=jump_graph
+            )
+            jump_btn.pack(side="right", padx=(0, 8))
+            Tooltip(jump_btn, get_tip_jump_graph())
+            search_btn = ctk.CTkButton(
+                btn_frame, text=BTN_SEARCH_GRAPH, width=80, command=search_graph
+            )
+            search_btn.pack(side="right", padx=(0, 8))
+            Tooltip(search_btn, get_tip_search_graph())
             if save_debug:
                 debug_btn = ctk.CTkButton(
                     btn_frame, text=BTN_DEBUG_GRAPH, width=100, command=save_debug
@@ -500,6 +617,16 @@ class PersonDialogMixin:
                 state["history"].append(state["person_id"])
                 state["person_id"] = state["forward"].pop()
                 _show_person_view()
+
+        def _select_window_view(new_mode):
+            if new_mode == "person":
+                if state["mode"] != "person":
+                    _show_person_view(state["person_id"])
+                return
+            if (state["mode"] == "tree"
+                    and new_mode == state["tree_view_mode"]):
+                return
+            _show_tree_view(state["person_id"], tree_mode=new_mode)
 
         def _show_person_view(iid=None):
             if iid is not None:
@@ -590,22 +717,43 @@ class PersonDialogMixin:
             win.bind(copy_shortcut, _copy_profile)
             win.bind(save_shortcut, _save_profile)
             _render_person_buttons(
-                lambda: _show_tree_view(state["person_id"]),
+                _select_window_view,
                 _copy_profile,
                 _save_profile,
             )
             text.focus_set()
 
-        def _show_tree_view(iid=None):
+        def _tree_window_title(mode, name):
+            if mode == "pedigree":
+                return WIN_PEDIGREE_TREE.format(name=name)
+            if mode == "descendant":
+                return WIN_DESCENDANT_TREE.format(name=name)
+            return WIN_FAMILY_TREE.format(name=name)
+
+        def _tree_save_title(mode):
+            if mode == "pedigree":
+                return DLG_SAVE_PEDIGREE_TREE
+            if mode == "descendant":
+                return DLG_SAVE_DESCENDANT_TREE
+            return DLG_SAVE_FAMILY_TREE
+
+        def _show_tree_view(iid=None, tree_mode=None):
+            was_tree = state["mode"] == "tree"
+            center_changed = iid is not None and iid != state["person_id"]
             if iid is not None:
                 state["person_id"] = iid
+            if tree_mode is not None:
+                state["tree_view_mode"] = tree_mode
             state["mode"] = "tree"
-            state["tree_expanded"] = [
-                (state["person_id"], cat) for cat in INITIAL_TREE_CATEGORIES
-            ]
+            if center_changed or not was_tree:
+                state["tree_expanded"] = [
+                    (state["person_id"], cat) for cat in INITIAL_TREE_CATEGORIES
+                ]
+                state["descendant_expanded"] = {state["person_id"]}
             _clear_content()
             indi = self.individuals[state["person_id"]]
-            win.title(WIN_FAMILY_TREE.format(name=indi["name"] or state["person_id"]))
+            win.title(_tree_window_title(
+                state["tree_view_mode"], indi["name"] or state["person_id"]))
 
             is_dark = ctk.get_appearance_mode() == "Dark"
             colors = self._path_graph_colors(
@@ -618,6 +766,7 @@ class PersonDialogMixin:
             canvas_frame.columnconfigure(0, weight=1)
 
             canvas = tk.Canvas(canvas_frame, bg=colors["bg"], highlightthickness=0)
+            canvas._highlighted_nodes = set()
             ybar = tk.Scrollbar(canvas_frame, orient="vertical", command=canvas.yview)
             xbar = tk.Scrollbar(canvas_frame, orient="horizontal", command=canvas.xview)
             canvas.configure(yscrollcommand=ybar.set, xscrollcommand=xbar.set)
@@ -639,13 +788,73 @@ class PersonDialogMixin:
                 add="+",
             )
 
-            def _redraw_tree():
+            def _redraw_tree(progress_callback=None):
                 canvas.delete("all")
+                mode = state["tree_view_mode"]
+                render_kwargs = {}
+                expanded = state["tree_expanded"]
+                if mode == "pedigree":
+                    graph = build_pedigree_tree_graph(
+                        state["person_id"], self.individuals, self.families)
+                    expanded = []
+                    render_kwargs.update({
+                        "graph_builder": lambda graph=graph: graph,
+                        "layout_builder": layout_pedigree_tree,
+                        "expandable_categories": (),
+                        "orientation": "horizontal",
+                    })
+                elif mode == "descendant":
+                    graph = build_descendant_tree_graph(
+                        state["person_id"],
+                        state["descendant_expanded"],
+                        self.individuals,
+                        self.families,
+                    )
+                    branch_ids = {state["person_id"]}
+                    changed = True
+                    while changed:
+                        changed = False
+                        for source_id, target_id, category in graph[1]:
+                            if (category == "children"
+                                    and source_id in branch_ids
+                                    and target_id not in branch_ids):
+                                branch_ids.add(target_id)
+                                changed = True
+                    expanded = descendant_tree_expanded_requests(
+                        [indi_id for indi_id in graph[0]
+                         if indi_id in branch_ids],
+                        state["descendant_expanded"],
+                        self._family_tree_members_for,
+                    )
+                    render_kwargs.update({
+                        "graph_builder": lambda graph=graph: graph,
+                        "layout_builder": layout_descendant_tree,
+                        "expandable_categories": ("children",),
+                        "graph_type": "descendant_tree",
+                        "expansion_options_lookup": (
+                            lambda node_id, visible_set:
+                            descendant_tree_expansion_options(
+                                node_id,
+                                visible_set,
+                                self._family_tree_members_for,
+                            )
+                            if node_id in branch_ids else {"children": []}
+                        ),
+                        "expanded_for_buttons": expanded,
+                        "expand_all_categories_lookup": (
+                            lambda node_id, visible_set:
+                            ("children",)
+                            if (node_id in branch_ids
+                                and self._family_tree_members_for(
+                                    node_id).get("children"))
+                            else ()
+                        ),
+                    })
                 graph_state["canvas_w"], graph_state["canvas_h"] = (
                     self._render_family_tree_canvas(
                         canvas,
                         state["person_id"],
-                        state["tree_expanded"],
+                        expanded,
                         colors,
                         win,
                         graph_state["zoom"],
@@ -655,11 +864,15 @@ class PersonDialogMixin:
                         _find_matches_from_tree,
                         _find_paths_from_tree,
                         _expand_all_tree,
+                        progress_callback=progress_callback,
+                        **render_kwargs,
                     )
                 )
                 graph_state["debug_payload"] = getattr(
                     canvas, "_family_tree_debug_payload", None
                 )
+
+            canvas._redraw_fn = _redraw_tree
 
             def _center_tree_on_current():
                 canvas.update_idletasks()
@@ -727,7 +940,10 @@ class PersonDialogMixin:
                     tnw = int(graph_state["canvas_w"]) + 65
                     tnh = int(graph_state["canvas_h"]) + 105
                     if tnw > int(tsw * 0.9) or tnh > int(tsh * 0.9):
-                        win.state("zoomed")
+                        if sys.platform == "win32":
+                            win.state("zoomed")
+                        else:
+                            win.attributes("-zoomed", True)
                     else:
                         cur_w = win.winfo_width()
                         cur_h = win.winfo_height()
@@ -744,6 +960,14 @@ class PersonDialogMixin:
                     pass
 
             def _expand_tree(expand_id, category):
+                if state["tree_view_mode"] == "descendant":
+                    if expand_id in state["descendant_expanded"]:
+                        state["descendant_expanded"].remove(expand_id)
+                    else:
+                        state["descendant_expanded"].add(expand_id)
+                    _redraw_tree()
+                    _maybe_grow_tree_win()
+                    return
                 request = (expand_id, category)
                 self._toggle_expansion_request(state["tree_expanded"], request)
                 _redraw_tree()
@@ -754,14 +978,16 @@ class PersonDialogMixin:
                 state["tree_expanded"] = [
                     (new_center_id, cat) for cat in INITIAL_TREE_CATEGORIES
                 ]
+                state["descendant_expanded"] = {new_center_id}
                 center = self.individuals[new_center_id]
-                win.title(WIN_FAMILY_TREE.format(name=center["name"] or new_center_id))
+                win.title(_tree_window_title(
+                    state["tree_view_mode"], center["name"] or new_center_id))
                 _redraw_tree()
                 canvas.after_idle(_center_tree_on_current)
 
             def _show_profile_from_tree(indi_id):
                 self._show_profile_from_tree_context(
-                    indi_id, _on_destroy_person_win)
+                    indi_id, _show_person_view)
 
             def _find_matches_from_tree(indi_id):
                 self._select_person_in_main_tree(indi_id)
@@ -776,6 +1002,76 @@ class PersonDialogMixin:
                     lambda: self._run_path_search(center_id, indi_id))
 
             def _expand_all_tree(indi_id, categories):
+                if state["tree_view_mode"] == "descendant":
+                    def _collect_descendants(cancel_event):
+                        to_expand = {indi_id}
+                        stack = [indi_id]
+                        while stack:
+                            if cancel_event.is_set():
+                                return None
+                            source_id = stack.pop()
+                            for child_id in self._family_tree_members_for(
+                                    source_id).get("children", ()):
+                                if child_id in to_expand:
+                                    continue
+                                to_expand.add(child_id)
+                                stack.append(child_id)
+                        return to_expand
+
+                    def _on_cancel():
+                        self._hide_search_popup()
+
+                    def _on_done(result, error):
+                        if error:
+                            self._hide_search_popup()
+                            messagebox.showerror(ERR_PARSE_TITLE, str(error))
+                            return
+                        if not result:
+                            self._hide_search_popup()
+                            return
+
+                        def _apply_expand_all():
+                            before = set(state["descendant_expanded"])
+                            state["descendant_expanded"].update(result)
+                            if before != state["descendant_expanded"]:
+                                _redraw_tree(self._pulse_search_popup_progress)
+                                _maybe_grow_tree_win()
+                            self._hide_search_popup()
+
+                        if len(result) < 250:
+                            _apply_expand_all()
+                            return
+
+                        apply_cancelled = {"value": False}
+
+                        def _cancel_apply():
+                            apply_cancelled["value"] = True
+                            self._hide_search_popup()
+
+                        self._hide_search_popup()
+                        self._show_search_popup(
+                            PROGRESS_EXPANDING_DESCENDANTS,
+                            on_cancel=_cancel_apply,
+                            owner=win,
+                        )
+
+                        def _apply_after_popup_maps():
+                            if apply_cancelled["value"]:
+                                return
+                            _apply_expand_all()
+
+                        win.after(100, _apply_after_popup_maps)
+
+                    self._run_background_task(
+                        _collect_descendants,
+                        _on_done,
+                        popup_message=PROGRESS_EXPANDING_DESCENDANTS,
+                        cancelable=True,
+                        on_cancel=_on_cancel,
+                        popup_delay_ms=2000,
+                        popup_owner=win,
+                    )
+                    return
                 if self._expand_all_requests(
                     state["tree_expanded"], indi_id, categories
                 ):
@@ -786,7 +1082,10 @@ class PersonDialogMixin:
                 win.update_idletasks()
                 try:
                     return self._save_graph_canvas(
-                        win, canvas, graph_state, DLG_SAVE_FAMILY_TREE
+                        win,
+                        canvas,
+                        graph_state,
+                        _tree_save_title(state["tree_view_mode"]),
                     )
                 finally:
                     btn_frame.pack(fill="x", pady=(4, 8))
@@ -797,6 +1096,36 @@ class PersonDialogMixin:
                     return self._copy_graph_canvas(win, canvas, graph_state)
                 finally:
                     btn_frame.pack(fill="x", pady=(4, 8))
+
+            def _search_tree_center(*_):
+                self._search_tree_center_context(
+                    lambda: self._pick_person(WIN_SELECT_PERSON, owner=win),
+                    _recenter_tree,
+                )
+                return "break"
+
+            def _jump_tree_center(*_):
+                visible = set(getattr(canvas, "_family_tree_positions", {}).keys())
+                indi_id = self._pick_person(WIN_SELECT_PERSON, owner=win,
+                                            filter_ids=visible if visible else None)
+                if not indi_id:
+                    return "break"
+                positions = getattr(canvas, "_family_tree_positions", {})
+                if indi_id not in positions:
+                    return "break"
+                node_x, node_y = positions[indi_id]
+                canvas.update_idletasks()
+                view_w = max(canvas.winfo_width(), 1)
+                view_h = max(canvas.winfo_height(), 1)
+                canvas_w = max(graph_state["canvas_w"], 1)
+                canvas_h = max(graph_state["canvas_h"], 1)
+                max_x = max(0, 1 - (view_w / canvas_w))
+                max_y = max(0, 1 - (view_h / canvas_h))
+                x_pos = max(0, min(max_x, (node_x - view_w / 2) / canvas_w))
+                y_pos = max(0, min(max_y, (node_y - view_h / 2) / canvas_h))
+                canvas.xview_moveto(x_pos)
+                canvas.yview_moveto(y_pos)
+                return "break"
 
             def _save_tree_debug(*_):
                 win.update_idletasks()
@@ -811,16 +1140,24 @@ class PersonDialogMixin:
             bind_zoom_shortcuts(canvas, _zoom_tree_in, _zoom_tree_out, _zoom_tree_reset)
             win.bind(copy_shortcut, _copy_tree)
             win.bind(save_shortcut, _save_tree)
+            win.bind(find_shortcut, _search_tree_center)
+            canvas.bind(find_shortcut, _search_tree_center)
+            win.bind(jump_shortcut, _jump_tree_center)
+            canvas.bind(jump_shortcut, _jump_tree_center)
             graph_debug_enabled = debug_enabled()
             if graph_debug_enabled:
                 win.bind("<Control-Shift-D>", _save_tree_debug)
                 canvas.bind("<Control-Shift-D>", _save_tree_debug)
             _render_tree_buttons(
-                lambda: _show_person_view(state["person_id"]),
+                _select_window_view,
                 _copy_tree,
                 _save_tree,
+                _search_tree_center,
+                _jump_tree_center,
                 _save_tree_debug if graph_debug_enabled else None,
             )
+            state["_tree_button_needed_w"] = self._button_bar_needed_width(
+                btn_frame)
             canvas.focus_set()
             canvas.after_idle(_center_tree_on_current)
 
@@ -836,6 +1173,7 @@ class PersonDialogMixin:
             _tmax_h = int(_tsh * 0.9)
             _tnw = int(graph_state["canvas_w"]) + 65
             _tnh = int(graph_state["canvas_h"]) + 105
+            _tnw = max(_tnw, state.get("_tree_button_needed_w", 0))
             _twants_max = _tnw > _tmax_w or _tnh > _tmax_h
             state["_tree_wants_max"] = _twants_max
             state["_tree_needed_w"] = min(_tnw, _tmax_w)
@@ -868,16 +1206,17 @@ class PersonDialogMixin:
                         )
 
         def _toggle_view(*_):
-            if state["mode"] == "person":
-                _show_tree_view(state["person_id"])
-            else:
-                _show_person_view(state["person_id"])
+            cycle = ("tree", "pedigree", "descendant", "person")
+            current = _current_window_view()
+            next_mode = cycle[(cycle.index(current) + 1) % len(cycle)]
+            _select_window_view(next_mode)
+            return "break"
 
         win.bind(toggle_shortcut, _toggle_view)
 
-        initial_view = initial_view or "profile"
-        if initial_view == "tree":
-            _show_tree_view(indi_id)
+        initial_view = self._resolve_initial_person_view(initial_view)
+        if initial_view in self._TREE_VIEW_MODES:
+            _show_tree_view(indi_id, tree_mode=initial_view)
         else:
             _show_person_view(indi_id)
 
@@ -942,7 +1281,17 @@ class PersonDialogMixin:
         win.geometry(f"{int(_w)}x{int(_h)}+{int(_x)}+{int(_y)}")
         self._raise_window(win)
         if _twm:
-            win.state("zoomed")
+            if sys.platform == "win32":
+                win.state("zoomed")
+            else:
+                try:
+                    win.attributes("-zoomed", True)
+                except tk.TclError:
+                    win.geometry(
+                        f"{state.get('_tree_needed_w', _mw)}"
+                        f"x{state.get('_tree_needed_h', _mh)}"
+                        f"+{_x}+{_y}"
+                    )
 
     @staticmethod
     def _reused_person_window_bindings():

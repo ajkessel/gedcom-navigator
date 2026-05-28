@@ -61,16 +61,11 @@ def test_show_person_for_missing_id_warns_without_opening_window(monkeypatch):
     assert not hasattr(app, '_secondary_win')
 
 
-def test_tree_context_profile_closes_window_and_shows_display_profile():
-    """Tree View Profile action moves the selected person to the Display Pane."""
-
-    class Root:
-        def after_idle(self, callback):
-            callback()
+def test_tree_context_profile_stays_in_person_window():
+    """Tree View Profile action navigates within the person detail window."""
 
     class App(PersonDialogMixin):
         def __init__(self):
-            self.root = Root()
             self.calls = []
 
         def _select_person_in_main_tree(self, indi_id):
@@ -80,12 +75,67 @@ def test_tree_context_profile_closes_window_and_shows_display_profile():
             self.calls.append(('display', mode))
 
     app = App()
-    closed = []
+    navigated = []
 
-    app._show_profile_from_tree_context('@P1@', lambda: closed.append(True))
+    app._show_profile_from_tree_context('@P1@', lambda iid: navigated.append(iid))
 
-    assert closed == [True]
-    assert app.calls == [('select', '@P1@'), ('display', 'profile')]
+    assert navigated == ['@P1@']
+    assert app.calls == []
+
+
+def test_tree_initial_view_uses_configured_default_tree():
+    """Opening Tree View starts with the configured tree subview."""
+
+    class Config:
+        def get_default_tree(self):
+            return 'pedigree'
+
+    class App(PersonDialogMixin):
+        def __init__(self):
+            self._config = Config()
+
+    app = App()
+
+    assert app._resolve_initial_person_view('tree') == 'pedigree'
+    assert app._resolve_initial_person_view('descendant') == 'descendant'
+    assert app._resolve_initial_person_view('profile') == 'profile'
+    assert app._resolve_initial_person_view(None) == 'profile'
+
+
+def test_button_bar_needed_width_includes_window_padding():
+    """Tree View initial sizing accounts for the full button row."""
+
+    class ButtonFrame:
+        def __init__(self):
+            self.updated = False
+
+        def update_idletasks(self):
+            self.updated = True
+
+        def winfo_reqwidth(self):
+            return 820
+
+    frame = ButtonFrame()
+
+    assert PersonDialogMixin._button_bar_needed_width(frame) == 844
+    assert frame.updated is True
+
+
+def test_tree_search_recenters_only_when_person_selected():
+    """Tree search leaves the current center unchanged when the picker is cancelled."""
+
+    class App(PersonDialogMixin):
+        pass
+
+    app = App()
+    recentered = []
+
+    selected = app._search_tree_center_context(lambda: '@P1@', recentered.append)
+    cancelled = app._search_tree_center_context(lambda: None, recentered.append)
+
+    assert selected == '@P1@'
+    assert cancelled is None
+    assert recentered == ['@P1@']
 
 
 def test_profile_home_path_appears_between_bio_and_full_gedcom():

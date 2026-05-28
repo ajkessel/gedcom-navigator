@@ -1,5 +1,42 @@
 # Changelog
 
+## [1.9.6] - 2026-05-28
+
+### Added
+
+- **Highlight button in graph view** — a new "Highlight" button allows you to add highlighting to as many people in your garphical tree as you want. This highlighting persists when you copy or save your tree, to make it easier to share specific information with others. 
+- **Jump button in graph view** — a new "Jump" button (keyboard shortcut `Ctrl+J` / `⌘J`) appears between the Search and Save buttons in the tree, pedigree, and descendant graph view windows. It opens a person picker pre-filtered to only the individuals visible in the current graph, then pans the canvas to center the selected person without re-centering or re-rendering the graph. The picker includes the same Find/Filter/Fuzzy/Married/Tagged controls as the main Search picker.
+- **Pedigree view** — the Show Person window now includes a Pedigree view that displays the full recorded ancestor tree for a person, laid out left-to-right by generation. All ancestor branches visible in the GEDCOM data are shown simultaneously, with right-angle connectors linking each person to their parents. The layout centers each person between their recorded parents and compacts the vertical spacing.
+- **Descendant view** — a new Descendant view in the Show Person window shows all recorded descendants in an expandable top-down tree. Each expanded person shows their spouses and children; branches can be collapsed and expanded interactively.
+- **View mode selector in Show Person window** — a segmented button (or radio group on smaller windows) lets you cycle between Tree View, Pedigree View, Descendant View, and Profile View. The preferred mode is persisted to settings and restored on next launch (`get_default_tree` / `set_default_tree` in `ConfigManager`). `Ctrl+T` cycles through all four modes.
+- **Winget build script** — `dev/build-winget.ps1` automates generation of Windows Package Manager (Winget) manifests from templates in `dev/winget/`. It reads the current version from `gedcom_navigator/__init__.py`, computes the installer SHA-256, fills `{VERSION}`, `{VERSIONX}`, and `{INSTALLERSHA256}` placeholders, writes YAML manifests to `dist/`, and optionally commits and pushes them to a local clone of the `winget-pkgs` repository.
+- **Tab-shaped expand/collapse buttons** — expansion buttons in the family tree canvas now render as rounded-edge tabs that visually attach to the node they control, with only the exposed outer corners rounded. Separate tab shapes are drawn for parent, child, sibling, and spouse categories.
+- **Progress pulsing during large tree renders** — the family tree renderer now accepts a `progress_callback` argument and calls it periodically while drawing large trees, keeping the search popup progress bar alive during slow renders.
+
+### Fixed
+
+- **Copy name now includes GEDCOM ID** — if you have "show GEDCOM IDs" enabled, clicking on the name at the top of the profile and selecting "copy" will also include the GEDCOM ID.
+- **Family tree window crash on Linux when tree is large** — `win.state("zoomed")` is a Windows-only Tk call; on Linux it raises `TclError: bad argument "zoomed"`. The tree-view window-sizing code now uses `win.attributes("-zoomed", True)` on non-Windows platforms (with a `geometry()` fallback for macOS, where `-zoomed` is also unsupported). Two sites were affected: the initial window placement in `_show_person_for` (which crashed), and `_maybe_grow_tree_win` (which silently failed to maximize after a user expansion).
+- **Winget manifest generation extracted from main build script** — the Winget manifest generation code has been removed from `dev/build.ps1` and now lives exclusively in `dev/build-winget.ps1`, keeping the Windows build script focused on compilation and packaging.
+
+### Changed
+
+- **`draw_family_tree` is now a general-purpose graph renderer** — `FamilyTreeRenderMixin._draw_family_tree` accepts `graph_builder`, `layout_builder`, `expandable_categories`, `expansion_options_lookup`, `expanded_for_buttons`, `orientation`, `expand_all_categories_lookup`, and `progress_callback` parameters. This allows the pedigree and descendant views to share the same canvas-drawing infrastructure with the standard family tree.
+- **Horizontal layout support for pedigree view** — the renderer detects `orientation='horizontal'` and adjusts node widths, fonts (with extra shrink at low zoom), and connector geometry to suit a left-to-right generational layout.
+- **Keyboard shortcut documentation updated** — the Profile / Graph View Window shortcut table now reflects that `Ctrl+T` cycles through all four view modes (Tree, Pedigree, Descendant, Profile) and that `Ctrl+S`/`Ctrl+C` save or copy the current graph rather than only the profile or tree.
+- **Development documentation expanded** — `docs/DEVELOPMENT.md` now lists all source modules with descriptions, adds `gedcom_gui_appearance.py` and `gedcom_gui_graph_render.py` to the GUI module table, corrects the dev-requirements filename (`requirements-dev.txt`), and documents the `gedcom_navigator/` PyPI shim package.
+
+### Tests
+
+- **Regression test for tree-view zoomed crash** — `tests/test_gui_smoke.py` gains `test_tree_view_opens_when_zoomed_attribute_raises`, which monkeypatches `wm_attributes` to raise `TclError` on `-zoomed` (simulating macOS/Linux Aqua Tk) and forces `_twants_max = True` via a tiny fake screen size, then asserts the tree-view window opens without error.
+- **Pedigree graph builder tests** — `tests/test_gui_results.py` gains `test_pedigree_tree_graph_includes_all_recorded_parent_families`, `test_pedigree_tree_layout_centers_people_between_their_parents`, and `test_pedigree_tree_layout_keeps_deep_parent_pairs_adjacent` verifying the new pedigree graph builder and layout algorithm.
+- **Pedigree renderer geometry tests** — `test_pedigree_font_extra_shrink_only_applies_below_normal_zoom`, `test_pedigree_parent_connectors_are_orthogonal`, and `test_pedigree_single_parent_connector_exits_horizontally` cover the horizontal-layout connector and font-shrink helpers.
+- **Expansion button shape tests** — `test_expansion_button_tab_rounds_only_outer_edge` asserts the tab polygon rounding applies only to exposed corners.
+- **Family tree layout tests** — `test_family_tree_spouse_pair_keeps_each_partner_family_siblings_grouped` and `test_family_tree_compacts_sibling_branch_with_children_as_block` extend sibling-layout coverage in `tests/test_gui_results.py`.
+- **Person dialog view mode tests** — `tests/test_gui_person_dialog.py` gains `test_tree_initial_view_uses_configured_default_tree`, `test_button_bar_needed_width_includes_window_padding`, and `test_tree_search_recenters_only_when_person_selected`; `test_tree_context_profile_closes_window_and_shows_display_profile` is updated to `test_tree_context_profile_stays_in_person_window` reflecting the new in-window profile navigation behavior.
+- **Config tests for default tree mode** — `tests/test_config.py` gains a `TestDefaultTree` class covering `get_default_tree` / `set_default_tree` for the `tree`, `pedigree`, and `descendant` values and the invalid-value fallback.
+- **Dialog owner tests** — `tests/test_gui_dialogs.py` gains `test_valid_dialog_owner_prefers_live_owner_window` covering the `_valid_popup_owner` helper.
+
 ## [1.9.5] - 2026-05-26
 
 ### Added
