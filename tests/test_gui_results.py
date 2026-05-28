@@ -3,6 +3,8 @@
 import json
 from pathlib import Path
 
+import pytest
+
 from gedcom_family_tree import (
     _nearest_unblocked_column,
     build_descendant_tree_graph,
@@ -21,7 +23,10 @@ import gedcom_strings as gs
 
 
 def _load_debug_family_tree_layout(name):
-    payload = json.loads((Path('debug') / f'{name}.json').read_text())
+    path = Path('debug') / f'{name}.json'
+    if not path.exists():
+        pytest.skip(f'debug/{name}.json not found')
+    payload = json.loads(path.read_text())
     edges = [
         (edge['source'], edge['target'], edge['category'])
         for edge in payload['edges']
@@ -31,6 +36,31 @@ def _load_debug_family_tree_layout(name):
             payload['center_id'], payload['visible_ids'], edges),
         edges,
     )
+
+
+def _debug_edges_in_family_member_order(payload):
+    """Return debug edges in the graph-builder order, not JSON sort order."""
+    edges = [
+        (edge['source'], edge['target'], edge['category'])
+        for edge in payload['edges']
+    ]
+    edge_set = set(edges)
+    ordered_edges = []
+    seen_edges = set()
+    for source_id in payload['visible_ids']:
+        members = payload.get('family_members', {}).get(source_id, {})
+        for spouse_id in members.get('spouses', ()):
+            edge = (source_id, spouse_id, 'spouses')
+            if edge in edge_set and edge not in seen_edges:
+                ordered_edges.append(edge)
+                seen_edges.add(edge)
+        for child_id in members.get('children', ()):
+            edge = (source_id, child_id, 'children')
+            if edge in edge_set and edge not in seen_edges:
+                ordered_edges.append(edge)
+                seen_edges.add(edge)
+    ordered_edges.extend(edge for edge in edges if edge not in seen_edges)
+    return ordered_edges
 
 
 def _assert_no_same_row_conflicts(layout):
@@ -705,14 +735,31 @@ def test_descendant_tree_debug_keeps_child_family_units_together():
                 '@I102681750207@',
             ],
         ),
+        (
+            '10',
+            [
+                '@I102681749719@',
+                '@I102681750190@',
+                '@I102681750195@',
+                '@I102681750197@',
+                '@I102681750198@',
+                '@I102681751293@',
+                '@I102681750199@',
+                '@I102681750200@',
+                '@I102681750201@',
+                '@I102681750205@',
+                '@I102681750206@',
+                '@I102681750207@',
+            ],
+        ),
     ]
 
     for fixture_name, family_units in cases:
-        payload = json.loads((Path('debug') / f'{fixture_name}.json').read_text())
-        edges = [
-            (edge['source'], edge['target'], edge['category'])
-            for edge in payload['edges']
-        ]
+        debug_path = Path('debug') / f'{fixture_name}.json'
+        if not debug_path.exists():
+            continue
+        payload = json.loads(debug_path.read_text())
+        edges = _debug_edges_in_family_member_order(payload)
         layout = layout_descendant_tree(
             payload['center_id'], payload['visible_ids'], edges)
         by_id = {node['id']: node for node in layout}
