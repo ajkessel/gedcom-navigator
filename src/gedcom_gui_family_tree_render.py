@@ -5,6 +5,7 @@ gedcom_gui_family_tree_render.py
 Family-tree canvas rendering helpers for person detail windows.
 """
 
+import math
 import sys
 import tkinter as tk
 import tkinter.font as tkfont
@@ -74,40 +75,59 @@ class FamilyTreeRenderMixin:
         return source_right_x + offset
 
     @staticmethod
-    def _draw_expansion_button_tab(canvas, bx, by, button_size, category,
-                                   side, fill, outline, tags):
-        """Draw an expand/collapse button as an attached rounded-edge tab."""
+    def _arc_points(cx, cy, radius, start_degrees, end_degrees, steps=8):
+        """Return points approximating a canvas arc."""
+        if steps <= 0:
+            steps = 1
+        return [
+            (
+                cx + radius * math.cos(math.radians(
+                    start_degrees + (end_degrees - start_degrees) * index
+                    / steps)),
+                cy + radius * math.sin(math.radians(
+                    start_degrees + (end_degrees - start_degrees) * index
+                    / steps)),
+            )
+            for index in range(steps + 1)
+        ]
+
+    @classmethod
+    def _expansion_button_tab_points(cls, bx, by, button_size, category, side):
+        """Return a tab polygon with only the exposed corners rounded."""
         half = button_size / 2
-        radius = min(button_size / 3, 5)
+        radius = half
         x1, y1 = bx - half, by - half
         x2, y2 = bx + half, by + half
+
         if category == 'parents':
-            points = (
-                x1, y2, x1, y1 + radius, x1 + radius, y1,
-                x2 - radius, y1, x2, y1 + radius, x2, y2,
-            )
+            points = [(x1, y2), (x1, by)]
+            points.extend(cls._arc_points(bx, by, radius, 180, 360))
+            points.append((x2, y2))
         elif category == 'children':
-            points = (
-                x1, y1, x1, y2 - radius, x1 + radius, y2,
-                x2 - radius, y2, x2, y2 - radius, x2, y1,
-            )
+            points = [(x1, y1), (x1, by)]
+            points.extend(cls._arc_points(bx, by, radius, 180, 0))
+            points.append((x2, y1))
         elif side == 'left':
-            points = (
-                x2, y1, x1 + radius, y1, x1, y1 + radius,
-                x1, y2 - radius, x1 + radius, y2, x2, y2,
-            )
+            points = [(x2, y1), (bx, y1)]
+            points.extend(cls._arc_points(bx, by, radius, 270, 90))
+            points.append((x2, y2))
         else:
-            points = (
-                x1, y1, x2 - radius, y1, x2, y1 + radius,
-                x2, y2 - radius, x2 - radius, y2, x1, y2,
-            )
+            points = [(x1, y1), (bx, y1)]
+            points.extend(cls._arc_points(bx, by, radius, 270, 450))
+            points.append((x1, y2))
+
+        return tuple(coordinate for point in points for coordinate in point)
+
+    @classmethod
+    def _draw_expansion_button_tab(cls, canvas, bx, by, button_size, category,
+                                   side, fill, outline, tags):
+        """Draw an expand/collapse button as an attached rounded-edge tab."""
         canvas.create_polygon(
-            *points,
+            *cls._expansion_button_tab_points(
+                bx, by, button_size, category, side),
             fill=fill,
             outline=outline,
             width=1,
-            smooth=True,
-            splinesteps=8,
             tags=tags,
         )
 

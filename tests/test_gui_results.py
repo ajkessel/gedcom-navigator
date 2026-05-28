@@ -80,25 +80,24 @@ def test_expansion_button_tab_rounds_only_outer_edge():
         50,
         60,
         20,
-        'parents',
+        'spouses',
         'right',
         '#336699',
         '#d0d0d0',
         ('family_tree_button', 'node_button'),
     )
 
-    assert canvas.polygons == [(
-        (40.0, 70.0, 40.0, 55.0, 45.0, 50.0,
-         55.0, 50.0, 60.0, 55.0, 60.0, 70.0),
-        {
-            'fill': '#336699',
-            'outline': '#d0d0d0',
-            'width': 1,
-            'smooth': True,
-            'splinesteps': 8,
-            'tags': ('family_tree_button', 'node_button'),
-        },
-    )]
+    points, kwargs = canvas.polygons[0]
+
+    assert points[:4] == (40.0, 50.0, 50.0, 50.0)
+    assert points[-2:] == (40.0, 70.0)
+    assert max(points[0::2]) == 60.0
+    assert kwargs == {
+        'fill': '#336699',
+        'outline': '#d0d0d0',
+        'width': 1,
+        'tags': ('family_tree_button', 'node_button'),
+    }
 
 
 def test_home_path_section_renders_missing_path_message():
@@ -4612,6 +4611,109 @@ def test_family_tree_parent_siblings_stay_on_spouse_opposite_sides():
     assert all(column > by_id['@PARENT_R@']['column']
                for column in right_siblings)
     assert sorted(right_siblings) == right_siblings
+
+
+def test_family_tree_spouse_pair_keeps_each_partner_family_siblings_grouped():
+    """Spouses keep their own sibling groups outside the couple."""
+    visible = [
+        '@LEFT@',
+        '@RIGHT@',
+        '@LEFT_PARENT@',
+        '@LEFT_PARENT_SP@',
+        '@LEFT_SIB1@',
+        '@LEFT_SIB2@',
+        '@LEFT_SIB3@',
+        '@RIGHT_SIB1@',
+        '@RIGHT_SIB2@',
+        '@RIGHT_SIB3@',
+    ]
+    edges = [
+        ('@LEFT@', '@RIGHT@', 'spouses'),
+        ('@LEFT_PARENT@', '@LEFT_PARENT_SP@', 'spouses'),
+        ('@LEFT_PARENT@', '@LEFT@', 'children'),
+        ('@LEFT_PARENT@', '@LEFT_SIB1@', 'children'),
+        ('@LEFT_PARENT@', '@LEFT_SIB2@', 'children'),
+        ('@LEFT_PARENT@', '@LEFT_SIB3@', 'children'),
+        ('@RIGHT@', '@RIGHT_SIB1@', 'siblings'),
+        ('@RIGHT@', '@RIGHT_SIB2@', 'siblings'),
+        ('@RIGHT@', '@RIGHT_SIB3@', 'siblings'),
+    ]
+
+    layout = layout_family_tree('@LEFT@', visible, edges)
+    by_id = {node['id']: node for node in layout}
+    left_siblings = [
+        by_id['@LEFT_SIB1@']['column'],
+        by_id['@LEFT_SIB2@']['column'],
+        by_id['@LEFT_SIB3@']['column'],
+    ]
+    right_siblings = [
+        by_id['@RIGHT_SIB1@']['column'],
+        by_id['@RIGHT_SIB2@']['column'],
+        by_id['@RIGHT_SIB3@']['column'],
+    ]
+
+    assert by_id['@LEFT@']['column'] < by_id['@RIGHT@']['column']
+    assert by_id['@RIGHT@']['column'] == by_id['@LEFT@']['column'] + 1.0
+    assert all(column < by_id['@LEFT@']['column']
+               for column in left_siblings)
+    assert all(column > by_id['@RIGHT@']['column']
+               for column in right_siblings)
+    assert [
+        round(right - left, 1)
+        for left, right in zip(
+            sorted(left_siblings), sorted(left_siblings)[1:])
+    ] == [1.0, 1.0]
+    assert [
+        round(right - left, 1)
+        for left, right in zip(
+            sorted(right_siblings), sorted(right_siblings)[1:])
+    ] == [1.0, 1.0]
+
+
+def test_family_tree_compacts_sibling_branch_with_children_as_block():
+    """Sibling branches with children slide closer without skewing the branch."""
+    visible = [
+        '@CENTER@',
+        '@CENTER_SP@',
+        '@CENTER_CH1@',
+        '@CENTER_CH2@',
+        '@PARENT@',
+        '@PARENT_SP@',
+        '@CENTER_SIB1@',
+        '@CENTER_SIB2@',
+        '@AUNT@',
+        '@UNCLE@',
+        '@AUNT_SP@',
+        '@AUNT_CH1@',
+        '@AUNT_CH2@',
+        '@AUNT_CH3@',
+    ]
+    edges = [
+        ('@CENTER@', '@CENTER_SP@', 'spouses'),
+        ('@CENTER@', '@CENTER_CH1@', 'children'),
+        ('@CENTER@', '@CENTER_CH2@', 'children'),
+        ('@CENTER@', '@PARENT@', 'parents'),
+        ('@CENTER@', '@PARENT_SP@', 'parents'),
+        ('@CENTER@', '@CENTER_SIB1@', 'siblings'),
+        ('@CENTER@', '@CENTER_SIB2@', 'siblings'),
+        ('@PARENT@', '@PARENT_SP@', 'spouses'),
+        ('@PARENT@', '@AUNT@', 'siblings'),
+        ('@PARENT@', '@UNCLE@', 'siblings'),
+        ('@AUNT@', '@AUNT_SP@', 'spouses'),
+        ('@AUNT@', '@AUNT_CH1@', 'children'),
+        ('@AUNT@', '@AUNT_CH2@', 'children'),
+        ('@AUNT@', '@AUNT_CH3@', 'children'),
+    ]
+
+    layout = layout_family_tree('@CENTER@', visible, edges)
+    by_id = {node['id']: node for node in layout}
+    parent_left_gap = (
+        by_id['@PARENT@']['column'] - by_id['@AUNT_SP@']['column'])
+
+    assert 1.0 <= parent_left_gap <= 2.0
+    assert by_id['@AUNT_SP@']['column'] == by_id['@AUNT@']['column'] + 1.0
+    assert by_id['@AUNT_CH2@']['column'] == (
+        by_id['@AUNT@']['column'] + by_id['@AUNT_SP@']['column']) / 2
 
 
 def test_family_tree_child_alignment_keeps_adjusted_siblings_separate():

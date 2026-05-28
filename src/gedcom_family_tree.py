@@ -751,6 +751,29 @@ def _visible_sibling_ids(source_id, relations, positions):
     return visible
 
 
+def _visible_family_sibling_ids(source_id, relations, positions):
+    """Return visible same-generation siblings from sibling and parent edges."""
+    sibling_ids = list(_visible_sibling_ids(source_id, relations, positions))
+    for parent_id, rels in relations.items():
+        if source_id not in rels.get('children', ()):
+            continue
+        sibling_ids.extend(
+            child_id for child_id in rels.get('children', ())
+            if child_id != source_id)
+
+    visible = []
+    seen = set()
+    source_generation = positions[source_id][0]
+    for sibling_id in sibling_ids:
+        if sibling_id in seen or sibling_id not in positions:
+            continue
+        if positions[sibling_id][0] != source_generation:
+            continue
+        visible.append(sibling_id)
+        seen.add(sibling_id)
+    return visible
+
+
 def _visible_spouse_pairs(relations, positions):
     pairs = []
     seen = set()
@@ -1193,6 +1216,201 @@ def layout_family_tree(center_id, visible_ids, edges):
                 if not changed:
                     break
 
+    def enforce_spouse_sibling_side_groups():
+        handled_pairs = set()
+        for source_id, spouse_id in _visible_spouse_pairs(relations, positions):
+            pair_key = tuple(sorted((source_id, spouse_id)))
+            if pair_key in handled_pairs:
+                continue
+            handled_pairs.add(pair_key)
+            source_generation, source_column = positions[source_id]
+            spouse_generation, spouse_column = positions[spouse_id]
+            if source_generation != spouse_generation:
+                continue
+            if source_column <= spouse_column:
+                left_id, right_id = source_id, spouse_id
+                left_column, right_column = source_column, spouse_column
+            else:
+                left_id, right_id = spouse_id, source_id
+                left_column, right_column = spouse_column, source_column
+            left_siblings = [
+                sibling_id for sibling_id in _visible_family_sibling_ids(
+                    left_id, relations, positions)
+                if sibling_id != right_id
+            ]
+            right_siblings = [
+                sibling_id for sibling_id in _visible_family_sibling_ids(
+                    right_id, relations, positions)
+                if sibling_id != left_id
+            ]
+            if not left_siblings or not right_siblings:
+                continue
+            left_siblings = sorted(
+                left_siblings,
+                key=lambda sibling_id: (
+                    abs(positions[sibling_id][1] - left_column),
+                    positions[sibling_id][1],
+                    sibling_id,
+                ))
+            right_siblings = sorted(
+                right_siblings,
+                key=lambda sibling_id: (
+                    abs(positions[sibling_id][1] - right_column),
+                    positions[sibling_id][1],
+                    sibling_id,
+                ))
+            protected_ids = {left_id, right_id, *left_siblings, *right_siblings}
+            desired = {}
+            for sibling_id, offset in zip(
+                    left_siblings, _side_offsets(len(left_siblings), -1)):
+                desired[sibling_id] = left_column + offset
+            for sibling_id, offset in zip(
+                    right_siblings, _side_offsets(len(right_siblings), 1)):
+                desired[sibling_id] = right_column + offset
+
+            for sibling_id, column in sorted(
+                    desired.items(), key=lambda item: item[1]):
+                _reserve_same_row_slot(
+                    positions, occupied, source_generation, column,
+                    protected_ids)
+                positions[sibling_id] = (source_generation, column)
+                _rebuild_occupied(occupied, positions)
+
+    def sibling_branch_block(root_id, source_generation):
+        block_ids = set()
+        stack = [root_id]
+        while stack:
+            person_id = stack.pop()
+            if person_id in block_ids or person_id not in positions:
+                continue
+            generation = positions[person_id][0]
+            if generation < source_generation:
+                continue
+            block_ids.add(person_id)
+            for spouse_id in _visible_spouse_ids(person_id, relations, positions):
+                if positions[spouse_id][0] == generation:
+                    block_ids.add(spouse_id)
+            for child_id in _visible_child_ids(person_id, relations, positions):
+                if positions[child_id][0] == generation + 1:
+                    stack.append(child_id)
+        return block_ids
+
+    def compact_sibling_branch_blocks():
+        handled_groups = set()
+        for source_id in sorted(
+                list(positions),
+                key=lambda item: (positions[item][0], positions[item][1])):
+            source_generation, source_column = positions[source_id]
+            spouse_columns = _visible_spouse_columns(
+                source_id, relations, positions)
+            if not spouse_columns:
+                continue
+            direction = (
+                -1 if any(column > source_column
+                          for column in spouse_columns)
+                else 1
+            )
+            sibling_ids = [
+                sibling_id for sibling_id in _visible_family_sibling_ids(
+                    source_id, relations, positions)
+                if (direction < 0 and positions[sibling_id][1] < source_column
+                    or direction > 0
+                    and positions[sibling_id][1] > source_column)
+            ]
+            if not sibling_ids:
+                continue
+            group_key = (source_generation, frozenset([source_id, *sibling_ids]))
+            if group_key in handled_groups:
+                continue
+            handled_groups.add(group_key)
+            units = []
+            claimed_ids = set()
+            for sibling_id in sibling_ids:
+                if sibling_id in claimed_ids:
+                    continue
+                block_ids = sibling_branch_block(
+                    sibling_id, source_generation)
+                block_ids -= claimed_ids
+                if not block_ids:
+                    continue
+                claimed_ids.update(block_ids)
+                units.append(block_ids)
+            if len(units) < 2 and not any(
+                    len(unit) > 1 for unit in units):
+                continue
+            if direction < 0:
+                ordered_units = sorted(
+                    units,
+                    key=lambda unit: max(
+                        positions[person_id][1] for person_id in unit),
+                    reverse=True,
+                )
+            else:
+                ordered_units = sorted(
+                    units,
+                    key=lambda unit: min(
+                        positions[person_id][1] for person_id in unit),
+                )
+            settled_ids = set()
+            all_unit_ids = set().union(*units)
+            for unit in ordered_units:
+                if direction < 0:
+                    max_shift = None
+                    for person_id in unit:
+                        generation, column = positions[person_id]
+                        blockers = [
+                            blocker_column
+                            for blocker_id, (
+                                    blocker_generation, blocker_column)
+                            in positions.items()
+                            if blocker_id not in unit
+                            and (
+                                blocker_id not in all_unit_ids
+                                or blocker_id in settled_ids
+                            )
+                            and blocker_generation == generation
+                            and blocker_column > column
+                        ]
+                        if blockers:
+                            available = (
+                                min(blockers) - MIN_COLUMN_SPACING - column)
+                            max_shift = (
+                                available if max_shift is None
+                                else min(max_shift, available)
+                            )
+                    shift = max(0.0, max_shift or 0.0)
+                else:
+                    min_shift = None
+                    for person_id in unit:
+                        generation, column = positions[person_id]
+                        blockers = [
+                            blocker_column
+                            for blocker_id, (
+                                    blocker_generation, blocker_column)
+                            in positions.items()
+                            if blocker_id not in unit
+                            and (
+                                blocker_id not in all_unit_ids
+                                or blocker_id in settled_ids
+                            )
+                            and blocker_generation == generation
+                            and blocker_column < column
+                        ]
+                        if blockers:
+                            available = (
+                                max(blockers) + MIN_COLUMN_SPACING - column)
+                            min_shift = (
+                                available if min_shift is None
+                                else max(min_shift, available)
+                            )
+                    shift = min(0.0, min_shift or 0.0)
+                if abs(shift) >= 0.001:
+                    for person_id in unit:
+                        generation, column = positions[person_id]
+                        positions[person_id] = (generation, column + shift)
+                    _rebuild_occupied(occupied, positions)
+                settled_ids.update(unit)
+
     while queue:
         source_id = queue.popleft()
         source_generation, source_column = positions[source_id]
@@ -1316,6 +1534,17 @@ def layout_family_tree(center_id, visible_ids, edges):
     compact_child_row_clusters()
     enforce_child_alignment()
     enforce_spouse_adjacency()
+    enforce_spouse_sibling_side_groups()
+    compact_sibling_branch_blocks()
+    enforce_spouse_adjacency()
+    enforce_child_alignment()
+    for _ in range(3):
+        before = dict(positions)
+        compact_sibling_branch_blocks()
+        enforce_spouse_adjacency()
+        compact_sibling_side_gaps()
+        if before == positions:
+            break
     _resolve_same_row_conflicts(positions, {center_id})
     _rebuild_occupied(occupied, positions)
     return [
