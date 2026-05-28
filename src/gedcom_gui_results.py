@@ -124,9 +124,17 @@ class ResultsMixin(GraphRenderMixin, GraphLayoutMixin):
         return {'home_id': home_id, 'paths': home_paths}
 
     def _render_home_path_section(
-            self, home_paths, nl, person, relationship_line,
+            self, *home_path_args, nl, person, relationship_line,
             common_ancestor_line, separator=None, reverse=False):
         """Render the shared Path to Home Person section."""
+        if len(home_path_args) == 1:
+            home_paths = home_path_args[0]
+        elif len(home_path_args) == 2:
+            _start_id, home_paths = home_path_args
+        else:
+            raise TypeError(
+                "_render_home_path_section expected home_paths "
+                "or start_id, home_paths")
         home_data = self._coerce_home_path_data(home_paths)
         if not home_data:
             return False
