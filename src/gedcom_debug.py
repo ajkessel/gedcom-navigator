@@ -158,16 +158,29 @@ def _log_unhandled_exception(context, exc_info):
     get_debug_logger().critical(context, exc_info=exc_info)
 
 
+def _read_version():
+    try:
+        from gedcom_navigator import __version__
+        return __version__
+    except ImportError:
+        pass
+    try:
+        init_path = Path(__file__).parent.parent / 'gedcom_navigator' / '__init__.py'
+        for line in init_path.read_text(encoding='utf-8').splitlines():
+            if line.startswith('__version__'):
+                return line.split('=', 1)[1].strip().strip('"\'')
+    except Exception:  # noqa: BLE001
+        pass
+    return 'unknown'
+
+
 def app_version_string():
     """Return a version string combining release version and git commit hash.
 
     Format: "1.9.6 (76297af)" in development, or "1.9.6" if git is unavailable
     (e.g. in frozen PyInstaller builds).
     """
-    try:
-        from gedcom_navigator import __version__
-    except ImportError:
-        __version__ = 'unknown'
+    __version__ = _read_version()
     try:
         commit = subprocess.check_output(
             ['git', 'rev-parse', '--short', 'HEAD'],
