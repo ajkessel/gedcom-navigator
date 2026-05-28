@@ -63,6 +63,44 @@ def _max_family_tree_row_width(layout):
                for columns in by_generation.values())
 
 
+def _assert_visible_child_groups_near_parents(layout, edges):
+    by_id = {node['id']: node for node in layout}
+    for source_id in {source_id for source_id, _target_id, _category in edges}:
+        if source_id not in by_id:
+            continue
+        child_ids = [
+            target_id for edge_source, target_id, category in edges
+            if edge_source == source_id
+            and category == 'children'
+            and target_id in by_id
+        ]
+        if not child_ids:
+            continue
+        spouse_ids = [
+            target_id for edge_source, target_id, category in edges
+            if edge_source == source_id
+            and category == 'spouses'
+            and target_id in by_id
+            and by_id[target_id]['generation'] == by_id[source_id]['generation']
+        ]
+        spouse_ids.extend(
+            edge_source for edge_source, target_id, category in edges
+            if target_id == source_id
+            and category == 'spouses'
+            and edge_source in by_id
+            and by_id[edge_source]['generation']
+            == by_id[source_id]['generation']
+        )
+        parent_column = by_id[source_id]['column']
+        if spouse_ids:
+            parent_column = (
+                parent_column + by_id[spouse_ids[0]]['column']) / 2
+        child_columns = [by_id[child_id]['column'] for child_id in child_ids]
+        child_column = (min(child_columns) + max(child_columns)) / 2
+
+        assert abs(parent_column - child_column) <= 1.1
+
+
 class _HomeModel:
     def find_common_ancestors(self, *_args):
         return []
@@ -4765,6 +4803,7 @@ def test_family_tree_compacts_sibling_branch_with_children_as_block():
 def test_family_tree_debug_fixtures_preserve_layout_invariants():
     """Saved graph exports replay without overlap, spouse gaps, or drift."""
     max_width_by_fixture = {
+        '1': 12.0,
         'aa': 4.3,
         'bb': 8.3,
         'cc': 12.0,
@@ -4775,6 +4814,7 @@ def test_family_tree_debug_fixtures_preserve_layout_invariants():
 
         _assert_no_same_row_conflicts(layout)
         _assert_visible_spouses_adjacent(layout, edges)
+        _assert_visible_child_groups_near_parents(layout, edges)
         assert _max_family_tree_row_width(layout) <= max_width
 
 

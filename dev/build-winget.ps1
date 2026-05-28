@@ -26,21 +26,17 @@ Get-ChildItem -Path .\dev\winget\*.template | ForEach-Object {
    Write-Output ("Generated .\dist\$($_.BaseName).yaml")
 }
 if ( Test-Path -Path "..\winget-pkgs" ) {
-   Remove-Item -Path "..\winget-pkgs\manifests\a\AdamKessel\GEDCOMNavigator" -Recurse -Force -ErrorAction SilentlyContinue
-   New-Item -ItemType Directory -Path "..\winget-pkgs\manifests\a\AdamKessel\GEDCOMNavigator" -Force
-   if ( Test-Path -Path "..\winget-pkgs\manifests\a\AdamKessel\GEDCOMNavigator" ) {
-      Write-Output "Found local Winget Github manifests directory, copying new manifests... (remember to create pull request for version $fourDigitVersion)"
-      New-Item -ItemType Directory -Path "..\winget-pkgs\manifests\a\AdamKessel\GEDCOMNavigator\$fourDigitVersion" -Force
-      Copy-Item -Path ".\dist\*.yaml" -Destination "..\winget-pkgs\manifests\a\AdamKessel\GEDCOMNavigator\$fourDigitVersion" -Force
-      Set-Location -Path "..\winget-pkgs\manifests\a\AdamKessel\GEDCOMNavigator\$fourDigitVersion"
-      git switch master
-      git pull
-      git branch $fourDigitVersion
-      git switch $fourDigitVersion 
-      git add *.yaml
-      git commit -m "Update Winget manifests for version $fourDigitVersion"
-      git push --set-upstream origin $fourDigitVersion
-      git switch master
-      Set-Location -Path $PSScriptRoot/..
-   }
+   Write-Output "Found local Winget Github manifests directory, copying new manifests... (remember to create pull request for branch $fourDigitVersion)"
+   Set-Location -Path "..\winget-pkgs\manifests\a\AdamKessel\GEDCOMNavigator\$fourDigitVersion"
+   git switch master
+   git pull
+   git branch $fourDigitVersion
+   git switch $fourDigitVersion 
+   New-Item -ItemType Directory -Path "..\winget-pkgs\manifests\a\AdamKessel\GEDCOMNavigator\$fourDigitVersion" -Force
+   Copy-Item -Path ".\dist\*.yaml" -Destination "..\winget-pkgs\manifests\a\AdamKessel\GEDCOMNavigator\$fourDigitVersion" -Force
+   git add *.yaml
+   git commit -m "Update Winget manifests for version $fourDigitVersion"
+   git push --set-upstream origin $fourDigitVersion
+   git switch master
+   Set-Location -Path $PSScriptRoot/..
 }
