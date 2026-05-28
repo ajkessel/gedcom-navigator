@@ -21,6 +21,7 @@ _MAX_LOG_BYTES = 1_000_000
 _BACKUP_COUNT = 3
 
 _configured_path = None
+_app_version_string = None
 _previous_sys_excepthook = None
 _previous_threading_excepthook = None
 _previous_tk_report_callback_exception = None
@@ -179,7 +180,16 @@ def app_version_string():
 
     Format: "1.9.6 (76297af)" in development, or "1.9.6" if git is unavailable
     (e.g. in frozen PyInstaller builds).
+
+    The result is memoized so the underlying ``git`` subprocess runs at most
+    once per process. This is intended to be called only in debug mode, since
+    spawning ``git`` is expensive (and, in a windowed PyInstaller build on
+    Windows, briefly flashes a console window) per call.
     """
+    global _app_version_string
+    if _app_version_string is not None:
+        return _app_version_string
+
     __version__ = _read_version() + f" ({sys.platform})"
     try:
         commit = (
@@ -192,9 +202,10 @@ def app_version_string():
             .strip()
         )
         if commit:
-            return f"{__version__} ({commit})"
+            __version__ = f"{__version__} ({commit})"
     except Exception:  # noqa: BLE001
         pass
+    _app_version_string = __version__
     return __version__
 
 

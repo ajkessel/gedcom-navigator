@@ -599,8 +599,10 @@ class PathGraphMixin:
                     on_profile=_show_profile_from_graph,
                     on_find_matches=_find_matches_from_graph,
                     on_find_path=_find_path_from_graph))
-            graph_state['debug_payload'] = self._graph_debug_payload(
-                graph_state, layout, extra_edges, self._family_tree_members_for)
+            if debug_enabled():
+                graph_state['debug_payload'] = self._graph_debug_payload(
+                    graph_state, layout, extra_edges,
+                    self._family_tree_members_for)
 
         canvas._redraw_fn = _redraw_graph
 
