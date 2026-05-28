@@ -9,6 +9,7 @@ import logging
 from logging.handlers import RotatingFileHandler
 import os
 from pathlib import Path
+import subprocess
 import sys
 import tempfile
 import threading
@@ -155,6 +156,29 @@ def log_exception_once(key, context):
 def _log_unhandled_exception(context, exc_info):
     configure_debug_logging()
     get_debug_logger().critical(context, exc_info=exc_info)
+
+
+def app_version_string():
+    """Return a version string combining release version and git commit hash.
+
+    Format: "1.9.6 (76297af)" in development, or "1.9.6" if git is unavailable
+    (e.g. in frozen PyInstaller builds).
+    """
+    try:
+        from gedcom_navigator import __version__
+    except ImportError:
+        __version__ = 'unknown'
+    try:
+        commit = subprocess.check_output(
+            ['git', 'rev-parse', '--short', 'HEAD'],
+            stderr=subprocess.DEVNULL,
+            timeout=2,
+        ).decode().strip()
+        if commit:
+            return f'{__version__} ({commit})'
+    except Exception:  # noqa: BLE001
+        pass
+    return __version__
 
 
 def install_exception_hooks(root=None):

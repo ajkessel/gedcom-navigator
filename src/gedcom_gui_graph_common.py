@@ -14,7 +14,7 @@ import tkinter as tk
 import tkinter.font as tkfont
 from tkinter import filedialog, messagebox
 
-from gedcom_debug import log_exception
+from gedcom_debug import app_version_string, log_exception
 from gedcom_display import lifespan
 from gedcom_family_tree import EXPANDABLE_TREE_CATEGORIES
 from gedcom_graph_export import canvas_to_png_bytes, canvas_to_svg
@@ -693,6 +693,7 @@ class GraphCommonMixin:
             }
         return {
             'version': 1,
+            'app_version': app_version_string(),
             'graph_type': 'relationship_path',
             'relationship': graph_state.get('relationship'),
             'start_id': graph_state.get('start_id'),
@@ -761,6 +762,7 @@ class GraphCommonMixin:
             }
         return {
             'version': 1,
+            'app_version': app_version_string(),
             'graph_type': graph_type,
             'center_id': center_id,
             'zoom': zoom,
