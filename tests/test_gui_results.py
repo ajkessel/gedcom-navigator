@@ -4818,6 +4818,21 @@ def test_family_tree_debug_fixtures_preserve_layout_invariants():
         assert _max_family_tree_row_width(layout) <= max_width
 
 
+def test_family_tree_debug_parent_couple_moves_above_child_when_unblocked():
+    """A displayed parent couple shifts over its child when space permits."""
+    layout, edges = _load_debug_family_tree_layout('2')
+    by_id = {node['id']: node for node in layout}
+    parent_midpoint = (
+        by_id['@I102698315410@']['column']
+        + by_id['@I102698315502@']['column']
+    ) / 2
+
+    _assert_no_same_row_conflicts(layout)
+    _assert_visible_spouses_adjacent(layout, edges)
+    assert abs(
+        parent_midpoint - by_id['@I102667033207@']['column']) <= 0.5
+
+
 def test_family_tree_child_alignment_keeps_adjusted_siblings_separate():
     """Children shifted around spouse boxes do not collapse into one column."""
     visible = [

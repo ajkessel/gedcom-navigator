@@ -1769,6 +1769,7 @@ def layout_family_tree(center_id, visible_ids, edges):
             max_iterations=3,
         )
         realign_child_branch_groups()
+        enforce_parent_child_alignment()
         enforce_spouse_adjacency()
 
     place_initial_nodes()
