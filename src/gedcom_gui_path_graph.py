@@ -273,6 +273,19 @@ class PathGraphMixin:
                 fill=colors['parent'], width=scale(3), arrow='last',
                 arrowshape=(scale(12), scale(14), scale(5)))
 
+        highlighted_nodes = getattr(canvas, '_highlighted_nodes', set())
+
+        def _toggle_highlight(indi_id):
+            nodes = getattr(canvas, '_highlighted_nodes', set())
+            if indi_id in nodes:
+                nodes.discard(indi_id)
+            else:
+                nodes.add(indi_id)
+            canvas._highlighted_nodes = nodes
+            redraw = getattr(canvas, '_redraw_fn', None)
+            if redraw:
+                redraw()
+
         for index, ((x, y), label_block) in enumerate(
                 zip(positions, wrapped_label_blocks)):
             node_id = layout[index]['id']
@@ -287,8 +300,14 @@ class PathGraphMixin:
             if is_endpoint:
                 fill = self._endpoint_person_box_fill(fill, colors)
             outline_width = scale(3) if is_endpoint else scale(2)
+            if node_id in highlighted_nodes:
+                fill = self.PERSON_BOX_FILL_HIGHLIGHT
+                node_outline = self.PERSON_BOX_OUTLINE_HIGHLIGHT
+                outline_width = scale(4)
+            else:
+                node_outline = colors['node_outline']
             canvas.create_rectangle(
-                x1, y1, x2, y2, fill=fill, outline=colors['node_outline'],
+                x1, y1, x2, y2, fill=fill, outline=node_outline,
                 width=outline_width, tags=('path_node', node_tag))
             if is_endpoint:
                 badge = PATH_GRAPH_START if index == 0 else PATH_GRAPH_END
@@ -353,6 +372,9 @@ class PathGraphMixin:
                         command=(
                             lambda: on_show_tree(indi_id)
                             if on_show_tree else None))
+                    menu.add_command(
+                        label=GRAPH_MENU_HIGHLIGHT,
+                        command=lambda iid=indi_id: _toggle_highlight(iid))
                     menu.add_command(
                         label=BTN_SHOW_PERSON,
                         command=(
@@ -536,6 +558,7 @@ class PathGraphMixin:
         canvas_frame.columnconfigure(0, weight=1)
 
         canvas = tk.Canvas(canvas_frame, bg=colors['bg'], highlightthickness=0)
+        canvas._highlighted_nodes = set()
         ybar = tk.Scrollbar(canvas_frame, orient='vertical',
                             command=canvas.yview)
         xbar = tk.Scrollbar(canvas_frame, orient='horizontal',
@@ -578,6 +601,8 @@ class PathGraphMixin:
                     on_find_path=_find_path_from_graph))
             graph_state['debug_payload'] = self._graph_debug_payload(
                 graph_state, layout, extra_edges, self._family_tree_members_for)
+
+        canvas._redraw_fn = _redraw_graph
 
         def _replace_graph_path(new_path, new_relationship):
             simplified_path = self._simplify_path_for_graph(new_path)

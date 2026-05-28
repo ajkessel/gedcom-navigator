@@ -513,6 +513,19 @@ class FamilyTreeRenderMixin:
                         fill=colors['parent'], width=scale(3), arrow='last',
                         arrowshape=(scale(12), scale(14), scale(5)))
 
+        highlighted_nodes = getattr(canvas, '_highlighted_nodes', set())
+
+        def _toggle_highlight(indi_id):
+            nodes = getattr(canvas, '_highlighted_nodes', set())
+            if indi_id in nodes:
+                nodes.discard(indi_id)
+            else:
+                nodes.add(indi_id)
+            canvas._highlighted_nodes = nodes
+            redraw = getattr(canvas, '_redraw_fn', None)
+            if redraw:
+                redraw()
+
         for index, (node, label_block) in enumerate(
                 zip(layout, wrapped_label_blocks)):
             pulse_progress()
@@ -527,8 +540,14 @@ class FamilyTreeRenderMixin:
             if node['is_center']:
                 fill = self._endpoint_person_box_fill(fill, colors)
             outline_width = scale(3) if node['is_center'] else scale(2)
+            if node_id in highlighted_nodes:
+                fill = self.PERSON_BOX_FILL_HIGHLIGHT
+                node_outline = self.PERSON_BOX_OUTLINE_HIGHLIGHT
+                outline_width = scale(4)
+            else:
+                node_outline = colors['node_outline']
             canvas.create_rectangle(
-                x1, y1, x2, y2, fill=fill, outline=colors['node_outline'],
+                x1, y1, x2, y2, fill=fill, outline=node_outline,
                 width=outline_width, tags=('family_tree_node', node_tag))
             name_label, detail_label = label_block
             if node['is_center']:
@@ -589,6 +608,9 @@ class FamilyTreeRenderMixin:
                     menu.add_command(
                         label=TREE_MENU_RECENTER,
                         command=lambda: on_recenter(indi_id))
+                    menu.add_command(
+                        label=GRAPH_MENU_HIGHLIGHT,
+                        command=lambda iid=indi_id: _toggle_highlight(iid))
                     menu.add_command(
                         label=BTN_SHOW_PERSON,
                         command=(

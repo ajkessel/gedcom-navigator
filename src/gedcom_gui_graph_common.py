@@ -33,6 +33,8 @@ class GraphCommonMixin:
     PERSON_BOX_FILL_FEMALE = '#ffe1ec'
     PERSON_BOX_FILL_NEUTRAL = '#f2f2f2'
     PERSON_BOX_TEXT = '#1a1a1a'
+    PERSON_BOX_FILL_HIGHLIGHT = '#FFD700'
+    PERSON_BOX_OUTLINE_HIGHLIGHT = '#B8860B'
 
     @staticmethod
     def _mix_hex_color(color_a, color_b, weight_b):

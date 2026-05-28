@@ -766,6 +766,7 @@ class PersonDialogMixin:
             canvas_frame.columnconfigure(0, weight=1)
 
             canvas = tk.Canvas(canvas_frame, bg=colors["bg"], highlightthickness=0)
+            canvas._highlighted_nodes = set()
             ybar = tk.Scrollbar(canvas_frame, orient="vertical", command=canvas.yview)
             xbar = tk.Scrollbar(canvas_frame, orient="horizontal", command=canvas.xview)
             canvas.configure(yscrollcommand=ybar.set, xscrollcommand=xbar.set)
@@ -870,6 +871,8 @@ class PersonDialogMixin:
                 graph_state["debug_payload"] = getattr(
                     canvas, "_family_tree_debug_payload", None
                 )
+
+            canvas._redraw_fn = _redraw_tree
 
             def _center_tree_on_current():
                 canvas.update_idletasks()
