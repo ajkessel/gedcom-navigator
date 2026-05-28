@@ -177,7 +177,7 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
             tag_tree.selection_set(target)
             tag_tree.see(target)
 
-    def _pick_person(self, title=WIN_SELECT_PERSON, owner=None):
+    def _pick_person(self, title=WIN_SELECT_PERSON, owner=None, filter_ids=None):
         """Modal dialog to pick one person from the loaded GEDCOM. Returns indi_id or None."""
         if not self.individuals:
             messagebox.showwarning(ERR_NO_DATA_TITLE, ERR_NO_DATA_MSG)
@@ -262,6 +262,8 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
             )
             shown = 0
             for indi_id in self.sorted_ids:
+                if filter_ids is not None and indi_id not in filter_ids:
+                    continue
                 indi = self.individuals[indi_id]
                 if flagged_only and not indi['dna_markers']:
                     continue

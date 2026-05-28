@@ -853,9 +853,103 @@ def layout_family_tree(center_id, visible_ids, edges):
     for source_id, target_id, category in edges:
         relations[source_id][category].append(target_id)
 
+    spouses_by_person = defaultdict(list)
+    siblings_by_person = defaultdict(list)
+    children_by_parent = defaultdict(list)
+    parents_by_child = defaultdict(list)
+
+    def add_indexed_relation(index, source_id, target_id):
+        if target_id not in index[source_id]:
+            index[source_id].append(target_id)
+
+    for source_id, target_id, category in edges:
+        if category == 'spouses':
+            add_indexed_relation(spouses_by_person, source_id, target_id)
+            add_indexed_relation(spouses_by_person, target_id, source_id)
+        elif category == 'siblings':
+            add_indexed_relation(siblings_by_person, source_id, target_id)
+            add_indexed_relation(siblings_by_person, target_id, source_id)
+        elif category == 'children':
+            add_indexed_relation(children_by_parent, source_id, target_id)
+            add_indexed_relation(parents_by_child, target_id, source_id)
+        elif category == 'parents':
+            add_indexed_relation(parents_by_child, source_id, target_id)
+            add_indexed_relation(children_by_parent, target_id, source_id)
+
     ctx = _FamilyTreeLayoutContext(center_id, relations)
     positions = ctx.positions
     queue = ctx.queue
+
+    def _visible_spouse_ids(source_id, _relations, positions):
+        return [
+            spouse_id for spouse_id in spouses_by_person.get(source_id, ())
+            if spouse_id in positions
+        ]
+
+    def _visible_spouse_columns(source_id, relations, positions):
+        return [
+            positions[spouse_id][1]
+            for spouse_id in _visible_spouse_ids(source_id, relations, positions)
+        ]
+
+    def _visible_sibling_ids(source_id, _relations, positions):
+        visible = []
+        seen = set()
+        source_generation = positions[source_id][0]
+        for sibling_id in siblings_by_person.get(source_id, ()):
+            if sibling_id in seen or sibling_id not in positions:
+                continue
+            if positions[sibling_id][0] != source_generation:
+                continue
+            visible.append(sibling_id)
+            seen.add(sibling_id)
+        return visible
+
+    def _visible_family_sibling_ids(source_id, relations, positions):
+        sibling_ids = list(_visible_sibling_ids(
+            source_id, relations, positions))
+        for parent_id in parents_by_child.get(source_id, ()):
+            sibling_ids.extend(
+                child_id for child_id in children_by_parent.get(parent_id, ())
+                if child_id != source_id)
+
+        visible = []
+        seen = set()
+        source_generation = positions[source_id][0]
+        for sibling_id in sibling_ids:
+            if sibling_id in seen or sibling_id not in positions:
+                continue
+            if positions[sibling_id][0] != source_generation:
+                continue
+            visible.append(sibling_id)
+            seen.add(sibling_id)
+        return visible
+
+    def _visible_spouse_pairs(_relations, positions):
+        pairs = []
+        seen = set()
+        for source_id in positions:
+            for spouse_id in _visible_spouse_ids(
+                    source_id, relations, positions):
+                edge_key = tuple(sorted((source_id, spouse_id)))
+                if edge_key in seen:
+                    continue
+                seen.add(edge_key)
+                pairs.append((source_id, spouse_id))
+        return pairs
+
+    def _visible_child_ids(source_id, relations, positions):
+        child_ids = list(children_by_parent.get(source_id, ()))
+        for spouse_id in _visible_spouse_ids(source_id, relations, positions):
+            child_ids.extend(children_by_parent.get(spouse_id, ()))
+
+        visible = []
+        seen = set()
+        for child_id in child_ids:
+            if child_id in positions and child_id not in seen:
+                visible.append(child_id)
+                seen.add(child_id)
+        return visible
 
     def enforce_spouse_adjacency():
         seen = set()
@@ -1508,6 +1602,103 @@ def layout_family_tree(center_id, visible_ids, edges):
                     child_generation, column, protected_ids, direction)
                 shift_block(child_blocks[child_id], child_delta)
 
+    def compact_shared_parent_child_branches():
+        handled_child_groups = set()
+        for source_id in sorted(
+                list(positions),
+                key=lambda item: (positions[item][0], positions[item][1])):
+            source_generation, _source_column = positions[source_id]
+            child_generation = source_generation + 1
+            child_ids = [
+                child_id for child_id in _visible_child_ids(
+                    source_id, relations, positions)
+                if positions[child_id][0] == child_generation
+            ]
+            if len(child_ids) < 2:
+                continue
+            left_sibling_parent_has_children = False
+            for sibling_id in _visible_family_sibling_ids(
+                    source_id, relations, positions):
+                if positions[sibling_id][0] != source_generation:
+                    continue
+                if positions[sibling_id][1] >= positions[source_id][1]:
+                    continue
+                sibling_child_ids = [
+                    child_id for child_id in _visible_child_ids(
+                        sibling_id, relations, positions)
+                    if positions[child_id][0] == child_generation
+                ]
+                if len(sibling_child_ids) >= 2:
+                    left_sibling_parent_has_children = True
+                    break
+            if left_sibling_parent_has_children:
+                continue
+            child_group_key = (child_generation, frozenset(child_ids))
+            if child_group_key in handled_child_groups:
+                continue
+            handled_child_groups.add(child_group_key)
+
+            units = []
+            claimed_ids = set()
+            for child_id in sorted(
+                    child_ids,
+                    key=lambda item: (positions[item][1], item)):
+                block_ids = sibling_branch_block(child_id, child_generation)
+                block_ids -= claimed_ids
+                row_ids = [
+                    person_id for person_id in block_ids
+                    if positions[person_id][0] == child_generation
+                ]
+                if not row_ids:
+                    continue
+                claimed_ids.update(block_ids)
+                units.append((
+                    block_ids,
+                    min(positions[person_id][1] for person_id in row_ids),
+                    max(positions[person_id][1] for person_id in row_ids),
+                ))
+            if len(units) < 2:
+                continue
+
+            group_ids = set().union(*(unit[0] for unit in units))
+            group_min = min(unit_min for _block_ids, unit_min, _unit_max in units)
+            group_max = max(unit_max for _block_ids, _unit_min, unit_max in units)
+            interlopers = [
+                person_id for person_id, (generation, column)
+                in positions.items()
+                if (person_id not in group_ids
+                    and generation == child_generation
+                    and group_min < column < group_max)
+            ]
+            if not interlopers:
+                continue
+            if (len(interlopers) > 4
+                    or group_max - group_min > MIN_COLUMN_SPACING * 13):
+                continue
+            if source_id == '@I102667033174@':
+                print('DEBUG compact target', group_min, group_max,
+                      interlopers, child_ids)
+
+            desired = []
+            cursor = group_min
+            for block_ids, unit_min, unit_max in units:
+                desired.append((block_ids, cursor - unit_min))
+                cursor += (unit_max - unit_min) + MIN_COLUMN_SPACING
+
+            for block_ids, delta in desired:
+                if abs(delta) < 0.001:
+                    continue
+                direction = 1 if delta > 0 else -1
+                target_columns = sorted(
+                    positions[person_id][1] + delta
+                    for person_id in block_ids
+                    if positions[person_id][0] == child_generation
+                )
+                for column in target_columns:
+                    reserve_family_branch_slot(
+                        child_generation, column, group_ids, direction)
+                shift_block(block_ids, delta)
+
     def compact_sibling_branch_blocks():
         handled_groups = set()
         for source_id in sorted(
@@ -1768,6 +1959,7 @@ def layout_family_tree(center_id, visible_ids, edges):
             ),
             max_iterations=3,
         )
+        compact_shared_parent_child_branches()
         realign_child_branch_groups()
         enforce_parent_child_alignment()
         enforce_spouse_adjacency()

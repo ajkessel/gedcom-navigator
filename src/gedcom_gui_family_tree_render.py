@@ -408,6 +408,7 @@ class FamilyTreeRenderMixin:
                     node['generation'] - min_generation) * v_gap
             positions[node['id']] = (x, y)
         canvas._family_tree_center = positions.get(center_id, (0, 0))
+        canvas._family_tree_positions = dict(positions)
         spouse_edges = [
             (source_id, target_id)
             for source_id, target_id, category in edges
