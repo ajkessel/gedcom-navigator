@@ -31,8 +31,15 @@ if ( Test-Path -Path "..\winget-pkgs" ) {
    Set-Location -Path "..\winget-pkgs\manifests\a\AdamKessel\GEDCOMNavigator"
    git switch master
    gh repo sync --force
+   git fetch --all
    git pull
-   git branch $fourDigitVersion
+   if ( -not ( git branch -a | Select-String $fourDigitVersion ) ) {
+      Write-Output "Branch $fourDigitVersion not found, creating it..."
+      git branch $fourDigitVersion
+   }
+   else {
+      Write-Output "Branch $fourDigitVersion already exists, switching to it..."
+   }
    git switch $fourDigitVersion 
    New-Item -ItemType Directory -Path "$fourDigitVersion" -Force
    Copy-Item -Path "$PSScriptRoot/../dist/*.yaml" -Destination "$fourDigitVersion" -Force
