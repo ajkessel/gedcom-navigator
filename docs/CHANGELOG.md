@@ -4,8 +4,8 @@
 
 ### Added
 
+- **Highlight button in graph view** — a new "Highlight" button allows you to add highlighting to as many people in your garphical tree as you want. This highlighting persists when you copy or save your tree, to make it easier to share specific information with others. 
 - **Jump button in graph view** — a new "Jump" button (keyboard shortcut `Ctrl+J` / `⌘J`) appears between the Search and Save buttons in the tree, pedigree, and descendant graph view windows. It opens a person picker pre-filtered to only the individuals visible in the current graph, then pans the canvas to center the selected person without re-centering or re-rendering the graph. The picker includes the same Find/Filter/Fuzzy/Married/Tagged controls as the main Search picker.
-
 - **Pedigree view** — the Show Person window now includes a Pedigree view that displays the full recorded ancestor tree for a person, laid out left-to-right by generation. All ancestor branches visible in the GEDCOM data are shown simultaneously, with right-angle connectors linking each person to their parents. The layout centers each person between their recorded parents and compacts the vertical spacing.
 - **Descendant view** — a new Descendant view in the Show Person window shows all recorded descendants in an expandable top-down tree. Each expanded person shows their spouses and children; branches can be collapsed and expanded interactively.
 - **View mode selector in Show Person window** — a segmented button (or radio group on smaller windows) lets you cycle between Tree View, Pedigree View, Descendant View, and Profile View. The preferred mode is persisted to settings and restored on next launch (`get_default_tree` / `set_default_tree` in `ConfigManager`). `Ctrl+T` cycles through all four modes.
