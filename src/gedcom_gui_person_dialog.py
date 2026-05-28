@@ -829,6 +829,7 @@ class PersonDialogMixin:
                         "graph_builder": lambda graph=graph: graph,
                         "layout_builder": layout_descendant_tree,
                         "expandable_categories": ("children",),
+                        "graph_type": "descendant_tree",
                         "expansion_options_lookup": (
                             lambda node_id, visible_set:
                             descendant_tree_expansion_options(

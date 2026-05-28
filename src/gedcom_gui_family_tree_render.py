@@ -273,6 +273,7 @@ class FamilyTreeRenderMixin:
                                    expansion_options_lookup=None,
                                    expanded_for_buttons=None,
                                    orientation='vertical',
+                                   graph_type='family_tree',
                                    expand_all_categories_lookup=None,
                                    progress_callback=None):
         """Draw a family-tree-style graph canvas."""
@@ -420,7 +421,8 @@ class FamilyTreeRenderMixin:
             max_generation - min_generation) * v_gap
         canvas._family_tree_debug_payload = self._family_tree_debug_payload(
             center_id, expanded, zoom, canvas_w, canvas_h, visible_ids,
-            edges, layout, self._family_tree_members_for)
+            edges, layout, self._family_tree_members_for,
+            graph_type=graph_type)
 
         if orientation == 'horizontal':
             for column in range(int(min_column), int(max_column) + 1):

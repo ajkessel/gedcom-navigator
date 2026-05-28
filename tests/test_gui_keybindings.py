@@ -323,7 +323,7 @@ def test_every_shortcut_in_keyboard_shortcuts_md():
     non-obvious macOS key combination (⌘⇧M, ⌘⇧H), which are explicitly
     called out in the doc and must stay there.
     """
-    content = (_DOCS_ROOT / "KEYBOARD_SHORTCUTS.md").read_text()
+    content = (_DOCS_ROOT / "KEYBOARD_SHORTCUTS.md").read_text(encoding="utf-8")
 
     # Check Linux/Windows display strings.
     missing = [
