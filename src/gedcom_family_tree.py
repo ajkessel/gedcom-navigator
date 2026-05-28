@@ -470,6 +470,222 @@ def layout_descendant_tree(center_id, visible_ids, edges):
         for node_id in descendant_subtree_ids(root_id):
             layout_by_id[node_id]['column'] += delta
 
+    def same_row_unit(node_id, row):
+        if node_id not in layout_by_id:
+            return ()
+        node = layout_by_id[node_id]
+        if node['generation'] != row:
+            return ()
+        unit_ids = {node_id}
+        for spouse_id in spouses_by_partner.get(node_id, ()):
+            spouse_node = layout_by_id.get(spouse_id)
+            if spouse_node and spouse_node['generation'] == row:
+                unit_ids.add(spouse_id)
+        return tuple(sorted(unit_ids))
+
+    def descendant_unit_block(unit_ids):
+        block_ids = set()
+        for unit_id in unit_ids:
+            if unit_id in descendant_ids:
+                block_ids.update(descendant_subtree_ids(unit_id))
+            elif unit_id in layout_by_id:
+                block_ids.add(unit_id)
+        return block_ids
+
+    def compact_interleaved_descendant_child_units():
+        changed = False
+        row_units_by_generation = {}
+        for row in sorted({node['generation'] for node in layout}):
+            row_units = []
+            claimed_ids = set()
+            for node in sorted(
+                    (node for node in layout
+                     if node['generation'] == row),
+                    key=lambda item: (item['column'], item['id'])):
+                if node['id'] in claimed_ids:
+                    continue
+                unit_ids = same_row_unit(node['id'], row)
+                if not unit_ids:
+                    continue
+                claimed_ids.update(unit_ids)
+                row_units.append(unit_ids)
+            row_units_by_generation[row] = row_units
+
+        for parent_id in sorted(
+                descendant_ids,
+                key=lambda node_id: (
+                    layout_by_id.get(node_id, {}).get('generation', 0),
+                    layout_by_id.get(node_id, {}).get('column', 0),
+                )):
+            parent_node = layout_by_id.get(parent_id)
+            if not parent_node:
+                continue
+            child_row = parent_node['generation'] + 1
+            child_ids = [
+                child_id for child_id in children_by_parent.get(parent_id, ())
+                if child_id in descendant_ids and child_id in layout_by_id
+                and layout_by_id[child_id]['generation'] == child_row
+            ]
+            if len(child_ids) < 2:
+                continue
+            row_units = row_units_by_generation.get(child_row, ())
+            unit_index = {
+                unit_ids: index for index, unit_ids in enumerate(row_units)
+            }
+            group_units = []
+            seen_units = set()
+            for child_id in child_ids:
+                unit_ids = same_row_unit(child_id, child_row)
+                if (not unit_ids or unit_ids not in unit_index
+                        or unit_ids in seen_units):
+                    continue
+                group_units.append(unit_ids)
+                seen_units.add(unit_ids)
+            if len(group_units) < 2:
+                continue
+            group_indices = [unit_index[unit_ids]
+                             for unit_ids in group_units]
+            first_index = min(group_indices)
+            last_index = max(group_indices)
+            if last_index - first_index + 1 == len(group_units):
+                continue
+
+            current_interval = list(row_units[first_index:last_index + 1])
+            group_unit_set = set(group_units)
+            interval_units = [
+                *group_units,
+                *(unit_ids for unit_ids in current_interval
+                  if unit_ids not in group_unit_set),
+            ]
+            interval_columns = [
+                layout_by_id[node_id]['column']
+                for unit_ids in interval_units
+                for node_id in unit_ids
+            ]
+            if (max(interval_columns) - min(interval_columns)
+                    > MIN_COLUMN_SPACING * 24):
+                continue
+
+            unit_mins = {}
+            unit_blocks = {}
+            unit_block_offsets = {}
+            for unit_ids in interval_units:
+                unit_min = min(
+                    layout_by_id[node_id]['column'] for node_id in unit_ids)
+                block_ids = descendant_unit_block(unit_ids)
+                block_offsets = [
+                    layout_by_id[node_id]['column'] - unit_min
+                    for node_id in block_ids
+                    if node_id in layout_by_id
+                ]
+                if not block_offsets:
+                    continue
+                unit_mins[unit_ids] = unit_min
+                unit_blocks[unit_ids] = block_ids
+                unit_block_offsets[unit_ids] = (
+                    min(block_offsets), max(block_offsets))
+            if len(unit_blocks) != len(interval_units):
+                continue
+
+            def build_plan(start_column):
+                cursor = start_column
+                previous_block_right = None
+                plan = []
+                for unit_ids in interval_units:
+                    block_left, block_right = unit_block_offsets[unit_ids]
+                    if (previous_block_right is not None
+                            and cursor + block_left
+                            < previous_block_right + MIN_COLUMN_SPACING):
+                        cursor = (
+                            previous_block_right
+                            + MIN_COLUMN_SPACING
+                            - block_left
+                        )
+                    plan.append((
+                        unit_ids,
+                        cursor - unit_mins[unit_ids],
+                        unit_blocks[unit_ids],
+                    ))
+                    previous_block_right = cursor + block_right
+                return plan
+
+            def validate_plan(plan):
+                moving_deltas = {}
+                for _unit_ids, delta, block_ids in plan:
+                    if abs(delta) < 0.001:
+                        continue
+                    for node_id in block_ids:
+                        existing_delta = moving_deltas.get(node_id)
+                        if (existing_delta is not None
+                                and abs(existing_delta - delta) >= 0.001):
+                            return None, None
+                        moving_deltas[node_id] = delta
+                if not moving_deltas:
+                    return None, None
+
+                planned_columns = {
+                    node_id: layout_by_id[node_id]['column'] + delta
+                    for node_id, delta in moving_deltas.items()
+                    if node_id in layout_by_id
+                }
+                planned_by_generation = defaultdict(list)
+                for node_id, column in planned_columns.items():
+                    planned_by_generation[
+                        layout_by_id[node_id]['generation']].append(
+                            (node_id, column))
+
+                for planned_nodes in planned_by_generation.values():
+                    for index, (left_id, left_column) in enumerate(
+                            planned_nodes):
+                        for right_id, right_column in planned_nodes[
+                                index + 1:]:
+                            if left_id == right_id:
+                                continue
+                            if abs(left_column - right_column) < (
+                                    MIN_COLUMN_SPACING - 1e-9):
+                                return None, None
+
+                for node_id, column in planned_columns.items():
+                    row = layout_by_id[node_id]['generation']
+                    for blocker in layout:
+                        if blocker['id'] in moving_deltas:
+                            continue
+                        if blocker['generation'] != row:
+                            continue
+                        if abs(column - blocker['column']) < (
+                                MIN_COLUMN_SPACING - 1e-9):
+                            return None, None
+
+                shift_cost = sum(
+                    abs(delta) * len(block_ids)
+                    for _unit_ids, delta, block_ids in plan
+                )
+                return planned_columns, shift_cost
+
+            candidate_starts = {min(interval_columns)}
+            for unit_ids, delta, _block_ids in build_plan(0.0):
+                candidate_starts.add(unit_mins[unit_ids] - (
+                    unit_mins[unit_ids] + delta))
+
+            selected_columns = None
+            selected_cost = None
+            for start_column in sorted(candidate_starts):
+                planned_columns, shift_cost = validate_plan(
+                    build_plan(start_column))
+                if planned_columns is None:
+                    continue
+                if selected_cost is None or shift_cost < selected_cost:
+                    selected_columns = planned_columns
+                    selected_cost = shift_cost
+            if selected_columns is None:
+                continue
+
+            for node_id, column in selected_columns.items():
+                layout_by_id[node_id]['column'] = column
+            changed = True
+            break
+        return changed
+
     def enforce_row_spacing():
         for generation_id in sorted({node['generation'] for node in layout}):
             previous_column = None
@@ -569,6 +785,9 @@ def layout_descendant_tree(center_id, visible_ids, edges):
         for child_id in child_ids:
             shift_subtree(child_id, delta)
 
+    for _ in range(min(20, len(layout))):
+        if not compact_interleaved_descendant_child_units():
+            break
     enforce_row_spacing()
     return layout
 

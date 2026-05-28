@@ -654,6 +654,43 @@ def test_descendant_tree_layout_centers_children_under_visible_couple():
         for left, right in zip(same_child_row, same_child_row[1:]))
 
 
+def test_descendant_tree_debug_keeps_child_family_units_together():
+    """Expanded descendant branches keep one parent's children contiguous."""
+    payload = json.loads(Path('debug/5.json').read_text())
+    edges = [
+        (edge['source'], edge['target'], edge['category'])
+        for edge in payload['edges']
+    ]
+    layout = layout_descendant_tree(
+        payload['center_id'], payload['visible_ids'], edges)
+    by_id = {node['id']: node for node in layout}
+    same_generation = by_id['@I102681750190@']['generation']
+    family_units = [
+        '@I102681749719@',
+        '@I102681750190@',
+        '@I102681764495@',
+        '@I102681764496@',
+        '@I102681764719@',
+        '@I102681764720@',
+        '@I102681764721@',
+        '@I102681764722@',
+        '@I102681764723@',
+    ]
+    family_columns = [
+        by_id[person_id]['column'] for person_id in family_units
+    ]
+    interposed_ids = {
+        node['id'] for node in layout
+        if node['generation'] == same_generation
+        and min(family_columns) <= node['column'] <= max(family_columns)
+    } - set(family_units)
+
+    _assert_no_same_row_conflicts(layout)
+    assert by_id['@I102681749719@']['column'] == (
+        by_id['@I102681750190@']['column'] - 1.0)
+    assert not interposed_ids
+
+
 def test_path_graph_expansion_adds_hidden_family_without_moving_endpoints():
     """Relationship graph expansion preserves path endpoints and adds relatives."""
     base = ResultsMixin._path_graph_layout([
@@ -4835,7 +4872,7 @@ def test_family_tree_debug_parent_couple_moves_above_child_when_unblocked():
 
 def test_family_tree_debug_large_tree_preserves_target_spouse_adjacency():
     """Large debug exports keep spouses adjacent around sibling branches."""
-    for fixture_name in ('3', '4'):
+    for fixture_name in ('3', '4', '5'):
         layout, _edges = _load_debug_family_tree_layout(fixture_name)
         by_id = {node['id']: node for node in layout}
         target_generation = by_id['@I102667033170@']['generation']

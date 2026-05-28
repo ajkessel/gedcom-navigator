@@ -5,6 +5,7 @@ param ( [Parameter(Mandatory = $false, HelpMessage = "clean build")][switch]$cle
 # New-SelfSignedCertificate -Type CodeSigningCert -Subject "gedcom-navigator" -CertStoreLocation Cert:\CurrentUser\My
 Set-Location -Path $PSScriptRoot/..
 Start-Transcript -Path "build-windows.log" -Append
+$ErrorActionPreference = 'Stop'
 try {
     Write-Output("Starting build process for Windows...")
     Get-Date
@@ -191,7 +192,7 @@ try {
     else {
         Write-Output "No signing credentials found; skipping signing."
     }
-    Compress-Archive -Path dist\gedcom_navigator_cli.exe,dist\gedcom-navigator.exe,dist\LICENSE.txt -DestinationPath .\dist\gedcom-navigator-windows-portable.zip -Force
+    Compress-Archive -Path dist\gedcom_navigator_cli.exe, dist\gedcom-navigator.exe, dist\LICENSE.txt -DestinationPath .\dist\gedcom-navigator-windows-portable.zip -Force
 }
 finally {
     Stop-Transcript
