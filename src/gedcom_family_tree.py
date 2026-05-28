@@ -1421,6 +1421,277 @@ def layout_family_tree(center_id, visible_ids, edges):
             positions[person_id] = (generation, column + delta)
         ctx.rebuild()
 
+    def same_row_unit(person_id, generation):
+        if person_id not in positions or positions[person_id][0] != generation:
+            return ()
+        unit_ids = {person_id}
+        unit_ids.update(
+            spouse_id
+            for spouse_id in _visible_spouse_ids(
+                person_id, relations, positions)
+            if positions[spouse_id][0] == generation
+        )
+        return tuple(sorted(unit_ids))
+
+    def compact_interleaved_child_family_groups():
+        groups_by_generation = defaultdict(dict)
+        for source_id in positions:
+            source_generation, source_column = positions[source_id]
+            child_generation = source_generation + 1
+            child_ids = [
+                child_id for child_id in _visible_child_ids(
+                    source_id, relations, positions)
+                if positions[child_id][0] == child_generation
+            ]
+            if len(child_ids) < 2:
+                continue
+            unit_keys = []
+            seen_unit_keys = set()
+            for child_id in child_ids:
+                unit_key = same_row_unit(child_id, child_generation)
+                if not unit_key or unit_key in seen_unit_keys:
+                    continue
+                unit_keys.append(unit_key)
+                seen_unit_keys.add(unit_key)
+            if len(unit_keys) < 2:
+                continue
+            spouse_columns = _visible_spouse_columns(
+                source_id, relations, positions)
+            anchor_column = (
+                (source_column + spouse_columns[0]) / 2
+                if spouse_columns else source_column
+            )
+            group_key = frozenset(child_ids)
+            group = groups_by_generation[child_generation].setdefault(
+                group_key,
+                {
+                    'anchor_columns': [],
+                    'unit_keys': unit_keys,
+                },
+            )
+            group['anchor_columns'].append(anchor_column)
+
+        for generation, groups in groups_by_generation.items():
+            row_units = []
+            claimed_ids = set()
+            row_ids = [
+                person_id for person_id, (
+                    person_generation, _person_column)
+                in positions.items()
+                if person_generation == generation
+            ]
+            for person_id in sorted(
+                    row_ids, key=lambda item: (positions[item][1], item)):
+                if person_id in claimed_ids:
+                    continue
+                unit_key = same_row_unit(person_id, generation)
+                if not unit_key:
+                    continue
+                claimed_ids.update(unit_key)
+                row_units.append(unit_key)
+
+            unit_to_group_key = {}
+            group_order = {}
+            row_unit_set = set(row_units)
+            for group_key, group in groups.items():
+                group_units = [
+                    unit_key for unit_key in group['unit_keys']
+                    if unit_key in row_unit_set
+                ]
+                if len(group_units) < 2:
+                    continue
+                group['unit_keys'] = sorted(
+                    group_units,
+                    key=lambda unit_key: min(
+                        positions[person_id][1] for person_id in unit_key),
+                )
+                group_order[group_key] = (
+                    sum(group['anchor_columns'])
+                    / len(group['anchor_columns'])
+                )
+                for unit_key in group['unit_keys']:
+                    existing_group_key = unit_to_group_key.get(unit_key)
+                    if existing_group_key is None:
+                        unit_to_group_key[unit_key] = group_key
+                        continue
+                    existing_anchor = group_order.get(
+                        existing_group_key, 0.0)
+                    if abs(group_order[group_key] - min(
+                            positions[person_id][1]
+                            for person_id in unit_key)) < abs(
+                                existing_anchor - min(
+                                    positions[person_id][1]
+                                    for person_id in unit_key)):
+                        unit_to_group_key[unit_key] = group_key
+
+            row_index_by_unit = {
+                unit_key: index for index, unit_key in enumerate(row_units)
+            }
+            ordered_group_keys = sorted(
+                (
+                    group_key for group_key, group in groups.items()
+                    if len(group.get('unit_keys', ())) >= 2
+                ),
+                key=lambda group_key: (
+                    group_order.get(group_key, 0.0),
+                    min(row_index_by_unit.get(unit_key, len(row_units))
+                        for unit_key in groups[group_key]['unit_keys']),
+                ),
+            )
+
+            for group_key in ordered_group_keys:
+                group_units = [
+                    unit_key for unit_key in groups[group_key]['unit_keys']
+                    if unit_key in row_index_by_unit
+                ]
+                unit_indices = [
+                    row_index_by_unit[unit_key] for unit_key in group_units
+                ]
+                if not unit_indices:
+                    continue
+                first_index = min(unit_indices)
+                last_index = max(unit_indices)
+                if last_index - first_index + 1 == len(group_units):
+                    continue
+                current_interval = row_units[first_index:last_index + 1]
+                group_unit_set = set(group_units)
+                interval_units = [
+                    *group_units,
+                    *(unit_key for unit_key in current_interval
+                      if unit_key not in group_unit_set),
+                ]
+                interval_columns = [
+                    positions[person_id][1]
+                    for unit_key in interval_units
+                    for person_id in unit_key
+                ]
+                interval_span = max(interval_columns) - min(interval_columns)
+                if interval_span > MIN_COLUMN_SPACING * 16:
+                    continue
+
+                unit_block_ids = {}
+                unit_mins = {}
+                unit_block_offsets = {}
+                for unit_key in interval_units:
+                    unit_min = min(
+                        positions[person_id][1] for person_id in unit_key)
+                    block_ids = set()
+                    for person_id in unit_key:
+                        block_ids.update(
+                            sibling_branch_block(person_id, generation))
+                    unit_block_ids[unit_key] = block_ids
+                    unit_mins[unit_key] = unit_min
+                    block_offsets = [
+                        positions[person_id][1] - unit_min
+                        for person_id in block_ids
+                    ]
+                    unit_block_offsets[unit_key] = (
+                        min(block_offsets), max(block_offsets))
+
+                def build_interval_plan(start_column):
+                    cursor = start_column
+                    planned = []
+                    previous_block_right = None
+                    for unit_key in interval_units:
+                        block_left, block_right = (
+                            unit_block_offsets[unit_key])
+                        if (previous_block_right is not None
+                                and cursor + block_left
+                                < previous_block_right + MIN_COLUMN_SPACING):
+                            cursor = (
+                                previous_block_right
+                                + MIN_COLUMN_SPACING
+                                - block_left
+                            )
+                        planned.append((
+                            unit_key,
+                            cursor - unit_mins[unit_key],
+                            unit_block_ids[unit_key],
+                        ))
+                        previous_block_right = cursor + block_right
+                    return planned
+
+                def planned_positions_for(plan):
+                    moving_deltas = {}
+                    for _unit_key, delta, block_ids in plan:
+                        if abs(delta) < 0.001:
+                            continue
+                        for person_id in block_ids:
+                            existing_delta = moving_deltas.get(person_id)
+                            if (existing_delta is not None
+                                    and abs(existing_delta - delta) >= 0.001):
+                                return None, None
+                            moving_deltas[person_id] = delta
+                    if not moving_deltas:
+                        return None, None
+
+                    planned_positions = {
+                        person_id: (
+                            person_generation, person_column + delta)
+                        for person_id, delta in moving_deltas.items()
+                        for person_generation, person_column in (
+                            positions[person_id],)
+                    }
+                    planned_by_generation = defaultdict(list)
+                    for person_id, (person_generation, person_column) in (
+                            planned_positions.items()):
+                        planned_by_generation[person_generation].append(
+                            (person_id, person_column))
+
+                    for planned_nodes in planned_by_generation.values():
+                        for index, (left_id, left_column) in enumerate(
+                                planned_nodes):
+                            for right_id, right_column in planned_nodes[
+                                    index + 1:]:
+                                if left_id == right_id:
+                                    continue
+                                if abs(left_column - right_column) < (
+                                        MIN_COLUMN_SPACING - 1e-9):
+                                    return None, None
+
+                    for person_id, (person_generation, person_column) in (
+                            planned_positions.items()):
+                        for blocker_id, (
+                                blocker_generation, blocker_column
+                        ) in positions.items():
+                            if blocker_id in moving_deltas:
+                                continue
+                            if blocker_generation != person_generation:
+                                continue
+                            if abs(person_column - blocker_column) < (
+                                    MIN_COLUMN_SPACING - 1e-9):
+                                return None, None
+
+                    shift_cost = sum(
+                        abs(delta) * len(block_ids)
+                        for _unit_key, delta, block_ids in plan
+                    )
+                    return planned_positions, shift_cost
+
+                candidate_starts = {min(interval_columns)}
+                for unit_key, delta, _block_ids in build_interval_plan(0.0):
+                    candidate_starts.add(unit_mins[unit_key] - (
+                        unit_mins[unit_key] + delta))
+
+                selected_positions = None
+                selected_cost = None
+                for start_column in sorted(candidate_starts):
+                    candidate_positions, shift_cost = planned_positions_for(
+                        build_interval_plan(start_column))
+                    if candidate_positions is None:
+                        continue
+                    if selected_cost is None or shift_cost < selected_cost:
+                        selected_positions = candidate_positions
+                        selected_cost = shift_cost
+                if selected_positions is None:
+                    continue
+
+                for person_id, target_position in selected_positions.items():
+                    positions[person_id] = target_position
+                ctx.rebuild()
+                return True
+        return False
+
     def sibling_cluster_branch_block(root_id, source_generation):
         root_ids = set()
         queue = deque([root_id])
@@ -1601,103 +1872,6 @@ def layout_family_tree(center_id, visible_ids, edges):
                 reserve_family_branch_slot(
                     child_generation, column, protected_ids, direction)
                 shift_block(child_blocks[child_id], child_delta)
-
-    def compact_shared_parent_child_branches():
-        handled_child_groups = set()
-        for source_id in sorted(
-                list(positions),
-                key=lambda item: (positions[item][0], positions[item][1])):
-            source_generation, _source_column = positions[source_id]
-            child_generation = source_generation + 1
-            child_ids = [
-                child_id for child_id in _visible_child_ids(
-                    source_id, relations, positions)
-                if positions[child_id][0] == child_generation
-            ]
-            if len(child_ids) < 2:
-                continue
-            left_sibling_parent_has_children = False
-            for sibling_id in _visible_family_sibling_ids(
-                    source_id, relations, positions):
-                if positions[sibling_id][0] != source_generation:
-                    continue
-                if positions[sibling_id][1] >= positions[source_id][1]:
-                    continue
-                sibling_child_ids = [
-                    child_id for child_id in _visible_child_ids(
-                        sibling_id, relations, positions)
-                    if positions[child_id][0] == child_generation
-                ]
-                if len(sibling_child_ids) >= 2:
-                    left_sibling_parent_has_children = True
-                    break
-            if left_sibling_parent_has_children:
-                continue
-            child_group_key = (child_generation, frozenset(child_ids))
-            if child_group_key in handled_child_groups:
-                continue
-            handled_child_groups.add(child_group_key)
-
-            units = []
-            claimed_ids = set()
-            for child_id in sorted(
-                    child_ids,
-                    key=lambda item: (positions[item][1], item)):
-                block_ids = sibling_branch_block(child_id, child_generation)
-                block_ids -= claimed_ids
-                row_ids = [
-                    person_id for person_id in block_ids
-                    if positions[person_id][0] == child_generation
-                ]
-                if not row_ids:
-                    continue
-                claimed_ids.update(block_ids)
-                units.append((
-                    block_ids,
-                    min(positions[person_id][1] for person_id in row_ids),
-                    max(positions[person_id][1] for person_id in row_ids),
-                ))
-            if len(units) < 2:
-                continue
-
-            group_ids = set().union(*(unit[0] for unit in units))
-            group_min = min(unit_min for _block_ids, unit_min, _unit_max in units)
-            group_max = max(unit_max for _block_ids, _unit_min, unit_max in units)
-            interlopers = [
-                person_id for person_id, (generation, column)
-                in positions.items()
-                if (person_id not in group_ids
-                    and generation == child_generation
-                    and group_min < column < group_max)
-            ]
-            if not interlopers:
-                continue
-            if (len(interlopers) > 4
-                    or group_max - group_min > MIN_COLUMN_SPACING * 13):
-                continue
-            if source_id == '@I102667033174@':
-                print('DEBUG compact target', group_min, group_max,
-                      interlopers, child_ids)
-
-            desired = []
-            cursor = group_min
-            for block_ids, unit_min, unit_max in units:
-                desired.append((block_ids, cursor - unit_min))
-                cursor += (unit_max - unit_min) + MIN_COLUMN_SPACING
-
-            for block_ids, delta in desired:
-                if abs(delta) < 0.001:
-                    continue
-                direction = 1 if delta > 0 else -1
-                target_columns = sorted(
-                    positions[person_id][1] + delta
-                    for person_id in block_ids
-                    if positions[person_id][0] == child_generation
-                )
-                for column in target_columns:
-                    reserve_family_branch_slot(
-                        child_generation, column, group_ids, direction)
-                shift_block(block_ids, delta)
 
     def compact_sibling_branch_blocks():
         handled_groups = set()
@@ -1948,6 +2122,7 @@ def layout_family_tree(center_id, visible_ids, edges):
         compact_sibling_branch_blocks()
         enforce_spouse_adjacency()
         enforce_child_alignment()
+        compact_interleaved_child_family_groups()
         align_detached_child_branches()
         enforce_spouse_adjacency()
         ctx.run_until_stable(
@@ -1955,13 +2130,14 @@ def layout_family_tree(center_id, visible_ids, edges):
                 compact_sibling_branch_blocks,
                 enforce_spouse_adjacency,
                 compact_sibling_side_gaps,
+                compact_interleaved_child_family_groups,
                 align_detached_child_branches,
             ),
             max_iterations=3,
         )
-        compact_shared_parent_child_branches()
         realign_child_branch_groups()
         enforce_parent_child_alignment()
+        compact_interleaved_child_family_groups()
         enforce_spouse_adjacency()
 
     place_initial_nodes()
@@ -1971,6 +2147,10 @@ def layout_family_tree(center_id, visible_ids, edges):
     align_family_groups()
     compact_family_branches()
     ctx.resolve_same_row_conflicts({center_id})
+    for _ in range(min(20, len(positions))):
+        if not compact_interleaved_child_family_groups():
+            break
+        enforce_spouse_adjacency()
     return [
         {
             'id': target_id,
