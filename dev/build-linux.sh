@@ -11,10 +11,15 @@ fi
 output_file="gedcom-navigator-linux.zip"
 while getopts "hnco:" opt; do
 	case $opt in
-	h)
-		echo "Usage: $0 [-h] [-c] [-o]"
+		h)
+		echo "Usage: $0 [-h] [-n] [-c] [-o]"
+		echo "  -h  Show this help message and exit"
+		echo "  -n  Dry run: build the app but skip signing; no effect on Linux"
+		echo "  -c  Clean build: remove virtual environment and pyenv versions before building"
+		echo "  -o  Specify output file name (default: gedcom-navigator-mac.zip)"
 		exit 0
 		;;
+	n) DRY=true ;;
 	c) CLEAN=true ;;
 	o) output_file=$OPTARG ;;
 	*)
