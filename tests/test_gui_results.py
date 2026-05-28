@@ -4833,6 +4833,86 @@ def test_family_tree_debug_parent_couple_moves_above_child_when_unblocked():
         parent_midpoint - by_id['@I102667033207@']['column']) <= 0.5
 
 
+def test_family_tree_debug_large_tree_preserves_target_spouse_adjacency():
+    """Large debug exports keep spouses adjacent around sibling branches."""
+    for fixture_name in ('3', '4'):
+        layout, _edges = _load_debug_family_tree_layout(fixture_name)
+        by_id = {node['id']: node for node in layout}
+        target_generation = by_id['@I102667033170@']['generation']
+        same_row = [
+            node for node in layout
+            if node['generation'] == target_generation
+        ]
+        right_of_target = sorted(
+            (
+                node for node in same_row
+                if node['column'] > by_id['@I102667033170@']['column']
+            ),
+            key=lambda node: node['column'],
+        )
+        nearest_non_spouse = next(
+            node for node in right_of_target
+            if node['id'] != '@I102667033171@')
+        sibling_unit_ids = {
+            '@I102667033170@',
+            '@I102667033171@',
+            '@I102667033176@',
+            '@I102667033177@',
+            '@I102667033188@',
+            '@I102667033190@',
+        }
+        sibling_unit_columns = [
+            by_id[person_id]['column'] for person_id in sibling_unit_ids
+        ]
+        interposed_ids = {
+            node['id'] for node in same_row
+            if min(sibling_unit_columns) <= node['column']
+            <= max(sibling_unit_columns)
+        } - sibling_unit_ids
+
+        _assert_no_same_row_conflicts(layout)
+        assert by_id['@I102667033281@']['column'] == (
+            by_id['@I102667033206@']['column'] + 1.0)
+        assert nearest_non_spouse['id'] == '@I102667033176@'
+        assert not interposed_ids
+
+
+def test_family_tree_debug_large_tree_keeps_neighbor_family_units_together():
+    """Adjacent child families stay grouped instead of interleaving branches."""
+    layout, _edges = _load_debug_family_tree_layout('4')
+    by_id = {node['id']: node for node in layout}
+    same_generation = by_id['@I102667033170@']['generation']
+    family_a = [
+        '@I102667033170@',
+        '@I102667033171@',
+        '@I102667033176@',
+        '@I102667033188@',
+        '@I102667033177@',
+        '@I102667033190@',
+    ]
+    family_b = [
+        '@I102667033204@',
+        '@I102667033276@',
+        '@I102667033205@',
+        '@I102667033278@',
+        '@I102667033206@',
+        '@I102667033281@',
+    ]
+    ordered_row = [
+        node['id'] for node in sorted(
+            (
+                node for node in layout
+                if node['generation'] == same_generation
+                and node['id'] in {*family_a, *family_b}
+            ),
+            key=lambda node: node['column'],
+        )
+    ]
+
+    _assert_no_same_row_conflicts(layout)
+    assert ordered_row == family_a + family_b
+
+
 def test_family_tree_child_alignment_keeps_adjusted_siblings_separate():
     """Children shifted around spouse boxes do not collapse into one column."""
     visible = [

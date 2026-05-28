@@ -1,6 +1,7 @@
 #Requires -version 5.1
 Set-Location -Path $PSScriptRoot/..
 Start-Transcript -Path "build-winget.log" -Append
+$ErrorActionPreference = 'Stop'
 $initFile = Get-Content ".\gedcom_navigator\__init__.py" -Raw
 if ($initFile -match '__version__\s*=\s*["'']([^"'']+)["'']') {
    $version = $Matches[1]
@@ -29,6 +30,7 @@ if ( Test-Path -Path "..\winget-pkgs" ) {
    Write-Output "Found local Winget Github manifests directory, copying new manifests... (remember to create pull request for branch $fourDigitVersion)"
    Set-Location -Path "..\winget-pkgs\manifests\a\AdamKessel\GEDCOMNavigator\$fourDigitVersion"
    git switch master
+   gh repo sync --force
    git pull
    git branch $fourDigitVersion
    git switch $fourDigitVersion 
