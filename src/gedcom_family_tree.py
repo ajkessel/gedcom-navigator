@@ -718,6 +718,47 @@ def _reserve_same_row_slot(positions, occupied, generation, column,
         _rebuild_occupied(occupied, positions)
 
 
+class _FamilyTreeLayoutContext:
+    """Mutable state for family-tree layout passes."""
+
+    def __init__(self, center_id, relations):
+        self.center_id = center_id
+        self.relations = relations
+        self.positions = {center_id: (0, 0.0)}
+        self.occupied = defaultdict(list)
+        self.occupied[0].append(0.0)
+        self.queue = deque([center_id])
+
+    def assign(self, target_id, generation, column):
+        column = _next_open_column(column, self.occupied[generation])
+        self.positions[target_id] = (generation, column)
+        self.occupied[generation].append(column)
+        self.queue.append(target_id)
+
+    def rebuild(self):
+        _rebuild_occupied(self.occupied, self.positions)
+
+    def reserve(self, generation, column, protected_id):
+        _reserve_same_row_slot(
+            self.positions, self.occupied, generation, column, protected_id)
+
+    def compact_row_gaps(self, protected_ids=()):
+        _compact_row_gaps(self.positions, protected_ids)
+        self.rebuild()
+
+    def resolve_same_row_conflicts(self, protected_ids=()):
+        _resolve_same_row_conflicts(self.positions, protected_ids)
+        self.rebuild()
+
+    def run_until_stable(self, passes, max_iterations):
+        for _ in range(max_iterations):
+            before = dict(self.positions)
+            for layout_pass in passes:
+                layout_pass()
+            if before == self.positions:
+                break
+
+
 def _visible_spouse_ids(source_id, relations, positions):
     spouse_ids = list(relations[source_id].get('spouses', ()))
     for other_id, rels in relations.items():
@@ -812,16 +853,9 @@ def layout_family_tree(center_id, visible_ids, edges):
     for source_id, target_id, category in edges:
         relations[source_id][category].append(target_id)
 
-    positions = {center_id: (0, 0.0)}
-    occupied = defaultdict(list)
-    occupied[0].append(0.0)
-    queue = deque([center_id])
-
-    def assign(target_id, generation, column):
-        column = _next_open_column(column, occupied[generation])
-        positions[target_id] = (generation, column)
-        occupied[generation].append(column)
-        queue.append(target_id)
+    ctx = _FamilyTreeLayoutContext(center_id, relations)
+    positions = ctx.positions
+    queue = ctx.queue
 
     def enforce_spouse_adjacency():
         seen = set()
@@ -842,11 +876,10 @@ def layout_family_tree(center_id, visible_ids, edges):
                 )
                 if abs(spouse_column - desired_column) < 0.001:
                     continue
-                _reserve_same_row_slot(
-                    positions, occupied, source_generation, desired_column,
-                    {source_id, spouse_id})
+                ctx.reserve(
+                    source_generation, desired_column, {source_id, spouse_id})
                 positions[spouse_id] = (spouse_generation, desired_column)
-                _rebuild_occupied(occupied, positions)
+                ctx.rebuild()
 
     def enforce_child_alignment():
         assigned_child_columns_by_generation = defaultdict(list)
@@ -919,12 +952,10 @@ def layout_family_tree(center_id, visible_ids, edges):
                     column,
                     protected_columns + assigned_child_columns,
                 )
-                _reserve_same_row_slot(
-                    positions, occupied, child_generation, column,
-                    protected_ids)
+                ctx.reserve(child_generation, column, protected_ids)
                 positions[child_id] = (child_generation, column)
                 assigned_child_columns.append(column)
-                _rebuild_occupied(occupied, positions)
+                ctx.rebuild()
             assigned_child_columns_by_generation[child_generation].extend(
                 assigned_child_columns)
 
@@ -1013,18 +1044,16 @@ def layout_family_tree(center_id, visible_ids, edges):
                         positions[person_id] = (
                             source_generation, next_column)
                         next_column += MIN_COLUMN_SPACING
-                _rebuild_occupied(occupied, positions)
+                ctx.rebuild()
             move_plan = sorted(
                 desired.items(),
                 key=lambda item: item[1],
                 reverse=direction < 0,
             )
             for sibling_id, column in move_plan:
-                _reserve_same_row_slot(
-                    positions, occupied, source_generation, column,
-                    protected_ids)
+                ctx.reserve(source_generation, column, protected_ids)
                 positions[sibling_id] = (source_generation, column)
-                _rebuild_occupied(occupied, positions)
+                ctx.rebuild()
 
     def enforce_parent_child_alignment():
         aligned_pairs = set()
@@ -1079,16 +1108,11 @@ def layout_family_tree(center_id, visible_ids, edges):
                 source_target = child_center + pair_offset
                 spouse_target = child_center - pair_offset
             protected_ids = {source_id, spouse_id}
-            _reserve_same_row_slot(
-                positions, occupied, source_generation, source_target,
-                protected_ids)
-            _reserve_same_row_slot(
-                positions, occupied, source_generation, spouse_target,
-                protected_ids)
+            ctx.reserve(source_generation, source_target, protected_ids)
+            ctx.reserve(source_generation, spouse_target, protected_ids)
             positions[source_id] = (source_generation, source_target)
             positions[spouse_id] = (source_generation, spouse_target)
-            _resolve_same_row_conflicts(positions, protected_ids)
-            _rebuild_occupied(occupied, positions)
+            ctx.resolve_same_row_conflicts(protected_ids)
 
     def compact_child_row_clusters():
         for source_id in sorted(
@@ -1142,7 +1166,7 @@ def layout_family_tree(center_id, visible_ids, edges):
                 continue
             for person_id, column in desired.items():
                 positions[person_id] = (child_generation, column)
-            _rebuild_occupied(occupied, positions)
+            ctx.rebuild()
 
     def compact_sibling_side_gaps():
         seen_groups = set()
@@ -1211,7 +1235,7 @@ def layout_family_tree(center_id, visible_ids, edges):
                             source_generation, left_column + max_gap)
                         changed = True
                     if changed:
-                        _rebuild_occupied(occupied, positions)
+                        ctx.rebuild()
                         break
                 if not changed:
                     break
@@ -1270,11 +1294,9 @@ def layout_family_tree(center_id, visible_ids, edges):
 
             for sibling_id, column in sorted(
                     desired.items(), key=lambda item: item[1]):
-                _reserve_same_row_slot(
-                    positions, occupied, source_generation, column,
-                    protected_ids)
+                ctx.reserve(source_generation, column, protected_ids)
                 positions[sibling_id] = (source_generation, column)
-                _rebuild_occupied(occupied, positions)
+                ctx.rebuild()
 
     def sibling_branch_block(root_id, source_generation):
         block_ids = set()
@@ -1408,145 +1430,156 @@ def layout_family_tree(center_id, visible_ids, edges):
                     for person_id in unit:
                         generation, column = positions[person_id]
                         positions[person_id] = (generation, column + shift)
-                    _rebuild_occupied(occupied, positions)
+                    ctx.rebuild()
                 settled_ids.update(unit)
 
-    while queue:
-        source_id = queue.popleft()
-        source_generation, source_column = positions[source_id]
-        for category in LAYOUT_TREE_CATEGORIES:
-            targets = relations[source_id].get(category, ())
-            if category == 'parents':
-                generation = source_generation - 1
-                offsets = _centered_offsets(len(targets), MIN_COLUMN_SPACING)
-                base_column = source_column
-            elif category == 'children':
-                generation = source_generation + 1
-                offsets = _centered_offsets(len(targets))
-                spouse_columns = _visible_spouse_columns(
-                    source_id, relations, positions)
-                base_column = (
-                    (source_column + spouse_columns[0]) / 2
-                    if spouse_columns else source_column
-                )
-            elif category == 'siblings':
-                generation = source_generation
-                spouse_columns = _visible_spouse_columns(
-                    source_id, relations, positions)
-                direction = (
-                    1 if any(column < source_column
-                             for column in spouse_columns)
-                    else -1
-                )
-                offsets = _side_offsets(len(targets), direction)
-                base_column = source_column
-            else:
-                generation = source_generation
-                offsets = _side_offsets(len(targets), 1, MIN_COLUMN_SPACING)
-                base_column = source_column
-
-            target_columns = {
-                target_id: base_column + offset
-                for target_id, offset in zip(targets, offsets)
-            }
-            if category == 'children':
-                for target_id, column in target_columns.items():
-                    if target_id not in positions:
-                        continue
-                    if positions[target_id][0] != generation:
-                        continue
-                    _reserve_same_row_slot(
-                        positions, occupied, generation, column,
-                        {target_id, source_id})
-                    positions[target_id] = (generation, column)
-                    _rebuild_occupied(occupied, positions)
-
-            for target_id, offset in zip(targets, offsets):
-                if target_id in positions:
-                    continue
-                column = target_columns.get(target_id, base_column + offset)
+    def place_initial_nodes():
+        while queue:
+            source_id = queue.popleft()
+            source_generation, source_column = positions[source_id]
+            for category in LAYOUT_TREE_CATEGORIES:
+                targets = relations[source_id].get(category, ())
                 if category == 'parents':
-                    visible_spouse_ids = [
-                        spouse_id for spouse_id in _visible_spouse_ids(
-                            target_id, relations, positions)
-                        if positions[spouse_id][0] == generation
-                    ]
-                    if visible_spouse_ids:
-                        spouse_id = visible_spouse_ids[0]
-                        spouse_generation, spouse_column = positions[spouse_id]
-                        pair_offset = MIN_COLUMN_SPACING / 2
-                        if spouse_column <= source_column:
-                            spouse_column = source_column - pair_offset
-                            column = source_column + pair_offset
-                        else:
-                            spouse_column = source_column + pair_offset
-                            column = source_column - pair_offset
-                        _reserve_same_row_slot(
-                            positions, occupied, generation, spouse_column,
-                            {spouse_id, source_id})
-                        positions[spouse_id] = (
-                            spouse_generation, spouse_column)
-                        _rebuild_occupied(occupied, positions)
-                    _reserve_same_row_slot(
-                        positions, occupied, generation, column,
-                        set(visible_spouse_ids) | {source_id})
-                elif category in ('children', 'spouses'):
-                    _reserve_same_row_slot(
-                        positions, occupied, generation, column, source_id)
-                assign(target_id, generation, column)
+                    generation = source_generation - 1
+                    offsets = _centered_offsets(
+                        len(targets), MIN_COLUMN_SPACING)
+                    base_column = source_column
+                elif category == 'children':
+                    generation = source_generation + 1
+                    offsets = _centered_offsets(len(targets))
+                    spouse_columns = _visible_spouse_columns(
+                        source_id, relations, positions)
+                    base_column = (
+                        (source_column + spouse_columns[0]) / 2
+                        if spouse_columns else source_column
+                    )
+                elif category == 'siblings':
+                    generation = source_generation
+                    spouse_columns = _visible_spouse_columns(
+                        source_id, relations, positions)
+                    direction = (
+                        1 if any(column < source_column
+                                 for column in spouse_columns)
+                        else -1
+                    )
+                    offsets = _side_offsets(len(targets), direction)
+                    base_column = source_column
+                else:
+                    generation = source_generation
+                    offsets = _side_offsets(
+                        len(targets), 1, MIN_COLUMN_SPACING)
+                    base_column = source_column
 
-    for target_id in visible_ids:
-        if target_id in positions:
-            continue
-        generation = 0
-        column = _next_open_column(0.0, occupied[generation])
-        positions[target_id] = (generation, column)
-        occupied[generation].append(column)
+                target_columns = {
+                    target_id: base_column + offset
+                    for target_id, offset in zip(targets, offsets)
+                }
+                if category == 'children':
+                    for target_id, column in target_columns.items():
+                        if target_id not in positions:
+                            continue
+                        if positions[target_id][0] != generation:
+                            continue
+                        ctx.reserve(
+                            generation, column, {target_id, source_id})
+                        positions[target_id] = (generation, column)
+                        ctx.rebuild()
 
-    for _ in range(10):
-        before = dict(positions)
+                for target_id, offset in zip(targets, offsets):
+                    if target_id in positions:
+                        continue
+                    column = target_columns.get(
+                        target_id, base_column + offset)
+                    if category == 'parents':
+                        visible_spouse_ids = [
+                            spouse_id for spouse_id in _visible_spouse_ids(
+                                target_id, relations, positions)
+                            if positions[spouse_id][0] == generation
+                        ]
+                        if visible_spouse_ids:
+                            spouse_id = visible_spouse_ids[0]
+                            spouse_generation, spouse_column = (
+                                positions[spouse_id])
+                            pair_offset = MIN_COLUMN_SPACING / 2
+                            if spouse_column <= source_column:
+                                spouse_column = source_column - pair_offset
+                                column = source_column + pair_offset
+                            else:
+                                spouse_column = source_column + pair_offset
+                                column = source_column - pair_offset
+                            ctx.reserve(
+                                generation, spouse_column,
+                                {spouse_id, source_id})
+                            positions[spouse_id] = (
+                                spouse_generation, spouse_column)
+                            ctx.rebuild()
+                        ctx.reserve(
+                            generation, column,
+                            set(visible_spouse_ids) | {source_id})
+                    elif category in ('children', 'spouses'):
+                        ctx.reserve(generation, column, source_id)
+                    ctx.assign(target_id, generation, column)
+
+        for target_id in visible_ids:
+            if target_id in positions:
+                continue
+            ctx.assign(target_id, 0, 0.0)
+
+    def settle_core_constraints():
+        ctx.run_until_stable(
+            (enforce_spouse_adjacency, enforce_child_alignment),
+            max_iterations=10,
+        )
+
+    def resolve_initial_row_conflicts():
         enforce_spouse_adjacency()
+        ctx.compact_row_gaps({center_id})
+        enforce_spouse_adjacency()
+        ctx.resolve_same_row_conflicts({center_id})
+
+    def settle_sibling_positions():
+        enforce_sibling_adjacency()
+        ctx.rebuild()
+        enforce_spouse_adjacency()
+        ctx.resolve_same_row_conflicts({center_id})
+        ctx.compact_row_gaps({center_id})
+        ctx.resolve_same_row_conflicts({center_id})
+        enforce_sibling_adjacency()
+        ctx.resolve_same_row_conflicts({center_id})
+
+    def align_family_groups():
         enforce_child_alignment()
-        if before == positions:
-            break
-    enforce_spouse_adjacency()
-    _compact_row_gaps(positions, {center_id})
-    _rebuild_occupied(occupied, positions)
-    enforce_spouse_adjacency()
-    _resolve_same_row_conflicts(positions, {center_id})
-    _rebuild_occupied(occupied, positions)
-    enforce_sibling_adjacency()
-    _rebuild_occupied(occupied, positions)
-    enforce_spouse_adjacency()
-    _resolve_same_row_conflicts(positions, {center_id})
-    _rebuild_occupied(occupied, positions)
-    _compact_row_gaps(positions, {center_id})
-    _resolve_same_row_conflicts(positions, {center_id})
-    enforce_sibling_adjacency()
-    _resolve_same_row_conflicts(positions, {center_id})
-    enforce_child_alignment()
-    enforce_spouse_adjacency()
-    enforce_sibling_adjacency()
-    enforce_spouse_adjacency()
-    enforce_parent_child_alignment()
-    enforce_spouse_adjacency()
-    compact_sibling_side_gaps()
-    compact_child_row_clusters()
-    enforce_child_alignment()
-    enforce_spouse_adjacency()
-    enforce_spouse_sibling_side_groups()
-    compact_sibling_branch_blocks()
-    enforce_spouse_adjacency()
-    enforce_child_alignment()
-    for _ in range(3):
-        before = dict(positions)
-        compact_sibling_branch_blocks()
+        enforce_spouse_adjacency()
+        enforce_sibling_adjacency()
+        enforce_spouse_adjacency()
+        enforce_parent_child_alignment()
         enforce_spouse_adjacency()
         compact_sibling_side_gaps()
-        if before == positions:
-            break
-    _resolve_same_row_conflicts(positions, {center_id})
-    _rebuild_occupied(occupied, positions)
+        compact_child_row_clusters()
+        enforce_child_alignment()
+        enforce_spouse_adjacency()
+        enforce_spouse_sibling_side_groups()
+
+    def compact_family_branches():
+        compact_sibling_branch_blocks()
+        enforce_spouse_adjacency()
+        enforce_child_alignment()
+        ctx.run_until_stable(
+            (
+                compact_sibling_branch_blocks,
+                enforce_spouse_adjacency,
+                compact_sibling_side_gaps,
+            ),
+            max_iterations=3,
+        )
+
+    place_initial_nodes()
+    settle_core_constraints()
+    resolve_initial_row_conflicts()
+    settle_sibling_positions()
+    align_family_groups()
+    compact_family_branches()
+    ctx.resolve_same_row_conflicts({center_id})
     return [
         {
             'id': target_id,

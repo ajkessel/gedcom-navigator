@@ -1,5 +1,8 @@
 """Tests for result-pane path rendering helpers."""
 
+import json
+from pathlib import Path
+
 from gedcom_family_tree import (
     _nearest_unblocked_column,
     build_descendant_tree_graph,
@@ -15,6 +18,49 @@ from gedcom_family_tree import (
 from gedcom_gui_family_tree_render import FamilyTreeRenderMixin
 from gedcom_gui_results import ResultsMixin
 import gedcom_strings as gs
+
+
+def _load_debug_family_tree_layout(name):
+    payload = json.loads((Path('debug') / f'{name}.json').read_text())
+    edges = [
+        (edge['source'], edge['target'], edge['category'])
+        for edge in payload['edges']
+    ]
+    return (
+        layout_family_tree(
+            payload['center_id'], payload['visible_ids'], edges),
+        edges,
+    )
+
+
+def _assert_no_same_row_conflicts(layout):
+    for index, left in enumerate(layout):
+        for right in layout[index + 1:]:
+            if left['generation'] != right['generation']:
+                continue
+            assert abs(left['column'] - right['column']) >= 1.0 - 1e-9
+
+
+def _assert_visible_spouses_adjacent(layout, edges):
+    by_id = {node['id']: node for node in layout}
+    for source_id, target_id, category in edges:
+        if category != 'spouses':
+            continue
+        if source_id not in by_id or target_id not in by_id:
+            continue
+        if by_id[source_id]['generation'] != by_id[target_id]['generation']:
+            continue
+        assert abs(
+            abs(by_id[source_id]['column'] - by_id[target_id]['column'])
+            - 1.0) <= 1e-9
+
+
+def _max_family_tree_row_width(layout):
+    by_generation = {}
+    for node in layout:
+        by_generation.setdefault(node['generation'], []).append(node['column'])
+    return max(max(columns) - min(columns)
+               for columns in by_generation.values())
 
 
 class _HomeModel:
@@ -4714,6 +4760,22 @@ def test_family_tree_compacts_sibling_branch_with_children_as_block():
     assert by_id['@AUNT_SP@']['column'] == by_id['@AUNT@']['column'] + 1.0
     assert by_id['@AUNT_CH2@']['column'] == (
         by_id['@AUNT@']['column'] + by_id['@AUNT_SP@']['column']) / 2
+
+
+def test_family_tree_debug_fixtures_preserve_layout_invariants():
+    """Saved graph exports replay without overlap, spouse gaps, or drift."""
+    max_width_by_fixture = {
+        'aa': 4.3,
+        'bb': 8.3,
+        'cc': 12.0,
+    }
+
+    for name, max_width in max_width_by_fixture.items():
+        layout, edges = _load_debug_family_tree_layout(name)
+
+        _assert_no_same_row_conflicts(layout)
+        _assert_visible_spouses_adjacent(layout, edges)
+        assert _max_family_tree_row_width(layout) <= max_width
 
 
 def test_family_tree_child_alignment_keeps_adjusted_siblings_separate():
