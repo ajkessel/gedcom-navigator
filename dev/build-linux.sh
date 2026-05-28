@@ -4,6 +4,10 @@ if [[ "$OSTYPE" != "linux-gnu"* ]]; then
 	echo "${OSTYPE} detected, exiting."
 	exit 1
 fi
+if [[ "$STDBUF_ACTIVE" != "1" ]]; then
+        export STDBUF_ACTIVE=1
+        exec stdbuf -oL "$0" "$@"
+fi
 output_file="gedcom-navigator-linux.zip"
 while getopts "hnco:" opt; do
 	case $opt in

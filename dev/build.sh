@@ -6,6 +6,10 @@ cd "${SCRIPT_DIR}/.." || exit 1
 	echo 'Build files not found.'
 	exit 1
 }
+if [[ "$STDBUF_ACTIVE" != "1" ]]; then
+        export STDBUF_ACTIVE=1
+        exec stdbuf -oL "$0" "$@"
+fi
 git pull
 if command -v msgfmt &>/dev/null; then
 	echo 'Compiling translations...'
