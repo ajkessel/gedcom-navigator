@@ -1455,9 +1455,9 @@ def layout_family_tree(center_id, visible_ids, edges):
 
     def realign_child_branch_groups():
         aligned_child_groups = set()
-        for source_id in sorted(
-                list(positions),
-                key=lambda item: (positions[item][0], positions[item][1])):
+        for source_id in (center_id,):
+            if source_id not in positions:
+                continue
             source_generation, source_column = positions[source_id]
             child_generation = source_generation + 1
             child_ids = [
@@ -1750,17 +1750,21 @@ def layout_family_tree(center_id, visible_ids, edges):
         enforce_child_alignment()
         enforce_spouse_adjacency()
         enforce_spouse_sibling_side_groups()
+        align_detached_child_branches()
         enforce_spouse_adjacency()
 
     def compact_family_branches():
         compact_sibling_branch_blocks()
         enforce_spouse_adjacency()
         enforce_child_alignment()
+        align_detached_child_branches()
         enforce_spouse_adjacency()
         ctx.run_until_stable(
             (
+                compact_sibling_branch_blocks,
                 enforce_spouse_adjacency,
                 compact_sibling_side_gaps,
+                align_detached_child_branches,
             ),
             max_iterations=3,
         )
