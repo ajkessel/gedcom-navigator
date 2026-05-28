@@ -1317,6 +1317,197 @@ def layout_family_tree(center_id, visible_ids, edges):
                     stack.append(child_id)
         return block_ids
 
+    def shift_block(block_ids, delta):
+        if abs(delta) < 0.001:
+            return
+        for person_id in block_ids:
+            if person_id not in positions:
+                continue
+            generation, column = positions[person_id]
+            positions[person_id] = (generation, column + delta)
+        ctx.rebuild()
+
+    def sibling_cluster_branch_block(root_id, source_generation):
+        root_ids = set()
+        queue = deque([root_id])
+        while queue:
+            person_id = queue.popleft()
+            if person_id in root_ids or person_id not in positions:
+                continue
+            if positions[person_id][0] != source_generation:
+                continue
+            root_ids.add(person_id)
+            queue.extend(_visible_family_sibling_ids(
+                person_id, relations, positions))
+        block_ids = set()
+        for sibling_id in root_ids:
+            if sibling_id not in positions:
+                continue
+            if positions[sibling_id][0] != source_generation:
+                continue
+            block_ids.update(sibling_branch_block(
+                sibling_id, source_generation))
+        return block_ids
+
+    def reserve_family_branch_slot(generation, column, protected_ids,
+                                   direction):
+        protected_ids = set(protected_ids)
+        for _ in range(max(1, len(positions) * 3)):
+            conflicts = [
+                target_id for target_id, (target_generation, target_column)
+                in positions.items()
+                if target_id not in protected_ids
+                and target_generation == generation
+                and abs(target_column - column) < MIN_COLUMN_SPACING
+            ]
+            if not conflicts:
+                return
+            if direction >= 0:
+                boundary = min(positions[target_id][1]
+                               for target_id in conflicts)
+                same_row_ids = [
+                    target_id for target_id, (
+                        target_generation, target_column)
+                    in positions.items()
+                    if target_id not in protected_ids
+                    and target_generation == generation
+                    and target_column >= boundary
+                ]
+                delta = MIN_COLUMN_SPACING
+            else:
+                boundary = max(positions[target_id][1]
+                               for target_id in conflicts)
+                same_row_ids = [
+                    target_id for target_id, (
+                        target_generation, target_column)
+                    in positions.items()
+                    if target_id not in protected_ids
+                    and target_generation == generation
+                    and target_column <= boundary
+                ]
+                delta = -MIN_COLUMN_SPACING
+            shifted_ids = set()
+            for target_id in same_row_ids:
+                shifted_ids.update(sibling_cluster_branch_block(
+                    target_id, generation))
+            shifted_ids -= protected_ids
+            if not shifted_ids:
+                return
+            shift_block(shifted_ids, delta)
+
+    def align_detached_child_branches():
+        aligned_child_groups = set()
+        for source_id in sorted(
+                list(positions),
+                key=lambda item: (positions[item][0], positions[item][1])):
+            source_generation, source_column = positions[source_id]
+            if source_generation >= positions[center_id][0]:
+                continue
+            child_generation = source_generation + 1
+            child_ids = [
+                child_id for child_id in _visible_child_ids(
+                    source_id, relations, positions)
+                if positions[child_id][0] == child_generation
+            ]
+            if not child_ids:
+                continue
+            if len(child_ids) != 2:
+                continue
+            child_group_key = (child_generation, frozenset(child_ids))
+            if child_group_key in aligned_child_groups:
+                continue
+            aligned_child_groups.add(child_group_key)
+            spouse_columns = _visible_spouse_columns(
+                source_id, relations, positions)
+            base_column = (
+                (source_column + spouse_columns[0]) / 2
+                if spouse_columns else source_column
+            )
+            child_columns = [positions[child_id][1] for child_id in child_ids]
+            child_center = (min(child_columns) + max(child_columns)) / 2
+            delta_to_parent = base_column - child_center
+            if abs(delta_to_parent) <= MIN_COLUMN_SPACING * 5:
+                continue
+            child_blocks = {
+                child_id: sibling_branch_block(child_id, child_generation)
+                for child_id in child_ids
+            }
+            protected_ids = {source_id, *child_ids}
+            protected_ids.update(
+                spouse_id
+                for spouse_id in _visible_spouse_ids(
+                    source_id, relations, positions)
+                if positions[spouse_id][0] == source_generation)
+            for block_ids in child_blocks.values():
+                protected_ids.update(block_ids)
+            direction = 1 if delta_to_parent < 0 else -1
+            desired_columns = {
+                child_id: base_column + offset
+                for child_id, offset in zip(
+                    child_ids, _centered_offsets(len(child_ids)))
+            }
+            for child_id, column in sorted(
+                    desired_columns.items(), key=lambda item: item[1]):
+                reserve_family_branch_slot(
+                    child_generation, column, protected_ids, direction)
+                child_delta = column - positions[child_id][1]
+                shift_block(child_blocks[child_id], child_delta)
+
+    def realign_child_branch_groups():
+        aligned_child_groups = set()
+        for source_id in sorted(
+                list(positions),
+                key=lambda item: (positions[item][0], positions[item][1])):
+            source_generation, source_column = positions[source_id]
+            child_generation = source_generation + 1
+            child_ids = [
+                child_id for child_id in _visible_child_ids(
+                    source_id, relations, positions)
+                if positions[child_id][0] == child_generation
+            ]
+            if not child_ids:
+                continue
+            child_group_key = (child_generation, frozenset(child_ids))
+            if child_group_key in aligned_child_groups:
+                continue
+            aligned_child_groups.add(child_group_key)
+            spouse_columns = _visible_spouse_columns(
+                source_id, relations, positions)
+            base_column = (
+                (source_column + spouse_columns[0]) / 2
+                if spouse_columns else source_column
+            )
+            child_columns = [positions[child_id][1] for child_id in child_ids]
+            child_center = (min(child_columns) + max(child_columns)) / 2
+            if abs(base_column - child_center) <= MIN_COLUMN_SPACING * 1.1:
+                continue
+            child_blocks = {
+                child_id: sibling_branch_block(child_id, child_generation)
+                for child_id in child_ids
+            }
+            protected_ids = {source_id, *child_ids}
+            protected_ids.update(
+                spouse_id
+                for spouse_id in _visible_spouse_ids(
+                    source_id, relations, positions)
+                if positions[spouse_id][0] == source_generation)
+            for block_ids in child_blocks.values():
+                protected_ids.update(block_ids)
+            desired_columns = {
+                child_id: base_column + offset
+                for child_id, offset in zip(
+                    child_ids, _centered_offsets(len(child_ids)))
+            }
+            for child_id, column in sorted(
+                    desired_columns.items(), key=lambda item: item[1]):
+                child_delta = column - positions[child_id][1]
+                if abs(child_delta) < 0.001:
+                    continue
+                direction = 1 if child_delta > 0 else -1
+                reserve_family_branch_slot(
+                    child_generation, column, protected_ids, direction)
+                shift_block(child_blocks[child_id], child_delta)
+
     def compact_sibling_branch_blocks():
         handled_groups = set()
         for source_id in sorted(
@@ -1559,19 +1750,22 @@ def layout_family_tree(center_id, visible_ids, edges):
         enforce_child_alignment()
         enforce_spouse_adjacency()
         enforce_spouse_sibling_side_groups()
+        enforce_spouse_adjacency()
 
     def compact_family_branches():
         compact_sibling_branch_blocks()
         enforce_spouse_adjacency()
         enforce_child_alignment()
+        enforce_spouse_adjacency()
         ctx.run_until_stable(
             (
-                compact_sibling_branch_blocks,
                 enforce_spouse_adjacency,
                 compact_sibling_side_gaps,
             ),
             max_iterations=3,
         )
+        realign_child_branch_groups()
+        enforce_spouse_adjacency()
 
     place_initial_nodes()
     settle_core_constraints()
