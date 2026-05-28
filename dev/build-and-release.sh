@@ -60,7 +60,7 @@ pwsh=$(command -v pwsh.exe)
 echo 'Building for Mac platform...'
 # ${OPTIONS} should be expanded locally, not remotely
 # shellcheck disable=SC2029
-ssh mac "src/gedcom-navigator/dev/build.sh ${OPTIONS}" || die 'Error building for Mac.'
+ssh mac '${HOME}/src/gedcom-navigator/dev/build.sh '"${OPTIONS}" || die 'Error building for Mac.'
 echo 'Copying built ZIP files locally...'
 scp mac:src/gedcom-navigator/dist/*zip ./dist || die 'Error copying ZIP files.'
 cp /mnt/c/apps/src/gedcom-navigator/dist/*zip /mnt/c/apps/src/gedcom-navigator/dist/*exe ./dist || die 'Error copying ZIP files.'
