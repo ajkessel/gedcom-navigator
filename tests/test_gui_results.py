@@ -1,6 +1,7 @@
 """Tests for result-pane path rendering helpers."""
 
 import json
+from collections import defaultdict
 from pathlib import Path
 
 import pytest
@@ -777,6 +778,83 @@ def test_descendant_tree_debug_keeps_child_family_units_together():
         assert by_id['@I102681749719@']['column'] == (
             by_id['@I102681750190@']['column'] - 1.0)
         assert not interposed_ids
+
+
+def test_descendant_tree_debug_keeps_same_row_spouses_adjacent():
+    """Later descendant compaction must not split displayed spouse pairs."""
+    debug_path = Path('debug') / '12.json'
+    if not debug_path.exists():
+        return
+
+    payload = json.loads(debug_path.read_text())
+    edges = [
+        (edge['source'], edge['target'], edge['category'])
+        for edge in payload['edges']
+    ]
+    layout = layout_descendant_tree(
+        payload['center_id'], payload['visible_ids'], edges)
+    by_id = {node['id']: node for node in layout}
+    spouses_by_person = defaultdict(set)
+    for source_id, target_id, category in edges:
+        if category == 'spouses':
+            spouses_by_person[source_id].add(target_id)
+            spouses_by_person[target_id].add(source_id)
+
+    _assert_no_same_row_conflicts(layout)
+    for source_id, target_id, category in edges:
+        if category != 'spouses':
+            continue
+        source_node = by_id.get(source_id)
+        target_node = by_id.get(target_id)
+        if not source_node or not target_node:
+            continue
+        if source_node['generation'] != target_node['generation']:
+            continue
+        left_column = min(source_node['column'], target_node['column'])
+        right_column = max(source_node['column'], target_node['column'])
+        interposed_ids = {
+            node['id'] for node in layout
+            if node['generation'] == source_node['generation']
+            and left_column < node['column'] < right_column
+        }
+        allowed_ids = (
+            spouses_by_person[source_id] | spouses_by_person[target_id])
+        assert not (interposed_ids - allowed_ids)
+
+
+def test_descendant_tree_debug_keeps_spouse_aware_sibling_units_together():
+    """Expanded sibling groups stay contiguous with their displayed spouses."""
+    debug_path = Path('debug') / '12.json'
+    if not debug_path.exists():
+        return
+
+    payload = json.loads(debug_path.read_text())
+    edges = [
+        (edge['source'], edge['target'], edge['category'])
+        for edge in payload['edges']
+    ]
+    layout = layout_descendant_tree(
+        payload['center_id'], payload['visible_ids'], edges)
+    by_id = {node['id']: node for node in layout}
+    family_units = {
+        '@I102667033170@',
+        '@I102667033171@',
+        '@I102667033176@',
+        '@I102667033188@',
+        '@I102667033177@',
+        '@I102667033190@',
+    }
+    same_generation = by_id['@I102667033170@']['generation']
+    family_columns = [by_id[person_id]['column']
+                      for person_id in family_units]
+    interposed_ids = {
+        node['id'] for node in layout
+        if node['generation'] == same_generation
+        and min(family_columns) <= node['column'] <= max(family_columns)
+    } - family_units
+
+    _assert_no_same_row_conflicts(layout)
+    assert not interposed_ids
 
 
 def test_path_graph_expansion_adds_hidden_family_without_moving_endpoints():

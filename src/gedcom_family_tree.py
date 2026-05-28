@@ -729,6 +729,81 @@ def layout_descendant_tree(center_id, visible_ids, edges):
                     column += delta
                 previous_column = column
 
+    def set_node_column(node_id, column):
+        node = layout_by_id[node_id]
+        delta = column - node['column']
+        if abs(delta) < 0.001:
+            return False
+        if node_id in descendant_ids:
+            shift_subtree(node_id, delta)
+        else:
+            node['column'] = column
+        return True
+
+    def enforce_same_row_spouse_adjacency():
+        changed = False
+        seen_pairs = set()
+        spouse_pairs = []
+        for partner_id, spouse_id in spouse_edges:
+            pair_key = frozenset((partner_id, spouse_id))
+            if pair_key in seen_pairs:
+                continue
+            seen_pairs.add(pair_key)
+            partner_node = layout_by_id.get(partner_id)
+            spouse_node = layout_by_id.get(spouse_id)
+            if not partner_node or not spouse_node:
+                continue
+            if partner_node['generation'] != spouse_node['generation']:
+                continue
+            spouse_pairs.append((partner_id, spouse_id))
+        spouse_pairs.sort(
+            key=lambda pair: (
+                layout_by_id[pair[0]]['generation'],
+                min(layout_by_id[pair[0]]['column'],
+                    layout_by_id[pair[1]]['column']),
+            ))
+
+        for partner_id, spouse_id in spouse_pairs:
+            partner_node = layout_by_id.get(partner_id)
+            spouse_node = layout_by_id.get(spouse_id)
+            if (not partner_node or not spouse_node
+                    or partner_node['generation'] != spouse_node['generation']):
+                continue
+            partner_column = partner_node['column']
+            spouse_column = spouse_node['column']
+            direction = 1 if spouse_column >= partner_column else -1
+            desired_spouse_column = (
+                partner_column + direction * MIN_COLUMN_SPACING)
+            left_column = min(partner_column, spouse_column)
+            right_column = max(partner_column, spouse_column)
+            blockers = [
+                node for node in layout
+                if node['generation'] == partner_node['generation']
+                and node['id'] not in (partner_id, spouse_id)
+                and left_column < node['column'] < right_column
+            ]
+
+            if direction > 0:
+                next_column = desired_spouse_column + MIN_COLUMN_SPACING
+                for blocker in sorted(
+                        blockers, key=lambda node: node['column']):
+                    if set_node_column(blocker['id'], next_column):
+                        changed = True
+                    next_column += MIN_COLUMN_SPACING
+            else:
+                next_column = desired_spouse_column - MIN_COLUMN_SPACING
+                for blocker in sorted(
+                        blockers,
+                        key=lambda node: node['column'],
+                        reverse=True):
+                    if set_node_column(blocker['id'], next_column):
+                        changed = True
+                    next_column -= MIN_COLUMN_SPACING
+
+            if set_node_column(spouse_id, desired_spouse_column):
+                changed = True
+        return changed
+
     def ordered_row_with_spouses(row):
         ordered = [index for _column, index in sorted(row)]
         same_row_spouses_by_partner = defaultdict(list)
@@ -818,6 +893,10 @@ def layout_descendant_tree(center_id, visible_ids, edges):
         if not compact_interleaved_descendant_child_units():
             break
     enforce_row_spacing()
+    for _ in range(len(layout)):
+        if not enforce_same_row_spouse_adjacency():
+            break
+        enforce_row_spacing()
     return layout
 
 
