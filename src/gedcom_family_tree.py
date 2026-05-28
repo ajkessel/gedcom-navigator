@@ -334,6 +334,7 @@ def layout_descendant_tree(center_id, visible_ids, edges):
     visible = set(visible_ids)
     children_by_parent = defaultdict(list)
     spouse_edges = []
+    spouses_by_person = defaultdict(list)
     for source_id, target_id, category in edges:
         if source_id not in visible or target_id not in visible:
             continue
@@ -341,6 +342,10 @@ def layout_descendant_tree(center_id, visible_ids, edges):
             children_by_parent[source_id].append(target_id)
         elif category == 'spouses':
             spouse_edges.append((source_id, target_id))
+            if target_id not in spouses_by_person[source_id]:
+                spouses_by_person[source_id].append(target_id)
+            if source_id not in spouses_by_person[target_id]:
+                spouses_by_person[target_id].append(source_id)
 
     descendant_ids = set()
     generation = {}
@@ -477,7 +482,7 @@ def layout_descendant_tree(center_id, visible_ids, edges):
         if node['generation'] != row:
             return ()
         unit_ids = {node_id}
-        for spouse_id in spouses_by_partner.get(node_id, ()):
+        for spouse_id in spouses_by_person.get(node_id, ()):
             spouse_node = layout_by_id.get(spouse_id)
             if spouse_node and spouse_node['generation'] == row:
                 unit_ids.add(spouse_id)
@@ -543,6 +548,26 @@ def layout_descendant_tree(center_id, visible_ids, edges):
                 seen_units.add(unit_ids)
             if len(group_units) < 2:
                 continue
+            for unit_ids in tuple(group_units):
+                direct_child_ids = [
+                    child_id for child_id in child_ids
+                    if child_id in unit_ids
+                ]
+                if len(unit_ids) < 2 or len(direct_child_ids) != 1:
+                    continue
+                child_column = layout_by_id[direct_child_ids[0]]['column']
+                unit_columns = [
+                    layout_by_id[node_id]['column'] for node_id in unit_ids
+                    if node_id in layout_by_id
+                ]
+                if abs(child_column - min(unit_columns)) < 0.001:
+                    group_units.remove(unit_ids)
+                    group_units.append(unit_ids)
+                    break
+                if abs(child_column - max(unit_columns)) < 0.001:
+                    group_units.remove(unit_ids)
+                    group_units.insert(0, unit_ids)
+                    break
             group_indices = [unit_index[unit_ids]
                              for unit_ids in group_units]
             first_index = min(group_indices)

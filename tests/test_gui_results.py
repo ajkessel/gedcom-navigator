@@ -656,39 +656,80 @@ def test_descendant_tree_layout_centers_children_under_visible_couple():
 
 def test_descendant_tree_debug_keeps_child_family_units_together():
     """Expanded descendant branches keep one parent's children contiguous."""
-    payload = json.loads(Path('debug/5.json').read_text())
-    edges = [
-        (edge['source'], edge['target'], edge['category'])
-        for edge in payload['edges']
+    cases = [
+        (
+            '5',
+            [
+                '@I102681749719@',
+                '@I102681750190@',
+                '@I102681764495@',
+                '@I102681764496@',
+                '@I102681764719@',
+                '@I102681764720@',
+                '@I102681764721@',
+                '@I102681764722@',
+                '@I102681764723@',
+            ],
+        ),
+        (
+            '6',
+            [
+                '@I102681749719@',
+                '@I102681750190@',
+                '@I102681750195@',
+                '@I102681750197@',
+                '@I102681750198@',
+                '@I102681751293@',
+                '@I102681750199@',
+                '@I102681750200@',
+                '@I102681750201@',
+                '@I102681750205@',
+                '@I102681750206@',
+                '@I102681750207@',
+            ],
+        ),
+        (
+            '7',
+            [
+                '@I102681749719@',
+                '@I102681750190@',
+                '@I102681750195@',
+                '@I102681750197@',
+                '@I102681750198@',
+                '@I102681751293@',
+                '@I102681750199@',
+                '@I102681750200@',
+                '@I102681750201@',
+                '@I102681750205@',
+                '@I102681750206@',
+                '@I102681750207@',
+            ],
+        ),
     ]
-    layout = layout_descendant_tree(
-        payload['center_id'], payload['visible_ids'], edges)
-    by_id = {node['id']: node for node in layout}
-    same_generation = by_id['@I102681750190@']['generation']
-    family_units = [
-        '@I102681749719@',
-        '@I102681750190@',
-        '@I102681764495@',
-        '@I102681764496@',
-        '@I102681764719@',
-        '@I102681764720@',
-        '@I102681764721@',
-        '@I102681764722@',
-        '@I102681764723@',
-    ]
-    family_columns = [
-        by_id[person_id]['column'] for person_id in family_units
-    ]
-    interposed_ids = {
-        node['id'] for node in layout
-        if node['generation'] == same_generation
-        and min(family_columns) <= node['column'] <= max(family_columns)
-    } - set(family_units)
 
-    _assert_no_same_row_conflicts(layout)
-    assert by_id['@I102681749719@']['column'] == (
-        by_id['@I102681750190@']['column'] - 1.0)
-    assert not interposed_ids
+    for fixture_name, family_units in cases:
+        payload = json.loads((Path('debug') / f'{fixture_name}.json').read_text())
+        edges = [
+            (edge['source'], edge['target'], edge['category'])
+            for edge in payload['edges']
+        ]
+        layout = layout_descendant_tree(
+            payload['center_id'], payload['visible_ids'], edges)
+        by_id = {node['id']: node for node in layout}
+        same_generation = by_id['@I102681750190@']['generation']
+        family_columns = [
+            by_id[person_id]['column'] for person_id in family_units
+        ]
+        interposed_ids = {
+            node['id'] for node in layout
+            if node['generation'] == same_generation
+            and min(family_columns) <= node['column'] <= max(family_columns)
+        } - set(family_units)
+
+        _assert_no_same_row_conflicts(layout)
+        assert by_id['@I102681749719@']['column'] == (
+            by_id['@I102681750190@']['column'] - 1.0)
+        assert not interposed_ids
 
 
 def test_path_graph_expansion_adds_hidden_family_without_moving_endpoints():
