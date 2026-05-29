@@ -3,17 +3,22 @@ if [[ "$OSTYPE" != "darwin"* ]]; then
 	echo 'This script is intended to be run on macOS.'
 	exit 1
 fi
+# this is necessary to keep screen buffer up to date
+# while logging to file
 if [[ "$STDBUF_ACTIVE" != "1" ]]; then
 	export STDBUF_ACTIVE=1
 	exec stdbuf -oL "$0" "$@"
 fi
-while getopts "hn:" opt; do
+git_branch="main"
+while getopts "hnb:" opt; do
 	case $opt in
 	h)
-		echo "Usage: $0 [-h] [-n]"
+		echo "Usage: $0 [-h] [-n] [-b]"
+		echo "  -b  Specify git branch to build (default: main)"
 		exit 0
 		;;
 	n) DRY=true ;;
+	b) git_branch=$OPTARG ;;
 	*)
 		echo "Invalid option"
 		exit 1
@@ -23,34 +28,29 @@ done
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
 cd "${SCRIPT_DIR}/.."
 exec > >(sed 's/\x1b\[[0-9;]*m//g' | tee -a build-mac-appstore.log) 2>&1
+git switch "${git_branch}" || {
+	echo "Error: could not switch to ${git_branch}. Aborting."
+	exit 1
+}
 VERSION=$(grep __version__ gedcom_navigator/__init__.py | grep -o '[0-9]\+\.[0-9]\+\(\.[0-9]\+\)\+')
 x=0
-if grep xcrun build-mac-appstore.log |grep -qF "${VERSION}"; then
-  echo "Prior build for ${VERSION} found in build-mac-app-store.log; do you need to bump version?"
-  exit 1
+if grep xcrun build-mac-appstore.log | grep -qF "${VERSION}"; then
+	echo "Prior build for ${VERSION} found in build-mac-app-store.log; do you need to bump version?"
+	echo "Clear build-mac-app-store.log if you want to re-submit with ${VERSION}."
+	exit 1
 fi
-#   NEW_VERSION=$(echo $VERSION | awk -F. -v OFS=. '{$NF += 1 ; print}')
-#   perl -p -i -e "s/${VERSION}/${NEW_VERSION}/g" gedcom_navigator/__init__.py
-#   VERSION="${NEW_VERSION}"
-#   x=$((x+1))
-#   if [ "${x}" -gt 20 ]; then
-#     echo "Too many version bumps, exiting."
-#     exit 1
-#   fi
-#done
 echo '--------------------------------'
-echo "Building app version ${VERSION} for Mac App Store."
-date
+echo "Building app version ${VERSION} for Mac App Store on $(date)."
 echo '--------------------------------'
-if nm -pa /Library/Frameworks/Python.framework/Versions/Current/Frameworks/Tk.framework/Versions/Current/Tk|grep -iq _nswindowdidorder; then
-  echo "Error, forbidden symbol _NSWindowDidOrderOnScreenNotification exists in Tk framework. This will trigger App Store rejection."
-  echo "Patch available at https://github.com/ajkessel/fix-tk-for-appstore "
-  exit 1
+if nm -pa /Library/Frameworks/Python.framework/Versions/Current/Frameworks/Tk.framework/Versions/Current/Tk | grep -iq _nswindowdidorder; then
+	echo "Error, forbidden symbol _NSWindowDidOrderOnScreenNotification exists in Tk framework. This will trigger App Store rejection."
+	echo "Patch available at https://github.com/ajkessel/fix-tk-for-appstore "
+	exit 1
 fi
 security unlock-keychain -p "$(cat ~/.config/p)" ~/Library/Keychains/login.keychain-db
 if [[ ! -e 'dist/gedcom-navigator.app' ]]; then
 	echo 'Built app not found, building now.'
-	./dev/build.sh
+	./dev/build.sh -b "${git_branch}"
 fi
 AS_APP_CERT=$(security find-identity -v -p codesigning 2>/dev/null |
 	grep "3rd Party Mac Developer Application" |
