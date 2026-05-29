@@ -164,4 +164,18 @@ if sys.platform == 'darwin':
                      'NSHighResolutionCapable': True,
                      'LSApplicationCategoryType': 'public.app-category.utilities',
                      'ITSAppUsesNonExemptEncryption': False,
+                     'CFBundleDocumentTypes': [{
+                         'CFBundleTypeName': 'GEDCOM File',
+                         'CFBundleTypeRole': 'Editor',
+                         'LSItemContentTypes': ['com.ajkessel.gedcom-navigator.ged'],
+                         'CFBundleTypeIconFile': 'family_tree.icns',
+                     }],
+                     'UTExportedTypeDeclarations': [{
+                         'UTTypeIdentifier': 'com.ajkessel.gedcom-navigator.ged',
+                         'UTTypeDescription': 'GEDCOM Genealogy File',
+                         'UTTypeConformsTo': ['public.plain-text', 'public.data'],
+                         'UTTypeTagSpecification': {
+                             'public.filename-extension': ['ged'],
+                         },
+                     }],
                  })

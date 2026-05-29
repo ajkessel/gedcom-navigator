@@ -541,6 +541,16 @@ UPDATE_LATEST_VERSION = _("Latest version: {latest}")
 UPDATE_DOWNLOAD_PROMPT = _("Download the latest release from GitHub:")
 UPDATE_OPEN_RELEASES = _("Open GitHub Releases")
 
+# ---------------------------------------------------------------------------
+# File association
+# ---------------------------------------------------------------------------
+FILE_ASSOC_PROMPT_TITLE = _("Set as Default")
+FILE_ASSOC_PROMPT_MSG = _(
+    "Would you like GEDCOM Navigator to open .ged files by default?")
+FILE_ASSOC_FAILED_TITLE = _("Could Not Set Default")
+FILE_ASSOC_FAILED_MSG = _(
+    "GEDCOM Navigator could not register as the default .ged handler.")
+
 def get_keyboard_shortcut_rows():
     actions = {
         "help": _("Help"),

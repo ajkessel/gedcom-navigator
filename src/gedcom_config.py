@@ -217,6 +217,15 @@ class ConfigManager:
         """Save the selected language code."""
         self.save_value('language', lang_code)
 
+    def get_file_association_prompted_version(self):
+        """Return the app version for which the .ged default-handler prompt was last shown."""
+        val = self.load_value('file_association_prompted_version', None)
+        return val if isinstance(val, str) else None
+
+    def set_file_association_prompted_version(self, version):
+        """Record the app version for which the .ged default-handler prompt was shown."""
+        self.save_value('file_association_prompted_version', str(version))
+
     # ------------------------------------------------------------------
     # Platform default path
     # ------------------------------------------------------------------

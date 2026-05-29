@@ -850,6 +850,10 @@ def main():
         if not (app._recent_files and os.path.isfile(app._recent_files[0])):
             root.after(100, app._browse)
 
+    # Register as a .ged handler and (once per version) offer to be the default.
+    # Deferred so the main window paints first and any opened file loads first.
+    root.after(600, app._maybe_init_file_association)
+
     root.mainloop()
 
 
