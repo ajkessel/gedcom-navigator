@@ -6,7 +6,7 @@ from __future__ import annotations
 import argparse
 from dataclasses import dataclass, field
 from pathlib import Path
-
+from zipfile import ZipFile, ZIP_DEFLATED
 
 PERSON_TARGET = 1000
 DNA_TARGET = 50
@@ -30,92 +30,100 @@ MONTHS = [
 
 GIVEN_NAMES = {
     "F": [
-        "Adeline",
-        "Bianca",
-        "Camille",
-        "Daphne",
-        "Elena",
-        "Fiona",
-        "Gemma",
-        "Helena",
-        "Isabel",
-        "Julia",
-        "Keira",
-        "Lena",
-        "Maren",
-        "Nora",
-        "Opal",
-        "Phoebe",
-        "Rosalie",
-        "Serena",
-        "Tessa",
-        "Vera",
-        "Willa",
-        "Zara",
+        "Olivia", "Emma", "Charlotte", "Amelia", "Sophia", "Mia", "Isabella", "Ava", "Evelyn", "Harper",
+        "Luna", "Camila", "Sofia", "Eleanor", "Elizabeth", "Gianna", "Scarlett", "Violet", "Ella", "Emily",
+        "Chloe", "Abigail", "Aria", "Penelope", "Aurora", "Hazel", "Avery", "Nora", "Lily", "Ellie",
+        "Mila", "Layla", "Eliana", "Madison", "Isla", "Grace", "Nova", "Zoe", "Lucy", "Riley",
+        "Willow", "Ivy", "Emilia", "Victoria", "Stella", "Naomi", "Hannah", "Zoey", "Elena", "Leah",
+        "Lillian", "Valentina", "Maya", "Paisley", "Delilah", "Addison", "Everly", "Natalie", "Genesis", "Sophie",
+        "Sadie", "Madelyn", "Ruby", "Josephine", "Leilani", "Claire", "Alice", "Kinsley", "Audrey", "Adeline",
+        "Kennedy", "Autumn", "Aaliyah", "Lainey", "Brooklyn", "Emery", "Eloise", "Caroline", "Anna", "Quinn",
+        "Iris", "Savannah", "Hailey", "Vivian", "Clara", "Aubrey", "Bella", "Gabriella", "Jade", "Madeline",
+        "Sarah", "Cora", "Maria", "Allison", "Liliana", "Lydia", "Natalia", "Athena", "Ariana", "Serenity",
+        "Skylar", "Ayla", "Eden", "Lyla", "Melody", "Maeve", "Nevaeh", "Raelynn", "Eva", "Daisy",
+        "Josie", "Samantha", "Rylee", "Hadley", "Parker", "Julia", "Millie", "Eliza", "Rose", "Lucia",
+        "Piper", "Brielle", "Everleigh", "Juniper", "Alaia", "Margaret", "Melanie", "Charlie", "Amara", "Remi",
+        "Peyton", "Mary", "Elliana", "Arya", "Cecilia", "Adalynn", "Sienna", "Georgia", "Esther", "Isabelle",
+        "Alina", "Catalina", "Valerie", "Magnolia", "Emersyn", "Summer", "Ashley", "Juliette", "Sloane", "Freya",
+        "Ximena", "Kehlani", "Emerson", "Mackenzie", "Valeria", "Margot", "Ember", "Genevieve", "Reagan", "Isabel",
+        "Sage", "Amaya", "Blakely", "Katherine", "June", "Anastasia", "Reese", "Kaylee", "Amira", "Arianna",
+        "Oakley", "Brianna", "Callie", "Elsie", "Ariella", "Ailany", "Oaklynn", "Olive", "Andrea", "Jasmine",
+        "Alana", "Rosalie", "Bailey", "Kylie", "Alani", "River", "Ruth", "Adalyn", "Sara", "Ada",
+        "Gemma", "Alexandra", "Molly", "Norah", "Faith", "Hallie", "Phoebe", "Khloe", "Evangeline", "Lilah"
     ],
     "M": [
-        "Adrian",
-        "Bennett",
-        "Caleb",
-        "Declan",
-        "Elias",
-        "Felix",
-        "Graham",
-        "Holden",
-        "Isaac",
-        "Jonah",
-        "Kieran",
-        "Leo",
-        "Miles",
-        "Nathan",
-        "Owen",
-        "Pierce",
-        "Quentin",
-        "Rowan",
-        "Silas",
-        "Theo",
-        "Victor",
-        "Wyatt",
+        "Liam", "Noah", "Oliver", "James", "Elijah", "William", "Henry", "Lucas", "Theodore", "Benjamin",
+        "Mateo", "Levi", "Sebastian", "Jack", "Daniel", "Michael", "Alexander", "Ethan", "Samuel", "Owen",
+        "John", "Asher", "Ezra", "Leo", "Jackson", "Mason", "Hudson", "Joseph", "David", "Jacob",
+        "Julian", "Logan", "Luke", "Luca", "Matthew", "Wyatt", "Aiden", "Elias", "Gabriel", "Dylan",
+        "Grayson", "Isaac", "Thomas", "Carter", "Maverick", "Anthony", "Santiago", "Jayden", "Miles", "Charles",
+        "Josiah", "Caleb", "Lincoln", "Cooper", "Ezekiel", "Isaiah", "Christopher", "Joshua", "Nathan", "Andrew",
+        "Nolan", "Roman", "Cameron", "Adrian", "Angel", "Waylon", "Wesley", "Bennett", "Jaxon", "Aaron",
+        "Kai", "Brooks", "Axel", "Christian", "Eli", "Ian", "Ryan", "Weston", "Jonathan", "Beau",
+        "Rowan", "Everett", "Silas", "Leonardo", "Robert", "Colton", "Thiago", "Jeremiah", "Easton", "Landon",
+        "Jose", "Micah", "Parker", "Jordan", "Jameson", "Gael", "Adam", "Dominic", "Hunter", "Xavier",
+        "Walker", "Austin", "Nicholas", "Enzo", "Theo", "Greyson", "Jace", "Carson", "August", "Amir",
+        "Luka", "Myles", "Damian", "Emmett", "Kayden", "River", "Connor", "Declan", "Vincent", "Atlas",
+        "Harrison", "Ryder", "Jaxson", "Adriel", "Sawyer", "Giovanni", "Milo", "Archer", "Arthur", "Evan",
+        "Lorenzo", "Jasper", "Jonah", "George", "Emiliano", "Luis", "Diego", "Bryson", "Nathaniel", "Kingston",
+        "Jason", "Zion", "Legend", "Calvin", "Carlos", "Graham", "Chase", "Juan", "Cole", "Malachi",
+        "Dean", "Brayden", "Braxton", "Jude", "Matteo", "Elliot", "Leon", "Ivan", "Ashton", "Jayce",
+        "Rhett", "Max", "Ace", "Elliott", "Hayden", "Dawson", "Jesus", "Zachary", "Arlo", "Ryker",
+        "Tyler", "Maxwell", "Emmanuel", "Ayden", "Bentley", "Charlie", "Antonio", "Judah", "Kaiden", "Amari",
+        "Beckett", "Alan", "Camden", "Emilio", "Matias", "Kevin", "Maddox", "Nicolas", "Finn", "Justin",
+        "Tucker", "Barrett", "Felix", "Messiah", "Jesse", "Miguel", "Zayden", "Alejandro", "Beckham", "Alex",
     ],
 }
 
 MIDDLE_NAMES = [
+    "Logan",
     "Avery",
-    "Blair",
-    "Corin",
-    "Dale",
-    "Ellis",
-    "Finch",
-    "Gray",
-    "Harper",
-    "Ives",
-    "Jules",
-    "Lane",
-    "Morgan",
+    "Riley",
+    "Parker",
+    "Rowan",
+    "Angel",
+    "Cameron",
+    "River",
+    "Charlie",
+    "Jordan",
+    "Sawyer",
+    "Eden",
+    "Tatum",
     "Quinn",
-    "Reese",
+    "Emerson",
+    "Amari",
+    "Hayden",
+    "Blake",
     "Sage",
-    "Vale",
+    "Elliott",
 ]
 
 SURNAMES = [
     "Abbott",
     "Baird",
     "Caldwell",
+    "Chang",
     "Dawson",
     "Ellery",
     "Fletcher",
     "Garrison",
+    "Han",
+    "Herzog",
+    "Hitchcock",
     "Hollis",
     "Keller",
     "Langford",
+    "Lee",
     "Marston",
     "Norwood",
     "Prescott",
     "Quincy",
     "Roswell",
+    "Smith",
+    "Spielberg",
     "Sterling",
     "Talmadge",
+    "Truffaut",
     "Vaughn",
     "Winslow",
     "Yardley",
@@ -375,10 +383,10 @@ def expand_tree(tree: SampleTree, seed_families: list[str]) -> None:
     while len(tree.people) < PERSON_TARGET:
         if not queue:
             surname = SURNAMES[fallback_salt % len(SURNAMES)]
-            husb = tree.generated_person("M", surname, 1860 + fallback_salt % 35, fallback_salt)
+            husb = tree.generated_person("M", surname, 1850 + fallback_salt % 35, fallback_salt)
             wife = tree.generated_person("F", SURNAMES[(fallback_salt + 7) % len(SURNAMES)],
-                                         1862 + fallback_salt % 35, fallback_salt + 11)
-            queue.append((tree.add_family(husb, wife, 1884 + fallback_salt % 35), 0))
+                                         1852 + fallback_salt % 35, fallback_salt + 11)
+            queue.append((tree.add_family(husb, wife, 1874 + fallback_salt % 35), 0))
             fallback_salt += 1
 
         family_id, generation = queue.pop(0)
@@ -588,6 +596,11 @@ def write_gedcom(tree: SampleTree, output: Path) -> None:
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
+def zip_gedcom(output: Path) -> None:
+    zip_path = Path(str(output).replace(".ged",".zip"))
+    with ZipFile(zip_path, mode="w", compression=ZIP_DEFLATED) as zf:
+        zf.write(output, arcname=output.name)
+    
 
 def generate(output: Path) -> None:
     tree = SampleTree()
@@ -595,6 +608,7 @@ def generate(output: Path) -> None:
     expand_tree(tree, seeds)
     assign_dna_markers(tree)
     write_gedcom(tree, output)
+    zip_gedcom(output)
 
 
 def main() -> int:
