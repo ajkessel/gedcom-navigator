@@ -4,10 +4,12 @@ generate_icon.py
 
 Generate a Windows icon file from a PNG image.
 """
-from PIL import Image
+import io
+import os
 from sys import argv
 from pathlib import Path
-import io
+from PIL import Image
+
 try:
     # Windows PIP fails to pull the cairo DLLs (C libraries), so this import may fail
     # fallback is to generate directly from the png
@@ -22,6 +24,10 @@ input_file = Path(argv[1])
 output_file = input_file.with_suffix('.ico')
 icon_sizes = [(16, 16), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)]
 img_list = []
+
+if not (input_file.is_file() and os.access(input_file, os.R_OK)):
+    print(f"Can't open input file {str(input_file)}. Exiting.")
+    exit()
 
 if input_file.stat().st_mtime <= output_file.stat().st_mtime:
     print("Newer icon file already exists. Skipping generation.")

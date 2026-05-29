@@ -116,14 +116,14 @@ class GedcomNavigatorApp(
         if sys.platform == 'win32':
             try:
                 self.root.iconbitmap(
-                    self._resource_path('icons/family_tree.ico'))
+                    self._resource_path('icons/gedcom_navigator.ico'))
             except Exception:  # pylint: disable=broad-exception-caught
                 log_exception("setting Windows window icon")
                 pass
         elif sys.platform != 'darwin':
             try:
                 icon = tk.PhotoImage(
-                    file=self._resource_path('icons/family_tree.png'))
+                    file=self._resource_path('icons/gedcom_navigator.png'))
                 self.root.iconphoto(True, icon)
             except Exception:  # pylint: disable=broad-exception-caught
                 log_exception("setting Linux window icon")

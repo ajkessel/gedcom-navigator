@@ -84,7 +84,7 @@ if sys.platform == 'win32':
 d = [('../docs/HELP.md', './docs'), ('../docs/LICENSE.md', './docs'),
      ('../docs/KEYBOARD_SHORTCUTS.md',
      './docs'), ('../docs/PRIVACY_POLICY.md', './docs'),
-     ('../icons/family_tree.ico', './icons'), ('../icons/family_tree.png', './icons'),
+     ('../icons/gedcom_navigator.ico', './icons'), ('../icons/gedcom_navigator.png', './icons'),
      ('../gedcom_navigator/__init__.py', 'gedcom_navigator'),
      ('../locales', './locales')]
 
@@ -126,7 +126,7 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=['../icons/family_tree.ico'],
+    icon=['../icons/gedcom_navigator.ico'],
 )
 
 if sys.platform == 'darwin':
@@ -150,7 +150,7 @@ if sys.platform == 'darwin':
 
     app = BUNDLE(coll,
                  name='gedcom-navigator.app',
-                 icon='../icons/family_tree.icns',
+                 icon='../icons/gedcom_navigator.icns',
                  bundle_identifier='com.ajkessel.gedcom-navigator',
                  info_plist={
                      'CFBundleName': 'GEDCOM Navigator',
@@ -168,7 +168,7 @@ if sys.platform == 'darwin':
                          'CFBundleTypeName': 'GEDCOM File',
                          'CFBundleTypeRole': 'Editor',
                          'LSItemContentTypes': ['com.ajkessel.gedcom-navigator.ged'],
-                         'CFBundleTypeIconFile': 'family_tree.icns',
+                         'CFBundleTypeIconFile': 'gedcom_navigator.icns',
                      }],
                      'UTExportedTypeDeclarations': [{
                          'UTTypeIdentifier': 'com.ajkessel.gedcom-navigator.ged',

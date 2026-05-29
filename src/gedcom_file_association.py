@@ -244,7 +244,7 @@ def _linux_ensure_can_open():
     (mime_pkg / 'gedcom-navigator.xml').write_text(_MIME_XML, encoding='utf-8')
     (apps / DESKTOP_FILE).write_text(_linux_desktop_entry(), encoding='utf-8')
 
-    icon_src = os.path.join(_bundle_base(), 'icons', 'family_tree.png')
+    icon_src = os.path.join(_bundle_base(), 'icons', 'gedcom_navigator.png')
     if os.path.isfile(icon_src):
         icon_dir = data_home / 'icons' / 'hicolor' / '256x256' / 'apps'
         icon_dir.mkdir(parents=True, exist_ok=True)

@@ -64,7 +64,7 @@ try {
     $licenseTxt | Out-File -FilePath ".\dist\LICENSE.txt" -Encoding utf8
 
     # Generate icons
-    python .\dev\generate_icon.py .\icons\family_tree.png
+    python .\dev\generate_icon.py .\icons\gedcom_navigator.svg
 
     # Generate translations
     $msgfmt = Get-Command msgfmt.exe -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source
@@ -137,7 +137,7 @@ try {
             New-Item -ItemType Directory -Path "$stagingDir\Assets" | Out-Null
 
             # Generate Assets
-            python .\dev\generate_msix_assets.py .\icons\family_tree.png "$stagingDir\Assets"
+            python .\dev\generate_msix_assets.py .\icons\gedcom_navigator.png "$stagingDir\Assets"
 
             # Copy Executable (using the one-file EXE for simplicity)
             Copy-Item ".\dist\gedcom-navigator.exe" "$stagingDir\gedcom-navigator.exe"

@@ -15,8 +15,6 @@ test-artifacts/
 *.log
 *.mo
 .DS_Store
-icons/family_tree.ico
-icons/family_tree.icns
 **/__pycache__/**
 gedcom_navigator/_scripts/
 gedcom_navigator/docs/

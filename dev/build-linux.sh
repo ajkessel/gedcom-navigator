@@ -60,7 +60,7 @@ pytest -v --tb=short --disable-warnings || {
 	echo 'Unit tests failed. Exiting.'
 	exit 1
 }
-python3 ./dev/generate_icon.py ./icons/family_tree.png || {
+python3 ./dev/generate_icon.py ./icons/gedcom_navigator.svg || {
 	echo 'Failed to generate ICO file.'
 	exit 1
 }
