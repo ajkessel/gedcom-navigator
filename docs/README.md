@@ -22,11 +22,11 @@ In addition to the GUI, this application also includes a command-line tool for f
 ## Downloads
 
 * Mac
-  * [App Store](https://apps.apple.com/app/gedcom-navigator/id6765485580) (easy install, may be behind the latest version here)
+  * [App Store](https://apps.apple.com/us/app/gedcom-navigator/id6771207849) (easiest install)
   * [ZIP Download](https://github.com/ajkessel/gedcom-navigator/releases/latest/download/gedcom-navigator-mac.zip) (see [security note](MAC_SECURITY.md)).
 * [Linux x86-64](https://github.com/ajkessel/gedcom-navigator/releases/latest/download/gedcom-navigator-linux.zip)
 * Windows
-  * [App Store](https://apps.microsoft.com/detail/9p3zvf1q3rhm?hl=en-US&gl=US) (easy install)
+  * [App Store](https://apps.microsoft.com/detail/9p3zvf1q3rhm?hl=en-US&gl=US) (easiest install)
   * [Portable Version](https://github.com/ajkessel/gedcom-navigator/releases/latest/download/gedcom-navigator-windows-portable.zip) (see [security note](WINDOWS_SECURITY.md)).
   * [Installer](https://github.com/ajkessel/gedcom-navigator/releases/latest/download/gedcom-navigator-windows-installer.exe)
   * [Windows Package Manager (WinGet)](https://github.com/microsoft/winget-cli):
