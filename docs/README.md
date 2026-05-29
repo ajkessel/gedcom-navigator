@@ -39,7 +39,7 @@ winget install --id AdamKessel.GEDCOMNavigator
 
 This is a beta release. If you are interested in experimenting with a "dummy" GEDCOM file rather than your own, here are a couple of options:
 
-* Use the [Fictional Genealogy](https://github.com/ajkessel/gedcom-navigator/blob/main/samples/fictional_genealogy.ged) sample file I built for testing this application. It contains 1,000 fictional people and illustrates various complicated family connections. If you want to download it from github for use with this tool, be sure to retrieve the [raw version](https://raw.githubusercontent.com/ajkessel/gedcom-navigator/refs/heads/main/samples/fictional_genealogy.ged). This file is released under the [Unlicense](https://unlicense.org/), which means you can do anything you want with it.
+* Use the [Fictional Genealogy](https://github.com/ajkessel/gedcom-navigator/blob/main/samples/fictional_genealogy.ged) sample file I built for testing this application. It contains 1,000 fictional people and illustrates various complicated family connections. If you want to download it from github for use with this tool, use the [raw ZIP version](https://raw.githubusercontent.com/ajkessel/gedcom-navigator/refs/heads/main/samples/fictional_genealogy.zip). This file is released under the [Unlicense](https://unlicense.org/), which means you can do anything you want with it.
 * [The FindMyPast Github Repository](https://github.com/findmypast/gedcom-samples) has several real and fictional family trees. I used the [Game of Thrones family tree](https://github.com/findmypast/gedcom-samples/blob/main/GoT.ged) for the sample screenshots to avoid any privacy issues and also to show why it gets complicated when siblings marry one another.
 
 ## The problems this solves
