@@ -235,6 +235,8 @@ BIO_BORN = _("  Born:    {event}")
 BIO_MARRIED = _("  Married: {spouses}")
 BIO_DIED = _("  Died:    {event}")
 BIO_BURIED = _("  Buried:  {event}")
+BIO_AGE = _("  Age:     {age}")
+BIO_AGE_AT_DEATH = _("  Age:     {age} (at death)")
 BIO_NO_INFO = _("  (no biographical information found)")
 FAM_SECTION = _("Family")
 FAM_PARENTS = _("  Parents:")
@@ -540,6 +542,16 @@ UPDATE_INSTALLED_VERSION = _("Installed version: {current}")
 UPDATE_LATEST_VERSION = _("Latest version: {latest}")
 UPDATE_DOWNLOAD_PROMPT = _("Download the latest release from GitHub:")
 UPDATE_OPEN_RELEASES = _("Open GitHub Releases")
+
+# ---------------------------------------------------------------------------
+# File association
+# ---------------------------------------------------------------------------
+FILE_ASSOC_PROMPT_TITLE = _("Set as Default")
+FILE_ASSOC_PROMPT_MSG = _(
+    "Would you like GEDCOM Navigator to open .ged files by default?")
+FILE_ASSOC_FAILED_TITLE = _("Could Not Set Default")
+FILE_ASSOC_FAILED_MSG = _(
+    "GEDCOM Navigator could not register as the default .ged handler.")
 
 def get_keyboard_shortcut_rows():
     actions = {

@@ -7,6 +7,7 @@ Person profile and family-tree detail windows for GedcomNavigatorApp.
 
 import sys
 import tkinter as tk
+from datetime import date
 from tkinter import filedialog, messagebox
 
 import customtkinter as ctk
@@ -227,6 +228,16 @@ class PersonDialogMixin:
         if bu_date or bu_place:
             bio_found = True
             add(BIO_BURIED.format(event=fmt_event(bu_date, bu_place)))
+
+        b_year = indi.get("birth_year")
+        d_year = indi.get("death_year")
+        is_deceased = bool(d_year or d_date or d_place or bu_date or bu_place)
+        if is_deceased:
+            if b_year and d_year:
+                add(BIO_AGE_AT_DEATH.format(age=d_year - b_year))
+        elif b_year and date.today().year - b_year < 120:
+            # assumption that living people are <120 years old, otherwise death date is just missing
+            add(BIO_AGE.format(age=date.today().year - b_year))
 
         if not bio_found:
             add(BIO_NO_INFO)
@@ -491,9 +502,7 @@ class PersonDialogMixin:
             "descendant": BTN_DESCENDANT_VIEW,
             "person": BTN_PERSON_VIEW,
         }
-        view_mode_by_label = {
-            label: mode for mode, label in view_mode_labels.items()
-        }
+        view_mode_by_label = {label: mode for mode, label in view_mode_labels.items()}
         view_mode_tooltips = {
             "tree": get_tip_tree_view_btn(),
             "pedigree": get_tip_pedigree_view_btn(),
@@ -508,10 +517,7 @@ class PersonDialogMixin:
         ]
 
         def _current_window_view():
-            return (
-                "person" if state["mode"] == "person"
-                else state["tree_view_mode"]
-            )
+            return "person" if state["mode"] == "person" else state["tree_view_mode"]
 
         def _render_view_selector(select_window_view):
             mode_frame = ctk.CTkFrame(btn_frame, fg_color="transparent")
@@ -533,8 +539,7 @@ class PersonDialogMixin:
                     if button is not None:
                         Tooltip(button, view_mode_tooltips[mode])
             else:
-                mode_var = tk.StringVar(
-                    value=view_mode_labels[_current_window_view()])
+                mode_var = tk.StringVar(value=view_mode_labels[_current_window_view()])
                 for mode, value in view_mode_labels.items():
                     radio = ctk.CTkRadioButton(
                         mode_frame,
@@ -623,8 +628,7 @@ class PersonDialogMixin:
                 if state["mode"] != "person":
                     _show_person_view(state["person_id"])
                 return
-            if (state["mode"] == "tree"
-                    and new_mode == state["tree_view_mode"]):
+            if state["mode"] == "tree" and new_mode == state["tree_view_mode"]:
                 return
             _show_tree_view(state["person_id"], tree_mode=new_mode)
 
@@ -752,8 +756,11 @@ class PersonDialogMixin:
                 state["descendant_expanded"] = {state["person_id"]}
             _clear_content()
             indi = self.individuals[state["person_id"]]
-            win.title(_tree_window_title(
-                state["tree_view_mode"], indi["name"] or state["person_id"]))
+            win.title(
+                _tree_window_title(
+                    state["tree_view_mode"], indi["name"] or state["person_id"]
+                )
+            )
 
             is_dark = ctk.get_appearance_mode() == "Dark"
             colors = self._path_graph_colors(
@@ -795,14 +802,17 @@ class PersonDialogMixin:
                 expanded = state["tree_expanded"]
                 if mode == "pedigree":
                     graph = build_pedigree_tree_graph(
-                        state["person_id"], self.individuals, self.families)
+                        state["person_id"], self.individuals, self.families
+                    )
                     expanded = []
-                    render_kwargs.update({
-                        "graph_builder": lambda graph=graph: graph,
-                        "layout_builder": layout_pedigree_tree,
-                        "expandable_categories": (),
-                        "orientation": "horizontal",
-                    })
+                    render_kwargs.update(
+                        {
+                            "graph_builder": lambda graph=graph: graph,
+                            "layout_builder": layout_pedigree_tree,
+                            "expandable_categories": (),
+                            "orientation": "horizontal",
+                        }
+                    )
                 elif mode == "descendant":
                     graph = build_descendant_tree_graph(
                         state["person_id"],
@@ -815,41 +825,50 @@ class PersonDialogMixin:
                     while changed:
                         changed = False
                         for source_id, target_id, category in graph[1]:
-                            if (category == "children"
-                                    and source_id in branch_ids
-                                    and target_id not in branch_ids):
+                            if (
+                                category == "children"
+                                and source_id in branch_ids
+                                and target_id not in branch_ids
+                            ):
                                 branch_ids.add(target_id)
                                 changed = True
                     expanded = descendant_tree_expanded_requests(
-                        [indi_id for indi_id in graph[0]
-                         if indi_id in branch_ids],
+                        [indi_id for indi_id in graph[0] if indi_id in branch_ids],
                         state["descendant_expanded"],
                         self._family_tree_members_for,
                     )
-                    render_kwargs.update({
-                        "graph_builder": lambda graph=graph: graph,
-                        "layout_builder": layout_descendant_tree,
-                        "expandable_categories": ("children",),
-                        "graph_type": "descendant_tree",
-                        "expansion_options_lookup": (
-                            lambda node_id, visible_set:
-                            descendant_tree_expansion_options(
-                                node_id,
-                                visible_set,
-                                self._family_tree_members_for,
-                            )
-                            if node_id in branch_ids else {"children": []}
-                        ),
-                        "expanded_for_buttons": expanded,
-                        "expand_all_categories_lookup": (
-                            lambda node_id, visible_set:
-                            ("children",)
-                            if (node_id in branch_ids
-                                and self._family_tree_members_for(
-                                    node_id).get("children"))
-                            else ()
-                        ),
-                    })
+                    render_kwargs.update(
+                        {
+                            "graph_builder": lambda graph=graph: graph,
+                            "layout_builder": layout_descendant_tree,
+                            "expandable_categories": ("children",),
+                            "graph_type": "descendant_tree",
+                            "expansion_options_lookup": (
+                                lambda node_id, visible_set: (
+                                    descendant_tree_expansion_options(
+                                        node_id,
+                                        visible_set,
+                                        self._family_tree_members_for,
+                                    )
+                                    if node_id in branch_ids
+                                    else {"children": []}
+                                )
+                            ),
+                            "expanded_for_buttons": expanded,
+                            "expand_all_categories_lookup": (
+                                lambda node_id, visible_set: (
+                                    ("children",)
+                                    if (
+                                        node_id in branch_ids
+                                        and self._family_tree_members_for(node_id).get(
+                                            "children"
+                                        )
+                                    )
+                                    else ()
+                                )
+                            ),
+                        }
+                    )
                 graph_state["canvas_w"], graph_state["canvas_h"] = (
                     self._render_family_tree_canvas(
                         canvas,
@@ -980,14 +999,17 @@ class PersonDialogMixin:
                 ]
                 state["descendant_expanded"] = {new_center_id}
                 center = self.individuals[new_center_id]
-                win.title(_tree_window_title(
-                    state["tree_view_mode"], center["name"] or new_center_id))
+                win.title(
+                    _tree_window_title(
+                        state["tree_view_mode"], center["name"] or new_center_id
+                    )
+                )
                 _redraw_tree()
+                _maybe_grow_tree_win()
                 canvas.after_idle(_center_tree_on_current)
 
             def _show_profile_from_tree(indi_id):
-                self._show_profile_from_tree_context(
-                    indi_id, _show_person_view)
+                self._show_profile_from_tree_context(indi_id, _show_person_view)
 
             def _find_matches_from_tree(indi_id):
                 self._select_person_in_main_tree(indi_id)
@@ -998,11 +1020,11 @@ class PersonDialogMixin:
                 center_id = state["person_id"]
                 self._select_person_in_main_tree(center_id)
                 _on_destroy_person_win()
-                self.root.after_idle(
-                    lambda: self._run_path_search(center_id, indi_id))
+                self.root.after_idle(lambda: self._run_path_search(center_id, indi_id))
 
             def _expand_all_tree(indi_id, categories):
                 if state["tree_view_mode"] == "descendant":
+
                     def _collect_descendants(cancel_event):
                         to_expand = {indi_id}
                         stack = [indi_id]
@@ -1011,7 +1033,8 @@ class PersonDialogMixin:
                                 return None
                             source_id = stack.pop()
                             for child_id in self._family_tree_members_for(
-                                    source_id).get("children", ()):
+                                source_id
+                            ).get("children", ()):
                                 if child_id in to_expand:
                                     continue
                                 to_expand.add(child_id)
@@ -1106,8 +1129,11 @@ class PersonDialogMixin:
 
             def _jump_tree_center(*_):
                 visible = set(getattr(canvas, "_family_tree_positions", {}).keys())
-                indi_id = self._pick_person(WIN_SELECT_PERSON, owner=win,
-                                            filter_ids=visible if visible else None)
+                indi_id = self._pick_person(
+                    WIN_SELECT_PERSON,
+                    owner=win,
+                    filter_ids=visible if visible else None,
+                )
                 if not indi_id:
                     return "break"
                 positions = getattr(canvas, "_family_tree_positions", {})
@@ -1156,8 +1182,7 @@ class PersonDialogMixin:
                 _jump_tree_center,
                 _save_tree_debug if graph_debug_enabled else None,
             )
-            state["_tree_button_needed_w"] = self._button_bar_needed_width(
-                btn_frame)
+            state["_tree_button_needed_w"] = self._button_bar_needed_width(btn_frame)
             canvas.focus_set()
             canvas.after_idle(_center_tree_on_current)
 

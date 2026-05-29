@@ -15,6 +15,9 @@ from tkinter import messagebox, ttk
 
 import customtkinter as ctk
 
+from gedcom_file_association import (
+    can_register, ensure_can_open, is_default_handler, set_as_default,
+)
 from gedcom_markdown import render_markdown
 from gedcom_strings import *  # pylint: disable=unused-wildcard-import
 from gedcom_update import check_for_updates
@@ -96,6 +99,25 @@ class HelpDialogsMixin:
             WIN_PRIVACY_POLICY,
             self._resource_path('docs/PRIVACY_POLICY.md'), markdown=True,
         )
+    def _maybe_init_file_association(self):
+        """Register as a .ged handler, then prompt once per version to be default."""
+        if not can_register():
+            return
+        ensure_can_open()  # tier 1: silent, idempotent
+        if self._config.get_file_association_prompted_version() == self._version:
+            return
+        default = is_default_handler()
+        # Record now so we never ask twice for this version, whatever the outcome.
+        self._config.set_file_association_prompted_version(self._version)
+        if default or default is None:
+            # Already the default, or undeterminable (e.g. no xdg-utils) — stay quiet.
+            return
+        if messagebox.askyesno(
+                FILE_ASSOC_PROMPT_TITLE, FILE_ASSOC_PROMPT_MSG, parent=self.root):
+            if not set_as_default():
+                messagebox.showwarning(
+                    FILE_ASSOC_FAILED_TITLE, FILE_ASSOC_FAILED_MSG,
+                    parent=self.root)
     def _check_for_updates(self):
         """Check GitHub for a newer release and report the result."""
         if getattr(self, '_update_check_in_progress', False):

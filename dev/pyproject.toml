@@ -38,6 +38,7 @@ gui = [
     "pillow",
     "certifi; sys_platform == 'darwin'",
     "pyobjc-framework-Cocoa; sys_platform == 'darwin'",
+    "pyobjc-framework-CoreServices; sys_platform == 'darwin'",
 ]
 
 [project.urls]

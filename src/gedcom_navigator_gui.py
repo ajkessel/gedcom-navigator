@@ -116,14 +116,14 @@ class GedcomNavigatorApp(
         if sys.platform == 'win32':
             try:
                 self.root.iconbitmap(
-                    self._resource_path('icons/family_tree.ico'))
+                    self._resource_path('icons/gedcom_navigator.ico'))
             except Exception:  # pylint: disable=broad-exception-caught
                 log_exception("setting Windows window icon")
                 pass
         elif sys.platform != 'darwin':
             try:
                 icon = tk.PhotoImage(
-                    file=self._resource_path('icons/family_tree.png'))
+                    file=self._resource_path('icons/gedcom_navigator.png'))
                 self.root.iconphoto(True, icon)
             except Exception:  # pylint: disable=broad-exception-caught
                 log_exception("setting Linux window icon")
@@ -849,6 +849,10 @@ def main():
     else:
         if not (app._recent_files and os.path.isfile(app._recent_files[0])):
             root.after(100, app._browse)
+
+    # Register as a .ged handler and (once per version) offer to be the default.
+    # Deferred so the main window paints first and any opened file loads first.
+    root.after(600, app._maybe_init_file_association)
 
     root.mainloop()
 

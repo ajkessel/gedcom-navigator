@@ -330,7 +330,7 @@ class AppearanceMixin:
         t = ttk_colors(is_dark, getattr(self, '_theme_pref', None))
 
         try:
-            style.theme_use('aqua' if sys.platform == 'darwin' else 'clam')
+            style.theme_use('clam')
         except tk.TclError:
             pass
 
@@ -366,6 +366,10 @@ class AppearanceMixin:
         style.configure('TSpinbox', fieldbackground=field_bg, foreground=fg,
                         background=bg, arrowcolor=fg,
                         selectbackground=sel_bg, selectforeground=sel_fg)
+        style.map('TSpinbox',
+                  fieldbackground=[('disabled', bg), ('readonly', field_bg)],
+                  foreground=[('disabled', fg)],
+                  background=[('active', bg)])
         style.configure('TCheckbutton', background=bg, foreground=fg)
         style.map('TCheckbutton', background=[('active', bg)])
         style.configure('TRadiobutton', background=bg, foreground=fg)
