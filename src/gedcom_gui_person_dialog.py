@@ -983,6 +983,7 @@ class PersonDialogMixin:
                 win.title(_tree_window_title(
                     state["tree_view_mode"], center["name"] or new_center_id))
                 _redraw_tree()
+                _maybe_grow_tree_win()
                 canvas.after_idle(_center_tree_on_current)
 
             def _show_profile_from_tree(indi_id):
