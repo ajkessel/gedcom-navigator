@@ -8,8 +8,8 @@ Run from the project root on MacOS:
 Produces in docs/screenshots/appstore/:
   screenshot_01_main.png          – person list, Maya selected, path-to-home visible
   screenshot_02_matches.png       – DNA match results + path to home person
-  screenshot_03_paths.png         – paths mode: Maya → most-distant DNA match
-  screenshot_04_with_graph.png    – main + complex relationship graph
+  screenshot_03_paths.png         – paths mode: Maya → Brianna Logan Vaughn
+  screenshot_04_with_graph.png    – main + relationship graph (Maya → Brianna)
   screenshot_04_graph_only.png    – relationship graph alone (2560×1600)
   screenshot_05_tree.png          – family tree view, Daniel Hart (2560×1600)
   screenshot_06_pedigree.png      – pedigree (ancestor) tree, Maya Hart (2560×1600)
@@ -58,6 +58,11 @@ HOME_PERSON_ID = "@I6@"
 
 # Start person for all searches (Maya Lynn Hart).
 START_PERSON_ID = "@I1@"
+
+# Paths / relationship-graph demo target: a non-obvious multi-hop relationship
+# from Maya.  @I367@ Brianna Logan Vaughn is Maya's "second cousin-in-law" via a
+# 7-node path: mother → father → sibling → child → child → spouse.
+PATHS_TARGET_ID = "@I367@"
 
 # Tree-view subjects, chosen so each of the three views is visually full and
 # the set spans three generations of the same family:
@@ -314,49 +319,19 @@ def _wait_not_busy(app, timeout: float = 60.0):
         time.sleep(0.2)
 
 
-def _run_paths_for_complex_target(app) -> bool:
+def _best_path_to(app, start_id, target_id):
     """
-    Switch to paths mode and find all routes from Maya (@I1@) to the most
-    distant DNA match.  The specific match is whoever sorts last in the DNA
-    results (largest distance), so this stays correct as the sample data
-    changes.  The results render in the main window's right panel — no
-    secondary window.
+    Return the best (shortest) relationship path from *start_id* to *target_id*
+    as a list of (id, edge) tuples, or None if unreachable.  Uses the same
+    model search the GUI's paths mode runs, with the GUI's configured limits.
     """
-    last = getattr(app, "_last_result", None)
-    if not last:
-        return False
-    results = last.get("results", [])
-    if not results:
-        return False
-    _dist, path = results[-1]
-    if not path:
-        return False
-    # path is a list of (id, edge) tuples; last element is the target
-    target_id = path[-1][0] if isinstance(path[-1], tuple) else path[-1]
-    _ui(lambda: app._run_path_search(START_PERSON_ID, target_id))
-    return True
-
-
-def _open_graph_for_best_result(app) -> bool:
-    """
-    Open the relationship graph for the MOST COMPLEX DNA match result
-    (longest path = most generations traversed, most visually interesting).
-    """
-    last = getattr(app, "_last_result", None)
-    if not last:
-        return False
-    results = last.get("results", [])
-    if not results:
-        return False
-    # Use the most distant match (last in the sorted list) for the most
-    # complex multi-generation path.
-    _dist, path = results[-1]
-    path = list(path)
-    if not path:
-        return False
-    rel = _relationship_for_path(app, START_PERSON_ID, path)
-    _ui(lambda: app._show_path_graph(path, rel))
-    return True
+    top_n, max_depth = _ui(
+        lambda: (int(app.top_n.get()), int(app.max_depth.get()))
+    )
+    paths, _truncated = app._model.find_all_paths(
+        start_id, target_id, top_n, max_depth
+    )
+    return list(paths[0]) if paths else None
 
 
 def _open_tree_view(app, indi_id, mode) -> bool:
@@ -544,43 +519,38 @@ def automation(app, done_event: threading.Event):
         _screenshot(OUTPUT_DIR / "screenshot_02_matches.png")
 
         # ---------------------------------------------------------------
-        # 5. Paths mode: Maya → most-distant DNA match
+        # 5. Paths mode: Maya → Brianna Logan Vaughn (second cousin-in-law)
         # ---------------------------------------------------------------
-        print("\n[5/9] Screenshot – paths mode (Maya to most distant match) …")
+        print("\n[5/9] Screenshot – paths mode (Maya → Brianna Logan Vaughn) …")
 
-        # Cache the best DNA path BEFORE running paths mode, because
-        # _run_paths_for_complex_target calls _run_path_search which
-        # overwrites app._last_result with type='path' (no 'results' key).
-        _cached_dna_path = None
-        _cached_dna_rel = "relationship"
-        last = getattr(app, "_last_result", None)
-        if last and last.get("results"):
-            _dist, _raw_path = last["results"][-1]
-            _cached_dna_path = list(_raw_path)
-            _cached_dna_rel = _relationship_for_path(
-                app, START_PERSON_ID, _cached_dna_path
-            )
+        # Compute the path up front so the relationship-graph screenshot in
+        # step 6 can reuse it — running the path search overwrites
+        # app._last_result with type='path' and no path list.
+        _paths_path = _best_path_to(app, START_PERSON_ID, PATHS_TARGET_ID)
+        _paths_rel = (
+            _relationship_for_path(app, START_PERSON_ID, _paths_path)
+            if _paths_path
+            else "relationship"
+        )
 
-        ok = _run_paths_for_complex_target(app)
-        if ok:
+        if _paths_path:
+            _ui(lambda: app._run_path_search(START_PERSON_ID, PATHS_TARGET_ID))
             _wait_not_busy(app, timeout=30)
             time.sleep(0.5)
             _snaps(8, "paths mode", pause=0.4)
             _screenshot(OUTPUT_DIR / "screenshot_03_paths.png")
         else:
-            print("  No paths data – skipping.")
+            print(
+                f"  No path {START_PERSON_ID} → {PATHS_TARGET_ID} – skipping."
+            )
 
         # ---------------------------------------------------------------
-        # 6. Open relationship graph for the most complex match
+        # 6. Relationship graph for the Maya → Brianna path
         # ---------------------------------------------------------------
-        print("\n[6/9] Opening relationship graph (most complex path) …")
-        if _cached_dna_path:
-            _ui(lambda: app._show_path_graph(_cached_dna_path, _cached_dna_rel))
-            opened = True
-        else:
-            opened = _open_graph_for_best_result(app)
-        if opened:
-            print("  Graph opened (longest relationship path).")
+        print("\n[6/9] Opening relationship graph (Maya → Brianna Logan Vaughn) …")
+        if _paths_path:
+            _ui(lambda: app._show_path_graph(_paths_path, _paths_rel))
+            print(f"  Graph opened ({_paths_rel}).")
         else:
             print("  No graph data – skipping.")
 
