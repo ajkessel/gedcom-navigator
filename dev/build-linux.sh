@@ -4,6 +4,8 @@ if [[ "$OSTYPE" != "linux-gnu"* ]]; then
 	echo "${OSTYPE} detected, exiting."
 	exit 1
 fi
+# this is necessary to keep screen buffer up to date
+# while logging to file
 if [[ "$STDBUF_ACTIVE" != "1" ]]; then
         export STDBUF_ACTIVE=1
         exec stdbuf -oL "$0" "$@"
