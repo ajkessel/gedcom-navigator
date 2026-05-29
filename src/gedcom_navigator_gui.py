@@ -197,6 +197,12 @@ class GedcomNavigatorApp(
         self._path_graph_win = None
         self._path_graph_replace_fn = None
         self._secondary_win = None
+        # Automation hooks set while a tree detail window is open (see
+        # PersonDialogMixin._show_person_for); used by the App Store screenshot
+        # generator to fully expand / zoom the open tree.
+        self._expand_open_descendant_tree = None
+        self._set_open_tree_zoom = None
+        self._frame_open_descendant_top = None
 
         self._mono_family = self._pick_mono_family()
         self._mono_size = self._FONT_SIZES['medium']['mono']
