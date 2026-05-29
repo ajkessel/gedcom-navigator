@@ -167,6 +167,7 @@ if sys.platform == 'darwin':
                      'CFBundleDocumentTypes': [{
                          'CFBundleTypeName': 'GEDCOM File',
                          'CFBundleTypeRole': 'Editor',
+                         'LSHandlerRank': 'Owner',
                          'LSItemContentTypes': ['com.ajkessel.gedcom-navigator.ged'],
                          'CFBundleTypeIconFile': 'gedcom_navigator.icns',
                      }],
