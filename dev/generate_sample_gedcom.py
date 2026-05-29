@@ -5,8 +5,14 @@ from __future__ import annotations
 
 import argparse
 from dataclasses import dataclass, field
+from datetime import date
 from pathlib import Path
 from zipfile import ZipFile, ZIP_DEFLATED
+
+# Anchor all generated dates to the moment the script runs so that no birth,
+# death, or marriage date is ever in the future.
+TODAY = date.today()
+CURRENT_YEAR = TODAY.year
 
 PERSON_TARGET = 1000
 DNA_TARGET = 50
@@ -30,48 +36,408 @@ MONTHS = [
 
 GIVEN_NAMES = {
     "F": [
-        "Olivia", "Emma", "Charlotte", "Amelia", "Sophia", "Mia", "Isabella", "Ava", "Evelyn", "Harper",
-        "Luna", "Camila", "Sofia", "Eleanor", "Elizabeth", "Gianna", "Scarlett", "Violet", "Ella", "Emily",
-        "Chloe", "Abigail", "Aria", "Penelope", "Aurora", "Hazel", "Avery", "Nora", "Lily", "Ellie",
-        "Mila", "Layla", "Eliana", "Madison", "Isla", "Grace", "Nova", "Zoe", "Lucy", "Riley",
-        "Willow", "Ivy", "Emilia", "Victoria", "Stella", "Naomi", "Hannah", "Zoey", "Elena", "Leah",
-        "Lillian", "Valentina", "Maya", "Paisley", "Delilah", "Addison", "Everly", "Natalie", "Genesis", "Sophie",
-        "Sadie", "Madelyn", "Ruby", "Josephine", "Leilani", "Claire", "Alice", "Kinsley", "Audrey", "Adeline",
-        "Kennedy", "Autumn", "Aaliyah", "Lainey", "Brooklyn", "Emery", "Eloise", "Caroline", "Anna", "Quinn",
-        "Iris", "Savannah", "Hailey", "Vivian", "Clara", "Aubrey", "Bella", "Gabriella", "Jade", "Madeline",
-        "Sarah", "Cora", "Maria", "Allison", "Liliana", "Lydia", "Natalia", "Athena", "Ariana", "Serenity",
-        "Skylar", "Ayla", "Eden", "Lyla", "Melody", "Maeve", "Nevaeh", "Raelynn", "Eva", "Daisy",
-        "Josie", "Samantha", "Rylee", "Hadley", "Parker", "Julia", "Millie", "Eliza", "Rose", "Lucia",
-        "Piper", "Brielle", "Everleigh", "Juniper", "Alaia", "Margaret", "Melanie", "Charlie", "Amara", "Remi",
-        "Peyton", "Mary", "Elliana", "Arya", "Cecilia", "Adalynn", "Sienna", "Georgia", "Esther", "Isabelle",
-        "Alina", "Catalina", "Valerie", "Magnolia", "Emersyn", "Summer", "Ashley", "Juliette", "Sloane", "Freya",
-        "Ximena", "Kehlani", "Emerson", "Mackenzie", "Valeria", "Margot", "Ember", "Genevieve", "Reagan", "Isabel",
-        "Sage", "Amaya", "Blakely", "Katherine", "June", "Anastasia", "Reese", "Kaylee", "Amira", "Arianna",
-        "Oakley", "Brianna", "Callie", "Elsie", "Ariella", "Ailany", "Oaklynn", "Olive", "Andrea", "Jasmine",
-        "Alana", "Rosalie", "Bailey", "Kylie", "Alani", "River", "Ruth", "Adalyn", "Sara", "Ada",
-        "Gemma", "Alexandra", "Molly", "Norah", "Faith", "Hallie", "Phoebe", "Khloe", "Evangeline", "Lilah"
+        "Olivia",
+        "Emma",
+        "Charlotte",
+        "Amelia",
+        "Sophia",
+        "Mia",
+        "Isabella",
+        "Ava",
+        "Evelyn",
+        "Harper",
+        "Luna",
+        "Camila",
+        "Sofia",
+        "Eleanor",
+        "Elizabeth",
+        "Gianna",
+        "Scarlett",
+        "Violet",
+        "Ella",
+        "Emily",
+        "Chloe",
+        "Abigail",
+        "Aria",
+        "Penelope",
+        "Aurora",
+        "Hazel",
+        "Avery",
+        "Nora",
+        "Lily",
+        "Ellie",
+        "Mila",
+        "Layla",
+        "Eliana",
+        "Madison",
+        "Isla",
+        "Grace",
+        "Nova",
+        "Zoe",
+        "Lucy",
+        "Riley",
+        "Willow",
+        "Ivy",
+        "Emilia",
+        "Victoria",
+        "Stella",
+        "Naomi",
+        "Hannah",
+        "Zoey",
+        "Elena",
+        "Leah",
+        "Lillian",
+        "Valentina",
+        "Maya",
+        "Paisley",
+        "Delilah",
+        "Addison",
+        "Everly",
+        "Natalie",
+        "Genesis",
+        "Sophie",
+        "Sadie",
+        "Madelyn",
+        "Ruby",
+        "Josephine",
+        "Leilani",
+        "Claire",
+        "Alice",
+        "Kinsley",
+        "Audrey",
+        "Adeline",
+        "Kennedy",
+        "Autumn",
+        "Aaliyah",
+        "Lainey",
+        "Brooklyn",
+        "Emery",
+        "Eloise",
+        "Caroline",
+        "Anna",
+        "Quinn",
+        "Iris",
+        "Savannah",
+        "Hailey",
+        "Vivian",
+        "Clara",
+        "Aubrey",
+        "Bella",
+        "Gabriella",
+        "Jade",
+        "Madeline",
+        "Sarah",
+        "Cora",
+        "Maria",
+        "Allison",
+        "Liliana",
+        "Lydia",
+        "Natalia",
+        "Athena",
+        "Ariana",
+        "Serenity",
+        "Skylar",
+        "Ayla",
+        "Eden",
+        "Lyla",
+        "Melody",
+        "Maeve",
+        "Nevaeh",
+        "Raelynn",
+        "Eva",
+        "Daisy",
+        "Josie",
+        "Samantha",
+        "Rylee",
+        "Hadley",
+        "Parker",
+        "Julia",
+        "Millie",
+        "Eliza",
+        "Rose",
+        "Lucia",
+        "Piper",
+        "Brielle",
+        "Everleigh",
+        "Juniper",
+        "Alaia",
+        "Margaret",
+        "Melanie",
+        "Charlie",
+        "Amara",
+        "Remi",
+        "Peyton",
+        "Mary",
+        "Elliana",
+        "Arya",
+        "Cecilia",
+        "Adalynn",
+        "Sienna",
+        "Georgia",
+        "Esther",
+        "Isabelle",
+        "Alina",
+        "Catalina",
+        "Valerie",
+        "Magnolia",
+        "Emersyn",
+        "Summer",
+        "Ashley",
+        "Juliette",
+        "Sloane",
+        "Freya",
+        "Ximena",
+        "Kehlani",
+        "Emerson",
+        "Mackenzie",
+        "Valeria",
+        "Margot",
+        "Ember",
+        "Genevieve",
+        "Reagan",
+        "Isabel",
+        "Sage",
+        "Amaya",
+        "Blakely",
+        "Katherine",
+        "June",
+        "Anastasia",
+        "Reese",
+        "Kaylee",
+        "Amira",
+        "Arianna",
+        "Oakley",
+        "Brianna",
+        "Callie",
+        "Elsie",
+        "Ariella",
+        "Ailany",
+        "Oaklynn",
+        "Olive",
+        "Andrea",
+        "Jasmine",
+        "Alana",
+        "Rosalie",
+        "Bailey",
+        "Kylie",
+        "Alani",
+        "River",
+        "Ruth",
+        "Adalyn",
+        "Sara",
+        "Ada",
+        "Gemma",
+        "Alexandra",
+        "Molly",
+        "Norah",
+        "Faith",
+        "Hallie",
+        "Phoebe",
+        "Khloe",
+        "Evangeline",
+        "Lilah",
     ],
     "M": [
-        "Liam", "Noah", "Oliver", "James", "Elijah", "William", "Henry", "Lucas", "Theodore", "Benjamin",
-        "Mateo", "Levi", "Sebastian", "Jack", "Daniel", "Michael", "Alexander", "Ethan", "Samuel", "Owen",
-        "John", "Asher", "Ezra", "Leo", "Jackson", "Mason", "Hudson", "Joseph", "David", "Jacob",
-        "Julian", "Logan", "Luke", "Luca", "Matthew", "Wyatt", "Aiden", "Elias", "Gabriel", "Dylan",
-        "Grayson", "Isaac", "Thomas", "Carter", "Maverick", "Anthony", "Santiago", "Jayden", "Miles", "Charles",
-        "Josiah", "Caleb", "Lincoln", "Cooper", "Ezekiel", "Isaiah", "Christopher", "Joshua", "Nathan", "Andrew",
-        "Nolan", "Roman", "Cameron", "Adrian", "Angel", "Waylon", "Wesley", "Bennett", "Jaxon", "Aaron",
-        "Kai", "Brooks", "Axel", "Christian", "Eli", "Ian", "Ryan", "Weston", "Jonathan", "Beau",
-        "Rowan", "Everett", "Silas", "Leonardo", "Robert", "Colton", "Thiago", "Jeremiah", "Easton", "Landon",
-        "Jose", "Micah", "Parker", "Jordan", "Jameson", "Gael", "Adam", "Dominic", "Hunter", "Xavier",
-        "Walker", "Austin", "Nicholas", "Enzo", "Theo", "Greyson", "Jace", "Carson", "August", "Amir",
-        "Luka", "Myles", "Damian", "Emmett", "Kayden", "River", "Connor", "Declan", "Vincent", "Atlas",
-        "Harrison", "Ryder", "Jaxson", "Adriel", "Sawyer", "Giovanni", "Milo", "Archer", "Arthur", "Evan",
-        "Lorenzo", "Jasper", "Jonah", "George", "Emiliano", "Luis", "Diego", "Bryson", "Nathaniel", "Kingston",
-        "Jason", "Zion", "Legend", "Calvin", "Carlos", "Graham", "Chase", "Juan", "Cole", "Malachi",
-        "Dean", "Brayden", "Braxton", "Jude", "Matteo", "Elliot", "Leon", "Ivan", "Ashton", "Jayce",
-        "Rhett", "Max", "Ace", "Elliott", "Hayden", "Dawson", "Jesus", "Zachary", "Arlo", "Ryker",
-        "Tyler", "Maxwell", "Emmanuel", "Ayden", "Bentley", "Charlie", "Antonio", "Judah", "Kaiden", "Amari",
-        "Beckett", "Alan", "Camden", "Emilio", "Matias", "Kevin", "Maddox", "Nicolas", "Finn", "Justin",
-        "Tucker", "Barrett", "Felix", "Messiah", "Jesse", "Miguel", "Zayden", "Alejandro", "Beckham", "Alex",
+        "Liam",
+        "Noah",
+        "Oliver",
+        "James",
+        "Elijah",
+        "William",
+        "Henry",
+        "Lucas",
+        "Theodore",
+        "Benjamin",
+        "Mateo",
+        "Levi",
+        "Sebastian",
+        "Jack",
+        "Daniel",
+        "Michael",
+        "Alexander",
+        "Ethan",
+        "Samuel",
+        "Owen",
+        "John",
+        "Asher",
+        "Ezra",
+        "Leo",
+        "Jackson",
+        "Mason",
+        "Hudson",
+        "Joseph",
+        "David",
+        "Jacob",
+        "Julian",
+        "Logan",
+        "Luke",
+        "Luca",
+        "Matthew",
+        "Wyatt",
+        "Aiden",
+        "Elias",
+        "Gabriel",
+        "Dylan",
+        "Grayson",
+        "Isaac",
+        "Thomas",
+        "Carter",
+        "Maverick",
+        "Anthony",
+        "Santiago",
+        "Jayden",
+        "Miles",
+        "Charles",
+        "Josiah",
+        "Caleb",
+        "Lincoln",
+        "Cooper",
+        "Ezekiel",
+        "Isaiah",
+        "Christopher",
+        "Joshua",
+        "Nathan",
+        "Andrew",
+        "Nolan",
+        "Roman",
+        "Cameron",
+        "Adrian",
+        "Angel",
+        "Waylon",
+        "Wesley",
+        "Bennett",
+        "Jaxon",
+        "Aaron",
+        "Kai",
+        "Brooks",
+        "Axel",
+        "Christian",
+        "Eli",
+        "Ian",
+        "Ryan",
+        "Weston",
+        "Jonathan",
+        "Beau",
+        "Rowan",
+        "Everett",
+        "Silas",
+        "Leonardo",
+        "Robert",
+        "Colton",
+        "Thiago",
+        "Jeremiah",
+        "Easton",
+        "Landon",
+        "Jose",
+        "Micah",
+        "Parker",
+        "Jordan",
+        "Jameson",
+        "Gael",
+        "Adam",
+        "Dominic",
+        "Hunter",
+        "Xavier",
+        "Walker",
+        "Austin",
+        "Nicholas",
+        "Enzo",
+        "Theo",
+        "Greyson",
+        "Jace",
+        "Carson",
+        "August",
+        "Amir",
+        "Luka",
+        "Myles",
+        "Damian",
+        "Emmett",
+        "Kayden",
+        "River",
+        "Connor",
+        "Declan",
+        "Vincent",
+        "Atlas",
+        "Harrison",
+        "Ryder",
+        "Jaxson",
+        "Adriel",
+        "Sawyer",
+        "Giovanni",
+        "Milo",
+        "Archer",
+        "Arthur",
+        "Evan",
+        "Lorenzo",
+        "Jasper",
+        "Jonah",
+        "George",
+        "Emiliano",
+        "Luis",
+        "Diego",
+        "Bryson",
+        "Nathaniel",
+        "Kingston",
+        "Jason",
+        "Zion",
+        "Legend",
+        "Calvin",
+        "Carlos",
+        "Graham",
+        "Chase",
+        "Juan",
+        "Cole",
+        "Malachi",
+        "Dean",
+        "Brayden",
+        "Braxton",
+        "Jude",
+        "Matteo",
+        "Elliot",
+        "Leon",
+        "Ivan",
+        "Ashton",
+        "Jayce",
+        "Rhett",
+        "Max",
+        "Ace",
+        "Elliott",
+        "Hayden",
+        "Dawson",
+        "Jesus",
+        "Zachary",
+        "Arlo",
+        "Ryker",
+        "Tyler",
+        "Maxwell",
+        "Emmanuel",
+        "Ayden",
+        "Bentley",
+        "Charlie",
+        "Antonio",
+        "Judah",
+        "Kaiden",
+        "Amari",
+        "Beckett",
+        "Alan",
+        "Camden",
+        "Emilio",
+        "Matias",
+        "Kevin",
+        "Maddox",
+        "Nicolas",
+        "Finn",
+        "Justin",
+        "Tucker",
+        "Barrett",
+        "Felix",
+        "Messiah",
+        "Jesse",
+        "Miguel",
+        "Zayden",
+        "Alejandro",
+        "Beckham",
+        "Alex",
     ],
 }
 
@@ -218,7 +584,10 @@ class SampleTree:
     ) -> str:
         xref = f"@F{self._next_family}@"
         self._next_family += 1
-        place = marr_place or PLACES[(self._next_family + (marr_year or 1900)) % len(PLACES)]
+        place = (
+            marr_place
+            or PLACES[(self._next_family + (marr_year or 1900)) % len(PLACES)]
+        )
         family = Family(
             xref=xref,
             husb=husb,
@@ -243,7 +612,9 @@ class SampleTree:
         if family_id not in self.people[child_id].famc:
             self.people[child_id].famc.append(family_id)
 
-    def generated_person(self, sex: str, surname: str, birth_year: int, salt: int) -> str:
+    def generated_person(
+        self, sex: str, surname: str, birth_year: int, salt: int
+    ) -> str:
         given = GIVEN_NAMES[sex][salt % len(GIVEN_NAMES[sex])]
         middle = MIDDLE_NAMES[(salt * 3 + birth_year) % len(MIDDLE_NAMES)]
         return self.add_person(given, surname, sex, birth_year, middle)
@@ -254,7 +625,7 @@ class SampleTree:
             return None
         lifespan = 68 + ((birth_year + salt * 7) % 28)
         death_year = birth_year + lifespan
-        if death_year >= 2025:
+        if death_year >= CURRENT_YEAR:
             return None
         return death_year
 
@@ -346,10 +717,20 @@ def build_core_tree(tree: SampleTree) -> list[str]:
         tree.add_family(daniel, evelyn, 1982, [maya, jonah, sophie]),
         tree.add_family(arthur, beatrice, 1954, [daniel, patricia, raymond]),
         tree.add_family(victor, patricia, 1980, [caleb, leah]),
-        tree.add_family(daniel, laura, 1996, [nolan, violet],
-                        notes=["Remarriage with children from Daniel Hart's second marriage."]),
-        tree.add_family(peter, evelyn, 1993, [elena],
-                        notes=["Remarriage with a child from Evelyn Reed's second marriage."]),
+        tree.add_family(
+            daniel,
+            laura,
+            1996,
+            [nolan, violet],
+            notes=["Remarriage with children from Daniel Hart's second marriage."],
+        ),
+        tree.add_family(
+            peter,
+            evelyn,
+            1993,
+            [elena],
+            notes=["Remarriage with a child from Evelyn Reed's second marriage."],
+        ),
         tree.add_family(joseph, helen, 1928, [samuel, clara, edmund]),
         tree.add_family(samuel, margaret, 1957, [evelyn]),
         tree.add_family(thomas, clara, 1959, [olivia, grace]),
@@ -383,9 +764,15 @@ def expand_tree(tree: SampleTree, seed_families: list[str]) -> None:
     while len(tree.people) < PERSON_TARGET:
         if not queue:
             surname = SURNAMES[fallback_salt % len(SURNAMES)]
-            husb = tree.generated_person("M", surname, 1850 + fallback_salt % 35, fallback_salt)
-            wife = tree.generated_person("F", SURNAMES[(fallback_salt + 7) % len(SURNAMES)],
-                                         1852 + fallback_salt % 35, fallback_salt + 11)
+            husb = tree.generated_person(
+                "M", surname, 1850 + fallback_salt % 35, fallback_salt
+            )
+            wife = tree.generated_person(
+                "F",
+                SURNAMES[(fallback_salt + 7) % len(SURNAMES)],
+                1852 + fallback_salt % 35,
+                fallback_salt + 11,
+            )
             queue.append((tree.add_family(husb, wife, 1874 + fallback_salt % 35), 0))
             fallback_salt += 1
 
@@ -395,7 +782,7 @@ def expand_tree(tree: SampleTree, seed_families: list[str]) -> None:
         if not parents:
             continue
         youngest_parent_birth = max(parent.birth_year for parent in parents)
-        if youngest_parent_birth > 2002:
+        if youngest_parent_birth + 23 > CURRENT_YEAR:
             continue
 
         family_num = _family_number(family_id)
@@ -408,6 +795,8 @@ def expand_tree(tree: SampleTree, seed_families: list[str]) -> None:
             sex = "F" if (family_num + child_index + generation) % 2 else "M"
             surname = _family_surname(tree, family)
             birth_year = youngest_parent_birth + 23 + child_index * 3
+            if birth_year > CURRENT_YEAR:
+                break
             salt = family_num * 17 + child_index * 5 + generation
             child = tree.generated_person(sex, surname, birth_year, salt)
             tree.add_child_to_family(family_id, child)
@@ -416,11 +805,17 @@ def expand_tree(tree: SampleTree, seed_families: list[str]) -> None:
                 spouse_sex = "F" if sex == "M" else "M"
                 spouse_surname = SURNAMES[(salt + 9) % len(SURNAMES)]
                 spouse_birth = birth_year + ((salt % 5) - 2)
-                spouse = tree.generated_person(spouse_sex, spouse_surname, spouse_birth, salt + 31)
+                spouse = tree.generated_person(
+                    spouse_sex, spouse_surname, spouse_birth, salt + 31
+                )
                 if sex == "M":
-                    new_family = tree.add_family(child, spouse, birth_year + 25 + salt % 6)
+                    new_family = tree.add_family(
+                        child, spouse, birth_year + 25 + salt % 6
+                    )
                 else:
-                    new_family = tree.add_family(spouse, child, birth_year + 25 + salt % 6)
+                    new_family = tree.add_family(
+                        spouse, child, birth_year + 25 + salt % 6
+                    )
                 queue.append((new_family, generation + 1))
 
         if len(tree.people) < PERSON_TARGET and generation <= 3 and family_num % 9 == 0:
@@ -445,8 +840,12 @@ def _add_remarriage_branch(
     remarry_husband = bool(family.husb) and (family_num % 2 == 0 or not family.wife)
     if remarry_husband:
         existing = tree.people[family.husb]
-        spouse = tree.generated_person("F", SURNAMES[(family_num + 5) % len(SURNAMES)],
-                                       existing.birth_year + 2, family_num + 101)
+        spouse = tree.generated_person(
+            "F",
+            SURNAMES[(family_num + 5) % len(SURNAMES)],
+            existing.birth_year + 2,
+            family_num + 101,
+        )
         new_family = tree.add_family(
             family.husb,
             spouse,
@@ -455,8 +854,12 @@ def _add_remarriage_branch(
         )
     else:
         existing = tree.people[family.wife]
-        spouse = tree.generated_person("M", SURNAMES[(family_num + 8) % len(SURNAMES)],
-                                       existing.birth_year - 1, family_num + 103)
+        spouse = tree.generated_person(
+            "M",
+            SURNAMES[(family_num + 8) % len(SURNAMES)],
+            existing.birth_year - 1,
+            family_num + 103,
+        )
         new_family = tree.add_family(
             spouse,
             family.wife,
@@ -469,8 +872,12 @@ def _add_remarriage_branch(
             return
         sex = "M" if idx % 2 else "F"
         child_birth = existing.birth_year + 43 + idx * 4
-        child = tree.generated_person(sex, _family_surname(tree, tree.families[new_family]),
-                                      child_birth, family_num + 150 + idx)
+        child = tree.generated_person(
+            sex,
+            _family_surname(tree, tree.families[new_family]),
+            child_birth,
+            family_num + 150 + idx,
+        )
         tree.add_child_to_family(new_family, child)
     queue.append((new_family, generation + 1))
 
@@ -483,11 +890,15 @@ def assign_dna_markers(tree: SampleTree) -> None:
         "Owen Stone Bell",
     }
     preferred = [
-        xref for xref, person in tree.people.items()
+        xref
+        for xref, person in tree.people.items()
         if person.full_name in preferred_names
     ]
     candidates = [
-        xref for xref, person in sorted(tree.people.items(), key=lambda item: _person_number(item[0]))
+        xref
+        for xref, person in sorted(
+            tree.people.items(), key=lambda item: _person_number(item[0])
+        )
         if xref not in preferred and person.birth_year <= 2005
     ]
 
@@ -515,7 +926,12 @@ def assign_dna_markers(tree: SampleTree) -> None:
 
 
 def gedcom_date(year: int, salt: int) -> str:
-    return f"{1 + salt % 28} {MONTHS[(salt + year) % len(MONTHS)]} {year}"
+    day = 1 + salt % 28
+    month = (salt + year) % len(MONTHS)
+    # Never emit a date in the future relative to the run time.
+    if date(year, month + 1, day) > TODAY:
+        return f"{TODAY.day} {MONTHS[TODAY.month - 1]} {TODAY.year}"
+    return f"{day} {MONTHS[month]} {year}"
 
 
 def write_gedcom(tree: SampleTree, output: Path) -> None:
@@ -543,22 +959,28 @@ def write_gedcom(tree: SampleTree, output: Path) -> None:
     for xref in sorted(tree.people, key=_person_number):
         person = tree.people[xref]
         num = _person_number(xref)
-        lines.extend([
-            f"0 {xref} INDI",
-            f"1 NAME {person.given} {person.middle} /{person.surname}/".replace("  ", " "),
-            f"2 GIVN {person.given} {person.middle}".strip(),
-            f"2 SURN {person.surname}",
-            f"1 SEX {person.sex}",
-            "1 BIRT",
-            f"2 DATE {gedcom_date(person.birth_year, num)}",
-            f"2 PLAC {person.birth_place}",
-        ])
+        lines.extend(
+            [
+                f"0 {xref} INDI",
+                f"1 NAME {person.given} {person.middle} /{person.surname}/".replace(
+                    "  ", " "
+                ),
+                f"2 GIVN {person.given} {person.middle}".strip(),
+                f"2 SURN {person.surname}",
+                f"1 SEX {person.sex}",
+                "1 BIRT",
+                f"2 DATE {gedcom_date(person.birth_year, num)}",
+                f"2 PLAC {person.birth_place}",
+            ]
+        )
         if person.death_year:
-            lines.extend([
-                "1 DEAT",
-                f"2 DATE {gedcom_date(person.death_year, num + 3)}",
-                f"2 PLAC {PLACES[(num + 3) % len(PLACES)]}",
-            ])
+            lines.extend(
+                [
+                    "1 DEAT",
+                    f"2 DATE {gedcom_date(person.death_year, num + 3)}",
+                    f"2 PLAC {PLACES[(num + 3) % len(PLACES)]}",
+                ]
+            )
         for note in person.notes:
             lines.append(f"1 NOTE {note}")
         for famc in person.famc:
@@ -568,10 +990,12 @@ def write_gedcom(tree: SampleTree, output: Path) -> None:
         for tag in person.mttags:
             lines.append(f"1 _MTTAG {tag}")
         for page in person.page_markers:
-            lines.extend([
-                f"1 SOUR {SOURCE_ID}",
-                f"2 PAGE {page}",
-            ])
+            lines.extend(
+                [
+                    f"1 SOUR {SOURCE_ID}",
+                    f"2 PAGE {page}",
+                ]
+            )
 
     for xref in sorted(tree.families, key=_family_number):
         family = tree.families[xref]
@@ -582,11 +1006,13 @@ def write_gedcom(tree: SampleTree, output: Path) -> None:
         if family.wife:
             lines.append(f"1 WIFE {family.wife}")
         if family.marr_year:
-            lines.extend([
-                "1 MARR",
-                f"2 DATE {gedcom_date(family.marr_year, num + 13)}",
-                f"2 PLAC {family.marr_place}",
-            ])
+            lines.extend(
+                [
+                    "1 MARR",
+                    f"2 DATE {gedcom_date(family.marr_year, num + 13)}",
+                    f"2 PLAC {family.marr_place}",
+                ]
+            )
         for child in family.children:
             lines.append(f"1 CHIL {child}")
         for note in family.notes:
@@ -596,11 +1022,12 @@ def write_gedcom(tree: SampleTree, output: Path) -> None:
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
+
 def zip_gedcom(output: Path) -> None:
-    zip_path = Path(str(output).replace(".ged",".zip"))
+    zip_path = Path(str(output).replace(".ged", ".zip"))
     with ZipFile(zip_path, mode="w", compression=ZIP_DEFLATED) as zf:
         zf.write(output, arcname=output.name)
-    
+
 
 def generate(output: Path) -> None:
     tree = SampleTree()
@@ -616,7 +1043,9 @@ def main() -> int:
     parser.add_argument(
         "--output",
         type=Path,
-        default=Path(__file__).resolve().parents[1] / "samples" / "fictional_genealogy.ged",
+        default=Path(__file__).resolve().parents[1]
+        / "samples"
+        / "fictional_genealogy.ged",
         help="Path for the generated GEDCOM file.",
     )
     args = parser.parse_args()
