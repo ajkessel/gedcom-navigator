@@ -23,6 +23,10 @@ output_file = input_file.with_suffix('.ico')
 icon_sizes = [(16, 16), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)]
 img_list = []
 
+if input_file.stat().st_mtime <= output_file.stat().st_mtime:
+    print("Newer icon file already exists. Skipping generation.")
+    exit()
+
 if str(input_file).lower().endswith('.svg'):
     if svg:
         png_file = input_file.with_suffix('.png')
