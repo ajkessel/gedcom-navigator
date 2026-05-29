@@ -549,7 +549,7 @@ class GraphCommonMixin:
         first_line = ''
         if given_parts:
             first_line = given_parts[0]
-            if len(given_parts) > 1 and given_parts[1]:
+            if len(given_parts) > 1 and given_parts[1][0].isalpha():
                 first_line = f'{first_line} {given_parts[1][0].upper()}.'
         elif surname:
             first_line = surname
