@@ -25,17 +25,19 @@ cd "${SCRIPT_DIR}/.."
 exec > >(sed 's/\x1b\[[0-9;]*m//g' | tee -a build-mac-appstore.log) 2>&1
 VERSION=$(grep __version__ gedcom_navigator/__init__.py | grep -o '[0-9]\+\.[0-9]\+\(\.[0-9]\+\)\+')
 x=0
-while grep xcrun build-mac-appstore.log |grep -qF "${VERSION}"; do
-  echo "Prior build found in build-mac-app-store.log; bumping version number."
-  NEW_VERSION=$(echo $VERSION | awk -F. -v OFS=. '{$NF += 1 ; print}')
-  perl -p -i -e "s/${VERSION}/${NEW_VERSION}/g" gedcom_navigator/__init__.py
-  VERSION="${NEW_VERSION}"
-  x=$((x+1))
-  if [ "${x}" -gt 20 ]; then
-    echo "Too many version bumps, exiting."
-    exit 1
-  fi
-done
+if grep xcrun build-mac-appstore.log |grep -qF "${VERSION}"; then
+  echo "Prior build for ${VERSION} found in build-mac-app-store.log; do you need to bump version?"
+  exit 1
+fi
+#   NEW_VERSION=$(echo $VERSION | awk -F. -v OFS=. '{$NF += 1 ; print}')
+#   perl -p -i -e "s/${VERSION}/${NEW_VERSION}/g" gedcom_navigator/__init__.py
+#   VERSION="${NEW_VERSION}"
+#   x=$((x+1))
+#   if [ "${x}" -gt 20 ]; then
+#     echo "Too many version bumps, exiting."
+#     exit 1
+#   fi
+#done
 echo '--------------------------------'
 echo "Building app version ${VERSION} for Mac App Store."
 date
