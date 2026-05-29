@@ -397,10 +397,31 @@ def _open_tree_view(app, indi_id, mode) -> bool:
     return getattr(app, "_secondary_win", None) is not None
 
 
-def _capture_tree_view(app, indi_id, mode, out_name) -> None:
-    """Open a tree *mode* for *indi_id*, size it for Retina, and screenshot."""
+def _capture_tree_view(
+    app, indi_id, mode, out_name, expand_all=False, zoom=None
+) -> None:
+    """Open a tree *mode* for *indi_id*, size it for Retina, and screenshot.
+
+    expand_all – fully expand a descendant tree (every generation) first.
+    zoom       – zoom factor applied after expansion (clamped 0.5–2.5 by the
+                 app); use a small value to frame a large, sprawling tree.
+    """
     title_key = TREE_TITLES[mode]
     _open_tree_view(app, indi_id, mode)
+
+    if expand_all:
+        hook = getattr(app, "_expand_open_descendant_tree", None)
+        if hook is not None:
+            _ui(hook)
+            time.sleep(2.0)  # let the much larger canvas finish rendering
+        else:
+            print("  WARNING: expand-all hook unavailable – tree not expanded.")
+
+    if zoom is not None:
+        set_zoom = getattr(app, "_set_open_tree_zoom", None)
+        if set_zoom is not None:
+            _ui(lambda: set_zoom(zoom))
+            time.sleep(1.0)
 
     # Resize to 1280×772 so the Retina capture is exactly 2560×1600.  This also
     # reins in any auto-maximise the render may have triggered for a large tree.
@@ -416,6 +437,15 @@ def _capture_tree_view(app, indi_id, mode, out_name) -> None:
                 time.sleep(0.8)
         except Exception:  # pylint: disable=broad-exception-caught
             pass
+
+    # For a fully expanded (large) descendant tree, frame the root at the top
+    # so the generations cascade downward in view.  Must run after the final
+    # resize, since the scroll position depends on the viewport size.
+    if expand_all:
+        frame = getattr(app, "_frame_open_descendant_top", None)
+        if frame is not None:
+            _ui(frame)
+            time.sleep(0.6)
 
     # Video frames come from the main window (always 1280×772) so every frame
     # fed to ffmpeg is the same size; the tree window is captured only for its
@@ -611,7 +641,12 @@ def automation(app, done_event: threading.Event):
         # ---------------------------------------------------------------
         print("\n[9/9] Opening descendant tree (Arthur Hart, 148 descendants) …")
         _capture_tree_view(
-            app, DESCENDANT_PERSON_ID, "descendant", "screenshot_07_descendant.png"
+            app,
+            DESCENDANT_PERSON_ID,
+            "descendant",
+            "screenshot_07_descendant.png",
+            expand_all=True,
+            zoom=0.5,
         )
 
         # ---------------------------------------------------------------
