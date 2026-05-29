@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.9.7] - 2026-05-29
+
+### Added
+
+- **Open `.ged` files directly** — GEDCOM Navigator can now register as the default handler for `.ged` files on Windows, macOS, and Linux. Double-clicking a `.ged` file opens it in the app. A new `gedcom_file_association.py` module handles cross-platform registration (Windows ProgID, Linux `xdg-mime` / desktop entry, macOS Launch Services via the bundle's document types). On first launch the app offers to set itself as the default handler (`FILE_ASSOC_PROMPT_*` strings), remembering the version it last prompted for (`get/set_file_association_prompted_version` in `ConfigManager`) so it only asks again after an upgrade. Sandboxed builds (Mac App Store, Windows MSIX) declare the association via their manifest instead of writing it at runtime.
+- **Age in the profile biography** — the biographical section of a person's profile now shows their age. For deceased people it shows the age at death (`BIO_AGE` / `BIO_AGE_AT_DEATH`). If the person would be older than 120 but has no death date, the application assumes they have passed awya.
+- **New application icon** — the app ships with a redesigned icon across all platforms. Icon assets were renamed from `family_tree.*` to `gedcom_navigator.*` and the previous artwork is retained under `icons/old/`.
+
+### Changed
+
+- **MacOS cosmetic tweaks** — minor appearance refinements, and the Show Person window now grows if needed when recentering on a profile.
+- **Synthetic GEDCOM generator overhauled** — `dev/generate_sample_gedcom.py` was substantially reworked to produce richer, more varied sample family structures. The App Store asset and GUI-test helper scripts moved from `scripts/` into `dev/`.
+
 ## [1.9.6] - 2026-05-28
 
 ### Added
