@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.9.9] - 2026-05-30
+
+### Fixed
+
+- **Copy to clipboard on macOS App Store builds** — copying a name, the results text, or graph debug JSON silently did nothing in the sandboxed Mac App Store build. Tk's clipboard relies on a lazy pasteboard-owner mechanism that does not reliably reach `NSPasteboard` when sandboxed. A new `copy_text_to_clipboard()` helper in `gedcom_platform.py` now writes straight to `NSPasteboard` via PyObjC on macOS (falling back to Tk's clipboard if PyObjC is unavailable or fails), and every copy path in the results pane and person window uses it.
+- **Save permissions on macOS App Store builds** — the App Store entitlement for user-selected files was widened from read-only to read-write, so Save dialogs can now write the chosen file in the sandboxed build.
+- **Middle initial display** — a middle initial is now shown in tree node labels only when the middle name actually begins with a letter, so stray punctuation is no longer rendered as an initial.
+
+### Development
+
+- **App Store screenshot automation hooks** — the person/tree detail window now exposes `_expand_open_descendant_tree`, `_set_open_tree_zoom`, and `_frame_open_descendant_top` hooks so `dev/generate-appstore-assets.py` can fully expand, zoom, and frame an open descendant tree synchronously while capturing screenshots. The hooks are inert during normal use and are cleared when the window switches to a profile view or closes.
+- **README and build cleanup** — minor README link and wording fixes (including the App Store badge link), and macOS App Store build-script adjustments.
+
 ## [1.9.7] - 2026-05-29
 
 ### Added
