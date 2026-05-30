@@ -14,6 +14,7 @@ from gedcom_core import (
     describe,
     extract_ged_from_zip,
     extract_year,
+    format_year,
     iter_records,
     iter_records_checked,
     lifespan,
@@ -84,6 +85,31 @@ SIMPLE_GED = """\
 1 WIFE @I2@
 1 CHIL @I3@
 1 CHIL @I4@
+0 TRLR
+"""
+
+# Synthetic tree exercising historical date styles: BCE birth/death dates and
+# a Julian/Gregorian dual year. Deliberately does NOT reuse debug/dates.ged.
+HISTORICAL_DATES_GED = """\
+0 HEAD
+1 GEDC
+2 VERS 5.5.1
+0 @I1@ INDI
+1 NAME Gaius /Julius/
+1 BIRT
+2 DATE 13 JUL 100 B.C.
+1 DEAT
+2 DATE 15 MAR 44 B.C.
+0 @I2@ INDI
+1 NAME Old /Style/
+1 BIRT
+2 DATE 10 JAN 1708/9
+1 DEAT
+2 DATE 15 APR 1699/00
+0 @I3@ INDI
+1 NAME Single /Digit/
+1 BIRT
+2 DATE 1 B.C.
 0 TRLR
 """
 
@@ -194,6 +220,74 @@ class TestExtractYear:
         # "1800-1850" — the '-' is a word boundary so 1800 matches
         result = extract_year("1800-1850")
         assert result == 1800
+
+    # --- BCE dates: returned as negative years -----------------------------
+    def test_bce_four_digit(self):
+        assert extract_year("1001 B.C.") == -1001
+
+    def test_bce_three_digit(self):
+        assert extract_year("101 B.C.") == -101
+
+    def test_bce_two_digit(self):
+        # 1- and 2-digit BCE years must still parse (the B.C. disambiguates
+        # them from a day-of-month number).
+        assert extract_year("11 B.C.") == -11
+
+    def test_bce_single_digit(self):
+        assert extract_year("1 B.C.") == -1
+
+    def test_bce_with_full_gedcom_date(self):
+        assert extract_year("15 MAR 44 B.C.") == -44
+
+    def test_bce_no_periods(self):
+        assert extract_year("753 BC") == -753
+
+    def test_bce_bce_spelling(self):
+        assert extract_year("44 BCE") == -44
+
+    def test_bce_case_insensitive(self):
+        assert extract_year("100 b.c.") == -100
+
+    # --- Julian/Gregorian dual years: resolve to New Style (later) year ----
+    def test_dual_year_single_digit_suffix(self):
+        # "1708/9" is 1708 Old Style / 1709 New Style -> 1709
+        assert extract_year("10 JAN 1708/9") == 1709
+
+    def test_dual_year_two_digit_suffix(self):
+        # "1699/00" is 1699 Old Style / 1700 New Style -> 1700
+        assert extract_year("15 APR 1699/00") == 1700
+
+    def test_dual_year_century_rollover(self):
+        assert extract_year("1599/0") == 1600
+
+    def test_dual_year_bare(self):
+        assert extract_year("1745/6") == 1746
+
+
+class TestHistoricalDateParsing:
+    """End-to-end: BCE and dual-year dates flow into birth/death years."""
+
+    def test_bce_birth_and_death_years(self, tmp_path):
+        p = _write_ged(tmp_path, HISTORICAL_DATES_GED)
+        indiv, _, _, _, _ = build_model(p, "DNA", "AncestryDNA")
+        assert indiv["@I1@"]["birth_year"] == -100
+        assert indiv["@I1@"]["death_year"] == -44
+
+    def test_dual_years_resolve_to_new_style(self, tmp_path):
+        p = _write_ged(tmp_path, HISTORICAL_DATES_GED)
+        indiv, _, _, _, _ = build_model(p, "DNA", "AncestryDNA")
+        assert indiv["@I2@"]["birth_year"] == 1709
+        assert indiv["@I2@"]["death_year"] == 1700
+
+    def test_single_digit_bce_birth_year(self, tmp_path):
+        p = _write_ged(tmp_path, HISTORICAL_DATES_GED)
+        indiv, _, _, _, _ = build_model(p, "DNA", "AncestryDNA")
+        assert indiv["@I3@"]["birth_year"] == -1
+
+    def test_bce_lifespan_rendering(self, tmp_path):
+        p = _write_ged(tmp_path, HISTORICAL_DATES_GED)
+        indiv, _, _, _, _ = build_model(p, "DNA", "AncestryDNA")
+        assert lifespan(indiv["@I1@"]) == "100 BC-44 BC"
 
 
 # ===========================================================================
@@ -617,6 +711,31 @@ class TestLifespan:
 
     def test_neither(self):
         assert lifespan(self._i()) == ""
+
+    def test_bce_birth_and_death(self):
+        # Born 100 BC, died 44 BC.
+        assert lifespan(self._i(-100, -44)) == "100 BC-44 BC"
+
+    def test_bce_birth_only(self):
+        assert lifespan(self._i(-44)) == "b. 44 BC"
+
+    def test_bce_to_ce_span(self):
+        # Spanning the BCE/CE boundary, e.g. born 4 BC, died AD 30.
+        assert lifespan(self._i(-4, 30)) == "4 BC-30"
+
+
+class TestFormatYear:
+    def test_none(self):
+        assert format_year(None) == ""
+
+    def test_positive(self):
+        assert format_year(1950) == "1950"
+
+    def test_negative_is_bce(self):
+        assert format_year(-44) == "44 BC"
+
+    def test_single_digit_bce(self):
+        assert format_year(-1) == "1 BC"
 
 
 class TestDescribe:

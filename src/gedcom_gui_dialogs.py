@@ -13,7 +13,7 @@ from tkinter import messagebox, ttk
 import customtkinter as ctk
 
 from gedcom_debug import log_exception
-from gedcom_display import describe
+from gedcom_display import describe, format_year
 from gedcom_gui_help_dialogs import HelpDialogsMixin
 from gedcom_gui_person_dialog import PersonDialogMixin
 from gedcom_name_search import individual_matches_query
@@ -285,8 +285,8 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
                 picker_tree.insert(
                     '', 'end', iid=indi_id,
                     values=(self._display_name(indi),
-                            indi['birth_year'] or '',
-                            indi['death_year'] or '',
+                            format_year(indi['birth_year']),
+                            format_year(indi['death_year']),
                             flagged_mark),
                     tags=tags,
                 )

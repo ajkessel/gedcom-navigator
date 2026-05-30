@@ -12,6 +12,7 @@ import tkinter as tk
 from tkinter import filedialog, messagebox
 
 from gedcom_debug import log_exception
+from gedcom_display import format_year
 from gedcom_name_search import individual_matches_query
 from gedcom_parser import extract_ged_from_zip
 import gedcom_strings as gs
@@ -617,8 +618,8 @@ class SearchMixin:
                 self.tree.insert(
                     '', 'end', iid=indi_id,
                     values=(self._display_name(indi),
-                            indi['birth_year'] or '',
-                            indi['death_year'] or '',
+                            format_year(indi['birth_year']),
+                            format_year(indi['death_year']),
                             flagged_mark),
                     tags=tags,
                 )

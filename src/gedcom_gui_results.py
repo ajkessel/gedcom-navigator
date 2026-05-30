@@ -14,7 +14,7 @@ from tkinter import filedialog, messagebox
 
 import customtkinter as ctk
 
-from gedcom_display import describe
+from gedcom_display import describe, format_year
 from gedcom_gui_graph_layout import GraphLayoutMixin
 from gedcom_gui_graph_render import GraphRenderMixin
 from gedcom_relationship import (
@@ -36,11 +36,11 @@ class ResultsMixin(GraphRenderMixin, GraphLayoutMixin):
         name = self._display_name(start)
         b, d = start.get('birth_year'), start.get('death_year')
         if b and d:
-            lifespan = f" ({b}–{d})"
+            lifespan = f" ({format_year(b)}–{format_year(d)})"
         elif b:
-            lifespan = f" (b. {b})"
+            lifespan = f" (b. {format_year(b)})"
         elif d:
-            lifespan = f" (d. {d})"
+            lifespan = f" (d. {format_year(d)})"
         else:
             lifespan = ""
         if self.show_ids.get():

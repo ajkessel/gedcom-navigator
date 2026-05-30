@@ -126,9 +126,32 @@ def iter_records_checked(path):
     return records, warning
 
 
+# A BCE marker: BC, BCE, B.C., B.C.E. (case-insensitive), optionally spaced.
+# The digits immediately preceding the marker are the (1-4 digit) year.
+_BCE_RE = re.compile(r'(\d{1,4})\s*B\.?\s*C\.?(?:\s*E\.?)?', re.IGNORECASE)
+# Julian/Gregorian dual year, e.g. "1708/9" or "1699/00". The part before the
+# slash is the Old Style (Julian) year; the New Style (Gregorian) year is always
+# the following calendar year, since dual dates fall in the Jan-Mar overlap.
+_DUAL_RE = re.compile(r'\b(\d{3,4})/\d{1,4}\b')
+# Plain 3- or 4-digit year.
+_YEAR_RE = re.compile(r'\b(\d{3,4})\b')
+
+
 def extract_year(date_str):
-    """Extract a 3- or 4-digit year from a date string."""
-    m = re.search(r'\b(\d{3,4})\b', date_str or '')
+    """Extract a signed year from a GEDCOM date string.
+
+    Returns a positive int for CE/AD years and a *negative* int for BCE years
+    (e.g. "44 B.C." -> -44), or None when no year can be found. Julian/Gregorian
+    dual years such as "10 JAN 1708/9" resolve to the New Style (later) year.
+    """
+    s = date_str or ''
+    m = _BCE_RE.search(s)
+    if m:
+        return -int(m.group(1))
+    m = _DUAL_RE.search(s)
+    if m:
+        return int(m.group(1)) + 1
+    m = _YEAR_RE.search(s)
     return int(m.group(1)) if m else None
 
 
