@@ -45,6 +45,9 @@ def get_menu_keyboard_shortcuts():
         else _("Keyboard Shortcuts (F2)")
     )
 
+def get_menu_walkthrough():
+    return _("Walkthrough")
+
 MENU_CHECK_FOR_UPDATES = _("Check for updates…")
 MENU_PRIVACY_POLICY = _("Privacy Policy")
 MENU_ABOUT = _("About")
@@ -528,6 +531,56 @@ WIN_ABOUT = _("About")
 WIN_PRIVACY_POLICY = _("Privacy Policy")
 WIN_CHECKING_FOR_UPDATES = _("Checking for Updates")
 WIN_UPDATE_AVAILABLE = _("Update Available")
+
+# ---------------------------------------------------------------------------
+# Welcome window and interactive walkthrough
+# ---------------------------------------------------------------------------
+WIN_WELCOME = _("Welcome to GEDCOM Navigator")
+CHK_SHOW_NEXT_TIME = _("Show this window next time")
+BTN_WALKTHROUGH = _("Walkthrough")
+BTN_WT_NEXT = _("Next")
+BTN_WT_BACK = _("Back")
+BTN_WT_SKIP = _("Skip")
+BTN_WT_FINISH = _("Finish")
+
+# Coach-mark text for the areas that have no existing tooltip. Each entry is a
+# (title, body) pair; widgets that already carry a tooltip reuse that text.
+WT_LIST_TITLE = _("People list")
+WT_LIST_BODY = _(
+    "Everyone in the loaded GEDCOM file appears here. Select a person to view "
+    "their profile, find DNA matches, or trace relationship paths.")
+WT_RESULTS_TITLE = _("Results pane")
+WT_RESULTS_BODY = _(
+    "Profiles, DNA matches, and relationship paths are shown here. Names and "
+    "relationship descriptions in this pane are clickable.")
+WT_STATUS_TITLE = _("Status bar")
+WT_STATUS_BODY = _(
+    "Shows the loaded file and progress, and holds the Save and Copy buttons "
+    "for the current results.")
+WT_PERSON_LINK_TITLE = _("Clickable names")
+WT_PERSON_LINK_BODY = _(
+    "Click any person's name in the results to jump to their profile. Use the "
+    "Use Back and Forward keyboard shortcuts to retrace your steps.")
+WT_REL_LINK_TITLE = _("Clickable relationships")
+WT_REL_LINK_BODY = _(
+    "Click an underlined relationship description to open it as a relationship "
+    "graph showing how the two people are connected.")
+WT_MODES_TITLE = _("Display modes")
+WT_MODES_BODY = _(
+    "Switch the right pane between Profile, Tag Matches (e.g. DNA Tags), "
+    "and Relationship Paths for the selected person. Selecting 'Paths' "
+    "will prompt you to choose another person to find paths to.")
+WT_MATCHES_SETTINGS_TITLE = _("Match tag settings")
+WT_MATCHES_SETTINGS_BODY = _(
+    "In Matches mode, set the tag keyword and page marker that identify "
+    "tagged people (e.g. 'DNA'), or pick an existing tag from your file.")
+WT_NODE_MENU_TITLE = _("Tree View menu")
+WT_NODE_MENU_BODY = _(
+    "Right-click (or click) any person in the tree view for quick actions: "
+    "{items}.")
+WT_SAMPLE_NOTICE = _(
+    "A sample family tree has been loaded so you can try these features. It "
+    "will be unloaded when the walkthrough ends.")
 
 COL_SHORTCUT = _("Shortcut")
 COL_ACTION = _("Action")

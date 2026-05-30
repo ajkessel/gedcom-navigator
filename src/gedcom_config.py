@@ -226,6 +226,23 @@ class ConfigManager:
         """Record the app version for which the .ged default-handler prompt was shown."""
         self.save_value('file_association_prompted_version', str(version))
 
+    def get_welcome_seen_version(self):
+        """Return the app version for which the welcome window was last shown."""
+        val = self.load_value('welcome_seen_version', None)
+        return val if isinstance(val, str) else None
+
+    def set_welcome_seen_version(self, version):
+        """Record the app version for which the welcome window was shown."""
+        self.save_value('welcome_seen_version', str(version))
+
+    def get_show_welcome_on_startup(self):
+        """Return whether the welcome window should open on every launch."""
+        return bool(self.load_value('show_welcome_on_startup', False))
+
+    def set_show_welcome_on_startup(self, value):
+        """Save whether the welcome window should open on every launch."""
+        self.save_value('show_welcome_on_startup', bool(value))
+
     # ------------------------------------------------------------------
     # Platform default path
     # ------------------------------------------------------------------

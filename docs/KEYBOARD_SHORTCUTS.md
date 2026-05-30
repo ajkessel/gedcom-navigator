@@ -5,6 +5,7 @@
 | **Esc** | Close any dialog or pop-up window |
 | **F1** | Help |
 | **F2** | **K**eyboard Shortcuts |
+| _(Help menu)_ | Walkthrough — guided interactive tour of the window |
 | **Ctrl+F** | **F**ind Person |
 | **Ctrl+I** | F**i**lter Results |
 | **Ctrl+D** | Toggle the **D**NA (or other tag) filter |

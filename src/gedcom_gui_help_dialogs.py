@@ -34,10 +34,20 @@ class HelpDialogsMixin:
         else:
             base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         return os.path.join(base, filename)
+    def _walkthrough_launch_button(self, btn_frame, win, on_end=None):
+        """Return a button that closes ``win`` and starts the walkthrough."""
+        def _go():
+            win.destroy()
+            self._show_walkthrough(on_end=on_end)
+        return ctk.CTkButton(btn_frame, text=BTN_WALKTHROUGH, command=_go)
     def _show_how_to_use(self):
         """Open the help documentation window."""
+        def _extra(win, btn_frame):
+            self._walkthrough_launch_button(btn_frame, win).pack(
+                side='right', padx=(0, 8))
         self._show_file_window(
-            WIN_HOW_TO_USE, self._resource_path('docs/HELP.md'), markdown=True)
+            WIN_HOW_TO_USE, self._resource_path('docs/HELP.md'), markdown=True,
+            extra_controls=_extra)
     def _show_keyboard_shortcuts(self):
         """Open the keyboard shortcuts reference window."""
         win = ctk.CTkToplevel(self.root)
@@ -99,6 +109,44 @@ class HelpDialogsMixin:
             WIN_PRIVACY_POLICY,
             self._resource_path('docs/PRIVACY_POLICY.md'), markdown=True,
         )
+    def _show_welcome(self, on_close=None):
+        """Open the first-run welcome window: the help guide plus a
+        'show next time' checkbox and a Walkthrough button."""
+        show_var = tk.BooleanVar(
+            value=self._config.get_show_welcome_on_startup())
+
+        def _extra(win, btn_frame):
+            ctk.CTkCheckBox(
+                btn_frame, text=CHK_SHOW_NEXT_TIME, variable=show_var,
+                command=lambda: self._config.set_show_welcome_on_startup(
+                    show_var.get()),
+            ).pack(side='left')
+
+            self._walkthrough_launch_button(
+                btn_frame, win, on_end=on_close).pack(
+                    side='right', padx=(0, 8))
+
+        self._show_file_window(
+            WIN_WELCOME, self._resource_path('docs/HELP.md'), markdown=True,
+            extra_controls=_extra, on_close=on_close)
+    def _start_onboarding(self):
+        """Show the welcome window on the first launch of a new version (or when
+        the user opted in), then continue to the open-file prompt."""
+        seen = self._config.get_welcome_seen_version()
+        show = (seen != self._version
+                or self._config.get_show_welcome_on_startup())
+        self._config.set_welcome_seen_version(self._version)
+        if show:
+            self._show_welcome(on_close=self._after_onboarding)
+        else:
+            self._after_onboarding()
+    def _after_onboarding(self):
+        """Prompt for a GEDCOM file if none is loaded, once onboarding closes."""
+        if self.individuals:
+            return
+        if self._recent_files and os.path.isfile(self._recent_files[0]):
+            return
+        self._browse()
     def _maybe_init_file_association(self):
         """Register as a .ged handler, then prompt once per version to be default."""
         if not can_register():
@@ -238,8 +286,15 @@ class HelpDialogsMixin:
         self._fit_window_to_content(win, min_w=430, min_h=220)
         win.deiconify()
         win.after(50, win.focus_force)
-    def _show_file_window(self, title, filepath, markdown=False, preamble=""):
-        """Open a modal text window for a bundled documentation file."""
+    def _show_file_window(self, title, filepath, markdown=False, preamble="",
+                          extra_controls=None, on_close=None):
+        """Open a modal text window for a bundled documentation file.
+
+        ``extra_controls`` is an optional ``callable(win, btn_frame)`` for adding
+        widgets to the bottom button row.  ``on_close`` is an optional callback
+        fired once when the window is closed via Escape, the Close button, or the
+        window-manager close box.
+        """
         try:
             with open(filepath, 'r', encoding='utf-8') as f:
                 content = preamble + f.read()
@@ -254,7 +309,18 @@ class HelpDialogsMixin:
         win.title(title)
         win.transient(self.root)
         win.grab_set()
-        win.bind('<Escape>', lambda *_: win.destroy())
+
+        _closed = {'done': False}
+
+        def _close(*_):
+            if not _closed['done']:
+                _closed['done'] = True
+                if on_close is not None:
+                    on_close()
+            win.destroy()
+
+        win.protocol('WM_DELETE_WINDOW', _close)
+        win.bind('<Escape>', _close)
 
         is_dark = ctk.get_appearance_mode() == 'Dark'
         code_bg = '#3a3a3a' if is_dark else '#f0f0f0'
@@ -346,7 +412,9 @@ class HelpDialogsMixin:
         btn_frame = ctk.CTkFrame(win, fg_color='transparent')
         btn_frame.pack(fill='x', padx=12, pady=8)
         ctk.CTkButton(btn_frame, text=BTN_CLOSE, width=80,
-                      command=win.destroy).pack(side='right')
+                      command=_close).pack(side='right')
+        if extra_controls is not None:
+            extra_controls(win, btn_frame)
 
         win.bind('<Up>', lambda *_: text.yview_scroll(-1, 'units') or 'break')
         win.bind('<Down>', lambda *_: text.yview_scroll(1, 'units') or 'break')

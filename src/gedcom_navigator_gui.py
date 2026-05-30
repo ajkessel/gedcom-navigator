@@ -42,6 +42,7 @@ from gedcom_tooltip import Tooltip
 from gedcom_zoom import TextZoomController
 from gedcom_gui_appearance import AppearanceMixin
 from gedcom_gui_dialogs import DialogsMixin
+from gedcom_walkthrough import WalkthroughMixin
 
 
 def _read_version():
@@ -74,6 +75,7 @@ class GedcomNavigatorApp(
     SearchMixin,
     ResultsMixin,
     BackgroundTaskMixin,
+    WalkthroughMixin,
 ):
     """customtkinter application for browsing GEDCOM people and finding DNA matches."""
 
@@ -329,16 +331,18 @@ class GedcomNavigatorApp(
             '<Return>', lambda *_: self._search_flush_and_jump())
         Tooltip(self.search_entry, get_tip_find())
         # Search mode checkboxes
-        ctk.CTkCheckBox(
+        self._fuzzy_chk = ctk.CTkCheckBox(
             search_frame, text=CHK_FUZZY,
             variable=self.fuzzy_search, width=0,
-        ).pack(side='left', padx=(8, 0))
-        Tooltip(search_frame.winfo_children()[-1], get_tip_fuzzy())
-        ctk.CTkCheckBox(
+        )
+        self._fuzzy_chk.pack(side='left', padx=(8, 0))
+        Tooltip(self._fuzzy_chk, get_tip_fuzzy())
+        self._married_chk = ctk.CTkCheckBox(
             search_frame, text=CHK_MARRIED_NAMES,
             variable=self.married_name_search, width=0,
-        ).pack(side='left', padx=(8, 0))
-        Tooltip(search_frame.winfo_children()[-1], get_tip_married_names())
+        )
+        self._married_chk.pack(side='left', padx=(8, 0))
+        Tooltip(self._married_chk, get_tip_married_names())
 
         # Filter: box
         filter_frame = ctk.CTkFrame(left, fg_color='transparent')
@@ -350,11 +354,12 @@ class GedcomNavigatorApp(
         self.filter_entry.pack(side='left', fill='x', expand=True)
         self.filter_entry.bind('<Return>', lambda *_: self._kb_focus_list())
         Tooltip(self.filter_entry, get_tip_filter())
-        ctk.CTkCheckBox(
+        self._flagged_chk = ctk.CTkCheckBox(
             filter_frame, text=CHK_DNA_FLAGGED_ONLY,
             variable=self.show_flagged_only, width=0,
-        ).pack(side='left', padx=(8, 0))
-        Tooltip(filter_frame.winfo_children()[-1], get_tip_dna_flagged_only())
+        )
+        self._flagged_chk.pack(side='left', padx=(8, 0))
+        Tooltip(self._flagged_chk, get_tip_dna_flagged_only())
 
         list_frame = ctk.CTkFrame(left, fg_color='transparent')
         list_frame.pack(fill='both', expand=True, pady=(4, 0))
@@ -852,13 +857,15 @@ def main():
                     ERR_GEDCOM_NOT_FOUND_MSG.format(path=p),
                 ),
             )
-    else:
-        if not (app._recent_files and os.path.isfile(app._recent_files[0])):
-            root.after(100, app._browse)
-
     # Register as a .ged handler and (once per version) offer to be the default.
     # Deferred so the main window paints first and any opened file loads first.
     root.after(600, app._maybe_init_file_association)
+
+    # Show the welcome/walkthrough on a new version, then prompt to open a file
+    # if none is loaded.  Routed through onboarding so the open dialog always
+    # comes after the welcome window rather than before it.  _after_onboarding
+    # is a no-op when a file is already loaded (e.g. a CLI path or recent file).
+    root.after(700, app._start_onboarding)
 
     root.mainloop()
 

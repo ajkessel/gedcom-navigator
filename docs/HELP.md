@@ -4,10 +4,12 @@ This application provides useful ways to rapidly explore a GEDCOM file exported 
 
 * Find the closest tagged people (e.g. DNA match) to any other person in a family tree
 * Show multiple relationship paths between any two people in your tree
-* Search your tree for variations on names (maiden/married name, alternate names, fuzzy matching) and filter on other information like geographical locations or occupation
+* Search your tree for variations on names (maiden/married name, alternate names, fuzzy matching, Hebrew/Cyrillic transliteration) and filter on other information like geographical locations or occupation
 * Rapidly explore names and connections, even in a very large tree with very distant connections
 * Generate custom images of parts of your tree, expanding or collapsing the connections you want to see and saving them to your clipboard or an image file
 * Visualize relationships between any two people graphically
+
+**New here?** Click **Walkthrough** below for a guided, interactive tour that highlights each part of the window and shows what it does. You can also start it any time from **Help ▸ Walkthrough**.
 
 ## The problems this solves
 

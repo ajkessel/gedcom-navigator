@@ -90,8 +90,14 @@ class SearchMixin:
             self.gedcom_path.set(path)
             self._load_file()
 
-    def _load_file(self):
-        """Load the selected GEDCOM file into the model and refresh the UI."""
+    def _load_file(self, add_to_history=True, on_loaded=None):
+        """Load the selected GEDCOM file into the model and refresh the UI.
+
+        ``add_to_history`` records the path in Recent Files when true; the
+        walkthrough passes ``False`` for the temporary sample tree. ``on_loaded``
+        is an optional callback invoked after a successful load (the load runs on
+        a worker thread, so callers must continue via this callback).
+        """
         if self._busy:
             return
         path = self.gedcom_path.get().strip()
@@ -167,16 +173,34 @@ class SearchMixin:
                 self.individuals.keys(),
                 key=lambda iid: (self.individuals[iid]['name'].lower(), iid),
             )
-            self._add_to_history(path)
+            if add_to_history:
+                self._add_to_history(path)
             self._home_person_id = self._load_home_person(path)
             self._populate_tree()
             status = (gs.STATUS_LOADED_CACHED.format(count=len(self.individuals))
                       if from_cache
                       else gs.STATUS_LOADED.format(count=len(self.individuals)))
             self.status_text.set(status)
+            if on_loaded is not None:
+                on_loaded()
 
         self.root.after(10, lambda: threading.Thread(
             target=_do_load, daemon=True).start())
+
+    def _clear_loaded_data(self):
+        """Unload the current GEDCOM data and reset the people list to empty."""
+        self.gedcom_path.set('')
+        self.individuals = {}
+        self.families = {}
+        self.tag_records = {}
+        self.sorted_ids = []
+        self._home_person_id = None
+        self._last_result = None
+        self._display_path_target_id = None
+        self._clear_home_path_cache()
+        self._populate_tree()
+        self._reset_results_pane()
+        self.status_text.set(gs.STATUS_NO_FILE)
 
     def _on_settings_change(self, *_):
         """Debounce search depth and result count changes before rerendering."""
