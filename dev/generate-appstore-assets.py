@@ -3,15 +3,17 @@
 Generate Mac App Store screenshots and animated preview assets.
 
 Run from the project root on MacOS:
-    python scripts/generate-appstore-assets.py
+    python dev/generate-appstore-assets.py
 
 Produces in docs/screenshots/appstore/:
   screenshot_01_main.png          – person list, Maya selected, path-to-home visible
   screenshot_02_matches.png       – DNA match results + path to home person
-  screenshot_03_paths.png         – paths mode: Maya → Julia Gray Hollis (8 hops)
-  screenshot_04_with_graph.png    – main + complex relationship graph
+  screenshot_03_paths.png         – paths mode: Maya → Brianna Logan Vaughn
+  screenshot_04_with_graph.png    – main + relationship graph (Maya → Brianna)
   screenshot_04_graph_only.png    – relationship graph alone (2560×1600)
   screenshot_05_tree.png          – family tree view, Daniel Hart (2560×1600)
+  screenshot_06_pedigree.png      – pedigree (ancestor) tree, Maya Hart (2560×1600)
+  screenshot_07_descendant.png    – descendant tree, Arthur Hart (2560×1600)
   screen_recording.gif            – animated GIF (for README / web)
   app_preview.mp4                 – H.264 App Preview (for Mac App Store, ~17 s)
 
@@ -53,6 +55,59 @@ WIN_X, WIN_Y = 60, 60
 # Home person for the DNA results demo: Maya's paternal grandfather.
 # Sets up a 2-hop "path to home" (Maya → Daniel → Arthur) visible in results.
 HOME_PERSON_ID = "@I6@"
+
+# Start person for all searches (Maya Lynn Hart).
+START_PERSON_ID = "@I1@"
+
+# Paths / relationship-graph demo target: a non-obvious multi-hop relationship
+# from Maya.  @I367@ Brianna Logan Vaughn is Maya's "second cousin-in-law" via a
+# 7-node path: mother → father → sibling → child → child → spouse.
+PATHS_TARGET_ID = "@I367@"
+
+# Tree-view subjects, chosen so each of the three views is visually full and
+# the set spans three generations of the same family:
+#   family tree  – Daniel Hart: 2 parents, 5 siblings, 2 spouses, 10 children
+#   pedigree     – Maya Hart:   8 ancestors across 3 generations (youngest)
+#   descendant   – Arthur Hart: 148 descendants across 3 generations (eldest)
+TREE_PERSON_ID = "@I2@"
+PEDIGREE_PERSON_ID = "@I1@"
+DESCENDANT_PERSON_ID = "@I6@"
+
+# Window-title fragments used as capture keys for each tree view.
+TREE_TITLES = {
+    "tree": "Family Tree",
+    "pedigree": "Pedigree Tree",
+    "descendant": "Descendant Tree",
+}
+
+
+def _relationship_for_path(app, start_id, path):
+    """Plain-English relationship label for *path*, matching the results panel.
+
+    The DNA results pane computes the label with the start person's ancestor and
+    descendant depth maps plus the family table; replicate that here so the graph
+    caption is identical to what the user sees in the list.  describe_relationship
+    takes ``ancestors``/``descendants``/``families`` as keyword args — passing the
+    family table positionally would bind it to ``ancestors`` and mislabel the path.
+    """
+    try:
+        from gedcom_relationship import (  # noqa: PLC0415
+            describe_relationship,
+            get_ancestor_depths,
+            get_descendant_depths,
+        )
+
+        ancestors = get_ancestor_depths(start_id, app.individuals, app.families)
+        descendants = get_descendant_depths(start_id, app.individuals, app.families)
+        return describe_relationship(
+            path,
+            app.individuals,
+            ancestors=ancestors,
+            descendants=descendants,
+            families=app.families,
+        )
+    except Exception:  # pylint: disable=broad-exception-caught
+        return "relationship"
 
 # ---------------------------------------------------------------------------
 # AppKit capture — via performSelectorOnMainThread to bypass Tkinter's
@@ -264,63 +319,41 @@ def _wait_not_busy(app, timeout: float = 60.0):
         time.sleep(0.2)
 
 
-def _run_paths_for_complex_target(app) -> bool:
+def _best_path_to(app, start_id, target_id):
     """
-    Switch to paths mode and find all routes from Maya (@I1@) to the most
-    distant DNA match (Julia Gray Hollis @I810@, 8 hops through 5 generations).
-    The results render in the main window's right panel — no secondary window.
+    Return the best (shortest) relationship path from *start_id* to *target_id*
+    as a list of (id, edge) tuples, or None if unreachable.  Uses the same
+    model search the GUI's paths mode runs, with the GUI's configured limits.
     """
-    last = getattr(app, "_last_result", None)
-    if not last:
-        return False
-    results = last.get("results", [])
-    if not results:
-        return False
-    _dist, path = results[-1]
-    if not path:
-        return False
-    # path is a list of (id, edge) tuples; last element is the target
-    target_id = path[-1][0] if isinstance(path[-1], tuple) else path[-1]
-    _ui(lambda: app._run_path_search("@I1@", target_id))
-    return True
+    top_n, max_depth = _ui(
+        lambda: (int(app.top_n.get()), int(app.max_depth.get()))
+    )
+    paths, _truncated = app._model.find_all_paths(
+        start_id, target_id, top_n, max_depth
+    )
+    return list(paths[0]) if paths else None
 
 
-def _open_graph_for_best_result(app) -> bool:
+def _open_tree_view(app, indi_id, mode) -> bool:
     """
-    Open the relationship graph for the MOST COMPLEX DNA match result
-    (longest path = most generations traversed, most visually interesting).
-    """
-    last = getattr(app, "_last_result", None)
-    if not last:
-        return False
-    results = last.get("results", [])
-    if not results:
-        return False
-    # Use the most distant match (last in the sorted list) for the most
-    # complex multi-generation path.
-    _dist, path = results[-1]
-    path = list(path)
-    if not path:
-        return False
-    try:
-        from gedcom_relationship import describe_relationship  # noqa: PLC0415
+    Open a tree window centred on *indi_id* in the given *mode*:
+      "tree"       – family tree (parents, siblings, spouses, children)
+      "pedigree"   – ancestor (pedigree) chart
+      "descendant" – descendant chart
 
-        rel = describe_relationship(path, app.individuals, app.families)
-    except Exception:  # pylint: disable=broad-exception-caught
-        rel = "relationship"
-    _ui(lambda: app._show_path_graph(path, rel))
-    return True
-
-
-def _open_tree_view(app) -> bool:
+    Reuses the existing secondary window if one is already open (e.g. the
+    relationship graph, or a previously opened tree view), replacing its
+    contents — this is the same window the app reuses for all detail views.
     """
-    Open the family tree view centred on @I2@ (Daniel Joseph Hart) —
-    the person with the most visible connections (20 nodes):
-    2 parents, 5 siblings, 2 spouses, 10 children.
-    """
-    # If the graph window is currently open (in _secondary_win), opening the
-    # tree view reuses that same window and replaces the graph content.
-    _ui(lambda: app._show_person_for("@I2@", initial_view="tree"))
+    if mode == "tree":
+        # initial_view="tree" resolves to the user's configured default tree
+        # mode, which could be pedigree or descendant.  Force the family-tree
+        # view so the window title is reliably "Family Tree: …" (the capture
+        # key).  The pedigree/descendant modes are passed through directly and
+        # are unaffected by this setting.
+        app._default_tree_view_mode = lambda: "tree"
+
+    _ui(lambda: app._show_person_for(indi_id, initial_view=mode))
 
     # Wait for the secondary window to become visible.
     deadline = time.monotonic() + 15.0
@@ -339,6 +372,63 @@ def _open_tree_view(app) -> bool:
     return getattr(app, "_secondary_win", None) is not None
 
 
+def _capture_tree_view(
+    app, indi_id, mode, out_name, expand_all=False, zoom=None
+) -> None:
+    """Open a tree *mode* for *indi_id*, size it for Retina, and screenshot.
+
+    expand_all – fully expand a descendant tree (every generation) first.
+    zoom       – zoom factor applied after expansion (clamped 0.5–2.5 by the
+                 app); use a small value to frame a large, sprawling tree.
+    """
+    title_key = TREE_TITLES[mode]
+    _open_tree_view(app, indi_id, mode)
+
+    if expand_all:
+        hook = getattr(app, "_expand_open_descendant_tree", None)
+        if hook is not None:
+            _ui(hook)
+            time.sleep(2.0)  # let the much larger canvas finish rendering
+        else:
+            print("  WARNING: expand-all hook unavailable – tree not expanded.")
+
+    if zoom is not None:
+        set_zoom = getattr(app, "_set_open_tree_zoom", None)
+        if set_zoom is not None:
+            _ui(lambda: set_zoom(zoom))
+            time.sleep(1.0)
+
+    # Resize to 1280×772 so the Retina capture is exactly 2560×1600.  This also
+    # reins in any auto-maximise the render may have triggered for a large tree.
+    tree_win = getattr(app, "_secondary_win", None)
+    if tree_win is not None:
+        try:
+            if _ui(lambda: tree_win.winfo_exists()):
+                _ui(
+                    lambda: tree_win.geometry(
+                        f"{WIN_W}x{WIN_CONTENT_H}+{WIN_X}+{WIN_Y + 60}"
+                    )
+                )
+                time.sleep(0.8)
+        except Exception:  # pylint: disable=broad-exception-caught
+            pass
+
+    # For a fully expanded (large) descendant tree, frame the root at the top
+    # so the generations cascade downward in view.  Must run after the final
+    # resize, since the scroll position depends on the viewport size.
+    if expand_all:
+        frame = getattr(app, "_frame_open_descendant_top", None)
+        if frame is not None:
+            _ui(frame)
+            time.sleep(0.6)
+
+    # Video frames come from the main window (always 1280×772) so every frame
+    # fed to ffmpeg is the same size; the tree window is captured only for its
+    # dedicated screenshot.
+    _snaps(5, f"{mode} tree view", pause=0.4)
+    _screenshot(OUTPUT_DIR / out_name, title=title_key)
+
+
 # ---------------------------------------------------------------------------
 # Automation worker thread
 # ---------------------------------------------------------------------------
@@ -355,7 +445,7 @@ def automation(app, done_event: threading.Event):
         # ---------------------------------------------------------------
         # 1. Wait for fictional_genealogy.ged to load
         # ---------------------------------------------------------------
-        print("\n[1/7] Waiting for GEDCOM to load …")
+        print("\n[1/9] Waiting for GEDCOM to load …")
 
         _snaps(5, "loading", pause=0.8)
 
@@ -371,7 +461,7 @@ def automation(app, done_event: threading.Event):
         # ---------------------------------------------------------------
         # 2. Set home person (@I6@ Arthur Hart) + select Maya (@I1@)
         # ---------------------------------------------------------------
-        print("\n[2/7] Setting home person and selecting Maya Hart …")
+        print("\n[2/9] Setting home person and selecting Maya Hart …")
 
         def _setup():
             # Set Arthur Hart (@I6@, Maya's paternal grandfather) as home.
@@ -400,7 +490,7 @@ def automation(app, done_event: threading.Event):
         # ---------------------------------------------------------------
         # 3. Run DNA match search for Maya
         # ---------------------------------------------------------------
-        print("\n[3/7] Running DNA match search …")
+        print("\n[3/9] Running DNA match search …")
         _ui(
             lambda: (app.tree.selection_set(sel_id), setattr(app, "_active_id", sel_id))
         )
@@ -413,7 +503,7 @@ def automation(app, done_event: threading.Event):
         # ---------------------------------------------------------------
         # 4. Screenshot DNA results — scroll to show path-to-home section
         # ---------------------------------------------------------------
-        print("\n[4/7] Screenshot – DNA results with path to home person …")
+        print("\n[4/9] Screenshot – DNA results with path to home person …")
         _snaps(25, "results", pause=0.4)
 
         # Scroll the results panel to the bottom so the "Path to Home Person"
@@ -429,48 +519,38 @@ def automation(app, done_event: threading.Event):
         _screenshot(OUTPUT_DIR / "screenshot_02_matches.png")
 
         # ---------------------------------------------------------------
-        # 5. Paths mode: Maya → Julia Gray Hollis (8 hops, 5 generations)
+        # 5. Paths mode: Maya → Brianna Logan Vaughn (second cousin-in-law)
         # ---------------------------------------------------------------
-        print("\n[5/7] Screenshot – paths mode (Maya to most distant match) …")
+        print("\n[5/9] Screenshot – paths mode (Maya → Brianna Logan Vaughn) …")
 
-        # Cache the best DNA path BEFORE running paths mode, because
-        # _run_paths_for_complex_target calls _run_path_search which
-        # overwrites app._last_result with type='path' (no 'results' key).
-        _cached_dna_path = None
-        _cached_dna_rel = "relationship"
-        last = getattr(app, "_last_result", None)
-        if last and last.get("results"):
-            _dist, _raw_path = last["results"][-1]
-            _cached_dna_path = list(_raw_path)
-            try:
-                from gedcom_relationship import describe_relationship  # noqa: PLC0415
+        # Compute the path up front so the relationship-graph screenshot in
+        # step 6 can reuse it — running the path search overwrites
+        # app._last_result with type='path' and no path list.
+        _paths_path = _best_path_to(app, START_PERSON_ID, PATHS_TARGET_ID)
+        _paths_rel = (
+            _relationship_for_path(app, START_PERSON_ID, _paths_path)
+            if _paths_path
+            else "relationship"
+        )
 
-                _cached_dna_rel = describe_relationship(
-                    _cached_dna_path, app.individuals, app.families
-                )
-            except Exception:  # pylint: disable=broad-exception-caught
-                pass
-
-        ok = _run_paths_for_complex_target(app)
-        if ok:
+        if _paths_path:
+            _ui(lambda: app._run_path_search(START_PERSON_ID, PATHS_TARGET_ID))
             _wait_not_busy(app, timeout=30)
             time.sleep(0.5)
             _snaps(8, "paths mode", pause=0.4)
             _screenshot(OUTPUT_DIR / "screenshot_03_paths.png")
         else:
-            print("  No paths data – skipping.")
+            print(
+                f"  No path {START_PERSON_ID} → {PATHS_TARGET_ID} – skipping."
+            )
 
         # ---------------------------------------------------------------
-        # 6. Open relationship graph for the most complex match
+        # 6. Relationship graph for the Maya → Brianna path
         # ---------------------------------------------------------------
-        print("\n[6/7] Opening relationship graph (most complex path) …")
-        if _cached_dna_path:
-            _ui(lambda: app._show_path_graph(_cached_dna_path, _cached_dna_rel))
-            opened = True
-        else:
-            opened = _open_graph_for_best_result(app)
-        if opened:
-            print("  Graph opened (longest relationship path).")
+        print("\n[6/9] Opening relationship graph (Maya → Brianna Logan Vaughn) …")
+        if _paths_path:
+            _ui(lambda: app._show_path_graph(_paths_path, _paths_rel))
+            print(f"  Graph opened ({_paths_rel}).")
         else:
             print("  No graph data – skipping.")
 
@@ -511,27 +591,33 @@ def automation(app, done_event: threading.Event):
         )
 
         # ---------------------------------------------------------------
-        # 7. Family tree view: Daniel Hart — 20 nodes
+        # 7. Family tree view: Daniel Hart — 19 relatives around the centre
         # ---------------------------------------------------------------
-        print("\n[7/7] Opening family tree view (Daniel Hart, 20 nodes) …")
-        _open_tree_view(app)
+        print("\n[7/9] Opening family tree view (Daniel Hart, 19 relatives) …")
+        _capture_tree_view(
+            app, TREE_PERSON_ID, "tree", "screenshot_05_tree.png"
+        )
 
-        # Resize to 1280×772 so the Retina capture is exactly 2560×1600.
-        tree_win = getattr(app, "_secondary_win", None)
-        if tree_win is not None:
-            try:
-                if _ui(lambda: tree_win.winfo_exists()):
-                    _ui(
-                        lambda: tree_win.geometry(
-                            f"{WIN_W}x{WIN_CONTENT_H}+{WIN_X}+{WIN_Y + 60}"
-                        )
-                    )
-                    time.sleep(0.8)
-            except Exception:  # pylint: disable=broad-exception-caught
-                pass
+        # ---------------------------------------------------------------
+        # 8. Pedigree (ancestor) tree: Maya Hart — 8 ancestors, 3 generations
+        # ---------------------------------------------------------------
+        print("\n[8/9] Opening pedigree tree (Maya Hart, 8 ancestors) …")
+        _capture_tree_view(
+            app, PEDIGREE_PERSON_ID, "pedigree", "screenshot_06_pedigree.png"
+        )
 
-        _snaps(5, "tree view", pause=0.4)
-        _screenshot(OUTPUT_DIR / "screenshot_05_tree.png", title="Family Tree")
+        # ---------------------------------------------------------------
+        # 9. Descendant tree: Arthur Hart — 148 descendants, 3 generations
+        # ---------------------------------------------------------------
+        print("\n[9/9] Opening descendant tree (Arthur Hart, 148 descendants) …")
+        _capture_tree_view(
+            app,
+            DESCENDANT_PERSON_ID,
+            "descendant",
+            "screenshot_07_descendant.png",
+            expand_all=True,
+            zoom=0.5,
+        )
 
         # ---------------------------------------------------------------
         # Compile video assets
@@ -583,6 +669,10 @@ def main():
     # Must happen before root.mainloop() fires the queued callback.
     app.gedcom_path.set(GEDCOM_FILE)
     app._recent_files = []
+
+    # Explicitly trigger the load.  The app only auto-loads when the user has a
+    # recent file on disk, so we cannot rely on that callback being queued.
+    root.after(0, app._load_file)
 
     root.geometry(f"{WIN_W}x{WIN_CONTENT_H}+{WIN_X}+{WIN_Y}")
     root.deiconify()

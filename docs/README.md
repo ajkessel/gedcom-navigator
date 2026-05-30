@@ -22,11 +22,11 @@ In addition to the GUI, this application also includes a command-line tool for f
 ## Downloads
 
 * Mac
-  * [App Store](https://apps.apple.com/app/gedcom-navigator/id6765485580) (easy install, may be behind the latest version here)
+  * [App Store](https://apps.apple.com/us/app/gedcom-navigator/id6771207849?mt=12) (easiest install)
   * [ZIP Download](https://github.com/ajkessel/gedcom-navigator/releases/latest/download/gedcom-navigator-mac.zip) (see [security note](MAC_SECURITY.md)).
 * [Linux x86-64](https://github.com/ajkessel/gedcom-navigator/releases/latest/download/gedcom-navigator-linux.zip)
 * Windows
-  * [App Store](https://apps.microsoft.com/detail/9p3zvf1q3rhm?hl=en-US&gl=US) (easy install)
+  * [App Store](https://apps.microsoft.com/detail/9p3zvf1q3rhm?hl=en-US&gl=US) (easiest install)
   * [Portable Version](https://github.com/ajkessel/gedcom-navigator/releases/latest/download/gedcom-navigator-windows-portable.zip) (see [security note](WINDOWS_SECURITY.md)).
   * [Installer](https://github.com/ajkessel/gedcom-navigator/releases/latest/download/gedcom-navigator-windows-installer.exe)
   * [Windows Package Manager (WinGet)](https://github.com/microsoft/winget-cli):
@@ -40,11 +40,11 @@ winget install --id AdamKessel.GEDCOMNavigator
 This is a beta release. If you are interested in experimenting with a "dummy" GEDCOM file rather than your own, here are a couple of options:
 
 * Use the [Fictional Genealogy](https://github.com/ajkessel/gedcom-navigator/blob/main/samples/fictional_genealogy.ged) sample file I built for testing this application. It contains 1,000 fictional people and illustrates various complicated family connections. If you want to download it from github for use with this tool, use the [raw ZIP version](https://raw.githubusercontent.com/ajkessel/gedcom-navigator/refs/heads/main/samples/fictional_genealogy.zip). This file is released under the [Unlicense](https://unlicense.org/), which means you can do anything you want with it.
-* [The FindMyPast Github Repository](https://github.com/findmypast/gedcom-samples) has several real and fictional family trees. I used the [Game of Thrones family tree](https://github.com/findmypast/gedcom-samples/blob/main/GoT.ged) for the sample screenshots to avoid any privacy issues and also to show why it gets complicated when siblings marry one another.
+* [The FindMyPast Github Repository](https://github.com/findmypast/gedcom-samples) has several real and fictional family trees. I often use the [Game of Thrones family tree](https://github.com/findmypast/gedcom-samples/blob/main/GoT.ged) to avoid any privacy issues and also to show why it gets complicated when siblings marry one another.
 
 ## The problems this solves
 
-![Main window](https://raw.githubusercontent.com/ajkessel/gedcom-navigator/main/docs/screenshots/screen_recording.gif)
+![Main window](https://raw.githubusercontent.com/ajkessel/gedcom-navigator/main/docs/screenshots/appstore/screen_recording.gif)
 
 Many genealogists working with autosomal DNA add unfamiliar people to their family tree based on DNA matches and then build out those people's lines, hoping to find the most recent common ancestor between the match and themselves. After accumulating thousands of these speculative additions, you often end up looking at a person in your tree and thinking: *why is this person here? which DNA match did this branch come from?*
 

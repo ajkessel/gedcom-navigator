@@ -24,7 +24,7 @@ from gedcom_family_tree import (
     layout_family_tree,
     layout_pedigree_tree,
 )
-from gedcom_platform import filedialog_parent
+from gedcom_platform import copy_text_to_clipboard, filedialog_parent
 from gedcom_relationship import _extract_event
 from gedcom_strings import *  # pylint: disable=unused-wildcard-import
 from gedcom_tooltip import Tooltip
@@ -367,6 +367,9 @@ class PersonDialogMixin:
             if getattr(self, "_path_graph_win", None) is win:
                 self._path_graph_win = None
                 self._path_graph_replace_fn = None
+            self._expand_open_descendant_tree = None
+            self._set_open_tree_zoom = None
+            self._frame_open_descendant_top = None
             win.destroy()
 
         win.bind("<Escape>", _on_destroy_person_win)
@@ -633,6 +636,10 @@ class PersonDialogMixin:
             _show_tree_view(state["person_id"], tree_mode=new_mode)
 
         def _show_person_view(iid=None):
+            # Leaving tree mode: drop the tree automation hooks (see _show_tree_view).
+            self._expand_open_descendant_tree = None
+            self._set_open_tree_zoom = None
+            self._frame_open_descendant_top = None
             if iid is not None:
                 state["history"].append(state["person_id"])
                 state["forward"].clear()
@@ -687,8 +694,7 @@ class PersonDialogMixin:
                 content = _profile_content()
                 if not content:
                     return "break"
-                win.clipboard_clear()
-                win.clipboard_append(content)
+                copy_text_to_clipboard(win, content)
                 return "break"
 
             def _save_profile(*_):
@@ -1161,6 +1167,57 @@ class PersonDialogMixin:
                     btn_frame.pack(fill="x", pady=(4, 8))
 
             _redraw_tree()
+
+            # Automation hooks for the App Store screenshot generator
+            # (dev/generate-appstore-assets.py).  These let the generator drive
+            # the open tree window synchronously — fully expanding a descendant
+            # tree (the in-canvas "expand all" runs as a cancelable background
+            # task with a progress popup, which is awkward to await) and setting
+            # the zoom so a sprawling tree can be framed.  They are harmless in
+            # normal use and are cleared when the window switches to a profile
+            # view or closes.
+            def _expand_all_descendants_now():
+                if state["tree_view_mode"] != "descendant":
+                    return False
+                to_expand = {state["person_id"]}
+                stack = [state["person_id"]]
+                while stack:
+                    source_id = stack.pop()
+                    for child_id in self._family_tree_members_for(source_id).get(
+                        "children", ()
+                    ):
+                        if child_id not in to_expand:
+                            to_expand.add(child_id)
+                            stack.append(child_id)
+                if to_expand <= state["descendant_expanded"]:
+                    return False
+                state["descendant_expanded"].update(to_expand)
+                _redraw_tree()
+                _maybe_grow_tree_win()
+                return True
+
+            def _frame_descendants_from_top():
+                # Scroll so the root sits at top-centre and the generations
+                # cascade downward — the natural framing for a screenshot of a
+                # tree too wide/deep to fit entirely on screen.
+                canvas.update_idletasks()
+                center_x, _ = getattr(
+                    canvas,
+                    "_family_tree_center",
+                    (graph_state["canvas_w"] / 2, 0),
+                )
+                view_w = max(canvas.winfo_width(), 1)
+                canvas_w = max(graph_state["canvas_w"], 1)
+                max_x = max(0, 1 - (view_w / canvas_w))
+                canvas.xview_moveto(
+                    max(0, min(max_x, (center_x - view_w / 2) / canvas_w))
+                )
+                canvas.yview_moveto(0.0)
+
+            self._expand_open_descendant_tree = _expand_all_descendants_now
+            self._set_open_tree_zoom = _set_tree_zoom
+            self._frame_open_descendant_top = _frame_descendants_from_top
+
             _bind_canvas_navigation(canvas)
             _bind_tree_mouse_navigation(canvas)
             bind_zoom_shortcuts(canvas, _zoom_tree_in, _zoom_tree_out, _zoom_tree_reset)

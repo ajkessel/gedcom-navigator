@@ -13,8 +13,8 @@
     <!-- Required for PyInstaller's bootloader and Python's memory allocator -->
     <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
     <true/>
-    <!-- Allow the user to open GEDCOM files via the file picker -->
-    <key>com.apple.security.files.user-selected.read-only</key>
+    <!-- Allow the user to open GEDCOM files and save results/graphs via the file picker -->
+    <key>com.apple.security.files.user-selected.read-write</key>
     <true/>
 </dict>
 </plist>
