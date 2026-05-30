@@ -24,7 +24,7 @@ from gedcom_family_tree import (
     layout_family_tree,
     layout_pedigree_tree,
 )
-from gedcom_platform import filedialog_parent
+from gedcom_platform import copy_text_to_clipboard, filedialog_parent
 from gedcom_relationship import _extract_event
 from gedcom_strings import *  # pylint: disable=unused-wildcard-import
 from gedcom_tooltip import Tooltip
@@ -694,8 +694,7 @@ class PersonDialogMixin:
                 content = _profile_content()
                 if not content:
                     return "break"
-                win.clipboard_clear()
-                win.clipboard_append(content)
+                copy_text_to_clipboard(win, content)
                 return "break"
 
             def _save_profile(*_):
