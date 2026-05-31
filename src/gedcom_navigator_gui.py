@@ -39,9 +39,10 @@ from gedcom_gui_results import ResultsMixin
 from gedcom_platform import configure_process_identity
 from gedcom_theme import THEME_NAMES, get_flag_bg, ttk_colors
 from gedcom_tooltip import Tooltip
-from gedcom_zoom import TextZoomController
+from gedcom_zoom import TextZoomController, scaled_tag_font
 from gedcom_gui_appearance import AppearanceMixin
 from gedcom_gui_dialogs import DialogsMixin
+from gedcom_walkthrough import WalkthroughMixin
 
 
 def _read_version():
@@ -74,6 +75,7 @@ class GedcomNavigatorApp(
     SearchMixin,
     ResultsMixin,
     BackgroundTaskMixin,
+    WalkthroughMixin,
 ):
     """customtkinter application for browsing GEDCOM people and finding DNA matches."""
 
@@ -250,6 +252,15 @@ class GedcomNavigatorApp(
             center_on_root=False,
         )
 
+        # On Windows the per-window DPI scaling may settle just after the first
+        # font pass, and can change when the window moves between monitors of
+        # different scale; re-sync ttk fonts once the window is mapped and on
+        # subsequent configure events.  No-op when the factor is unchanged.
+        if sys.platform == 'win32':
+            self.root.after(0, self._recheck_ttk_scaling)
+            self.root.bind('<Configure>', lambda _e: self._recheck_ttk_scaling(),
+                           add='+')
+
         if self._recent_files and os.path.isfile(self._recent_files[0]):
             self.gedcom_path.set(self._recent_files[0])
             self.root.after(0, self._load_file)
@@ -265,16 +276,29 @@ class GedcomNavigatorApp(
         inner.pack(fill='x', padx=8, pady=(0, 8))
         return inner
 
+    def _results_bold_font(self, size):
+        """Bold mono font tuple for the results textbox, pre-scaled to match CTk.
+
+        See gedcom_zoom.scaled_tag_font: the 'bold' tag is set directly on the
+        inner tk.Text and bypasses CTk's widget scaling, so it must be scaled
+        here to match the body at high DPI.
+        """
+        return scaled_tag_font(
+            self.results, self._mono_family, size, weight='bold')
+
     def _configure_tree_columns(self):
         """Size fixed Treeview columns from the current UI font metrics."""
         heading_font = tkfont.nametofont('TkDefaultFont')
+        # heading_font.measure() already reflects the DPI-scaled pixel size, but
+        # the literal padding/min-width constants below do not, so scale them.
+        scaling = self._ttk_dpi_scaling()
 
         def _fit_heading(text, sample='', padding=34):
             text_w = max(heading_font.measure(text),
                          heading_font.measure(sample))
-            return text_w + padding
+            return text_w + round(padding * scaling)
 
-        name_w = max(240, _fit_heading(COL_NAME, padding=28))
+        name_w = max(round(240 * scaling), _fit_heading(COL_NAME, padding=28))
         birth_w = _fit_heading(COL_BIRTH, '0000')
         death_w = _fit_heading(COL_DEATH, '0000')
         flagged_w = _fit_heading(COL_DNA)
@@ -329,16 +353,18 @@ class GedcomNavigatorApp(
             '<Return>', lambda *_: self._search_flush_and_jump())
         Tooltip(self.search_entry, get_tip_find())
         # Search mode checkboxes
-        ctk.CTkCheckBox(
+        self._fuzzy_chk = ctk.CTkCheckBox(
             search_frame, text=CHK_FUZZY,
             variable=self.fuzzy_search, width=0,
-        ).pack(side='left', padx=(8, 0))
-        Tooltip(search_frame.winfo_children()[-1], get_tip_fuzzy())
-        ctk.CTkCheckBox(
+        )
+        self._fuzzy_chk.pack(side='left', padx=(8, 0))
+        Tooltip(self._fuzzy_chk, get_tip_fuzzy())
+        self._married_chk = ctk.CTkCheckBox(
             search_frame, text=CHK_MARRIED_NAMES,
             variable=self.married_name_search, width=0,
-        ).pack(side='left', padx=(8, 0))
-        Tooltip(search_frame.winfo_children()[-1], get_tip_married_names())
+        )
+        self._married_chk.pack(side='left', padx=(8, 0))
+        Tooltip(self._married_chk, get_tip_married_names())
 
         # Filter: box
         filter_frame = ctk.CTkFrame(left, fg_color='transparent')
@@ -350,11 +376,12 @@ class GedcomNavigatorApp(
         self.filter_entry.pack(side='left', fill='x', expand=True)
         self.filter_entry.bind('<Return>', lambda *_: self._kb_focus_list())
         Tooltip(self.filter_entry, get_tip_filter())
-        ctk.CTkCheckBox(
+        self._flagged_chk = ctk.CTkCheckBox(
             filter_frame, text=CHK_DNA_FLAGGED_ONLY,
             variable=self.show_flagged_only, width=0,
-        ).pack(side='left', padx=(8, 0))
-        Tooltip(filter_frame.winfo_children()[-1], get_tip_dna_flagged_only())
+        )
+        self._flagged_chk.pack(side='left', padx=(8, 0))
+        Tooltip(self._flagged_chk, get_tip_dna_flagged_only())
 
         list_frame = ctk.CTkFrame(left, fg_color='transparent')
         list_frame.pack(fill='both', expand=True, pady=(4, 0))
@@ -581,13 +608,13 @@ class GedcomNavigatorApp(
         )
         self.results.pack(fill='both', expand=True, pady=(4, 0))
         self.results._textbox.tag_configure(
-            'bold', font=(self._mono_family, self._mono_size, 'bold'))
+            'bold', font=self._results_bold_font(self._mono_size))
         self.results.configure(state='disabled')
 
         def _apply_results_zoom(size):
             self.results.configure(font=(self._mono_family, size))
             self.results._textbox.tag_configure(
-                'bold', font=(self._mono_family, size, 'bold'))
+                'bold', font=self._results_bold_font(size))
 
         self._results_zoom = TextZoomController(
             self.results, self._mono_size, _apply_results_zoom)
@@ -664,24 +691,30 @@ class GedcomNavigatorApp(
         self.root.after_idle(lambda: self._refresh_display_pane(prompt_for_path=False))
 
 def _patch_ctk_scaling_for_tkinter_dpi():
-    """Patch CTk's per-window DPI detection to use winfo_fpixels instead of GetDpiForMonitor.
+    """Patch CTk's per-window DPI detection to use GetDpiForWindow().
 
-    Problem: on some Windows machines the process runs in DPI-virtualized mode.
-    The OS presents a 96-DPI logical coordinate space to tkinter and silently
-    stretches the rendered window bitmap to the physical size (e.g. 1.75× at
-    175% scaling).  CTk detects the real DPI via GetDpiForMonitor() (168) and
-    scales every widget by 1.75×.  But the OS is ALSO stretching by 1.75×, so
-    the net result is 1.75² ≈ 3×: widgets are huge, winfo_reqheight() is
-    inflated, and windows overflow the screen.
+    Windows presents two distinct DPI failure modes, and GetDpiForWindow()
+    is the one API that resolves both because it honours the process's DPI
+    awareness context:
 
-    Fix: replace ScalingTracker.get_window_dpi_scaling with a version that
-    calls window.winfo_fpixels('1i') instead.  winfo_fpixels reads from GDI
-    using the same code path Tk uses internally, so it is always consistent
-    with tkinter's coordinate space.  On a virtualised system it returns 96
-    (→ scale 1.0, OS handles the physical stretch).  On a genuinely DPI-aware
-    system where Tk also receives the real DPI it returns the same value as
-    GetDpiForMonitor would.  Either way, CTk's scale matches tkinter's
-    coordinate system and winfo_req*() / geometry() all agree.
+    * DPI-virtualised (unaware) process — e.g. some 175% setups.  The OS
+      presents a 96-DPI logical coordinate space to tkinter and silently
+      stretches the rendered bitmap to physical size (1.75×).  CTk's own
+      detection uses GetDpiForMonitor(), which ignores awareness and returns
+      the real DPI (168), so CTk scales by 1.75× ON TOP of the OS stretch —
+      net ~3×, widgets huge, windows overflow.  For an unaware process
+      GetDpiForWindow() returns 96, so this patch yields scale 1.0 and lets
+      the OS handle the physical stretch.
+
+    * DPI-aware process at high scale — e.g. 300%.  The OS does NOT stretch;
+      Tk paints onto a physical-pixel surface.  But winfo_fpixels('1i') still
+      reports 96 here (confirmed on a 300% machine: GetDpiForWindow=288 yet
+      winfo_fpixels=96), so scaling off winfo_fpixels leaves CTk at 1.0 and
+      every font renders ~1/scale too small.  GetDpiForWindow() returns the
+      true 288, so this patch yields scale 3.0 and fonts match the surface.
+
+    winfo_fpixels('1i') is kept only as a fallback for Windows older than
+    1607 (where GetDpiForWindow is unavailable).
 
     Must be called BEFORE ctk.CTk() so that the patch is in place when CTk
     registers the root window with ScalingTracker.add_window().
@@ -693,14 +726,26 @@ def _patch_ctk_scaling_for_tkinter_dpi():
 
         orig_fn = original.__func__   # unwrap classmethod descriptor
 
+        def _os_window_dpi(window) -> float:
+            """Real render DPI honouring the process awareness context."""
+            import ctypes  # pylint: disable=import-outside-toplevel
+            hwnd = window.winfo_id()
+            dpi = ctypes.windll.user32.GetDpiForWindow(hwnd)
+            if not dpi:
+                raise OSError("GetDpiForWindow returned 0")
+            return float(dpi)
+
         @classmethod
         def _winfo_consistent_scaling(cls, window) -> float:
-            try:
-                dpi = window.winfo_fpixels('1i')
-                return round(max(0.75, min(3.0, dpi / 96.0)), 2)
-            except Exception:  # pylint: disable=broad-exception-caught
-                log_exception("reading Tk DPI for CTk scaling patch")
-                pass
+            # Prefer GetDpiForWindow (awareness-correct on both virtualised and
+            # DPI-aware processes); fall back to winfo_fpixels on old Windows.
+            for source in (_os_window_dpi, lambda w: w.winfo_fpixels('1i')):
+                try:
+                    dpi = source(window)
+                except Exception:  # pylint: disable=broad-exception-caught
+                    continue
+                if dpi:
+                    return round(max(0.75, min(4.0, dpi / 96.0)), 2)
             try:
                 return float(orig_fn(cls, window))
             except Exception:  # pylint: disable=broad-exception-caught
@@ -797,7 +842,17 @@ def main():
         help='Enable debug diagnostics, including exception logging, and print '
              'DPI/scaling diagnostics to stderr.'
     )
+    parser.add_argument(
+        '--self-test', action='store_true',
+        help='Run headless runtime self-checks (native imports, canvas->PNG, '
+             'pasteboard) and exit non-zero on failure. Used by the build/CI '
+             'pipeline to catch sandbox-only breakage.'
+    )
     args = parser.parse_args()
+
+    if args.self_test:
+        from gedcom_selftest import run_self_test
+        sys.exit(run_self_test())
 
     if args.debug:
         set_debug_enabled(True)
@@ -852,13 +907,15 @@ def main():
                     ERR_GEDCOM_NOT_FOUND_MSG.format(path=p),
                 ),
             )
-    else:
-        if not (app._recent_files and os.path.isfile(app._recent_files[0])):
-            root.after(100, app._browse)
-
     # Register as a .ged handler and (once per version) offer to be the default.
     # Deferred so the main window paints first and any opened file loads first.
     root.after(600, app._maybe_init_file_association)
+
+    # Show the welcome/walkthrough on a new version, then prompt to open a file
+    # if none is loaded.  Routed through onboarding so the open dialog always
+    # comes after the welcome window rather than before it.  _after_onboarding
+    # is a no-op when a file is already loaded (e.g. a CLI path or recent file).
+    root.after(700, app._start_onboarding)
 
     root.mainloop()
 

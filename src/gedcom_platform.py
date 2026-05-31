@@ -23,32 +23,6 @@ def filedialog_parent(window):
     return window
 
 
-def copy_text_to_clipboard(widget, text):
-    """Place ``text`` on the system clipboard.
-
-    On macOS, Tk's clipboard uses a lazy pasteboard-owner mechanism that does
-    not reliably reach NSPasteboard in sandboxed (Mac App Store) builds, so the
-    copy silently does nothing.  Write straight to NSPasteboard via PyObjC there
-    and fall back to Tk's clipboard if PyObjC is unavailable or fails.  Other
-    platforms use Tk's clipboard directly.
-    """
-    if sys.platform == 'darwin':
-        try:
-            from AppKit import (  # pylint: disable=import-outside-toplevel
-                NSPasteboard,
-                NSPasteboardTypeString,
-            )
-
-            pasteboard = NSPasteboard.generalPasteboard()
-            pasteboard.clearContents()
-            if pasteboard.setString_forType_(text, NSPasteboardTypeString):
-                return
-        except Exception:  # pylint: disable=broad-exception-caught
-            log_exception("copying text to the macOS pasteboard")
-    widget.clipboard_clear()
-    widget.clipboard_append(text)
-
-
 def configure_process_identity():
     """Apply process-level desktop identity settings when supported."""
     if sys.platform != 'win32':

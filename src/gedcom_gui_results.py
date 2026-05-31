@@ -14,16 +14,24 @@ from tkinter import filedialog, messagebox
 
 import customtkinter as ctk
 
-from gedcom_display import describe
+from gedcom_display import describe, format_year
 from gedcom_gui_graph_layout import GraphLayoutMixin
 from gedcom_gui_graph_render import GraphRenderMixin
 from gedcom_relationship import (
+    PARENTAGE_ADOPTED,
+    PARENTAGE_FOSTER,
+    PARENTAGE_SEALING,
+    PARENTAGE_STEP,
+    biological_parent_ids,
     describe_relationship,
     get_ancestor_depths,
     get_descendant_depths,
+    infer_step_sibling_ids,
+    parent_child_relationship,
+    sibling_relationship,
 )
 import gedcom_strings as gs
-from gedcom_platform import copy_text_to_clipboard, filedialog_parent
+from gedcom_platform import filedialog_parent
 from gedcom_tooltip import TextTagTooltip
 
 
@@ -36,11 +44,11 @@ class ResultsMixin(GraphRenderMixin, GraphLayoutMixin):
         name = self._display_name(start)
         b, d = start.get('birth_year'), start.get('death_year')
         if b and d:
-            lifespan = f" ({b}–{d})"
+            lifespan = f" ({format_year(b)}–{format_year(d)})"
         elif b:
-            lifespan = f" (b. {b})"
+            lifespan = f" (b. {format_year(b)})"
         elif d:
-            lifespan = f" (d. {d})"
+            lifespan = f" (d. {format_year(d)})"
         else:
             lifespan = ""
         if self.show_ids.get():
@@ -432,10 +440,11 @@ class ResultsMixin(GraphRenderMixin, GraphLayoutMixin):
         menu = tk.Menu(self._results_header_label, tearoff=0, **_menu_kw)
 
         def _copy_name():
-            name = self._display_name(self.individuals[indi_id])
+            self.root.clipboard_clear()
+            self.root.clipboard_append(
+                self._display_name(self.individuals[indi_id]))
             if self.show_ids.get():
-                name += f" ({indi_id})"
-            copy_text_to_clipboard(self.root, name)
+                self.root.clipboard_append(f" ({indi_id})")
 
         menu.add_command(
             label=gs.RESULTS_HEADER_MENU_COPY_NAME,
@@ -462,7 +471,8 @@ class ResultsMixin(GraphRenderMixin, GraphLayoutMixin):
         header = self._results_header_var.get().strip()
         if header:
             text = header + '\n\n' + text
-        copy_text_to_clipboard(self.root, text)
+        self.root.clipboard_clear()
+        self.root.clipboard_append(text)
     def _save_results(self):
         """Save the current results text to a user-selected text file."""
         text = self.results.get('1.0', 'end').rstrip()
@@ -529,8 +539,8 @@ class ResultsMixin(GraphRenderMixin, GraphLayoutMixin):
                     'edge': edge,
                 })
             out['paths'].append({'label': label, 'nodes': nodes})
-        copy_text_to_clipboard(
-            self.root, json.dumps(out, indent=2, ensure_ascii=False))
+        self.root.clipboard_clear()
+        self.root.clipboard_append(json.dumps(out, indent=2, ensure_ascii=False))
 
     def _reset_results_pane(self):
         """Reset invalid result state after the underlying person data changes."""
@@ -553,7 +563,10 @@ class ResultsMixin(GraphRenderMixin, GraphLayoutMixin):
         """Remove generated person-link tags from a Text-like widget."""
         tw = getattr(widget, '_textbox', widget)
         for tag in tw.tag_names():
-            if tag.startswith('pers_') or tag.startswith('path_graph_'):
+            if (tag.startswith('pers_') or
+                    tag.startswith('path_graph_') or
+                    (tag.startswith('gedcom_url_') and
+                     tag != 'gedcom_url_link')):
                 tw.tag_delete(tag)
     def _select_person_in_main_tree(self, indi_id):
         """Select a person in the main people list, clearing filters if needed."""
@@ -671,26 +684,192 @@ class ResultsMixin(GraphRenderMixin, GraphLayoutMixin):
         return indi['name'] or '(unknown)'
     def _get_family_members(self, indi_id):
         """Return (parents, siblings, spouses, children) lists for an individual."""
+        members = self._get_family_member_entries(indi_id)
+        return (
+            [entry['id'] for entry in members['parents']],
+            [entry['id'] for entry in members['siblings']],
+            [entry['id'] for entry in members['spouses']],
+            [entry['id'] for entry in members['children']],
+        )
+
+    def _get_family_member_entries(self, indi_id):
+        """Return labeled family member entries for profile and graph views."""
         indi = self.individuals[indi_id]
         parents, siblings, spouses, children = [], [], [], []
+        seen_parents, seen_siblings, seen_spouses, seen_children = (
+            set(), set(), set(), set())
         for fam_id in indi['famc']:
             fam = self.families.get(fam_id)
             if not fam:
                 continue
             for pid in (fam['husb'], fam['wife']):
-                if pid and pid in self.individuals:
-                    parents.append(pid)
+                if pid and pid in self.individuals and pid not in seen_parents:
+                    parents.append({
+                        'id': pid,
+                        'kind': parent_child_relationship(
+                            pid, indi_id, self.individuals, self.families),
+                        'role': self._parent_role_label(pid, indi_id),
+                    })
+                    seen_parents.add(pid)
             for sib_id in fam['chil']:
-                if sib_id != indi_id and sib_id in self.individuals:
-                    siblings.append(sib_id)
+                if (sib_id != indi_id and sib_id in self.individuals
+                        and sib_id not in seen_siblings):
+                    siblings.append({
+                        'id': sib_id,
+                        'kind': sibling_relationship(
+                            indi_id, sib_id, self.individuals, self.families),
+                        'role': self._sibling_role_label(indi_id, sib_id),
+                    })
+                    seen_siblings.add(sib_id)
+        for parent_id in biological_parent_ids(
+                indi_id, self.individuals, self.families):
+            parent = self.individuals.get(parent_id, {})
+            for fam_id in parent.get('fams', ()):
+                fam = self.families.get(fam_id)
+                if not fam:
+                    continue
+                for sib_id in fam.get('chil', ()):
+                    if (sib_id != indi_id and sib_id in self.individuals
+                            and sib_id not in seen_siblings):
+                        siblings.append({
+                            'id': sib_id,
+                            'kind': sibling_relationship(
+                                indi_id, sib_id, self.individuals,
+                                self.families),
+                            'role': self._sibling_role_label(
+                                indi_id, sib_id),
+                        })
+                        seen_siblings.add(sib_id)
+        for sib_id in infer_step_sibling_ids(
+                indi_id, self.individuals, self.families):
+            if sib_id in self.individuals and sib_id not in seen_siblings:
+                siblings.append({
+                    'id': sib_id,
+                    'kind': 'step',
+                    'role': self._sibling_role_label(indi_id, sib_id),
+                })
+                seen_siblings.add(sib_id)
         for fam_id in indi['fams']:
             fam = self.families.get(fam_id)
             if not fam:
                 continue
             spouse_id = fam['wife'] if fam['husb'] == indi_id else fam['husb']
-            if spouse_id and spouse_id in self.individuals:
-                spouses.append(spouse_id)
+            if (spouse_id and spouse_id in self.individuals
+                    and spouse_id not in seen_spouses):
+                spouses.append({'id': spouse_id, 'kind': 'spouse', 'role': ''})
+                seen_spouses.add(spouse_id)
             for child_id in fam['chil']:
-                if child_id in self.individuals:
-                    children.append(child_id)
-        return parents, siblings, spouses, children
+                if child_id in self.individuals and child_id not in seen_children:
+                    children.append({
+                        'id': child_id,
+                        'kind': parent_child_relationship(
+                            indi_id, child_id, self.individuals, self.families),
+                        'role': self._child_role_label(indi_id, child_id),
+                    })
+                    seen_children.add(child_id)
+        return {
+            'parents': parents,
+            'siblings': siblings,
+            'spouses': spouses,
+            'children': children,
+        }
+
+    def _parent_role_label(self, parent_id, child_id):
+        kind = parent_child_relationship(
+            parent_id, child_id, self.individuals, self.families)
+        sex = self.individuals.get(parent_id, {}).get('sex', '')
+        if kind == PARENTAGE_STEP:
+            return self._sex_role(
+                sex, gs.FAM_ROLE_STEP_FATHER, gs.FAM_ROLE_STEP_MOTHER,
+                gs.FAM_ROLE_STEP_PARENT)
+        if kind == PARENTAGE_ADOPTED:
+            return self._sex_role(
+                sex, gs.FAM_ROLE_ADOPTIVE_FATHER,
+                gs.FAM_ROLE_ADOPTIVE_MOTHER, gs.FAM_ROLE_ADOPTIVE_PARENT)
+        if kind in (PARENTAGE_FOSTER, PARENTAGE_SEALING):
+            return self._sex_role(
+                sex, gs.FAM_ROLE_FOSTER_FATHER, gs.FAM_ROLE_FOSTER_MOTHER,
+                gs.FAM_ROLE_FOSTER_PARENT)
+        return self._sex_role(
+            sex, gs.FAM_ROLE_FATHER, gs.FAM_ROLE_MOTHER, gs.FAM_ROLE_PARENT)
+
+    def _child_role_label(self, parent_id, child_id):
+        kind = parent_child_relationship(
+            parent_id, child_id, self.individuals, self.families)
+        sex = self.individuals.get(child_id, {}).get('sex', '')
+        if kind == PARENTAGE_STEP:
+            return self._sex_role(
+                sex, gs.FAM_ROLE_STEP_SON, gs.FAM_ROLE_STEP_DAUGHTER,
+                gs.FAM_ROLE_STEP_CHILD)
+        if kind == PARENTAGE_ADOPTED:
+            return self._sex_role(
+                sex, gs.FAM_ROLE_ADOPTED_SON, gs.FAM_ROLE_ADOPTED_DAUGHTER,
+                gs.FAM_ROLE_ADOPTED_CHILD)
+        if kind in (PARENTAGE_FOSTER, PARENTAGE_SEALING):
+            return self._sex_role(
+                sex, gs.FAM_ROLE_FOSTER_SON, gs.FAM_ROLE_FOSTER_DAUGHTER,
+                gs.FAM_ROLE_FOSTER_CHILD)
+        return self._sex_role(
+            sex, gs.FAM_ROLE_SON, gs.FAM_ROLE_DAUGHTER, gs.FAM_ROLE_CHILD)
+
+    def _sibling_role_label(self, left_id, right_id):
+        relation = sibling_relationship(
+            left_id, right_id, self.individuals, self.families)
+        sex = self.individuals.get(right_id, {}).get('sex', '')
+        if relation == 'half':
+            return self._sex_role(
+                sex, gs.FAM_ROLE_HALF_BROTHER, gs.FAM_ROLE_HALF_SISTER,
+                gs.FAM_ROLE_HALF_SIBLING)
+        if relation == 'step':
+            return self._sex_role(
+                sex, gs.FAM_ROLE_STEP_BROTHER, gs.FAM_ROLE_STEP_SISTER,
+                gs.FAM_ROLE_STEP_SIBLING)
+        if relation == PARENTAGE_ADOPTED:
+            return gs.FAM_ROLE_ADOPTIVE_SIBLING
+        if relation in (PARENTAGE_FOSTER, PARENTAGE_SEALING):
+            return gs.FAM_ROLE_FOSTER_SIBLING
+        return self._sex_role(
+            sex, gs.FAM_ROLE_BROTHER, gs.FAM_ROLE_SISTER, gs.FAM_ROLE_SIBLING)
+
+    @staticmethod
+    def _sex_role(sex, male, female, neutral):
+        if sex == 'M':
+            return male
+        if sex == 'F':
+            return female
+        return neutral
+
+    def _edge_relationship_kind(self, source_id, target_id, category):
+        """Return ordinary/step/half/adopted/foster style kind for a graph edge."""
+        if category == 'parents':
+            return parent_child_relationship(
+                target_id, source_id, self.individuals, self.families)
+        if category == 'children':
+            return parent_child_relationship(
+                source_id, target_id, self.individuals, self.families)
+        if category == 'siblings':
+            return sibling_relationship(
+                source_id, target_id, self.individuals, self.families)
+        return category
+
+    def _combined_parent_child_kind(self, parent_ids, child_id):
+        """Return the strongest visible parent-child style for a child connector."""
+        priority = {
+            PARENTAGE_STEP: 1,
+            PARENTAGE_ADOPTED: 2,
+            PARENTAGE_FOSTER: 3,
+            PARENTAGE_SEALING: 4,
+            'guardian': 5,
+            'other': 6,
+            'birth': 99,
+            None: 99,
+        }
+        best = 'birth'
+        best_score = priority[best]
+        for parent_id in parent_ids:
+            kind = self._edge_relationship_kind(parent_id, child_id, 'children')
+            score = priority.get(kind, 90)
+            if score < best_score:
+                best = kind
+                best_score = score
+        return best

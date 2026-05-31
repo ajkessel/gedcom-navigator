@@ -5,8 +5,10 @@ gedcom_gui_person_dialog.py
 Person profile and family-tree detail windows for GedcomNavigatorApp.
 """
 
+import re
 import sys
 import tkinter as tk
+import webbrowser
 from datetime import date
 from tkinter import filedialog, messagebox
 
@@ -24,17 +26,19 @@ from gedcom_family_tree import (
     layout_family_tree,
     layout_pedigree_tree,
 )
-from gedcom_platform import copy_text_to_clipboard, filedialog_parent
+from gedcom_platform import filedialog_parent
 from gedcom_relationship import _extract_event
 from gedcom_strings import *  # pylint: disable=unused-wildcard-import
 from gedcom_tooltip import Tooltip
-from gedcom_zoom import TextZoomController, bind_zoom_shortcuts
+from gedcom_zoom import TextZoomController, bind_zoom_shortcuts, scaled_tag_font
 
 
 class PersonDialogMixin:
     """Person detail window helpers."""
 
     _TREE_VIEW_MODES = ("tree", "pedigree", "descendant")
+    _HTTPS_URL_RE = re.compile(r"https://[^\s<>\"']+")
+    _URL_TRAILING_PUNCTUATION = ".,;:!?)]}"
 
     def _show_profile_from_tree_context(self, indi_id, show_person_view):
         """Show indi_id's profile in the current person detail window."""
@@ -46,6 +50,19 @@ class PersonDialogMixin:
         if indi_id:
             recenter_tree(indi_id)
         return indi_id
+
+    @staticmethod
+    def _add_canvas_highlighted_node(canvas, indi_id):
+        """Add indi_id to a graph canvas highlight set and redraw if needed."""
+        highlighted = set(getattr(canvas, "_highlighted_nodes", set()))
+        if indi_id in highlighted:
+            return False
+        highlighted.add(indi_id)
+        canvas._highlighted_nodes = highlighted
+        redraw = getattr(canvas, "_redraw_fn", None)
+        if redraw:
+            redraw()
+        return True
 
     def _default_tree_view_mode(self):
         """Return the configured initial tree view for person detail windows."""
@@ -89,7 +106,9 @@ class PersonDialogMixin:
     ):
         """Insert the textual profile for current_id into a textbox."""
         text._textbox.tag_configure(
-            "bold", font=(self._mono_family, self._mono_size, "bold")
+            "bold",
+            font=scaled_tag_font(
+                text, self._mono_family, self._mono_size, weight="bold"),
         )
         text._textbox.tag_configure("person_link")
         text._textbox.tag_bind(
@@ -104,6 +123,17 @@ class PersonDialogMixin:
         )
         text._textbox.tag_bind(
             "tag_link", "<Leave>", lambda *_: text._textbox.config(cursor="")
+        )
+        text._textbox.tag_configure(
+            "gedcom_url_link", foreground=self._link_color, underline=1
+        )
+        text._textbox.tag_bind(
+            "gedcom_url_link",
+            "<Enter>",
+            lambda *_: text._textbox.config(cursor="hand2"),
+        )
+        text._textbox.tag_bind(
+            "gedcom_url_link", "<Leave>", lambda *_: text._textbox.config(cursor="")
         )
         text._textbox.tag_configure(
             "relationship_link", foreground=self._link_color, underline=1
@@ -122,6 +152,33 @@ class PersonDialogMixin:
 
         def add(line="", bold=False):
             text.insert("end", line + "\n", ("bold",) if bold else ())
+
+        url_link_count = 0
+
+        def add_with_https_links(line=""):
+            nonlocal url_link_count
+            last_end = 0
+            for match in self._HTTPS_URL_RE.finditer(line):
+                start, end = match.span()
+                raw_url = match.group(0)
+                url = raw_url.rstrip(self._URL_TRAILING_PUNCTUATION)
+                if not url:
+                    continue
+                url_end = start + len(url)
+                if start > last_end:
+                    text.insert("end", line[last_end:start])
+                tag = f"gedcom_url_{url_link_count}"
+                url_link_count += 1
+                text.insert("end", url, ("gedcom_url_link", tag))
+                text._textbox.tag_bind(
+                    tag, "<Button-1>", lambda _, u=url: webbrowser.open(u)
+                )
+                if url_end < end:
+                    text.insert("end", line[url_end:end])
+                last_end = end
+            if last_end < len(line):
+                text.insert("end", line[last_end:])
+            text.insert("end", "\n")
 
         def person(pid, prefix=""):
             if prefix:
@@ -153,6 +210,10 @@ class PersonDialogMixin:
             )
             if suffix:
                 text.insert("end", suffix)
+
+        def family_person(entry):
+            prefix = FAM_MEMBER_ROLE_PREFIX.format(role=entry.get('role', ''))
+            person(entry['id'], prefix=prefix)
 
         relationship_link_count = 0
 
@@ -245,28 +306,32 @@ class PersonDialogMixin:
 
         add(FAM_SECTION, bold=True)
         family_found = False
-        parents, siblings, spouses, children = self._get_family_members(current_id)
+        family_entries = self._get_family_member_entries(current_id)
+        parents = family_entries["parents"]
+        siblings = family_entries["siblings"]
+        spouses = family_entries["spouses"]
+        children = family_entries["children"]
 
         if parents:
             family_found = True
             add(FAM_PARENTS)
-            for pid in parents:
-                person(pid, prefix="    ")
+            for entry in parents:
+                family_person(entry)
         if siblings:
             family_found = True
             add(FAM_SIBLINGS)
-            for sib_id in siblings:
-                person(sib_id, prefix="    ")
+            for entry in siblings:
+                family_person(entry)
         if spouses:
             family_found = True
             add(FAM_SPOUSES if len(spouses) > 1 else FAM_SPOUSE)
-            for sid in spouses:
-                person(sid, prefix="    ")
+            for entry in spouses:
+                person(entry["id"], prefix="    ")
         if children:
             family_found = True
             add(FAM_CHILDREN)
-            for child_id in children:
-                person(child_id, prefix="    ")
+            for entry in children:
+                family_person(entry)
         if not family_found:
             add(FAM_NO_INFO)
         add("")
@@ -304,7 +369,7 @@ class PersonDialogMixin:
                 parts.append(tag)
                 if value:
                     parts.append(value)
-                add(" ".join(parts))
+                add_with_https_links(" ".join(parts))
 
     def _show_person_for(self, indi_id, initial_view=None, existing_window=None):
         """Open a detail window for a specific individual ID."""
@@ -656,7 +721,9 @@ class PersonDialogMixin:
             def _apply_person_zoom(size):
                 text.configure(font=(self._mono_family, size))
                 text._textbox.tag_configure(
-                    "bold", font=(self._mono_family, size, "bold")
+                    "bold",
+                    font=scaled_tag_font(
+                        text, self._mono_family, size, weight="bold"),
                 )
 
             state["zoom_controller"] = TextZoomController(
@@ -694,7 +761,8 @@ class PersonDialogMixin:
                 content = _profile_content()
                 if not content:
                     return "break"
-                copy_text_to_clipboard(win, content)
+                win.clipboard_clear()
+                win.clipboard_append(content)
                 return "break"
 
             def _save_profile(*_):
@@ -1142,6 +1210,10 @@ class PersonDialogMixin:
                 )
                 if not indi_id:
                     return "break"
+                positions = getattr(canvas, "_family_tree_positions", {})
+                if indi_id not in positions:
+                    return "break"
+                self._add_canvas_highlighted_node(canvas, indi_id)
                 positions = getattr(canvas, "_family_tree_positions", {})
                 if indi_id not in positions:
                     return "break"

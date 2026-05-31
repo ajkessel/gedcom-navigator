@@ -45,6 +45,9 @@ def get_menu_keyboard_shortcuts():
         else _("Keyboard Shortcuts (F2)")
     )
 
+def get_menu_walkthrough():
+    return _("Walkthrough")
+
 MENU_CHECK_FOR_UPDATES = _("Check for updates…")
 MENU_PRIVACY_POLICY = _("Privacy Policy")
 MENU_ABOUT = _("About")
@@ -245,6 +248,42 @@ FAM_SPOUSE = _("  Spouse:")
 FAM_SPOUSES = _("  Spouses:")
 FAM_CHILDREN = _("  Children:")
 FAM_NO_INFO = _("  (no family information found)")
+FAM_ROLE_FATHER = _("Father")
+FAM_ROLE_MOTHER = _("Mother")
+FAM_ROLE_PARENT = _("Parent")
+FAM_ROLE_STEP_FATHER = _("Step-father")
+FAM_ROLE_STEP_MOTHER = _("Step-mother")
+FAM_ROLE_STEP_PARENT = _("Step-parent")
+FAM_ROLE_ADOPTIVE_FATHER = _("Adoptive father")
+FAM_ROLE_ADOPTIVE_MOTHER = _("Adoptive mother")
+FAM_ROLE_ADOPTIVE_PARENT = _("Adoptive parent")
+FAM_ROLE_FOSTER_FATHER = _("Foster father")
+FAM_ROLE_FOSTER_MOTHER = _("Foster mother")
+FAM_ROLE_FOSTER_PARENT = _("Foster parent")
+FAM_ROLE_SON = _("Son")
+FAM_ROLE_DAUGHTER = _("Daughter")
+FAM_ROLE_CHILD = _("Child")
+FAM_ROLE_STEP_SON = _("Step-son")
+FAM_ROLE_STEP_DAUGHTER = _("Step-daughter")
+FAM_ROLE_STEP_CHILD = _("Step-child")
+FAM_ROLE_ADOPTED_SON = _("Adopted son")
+FAM_ROLE_ADOPTED_DAUGHTER = _("Adopted daughter")
+FAM_ROLE_ADOPTED_CHILD = _("Adopted child")
+FAM_ROLE_FOSTER_SON = _("Foster son")
+FAM_ROLE_FOSTER_DAUGHTER = _("Foster daughter")
+FAM_ROLE_FOSTER_CHILD = _("Foster child")
+FAM_ROLE_BROTHER = _("Brother")
+FAM_ROLE_SISTER = _("Sister")
+FAM_ROLE_SIBLING = _("Sibling")
+FAM_ROLE_HALF_BROTHER = _("Half-brother")
+FAM_ROLE_HALF_SISTER = _("Half-sister")
+FAM_ROLE_HALF_SIBLING = _("Half-sibling")
+FAM_ROLE_STEP_BROTHER = _("Step-brother")
+FAM_ROLE_STEP_SISTER = _("Step-sister")
+FAM_ROLE_STEP_SIBLING = _("Step-sibling")
+FAM_ROLE_ADOPTIVE_SIBLING = _("Adoptive sibling")
+FAM_ROLE_FOSTER_SIBLING = _("Foster sibling")
+FAM_MEMBER_ROLE_PREFIX = _("    {role}: ")
 TAGS_SECTION = _("Tags")
 GEDCOM_SECTION = _("Full GEDCOM Record")
 BTN_CLOSE = _("Close")
@@ -297,6 +336,10 @@ TREE_BUTTON_SPOUSES = "♥"
 TREE_BUTTON_SPOUSES_HIDE = "♡"
 TREE_BUTTON_CHILDREN = "↓"
 TREE_BUTTON_CHILDREN_HIDE = "↑"
+GRAPH_LEGEND_BIOLOGICAL = _("biological")
+GRAPH_LEGEND_STEP = _("step")
+GRAPH_LEGEND_ADOPTED_FOSTER = _("adopted/foster")
+GRAPH_LEGEND_HALF = _("half sibling")
 
 # ---------------------------------------------------------------------------
 # DNA match results display
@@ -497,6 +540,8 @@ ERR_FILE_NOT_FOUND_TITLE = _("File not found")
 ERR_FILE_NOT_FOUND_MSG = _("Could not open:\n{path}\n\n{error}")
 ERR_SAVE_GRAPH_TITLE = _("Save error")
 ERR_SAVE_GRAPH_MSG = _("Could not save relationship graph:\n\n{error}")
+ERR_COPY_GRAPH_TITLE = _("Copy error")
+ERR_COPY_GRAPH_MSG = _("Could not copy relationship graph:\n\n{error}")
 ERR_SAVE_GRAPH_DEBUG_MSG = _("Could not save graph layout debug data:\n\n{error}")
 ERR_SAVE_RESULTS_MSG = _("Could not save results:\n\n{error}")
 ERR_SAVE_PROFILE_MSG = _("Could not save profile:\n\n{error}")
@@ -528,6 +573,56 @@ WIN_ABOUT = _("About")
 WIN_PRIVACY_POLICY = _("Privacy Policy")
 WIN_CHECKING_FOR_UPDATES = _("Checking for Updates")
 WIN_UPDATE_AVAILABLE = _("Update Available")
+
+# ---------------------------------------------------------------------------
+# Welcome window and interactive walkthrough
+# ---------------------------------------------------------------------------
+WIN_WELCOME = _("Welcome to GEDCOM Navigator")
+CHK_SHOW_NEXT_TIME = _("Show this window next time")
+BTN_WALKTHROUGH = _("Walkthrough")
+BTN_WT_NEXT = _("Next")
+BTN_WT_BACK = _("Back")
+BTN_WT_SKIP = _("Skip")
+BTN_WT_FINISH = _("Finish")
+
+# Coach-mark text for the areas that have no existing tooltip. Each entry is a
+# (title, body) pair; widgets that already carry a tooltip reuse that text.
+WT_LIST_TITLE = _("People list")
+WT_LIST_BODY = _(
+    "Everyone in your GEDCOM file appears here. Select a person to view "
+    "their profile, find DNA matches, or trace relationship paths.")
+WT_RESULTS_TITLE = _("Results pane")
+WT_RESULTS_BODY = _(
+    "Profiles, tag matches (such as DNA), and relationship paths are shown here. "
+    "Names and relationship descriptions in this pane are clickable.")
+WT_STATUS_TITLE = _("Status bar")
+WT_STATUS_BODY = _(
+    "Shows the loaded file and progress, and holds the Save and Copy buttons "
+    "for the current results.")
+WT_PERSON_LINK_TITLE = _("Clickable names")
+WT_PERSON_LINK_BODY = _(
+    "Click any person's name in the results to jump to their profile. Use the "
+    "Use Back and Forward keyboard shortcuts to retrace your steps.")
+WT_REL_LINK_TITLE = _("Clickable relationships")
+WT_REL_LINK_BODY = _(
+    "Click an underlined relationship description to open it as a relationship "
+    "graph showing how the two people are connected.")
+WT_MODES_TITLE = _("Display modes")
+WT_MODES_BODY = _(
+    "Switch the right pane between Profile, Tag Matches (e.g. DNA Tags), "
+    "and Relationship Paths for the selected person. Selecting 'Paths' "
+    "will prompt you to choose another person to find paths to.")
+WT_MATCHES_SETTINGS_TITLE = _("Match tag settings")
+WT_MATCHES_SETTINGS_BODY = _(
+    "In Matches mode, set the tag keyword and page marker that identify "
+    "tagged people (e.g. 'DNA'), or pick an existing tag from your file.")
+WT_NODE_MENU_TITLE = _("Tree View menu")
+WT_NODE_MENU_BODY = _(
+    "Right-click (or click) any person in the tree view for quick actions: "
+    "{items}.")
+WT_SAMPLE_NOTICE = _(
+    "A sample family tree has been loaded so you can try these features. It "
+    "will be unloaded when the walkthrough ends.")
 
 COL_SHORTCUT = _("Shortcut")
 COL_ACTION = _("Action")

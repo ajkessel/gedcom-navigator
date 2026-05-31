@@ -216,6 +216,18 @@ The tool measures distance as the number of edges traversed in the GEDCOM relati
 
 This means a sibling and a parent are treated as equidistant from ego (both are one edge away), which fits the practical question "how many hops do I need to figure out why this person is in my tree" but is not the same as a genealogical relationship coefficient.
 
+## Biological, step, and half relationships
+
+GEDCOM files represent family structure primarily through `INDI` `FAMC`/`FAMS` links and `FAM` `HUSB`/`WIFE`/`CHIL` records. When available, this tool also reads parentage metadata:
+
+- `PEDI` under an individual's `FAMC` link, such as `birth`, `adopted`, `foster`, or `sealing`.
+- Common Family Tree Maker child relationship tags under `FAM` `CHIL` entries, such as `_FREL` and `_MREL`.
+- Individual `ADOP` events that point to a `FAMC` family and identify the adopting parent side.
+
+If no parentage metadata is present, a parent-child link is treated as an ordinary biological/default relationship. Biological ancestor and common-ancestor calculations use only ordinary biological/default parentage. Step-siblings can also be inferred when a biological parent has a spouse whose biological children do not share a biological parent with the selected person.
+
+In graph views, ordinary biological/default family links are solid, including full-sibling connectors. Step links use dash-dot lines, adopted/foster links use dotted or short-dashed lines, and half-sibling connectors are split into two separated segments. A compact legend is drawn when one of these non-ordinary relationship styles is visible, with the biological/default line style included as the baseline.
+
 ## Limitations and notes
 
 - Edge weighting is uniform, as described above. If you would prefer to weight blood relationships and marriages differently, the `neighbors()` function is the place to change it. I might make this a configurable setting at some point in the future.

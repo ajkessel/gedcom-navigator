@@ -11,6 +11,7 @@ import tempfile
 import zipfile
 
 from gedcom_debug import log_exception
+from gedcom_relationship import normalize_parentage
 from gedcom_transliteration import add_transliterated_names
 
 # Captures: level, optional xref (@…@), tag (non-space), optional value (rest)
@@ -126,9 +127,32 @@ def iter_records_checked(path):
     return records, warning
 
 
+# A BCE marker: BC, BCE, B.C., B.C.E. (case-insensitive), optionally spaced.
+# The digits immediately preceding the marker are the (1-4 digit) year.
+_BCE_RE = re.compile(r'(\d{1,4})\s*B\.?\s*C\.?(?:\s*E\.?)?', re.IGNORECASE)
+# Julian/Gregorian dual year, e.g. "1708/9" or "1699/00". The part before the
+# slash is the Old Style (Julian) year; the New Style (Gregorian) year is always
+# the following calendar year, since dual dates fall in the Jan-Mar overlap.
+_DUAL_RE = re.compile(r'\b(\d{3,4})/\d{1,4}\b')
+# Plain 3- or 4-digit year.
+_YEAR_RE = re.compile(r'\b(\d{3,4})\b')
+
+
 def extract_year(date_str):
-    """Extract a 3- or 4-digit year from a date string."""
-    m = re.search(r'\b(\d{3,4})\b', date_str or '')
+    """Extract a signed year from a GEDCOM date string.
+
+    Returns a positive int for CE/AD years and a *negative* int for BCE years
+    (e.g. "44 B.C." -> -44), or None when no year can be found. Julian/Gregorian
+    dual years such as "10 JAN 1708/9" resolve to the New Style (later) year.
+    """
+    s = date_str or ''
+    m = _BCE_RE.search(s)
+    if m:
+        return -int(m.group(1))
+    m = _DUAL_RE.search(s)
+    if m:
+        return int(m.group(1)) + 1
+    m = _YEAR_RE.search(s)
     return int(m.group(1)) if m else None
 
 
@@ -181,6 +205,8 @@ def build_model(gedcom_path, dna_keyword, page_marker):
                 'sex': '',
                 'famc': [],
                 'fams': [],
+                '_famc_pedi': {},
+                '_adop_famc': [],
                 'dna_markers': [],
                 'tags': [],
                 'birth_year': None,
@@ -211,9 +237,37 @@ def build_model(gedcom_path, dna_keyword, page_marker):
                 elif level == 1 and tag == 'SEX':
                     indi['sex'] = value.strip()
                 elif level == 1 and tag == 'FAMC':
-                    indi['famc'].append(value.strip())
+                    fam_id = value.strip()
+                    indi['famc'].append(fam_id)
+                    for j in range(i + 1, n):
+                        l2, _, t2, v2 = rec[j]
+                        if l2 <= 1:
+                            break
+                        if l2 == 2 and t2 == 'PEDI':
+                            indi['_famc_pedi'][fam_id] = normalize_parentage(v2)
+                            break
                 elif level == 1 and tag == 'FAMS':
                     indi['fams'].append(value.strip())
+                elif level == 1 and tag == 'ADOP':
+                    adop_fam_id = ''
+                    adop_role = 'BOTH'
+                    for j in range(i + 1, n):
+                        l2, _, t2, v2 = rec[j]
+                        if l2 <= 1:
+                            break
+                        if l2 == 2 and t2 == 'FAMC':
+                            adop_fam_id = v2.strip()
+                            for k in range(j + 1, n):
+                                l3, _, t3, v3 = rec[k]
+                                if l3 <= 2:
+                                    break
+                                if l3 == 3 and t3 == 'ADOP':
+                                    adop_role = v3.strip().upper() or adop_role
+                                    break
+                        elif l2 == 2 and t2 == 'ADOP':
+                            adop_role = v2.strip().upper() or adop_role
+                    if adop_fam_id:
+                        indi['_adop_famc'].append((adop_fam_id, adop_role))
                 elif level == 1 and tag == '_MTTAG':
                     v = value.strip()
                     if v.startswith('@') and v.endswith('@'):
@@ -254,7 +308,7 @@ def build_model(gedcom_path, dna_keyword, page_marker):
 
         elif head_tag == 'FAM':
             fam = {'id': head_xref, 'husb': None, 'wife': None, 'chil': [],
-                   'marr_date': '', 'marr_place': ''}
+                   'child_links': {}, 'marr_date': '', 'marr_place': ''}
             n = len(rec)
             for i, (level, _xref, tag, value) in enumerate(rec):
                 if i == 0:
@@ -264,7 +318,19 @@ def build_model(gedcom_path, dna_keyword, page_marker):
                 elif level == 1 and tag == 'WIFE':
                     fam['wife'] = value.strip()
                 elif level == 1 and tag == 'CHIL':
-                    fam['chil'].append(value.strip())
+                    child_id = value.strip()
+                    fam['chil'].append(child_id)
+                    link = fam['child_links'].setdefault(child_id, {})
+                    for j in range(i + 1, n):
+                        l2, _, t2, v2 = rec[j]
+                        if l2 <= 1:
+                            break
+                        if l2 == 2 and t2 == 'PEDI':
+                            link['family'] = normalize_parentage(v2)
+                        elif l2 == 2 and t2 == '_FREL':
+                            link['father'] = normalize_parentage(v2)
+                        elif l2 == 2 and t2 == '_MREL':
+                            link['mother'] = normalize_parentage(v2)
                 elif level == 1 and tag == 'MARR':
                     for j in range(i + 1, n):
                         l2, _, t2, v2 = rec[j]
@@ -275,6 +341,27 @@ def build_model(gedcom_path, dna_keyword, page_marker):
                         elif l2 == 2 and t2 == 'PLAC' and not fam['marr_place']:
                             fam['marr_place'] = v2.strip()
             families[head_xref] = fam
+
+    # Pass 2.5: merge individual-side family pedigree/adoption metadata into
+    # family child links now that all FAM records are available.
+    for indi in individuals.values():
+        child_id = indi['id']
+        for fam_id, parentage in indi.pop('_famc_pedi', {}).items():
+            fam = families.get(fam_id)
+            if not fam or child_id not in fam.get('chil', ()):
+                continue
+            fam.setdefault('child_links', {}).setdefault(
+                child_id, {})['family'] = parentage
+        for fam_id, adop_role in indi.pop('_adop_famc', []):
+            fam = families.get(fam_id)
+            if not fam or child_id not in fam.get('chil', ()):
+                continue
+            link = fam.setdefault('child_links', {}).setdefault(child_id, {})
+            role = (adop_role or 'BOTH').upper()
+            if role in ('HUSB', 'BOTH'):
+                link['father'] = 'adopted'
+            if role in ('WIFE', 'BOTH'):
+                link['mother'] = 'adopted'
 
     # Pass 3: resolve _MTTAG pointer references against the tag dictionary
     dna_kw_l = dna_keyword.lower()

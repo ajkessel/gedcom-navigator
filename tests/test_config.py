@@ -350,6 +350,35 @@ class TestWindowGeometry:
 
 
 # ===========================================================================
+# Welcome window (first-run-per-version)
+# ===========================================================================
+
+class TestWelcomeSettings:
+    def test_seen_version_default_is_none(self, tmp_path):
+        assert _mgr(tmp_path).get_welcome_seen_version() is None
+
+    def test_seen_version_roundtrip(self, tmp_path):
+        mgr = _mgr(tmp_path)
+        mgr.set_welcome_seen_version("1.2.3")
+        assert mgr.get_welcome_seen_version() == "1.2.3"
+
+    def test_seen_version_non_string_falls_back_to_none(self, tmp_path):
+        p = tmp_path / "settings.json"
+        p.write_text(json.dumps({"welcome_seen_version": 42}), encoding="utf-8")
+        assert ConfigManager(p).get_welcome_seen_version() is None
+
+    def test_show_on_startup_default_is_false(self, tmp_path):
+        assert _mgr(tmp_path).get_show_welcome_on_startup() is False
+
+    def test_show_on_startup_roundtrip(self, tmp_path):
+        mgr = _mgr(tmp_path)
+        mgr.set_show_welcome_on_startup(True)
+        assert mgr.get_show_welcome_on_startup() is True
+        mgr.set_show_welcome_on_startup(False)
+        assert mgr.get_show_welcome_on_startup() is False
+
+
+# ===========================================================================
 # default_path
 # ===========================================================================
 

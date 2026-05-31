@@ -397,15 +397,23 @@ class FamilyTreeRenderMixin:
         max_label_h = max(block_heights, default=line_space)
         if orientation == 'horizontal':
             node_h = max(scale(34), max_label_h + scale(12))
-            h_gap = node_w + scale(34)
+            h_gap = node_w + scale(50)
             v_gap = max(node_h + scale(4), scale(30))
             margin = scale(36)
         else:
             node_h = max(scale(84), max_label_h + scale(26))
-            h_gap = node_w + scale(48)
+            h_gap = node_w + scale(64)
             v_gap = max(node_h + scale(88), scale(150))
             margin = scale(56)
         button_size = scale(22)
+        relationship_kinds = {
+            self._edge_relationship_kind(source_id, target_id, category)
+            for source_id, target_id, category in edges
+            if category in ('parents', 'children', 'siblings')
+        }
+        _legend_w, legend_h = self._graph_relationship_legend_size(
+            label_font, scale, relationship_kinds)
+        top_margin = margin + (legend_h + scale(12) if legend_h else 0)
 
         min_generation = min(node['generation'] for node in layout)
         max_generation = max(node['generation'] for node in layout)
@@ -416,12 +424,12 @@ class FamilyTreeRenderMixin:
             if orientation == 'horizontal':
                 x = margin + node_w / 2 + (
                     node['column'] - min_column) * h_gap
-                y = margin + node_h / 2 + (
+                y = top_margin + node_h / 2 + (
                     node['generation'] - min_generation) * v_gap
             else:
                 x = margin + node_w / 2 + (
                     node['column'] - min_column) * h_gap
-                y = margin + node_h / 2 + (
+                y = top_margin + node_h / 2 + (
                     node['generation'] - min_generation) * v_gap
             positions[node['id']] = (x, y)
         canvas._family_tree_center = positions.get(center_id, (0, 0))
@@ -431,15 +439,15 @@ class FamilyTreeRenderMixin:
             for source_id, target_id, category in edges
             if category == 'spouses'
         ]
-
         canvas_w = margin * 2 + node_w + (max_column - min_column) * h_gap
-        canvas_h = margin * 2 + node_h + (
+        canvas_h = top_margin + margin + node_h + (
             max_generation - min_generation) * v_gap
         if debug_enabled():
-            canvas._family_tree_debug_payload = self._family_tree_debug_payload(
-                center_id, expanded, zoom, canvas_w, canvas_h, visible_ids,
-                edges, layout, self._family_tree_members_for,
-                graph_type=graph_type)
+                canvas._family_tree_debug_payload = self._family_tree_debug_payload(
+                    center_id, expanded, zoom, canvas_w, canvas_h, visible_ids,
+                    edges, layout, self._family_tree_members_for,
+                    graph_type=graph_type,
+                    relationship_lookup=self._edge_relationship_kind)
         else:
             canvas._family_tree_debug_payload = None
 
@@ -466,16 +474,22 @@ class FamilyTreeRenderMixin:
                         continue
                     tx, ty = positions[target_id]
                     parent_points.append((tx - node_w / 2, ty))
+                edge_kind = (
+                    self._edge_relationship_kind(
+                        source_id, target_ids[0], 'parents')
+                    if target_ids else None
+                )
+                line_options = self._graph_parent_line_options(
+                    edge_kind, colors, scale)
                 for points in self._horizontal_parent_connector_segments(
                         sx + node_w / 2, sy, parent_points, node_h):
                     pulse_progress()
                     canvas.create_line(
-                        *points, fill=colors['parent'], width=scale(3),
-                        smooth=False)
+                        *points, smooth=False, **line_options)
         else:
             for generation in range(
                     int(min_generation), int(max_generation) + 1):
-                y = margin + node_h / 2 + (
+                y = top_margin + node_h / 2 + (
                     generation - min_generation) * v_gap
                 canvas.create_line(
                     margin / 2, y, canvas_w - margin / 2, y,
@@ -496,9 +510,11 @@ class FamilyTreeRenderMixin:
                 if category == 'siblings':
                     start_x = sx + (-node_w / 2 if tx < sx else node_w / 2)
                     end_x = tx + (node_w / 2 if tx < sx else -node_w / 2)
-                    self._draw_sibling_line(
+                    self._draw_graph_sibling_line(
                         canvas, start_x, sy, end_x, ty,
-                        colors['sibling'], scale)
+                        self._edge_relationship_kind(
+                            source_id, target_id, category),
+                        colors, scale)
             for group in self._family_tree_child_edge_groups(
                     edges, positions, self._co_parents_for_children,
                     spouse_edges):
@@ -518,19 +534,33 @@ class FamilyTreeRenderMixin:
                             for child_id in group['children']]
                 bus_start_x, bus_end_x = self._family_tree_child_bus_span(
                     parent_x, child_xs)
+                group_kind = 'birth'
+                for child_id in group['children']:
+                    child_kind = self._combined_parent_child_kind(
+                        group['parent_ids'], child_id)
+                    if child_kind != 'birth':
+                        group_kind = child_kind
+                        break
+                line_options = self._graph_parent_line_options(
+                    group_kind, colors, scale)
                 canvas.create_line(
-                    parent_x, start_y, parent_x, mid_y,
-                    fill=colors['parent'], width=scale(3))
+                    parent_x, start_y, parent_x, mid_y, **line_options)
                 canvas.create_line(
-                    bus_start_x, mid_y, bus_end_x, mid_y,
-                    fill=colors['parent'], width=scale(3))
+                    bus_start_x, mid_y, bus_end_x, mid_y, **line_options)
                 for child_id in group['children']:
                     pulse_progress()
                     child_x, child_y = positions[child_id]
+                    child_line_options = self._graph_parent_line_options(
+                        self._combined_parent_child_kind(
+                            group['parent_ids'], child_id),
+                        colors, scale)
                     canvas.create_line(
                         child_x, mid_y, child_x, child_y - node_h / 2,
-                        fill=colors['parent'], width=scale(3), arrow='last',
+                        arrow='last', **child_line_options,
                         arrowshape=(scale(12), scale(14), scale(5)))
+
+        self._draw_graph_relationship_legend(
+            canvas, colors, scale, label_font, relationship_kinds)
 
         highlighted_nodes = getattr(canvas, '_highlighted_nodes', set())
 

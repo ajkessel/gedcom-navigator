@@ -6,7 +6,7 @@ Compatibility facade for the GEDCOM parser, display formatting, and graph search
 modules used by the CLI and GUI.
 """
 
-from gedcom_display import describe, lifespan
+from gedcom_display import describe, format_year, lifespan
 from gedcom_parser import (
     LINE_RE,
     ZIP_MAX_BYTES,
@@ -35,6 +35,7 @@ __all__ = [
     'describe',
     'extract_ged_from_zip',
     'extract_year',
+    'format_year',
     'iter_records',
     'iter_records_checked',
     'lifespan',

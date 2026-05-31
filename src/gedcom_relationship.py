@@ -9,10 +9,195 @@ application.
 from collections import deque
 from dataclasses import dataclass
 
+PARENTAGE_BIRTH = 'birth'
+PARENTAGE_ADOPTED = 'adopted'
+PARENTAGE_FOSTER = 'foster'
+PARENTAGE_STEP = 'step'
+PARENTAGE_SEALING = 'sealing'
+PARENTAGE_GUARDIAN = 'guardian'
+PARENTAGE_OTHER = 'other'
+
+BIOLOGICAL_PARENTAGE = frozenset({PARENTAGE_BIRTH})
+NON_BIOLOGICAL_PARENTAGE = frozenset({
+    PARENTAGE_ADOPTED,
+    PARENTAGE_FOSTER,
+    PARENTAGE_STEP,
+    PARENTAGE_SEALING,
+    PARENTAGE_GUARDIAN,
+    PARENTAGE_OTHER,
+})
+
+_PARENTAGE_ALIASES = {
+    '': PARENTAGE_BIRTH,
+    'birth': PARENTAGE_BIRTH,
+    'biological': PARENTAGE_BIRTH,
+    'bio': PARENTAGE_BIRTH,
+    'natural': PARENTAGE_BIRTH,
+    'adopted': PARENTAGE_ADOPTED,
+    'adoptive': PARENTAGE_ADOPTED,
+    'foster': PARENTAGE_FOSTER,
+    'step': PARENTAGE_STEP,
+    'stepchild': PARENTAGE_STEP,
+    'sealing': PARENTAGE_SEALING,
+    'sealed': PARENTAGE_SEALING,
+    'guardian': PARENTAGE_GUARDIAN,
+    'guardianship': PARENTAGE_GUARDIAN,
+}
+
 
 # ---------------------------------------------------------------------------
 # GEDCOM event helpers
 # ---------------------------------------------------------------------------
+
+def normalize_parentage(value):
+    """Return a canonical parent-child relationship kind."""
+    key = (value or '').strip().casefold()
+    return _PARENTAGE_ALIASES.get(key, PARENTAGE_OTHER)
+
+
+def _parent_role_in_family(parent_id, fam):
+    if parent_id == fam.get('husb'):
+        return 'father'
+    if parent_id == fam.get('wife'):
+        return 'mother'
+    return None
+
+
+def _parentage_from_child_link(fam, child_id, role=None):
+    link = (fam.get('child_links') or {}).get(child_id, {})
+    if role and link.get(role):
+        return normalize_parentage(link.get(role))
+    if link.get('family'):
+        return normalize_parentage(link.get('family'))
+    return PARENTAGE_BIRTH
+
+
+def parent_child_relationship(parent_id, child_id, individuals, families):
+    """Return the parentage kind for parent_id -> child_id.
+
+    Missing metadata is treated as ordinary birth parentage because many GEDCOM
+    exports omit explicit PEDI/FREL/MREL values for biological families.
+    """
+    if not parent_id or not child_id:
+        return None
+    child = individuals.get(child_id, {})
+    fam_ids = list(child.get('famc', ()))
+    if not fam_ids:
+        fam_ids = [
+            fam_id for fam_id, fam in families.items()
+            if child_id in fam.get('chil', ())
+        ]
+    for fam_id in fam_ids:
+        fam = families.get(fam_id)
+        if not fam or child_id not in fam.get('chil', ()):
+            continue
+        role = _parent_role_in_family(parent_id, fam)
+        if role:
+            return _parentage_from_child_link(fam, child_id, role)
+    return None
+
+
+def is_biological_parent(parent_id, child_id, individuals, families):
+    """Return whether parent_id is an ordinary biological/default parent."""
+    return parent_child_relationship(
+        parent_id, child_id, individuals, families) in BIOLOGICAL_PARENTAGE
+
+
+def biological_parent_ids(child_id, individuals, families):
+    """Return biological/default parent IDs for child_id."""
+    parents = []
+    seen = set()
+    child = individuals.get(child_id, {})
+    for fam_id in child.get('famc', ()):
+        fam = families.get(fam_id)
+        if not fam:
+            continue
+        for parent_id in (fam.get('husb'), fam.get('wife')):
+            if (parent_id and parent_id in individuals
+                    and parent_id not in seen
+                    and is_biological_parent(
+                        parent_id, child_id, individuals, families)):
+                parents.append(parent_id)
+                seen.add(parent_id)
+    return parents
+
+
+def biological_child_ids(parent_id, individuals, families):
+    """Return biological/default children for parent_id."""
+    children = []
+    seen = set()
+    parent = individuals.get(parent_id, {})
+    for fam_id in parent.get('fams', ()):
+        fam = families.get(fam_id)
+        if not fam:
+            continue
+        if parent_id not in (fam.get('husb'), fam.get('wife')):
+            continue
+        for child_id in fam.get('chil', ()):
+            if (child_id and child_id in individuals and child_id not in seen
+                    and is_biological_parent(
+                        parent_id, child_id, individuals, families)):
+                children.append(child_id)
+                seen.add(child_id)
+    return children
+
+
+def _spouse_ids(indi_id, individuals, families):
+    spouses = []
+    seen = set()
+    indi = individuals.get(indi_id, {})
+    for fam_id in indi.get('fams', ()):
+        fam = families.get(fam_id)
+        if not fam:
+            continue
+        spouse_id = fam.get('wife') if fam.get('husb') == indi_id else fam.get('husb')
+        if spouse_id and spouse_id in individuals and spouse_id not in seen:
+            spouses.append(spouse_id)
+            seen.add(spouse_id)
+    return spouses
+
+
+def infer_step_sibling_ids(indi_id, individuals, families):
+    """Return people who are step-siblings by parent-spouse topology."""
+    result = []
+    seen = set()
+    own_bio_parents = set(biological_parent_ids(indi_id, individuals, families))
+    for parent_id in own_bio_parents:
+        for spouse_id in _spouse_ids(parent_id, individuals, families):
+            if spouse_id in own_bio_parents:
+                continue
+            for child_id in biological_child_ids(spouse_id, individuals, families):
+                if child_id == indi_id or child_id in seen:
+                    continue
+                if own_bio_parents.intersection(
+                        biological_parent_ids(child_id, individuals, families)):
+                    continue
+                result.append(child_id)
+                seen.add(child_id)
+    return result
+
+
+def sibling_relationship(left_id, right_id, individuals, families):
+    """Return full, half, step, sibling, or None for two people."""
+    if left_id == right_id:
+        return None
+    left_parents = set(biological_parent_ids(left_id, individuals, families))
+    right_parents = set(biological_parent_ids(right_id, individuals, families))
+    shared = left_parents.intersection(right_parents)
+    if len(shared) >= 2:
+        return 'full'
+    if len(shared) == 1:
+        return 'half'
+    if right_id in infer_step_sibling_ids(left_id, individuals, families):
+        return 'step'
+    if left_id in infer_step_sibling_ids(right_id, individuals, families):
+        return 'step'
+    if families:
+        for fam in families.values():
+            children = fam.get('chil', ())
+            if left_id in children and right_id in children:
+                return 'sibling'
+    return None
 
 def _extract_event(raw, event_tag):
     """Return (date_str, place_str) for the first occurrence of event_tag in raw."""
@@ -123,8 +308,15 @@ class _FamilyLookup:
             for child_id in fam.get('chil', []):
                 family_ids_by_child.setdefault(child_id, set()).add(fam_id)
                 parent_sets_by_child.setdefault(child_id, []).append(parents)
-                if parents:
-                    parents_by_child.setdefault(child_id, set()).update(parents)
+                biological_parents = {
+                    parent_id for parent_id in parents
+                    if _parentage_from_child_link(
+                        fam, child_id, _parent_role_in_family(parent_id, fam))
+                    in BIOLOGICAL_PARENTAGE
+                }
+                if biological_parents:
+                    parents_by_child.setdefault(child_id, set()).update(
+                        biological_parents)
         self._parents_by_child = parents_by_child
         self._family_ids_by_child = family_ids_by_child
         self._parent_sets_by_child = parent_sets_by_child
@@ -164,6 +356,42 @@ def _descendant_term(n, sex):
     gc = 'grandson' if sex == 'M' else (
         'granddaughter' if sex == 'F' else 'grandchild')
     return _nth_great(n - 2) + gc
+
+
+def _non_biological_parent_term(kind, sex):
+    parent = 'father' if sex == 'M' else ('mother' if sex == 'F' else 'parent')
+    if kind == PARENTAGE_STEP:
+        return 'step-' + parent
+    if kind == PARENTAGE_ADOPTED:
+        return 'adoptive ' + parent
+    if kind in (PARENTAGE_FOSTER, PARENTAGE_SEALING):
+        return 'foster ' + parent
+    if kind in (PARENTAGE_GUARDIAN, PARENTAGE_OTHER):
+        return 'non-biological ' + parent
+    return parent
+
+
+def _non_biological_child_term(kind, sex):
+    child = 'son' if sex == 'M' else ('daughter' if sex == 'F' else 'child')
+    if kind == PARENTAGE_STEP:
+        return 'step-' + child
+    if kind == PARENTAGE_ADOPTED:
+        return 'adopted ' + child
+    if kind in (PARENTAGE_FOSTER, PARENTAGE_SEALING):
+        return 'foster ' + child
+    if kind in (PARENTAGE_GUARDIAN, PARENTAGE_OTHER):
+        return 'non-biological ' + child
+    return child
+
+
+def _qualified_sibling_term(kind, sex):
+    sibling = 'brother' if sex == 'M' else (
+        'sister' if sex == 'F' else 'sibling')
+    if kind == 'half':
+        return 'half-' + sibling
+    if kind == 'step':
+        return 'step-' + sibling
+    return sibling
 
 
 def _classify(seq):
@@ -512,6 +740,37 @@ def _classify_relationship_path(path, individuals, families=None):
     edges = [edge for _, edge in path[1:]]
     target_sex = individuals.get(path[-1][0], {}).get('sex', '')
 
+    if len(edges) == 1 and families:
+        start_id = path[0][0]
+        target_id = path[-1][0]
+        edge = edges[0]
+        if edge in _UP_SET:
+            kind = parent_child_relationship(
+                target_id, start_id, individuals, families)
+            if kind in NON_BIOLOGICAL_PARENTAGE:
+                return RelationshipClassification(
+                    _non_biological_parent_term(kind, target_sex),
+                    kind,
+                    up=1,
+                )
+        elif edge == 'child':
+            kind = parent_child_relationship(
+                start_id, target_id, individuals, families)
+            if kind in NON_BIOLOGICAL_PARENTAGE:
+                return RelationshipClassification(
+                    _non_biological_child_term(kind, target_sex),
+                    kind,
+                    down=1,
+                )
+        elif edge == 'sibling':
+            kind = sibling_relationship(start_id, target_id, individuals, families)
+            if kind in ('half', 'step'):
+                return RelationshipClassification(
+                    _qualified_sibling_term(kind, target_sex),
+                    kind,
+                    sibling=1,
+                )
+
     if all(edge in _UP_SET for edge in edges):
         return RelationshipClassification(
             _ancestor_term(len(edges), target_sex),
@@ -737,7 +996,9 @@ def get_ancestor_depths(start_id, individuals, families):
             if not fam:
                 continue
             for parent_id in (fam['husb'], fam['wife']):
-                if parent_id and parent_id not in visited:
+                if (parent_id and parent_id not in visited
+                        and is_biological_parent(
+                            parent_id, current_id, individuals, families)):
                     visited.add(parent_id)
                     depths[parent_id] = depth + 1
                     queue.append((parent_id, depth + 1))
@@ -805,7 +1066,9 @@ def get_descendant_depths(start_id, individuals, families):
             if not fam:
                 continue
             for child_id in fam['chil']:
-                if child_id and child_id not in visited:
+                if (child_id and child_id not in visited
+                        and is_biological_parent(
+                            current_id, child_id, individuals, families)):
                     visited.add(child_id)
                     depths[child_id] = depth + 1
                     queue.append((child_id, depth + 1))
@@ -858,6 +1121,10 @@ def describe_relationship(path, individuals, ancestors=None, descendants=None,
         path, individuals, families=families)
     if classification is not None:
         if classification.lead_spouse or classification.trail_spouse:
+            return classification.description
+        if classification.kind in (
+                'half', 'step', PARENTAGE_ADOPTED, PARENTAGE_FOSTER,
+                PARENTAGE_SEALING, PARENTAGE_GUARDIAN, PARENTAGE_OTHER):
             return classification.description
         return _prefer_more_efficient(
             classification.description, biological_desc)

@@ -11,6 +11,26 @@ import sys
 _MOD_KEY = 'Command' if sys.platform == 'darwin' else 'Control'
 
 
+def scaled_tag_font(widget, family, size, *, weight=None):
+    """Return a font tuple for a CTkTextbox tag, pre-scaled to match the base font.
+
+    CTkTextbox scales its base tuple font by the widget scaling, but fonts set
+    via ``tag_configure()`` on the inner ``tk.Text`` bypass that scaling — so on
+    a high-DPI display (e.g. Windows at 300%) tagged runs render too small next
+    to the scaled base text.  Multiply the size by CTk's widget scaling here so
+    the tag tracks the base.  ``get_widget_scaling`` is 1.0 on macOS and on
+    non-DPI-scaled Linux/Windows, so this is a no-op there and only affects
+    high-DPI Windows; on error it falls back to 1.0.
+    """
+    try:
+        import customtkinter as ctk  # pylint: disable=import-outside-toplevel
+        scale = ctk.ScalingTracker.get_widget_scaling(widget)
+    except Exception:  # pylint: disable=broad-exception-caught
+        scale = 1.0
+    sz = max(1, round(size * scale))
+    return (family, sz, weight) if weight else (family, sz)
+
+
 def bind_zoom_shortcuts(target, zoom_in, zoom_out, zoom_reset):
     """Bind standard keyboard and mouse zoom shortcuts to a widget/window."""
 

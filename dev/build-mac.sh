@@ -134,6 +134,39 @@ pyinstaller --noconfirm ./dev/gedcom_navigator_gui.spec || {
 	echo 'Cannot find dist build folder.'
 	exit 1
 }
+# Rewrite absolute Homebrew dylib paths (e.g. libxcb -> /usr/local/.../libXau)
+# to @rpath so the bundled copies load under the App Sandbox.  Must run before
+# signing/notarization, as install_name_tool invalidates signatures.
+./dev/fix-dylib-paths.sh "dist/gedcom-navigator.app" || {
+	echo 'Failed to rewrite bundled dylib paths.'
+	exit 1
+}
+# install_name_tool invalidates the signatures PyInstaller applied, so re-sign
+# the rewritten Mach-O files and re-seal the bundle (hardened runtime +
+# entitlements) before notarization, which rejects invalidly-signed code.
+DEV_ID=$(security find-identity -v -p codesigning 2>/dev/null |
+	grep "Developer ID Application" | grep -Eo '[0-9A-Z]{40}' | head -1)
+if [ -n "${DEV_ID}" ]; then
+	echo 'Re-signing dylibs invalidated by path rewrite...'
+	resign_failed=0
+	while IFS= read -r -d '' f; do
+		codesign --force --timestamp --options runtime --sign "${DEV_ID}" "$f" || resign_failed=1
+	done < <(find "dist/gedcom-navigator.app/Contents/Frameworks" \
+		\( -name "*.dylib" -o -name "*.so" \) -print0)
+	[ "${resign_failed}" = "0" ] || {
+		echo 'Re-signing of rewritten dylibs failed.'
+		exit 1
+	}
+	codesign --force --timestamp --options runtime \
+		--entitlements ./dev/entitlements.plist \
+		--sign "${DEV_ID}" "dist/gedcom-navigator.app" || {
+		echo 'Re-signing of app bundle failed.'
+		exit 1
+	}
+else
+	echo 'No Developer ID Application identity found; cannot re-sign after dylib rewrite.'
+	[ "$DRY" ] || exit 1
+fi
 [ "$DRY" ] && exit 0
 ditto -c -k --sequesterRsrc --keepParent "dist/gedcom-navigator.app" "${output_file}" || {
 	echo 'Cannot build zip file.'

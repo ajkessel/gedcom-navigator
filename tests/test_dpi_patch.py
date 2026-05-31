@@ -18,7 +18,12 @@ def _restore_scaling_tracker():
 
 
 def _mock_window(fpixels: float):
-    """Minimal window stub whose winfo_fpixels returns a fixed DPI value."""
+    """Minimal window stub whose winfo_fpixels returns a fixed DPI value.
+
+    The stub has no winfo_id, so the patched function's preferred GetDpiForWindow
+    path raises and it falls back to winfo_fpixels — exactly the pre-1607-Windows
+    / non-Windows fallback these tests exercise.
+    """
     win = types.SimpleNamespace()
     win.winfo_fpixels = lambda _spec: fpixels
     return win
@@ -49,8 +54,16 @@ def test_patch_clamps_minimum():
 
 
 def test_patch_clamps_maximum():
+    # Clamp raised to 4.0 so 350%/400% displays are not under-scaled.
     _patch_ctk_scaling_for_tkinter_dpi()
-    assert ctk.ScalingTracker.get_window_dpi_scaling(_mock_window(10000.0)) == 3.0
+    assert ctk.ScalingTracker.get_window_dpi_scaling(_mock_window(10000.0)) == 4.0
+
+
+def test_patch_scale_300_percent():
+    # 288 DPI / 96 = 3.0, the case the GetDpiForWindow switch was made for.
+    _patch_ctk_scaling_for_tkinter_dpi()
+    assert ctk.ScalingTracker.get_window_dpi_scaling(
+        _mock_window(288.0)) == pytest.approx(3.0, abs=0.01)
 
 
 def test_patch_fallback_does_not_raise_when_winfo_fpixels_unavailable():
