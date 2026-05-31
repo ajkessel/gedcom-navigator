@@ -215,7 +215,7 @@ def get_tip_show_person_tree():
 def get_tip_select_tag():
     mod = get_mod_key()
     return _(
-        "Select tag for Finding Matches ({mod}T)\nSelect a tag (e.g. "DNA") to use when finding closest "
+        "Select tag for Finding Matches ({mod}T)\nSelect a tag (e.g. 'DNA') to use when finding closest "
         "matches for the selected person."
     ).format(mod=mod)
 
