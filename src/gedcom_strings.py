@@ -7,11 +7,16 @@ To access strings, import this module and use the constants.
 
 import sys
 from gedcom_i18n import _
-from gedcom_shortcuts import keyboard_shortcut_rows as _shortcut_rows, shortcut_by_action as _shortcut_by_action
+from gedcom_shortcuts import (
+    keyboard_shortcut_rows as _shortcut_rows,
+    shortcut_by_action as _shortcut_by_action,
+)
+
 
 # Helper for dynamic key labels
 def get_mod_key():
-    return '⌘' if sys.platform == 'darwin' else 'Ctrl+'
+    return "⌘" if sys.platform == "darwin" else "Ctrl+"
+
 
 # ---------------------------------------------------------------------------
 # Application
@@ -26,27 +31,33 @@ MENU_FILE = _("File")
 MENU_OPEN_GEDCOM = _("Open GEDCOM File…")
 MENU_OPEN_RECENT = _("Open Recent")
 MENU_NO_RECENT_FILES = _("No Recent Files")
-MENU_MENU = _("Help")
-MENU_PREFERENCES = _("Settings…") if sys.platform == 'darwin' else _("Preferences… (F3)")
+MENU_HELP = _("Help")
+MENU_PREFERENCES = (
+    _("Settings…") if sys.platform == "darwin" else _("Preferences… (F3)")
+)
+
 
 def get_menu_how_to_use():
     mod = get_mod_key()
     return (
-        _("How to use ({mod}?)").format(mod=mod)
-        if sys.platform == 'darwin'
-        else _("How to use (F1)")
+        _("How to Use ({mod}?)").format(mod=mod)
+        if sys.platform == "darwin"
+        else _("How to Use (F1)")
     )
+
 
 def get_menu_keyboard_shortcuts():
     mod = get_mod_key()
     return (
-        _("Keyboard shortcuts ({mod}K)").format(mod=mod)
-        if sys.platform == 'darwin'
+        _("Keyboard Shortcuts ({mod}K)").format(mod=mod)
+        if sys.platform == "darwin"
         else _("Keyboard Shortcuts (F2)")
     )
 
+
 def get_menu_walkthrough():
     return _("Walkthrough")
+
 
 MENU_CHECK_FOR_UPDATES = _("Check for updates…")
 MENU_PRIVACY_POLICY = _("Privacy Policy")
@@ -99,68 +110,77 @@ BTN_REVERSE = _("Reverse")
 BTN_REVERSE_RESTORE = _("Normal Path")
 BTN_SAVE = _("Save")
 
+
 def get_tip_reverse():
     mod = get_mod_key()
-    return (
-        _("Reverse ({mod}R)\n"
-          "Reverse the direction of all relationship paths shown, computing "
-          "the relationship from the other person's perspective. "
-          "Click again to restore the original path.").format(mod=mod)
-    )
+    return _(
+        "Reverse ({mod}R)\n"
+        "Reverse the direction of all relationship paths shown, computing "
+        "the relationship from the other person's perspective. "
+        "Click again to restore the original path."
+    ).format(mod=mod)
+
 
 # ---------------------------------------------------------------------------
 # Tooltips
 # ---------------------------------------------------------------------------
 def get_tip_copy():
     mod = get_mod_key()
-    return (
-        _("Copy results ({mod}C)\n"
-          "Copy the entire contents of the results pane to the clipboard. "
-          "When the results text area has keyboard focus, "
-          "{mod}C copies only the selected text as usual.").format(mod=mod)
-    )
+    return _(
+        "Copy results ({mod}C)\n"
+        "Copy the entire contents of the results pane to the clipboard. "
+        "When the results text area has keyboard focus, "
+        "{mod}C copies only the selected text as usual."
+    ).format(mod=mod)
+
 
 def get_tip_copy_json():
     mod = get_mod_key()
-    return (
-        _("Copy JSON ({mod}J)\n"
-          "Copy the entire contents of the results pane as JSON to the clipboard. "
-          "Used only for debugging.").format(mod=mod)
-    )
+    return _(
+        "Copy JSON ({mod}J)\n"
+        "Copy the entire contents of the results pane as JSON to the clipboard. "
+        "Used only for debugging."
+    ).format(mod=mod)
+
 
 def get_tip_save():
     mod = get_mod_key()
     return _("Save ({mod}S)\nSave the results to a text file.").format(mod=mod)
 
+
 def get_tip_find():
     mod = get_mod_key()
-    return (
-        _("Find ({mod}F)\n"
-          "Type to filter the list of people. Search by any name variation. Use the filter box "
-          "to search by other information in a person's GEDCOM record, such as geographic location. "
-          "Press Enter to jump directly to the first match. "
-          "Use the checkboxes to show only people matching tags, allow fuzzy name matching "
-          "(including Cyrillic and Hebrew characters), or include married names.").format(mod=mod)
-    )
+    return _(
+        "Find ({mod}F)\n"
+        "Type to filter the list of people. Search by any name variation. Use the filter box "
+        "to search by other information in a person's GEDCOM record, such as geographic location or "
+        "occupation. Press Enter to jump directly to the first match. "
+        "Use the checkboxes to show only people matching tags, allow fuzzy name matching "
+        "(including Cyrillic and Hebrew characters), or include married names."
+    ).format(mod=mod)
+
 
 def get_tip_find_matches():
     mod = get_mod_key()
-    return (
-        _("Matches ({mod}N)\n"
-          "Show the closest tagged matches to the selected person. "
-          "The results are ranked by proximity to the selected person, with ties broken by "
-          "the number of tags (if any) associated with the match. "
-          "Use the 'Results' and 'Max Depth' settings to adjust how many results are returned and "
-          "how far to search within the tree.").format(mod=mod)
-    )
+    return _(
+        "Matches ({mod}N)\n"
+        "Show the closest tagged matches to the selected person. "
+        "The results are ranked by proximity to the selected person, with ties broken by "
+        "the number of tags (if any) associated with the match. "
+        "Use the 'Results' and 'Max Depth' settings to adjust how many results are returned and "
+        "how far to search within the tree."
+    ).format(mod=mod)
+
 
 def get_tip_filter():
     mod = get_mod_key()
-    return (
-        _("Filter ({mod}I)\n"
-          "Type to filter the list of people by any information in their GEDCOM record, "
-          "such as geographic location. This filter is applied in addition to the Find box above.").format(mod=mod)
-    )
+    return _(
+        "Filter ({mod}I)\n"
+        "Type to filter the list of people by any information in their GEDCOM record, "
+        "such as geographic location or occupation. This filter is applied in addition "
+        "to the Find box above."
+    ).format(mod=mod)
+
 
 TIP_TAG_KEYWORD = _(
     "Enter a keyword to filter the list of tags used for finding relationship paths. "
@@ -171,24 +191,42 @@ TIP_PAGE_MARKER = _(
     "Leave this blank to use only the tag keyword to find relationship paths."
 )
 
+
 def get_tip_set_home():
-    display = _shortcut_by_action('set_home').display
-    return _("Set Home Person ({display})\nSet the selected person as the home person for finding relationship paths.").format(display=display)
+    display = _shortcut_by_action("set_home").display
+    return _(
+        "Set Home Person ({display})\nSet the selected person as the home person for finding relationship paths."
+    ).format(display=display)
+
 
 def get_tip_show_person():
-    return _("Profile\nShow the selected person's biographical, family, tag, and optional full GEDCOM record details in the Display Pane.")
+    return _(
+        "Profile\nShow the selected person's biographical, family, tag, and optional full GEDCOM record details in the Display Pane."
+    )
+
 
 def get_tip_show_person_tree():
     mod = get_mod_key()
-    return _("Tree View ({mod}E)\nOpen the configured default tree view for the selected person. Shift-Click for Profile View.").format(mod=mod)
+    return _(
+        "Tree View ({mod}E)\nOpen the configured default tree view for the selected person."
+    ).format(mod=mod)
+
 
 def get_tip_select_tag():
     mod = get_mod_key()
-    return _("Select Tag for Finding Matches ({mod}T)\nSelect a tag to use when finding closest matches for the selected person.").format(mod=mod)
+    return _(
+        "Select tag for Finding Matches ({mod}T)\nSelect a tag (e.g. "DNA") to use when finding closest "
+        "matches for the selected person."
+    ).format(mod=mod)
+
 
 def get_tip_find_path():
     mod = get_mod_key()
-    return _("Paths ({mod}P)\nShow relationship paths between the selected person and a target person. The first time you enter Paths mode, choose the target person.").format(mod=mod)
+    return _(
+        "Paths ({mod}P)\nShow relationship paths between the selected person and a target person. "
+        "The first time you enter Paths mode, choose the target person."
+    ).format(mod=mod)
+
 
 TIP_TOP_N = _(
     "Number of Results\n"
@@ -202,13 +240,13 @@ TIP_MAX_DEPTH = _(
     " and relationship paths between two people."
     " Higher values will find more distant connections but will"
     " take longer to find in large trees. Reasonable values are"
-    " 10 for fast searching or 50 to find very distant but often"
+    " 10 for fast searching or 50 to find extremely distant but often"
     " interesting paths between people in your tree. To change this"
     " setting permanently, alter it in the preferences window."
 )
 TIP_FUZZY_THRESHOLD = _(
     "Fuzzy Threshold\n"
-    "Similarity cutoff for fuzzy name search, from 0.00 to 1.00."
+    "Similarity cutoff for fuzzy name search, from 0.00 to 1.00 (default 0.72)."
     " Lower values allow more matches; higher values are stricter."
 )
 TIP_MAX_DISPLAY = _(
@@ -217,17 +255,33 @@ TIP_MAX_DISPLAY = _(
     " Higher values may slow down filtering in very large trees."
 )
 
+
 def get_tip_dna_flagged_only():
     mod = get_mod_key()
-    return _("Toggle Tagged Only ({mod}D)\nWhen checked, only people flagged as tagged will be shown in search results. Default Tags are DNA-related, but you can set other tag terms. Default is unchecked to show all people, but checking this focusses on tagged matches in large trees.").format(mod=mod)
+    return _(
+        "Toggle Tagged Only ({mod}D)\nWhen checked, only people flagged as tagged will be shown in search results."
+        " Default Tags are DNA-related, but you can set other tag terms."
+        " Default is unchecked to show all people, but checking this focuses on tagged matches in large trees."
+    ).format(mod=mod)
+
 
 def get_tip_fuzzy():
     mod = get_mod_key()
-    return _("Toggle Fuzzy Search ({mod}U)\nAllow fuzzy name matching in search results. Fuzzy matching uses a similarity ratio to find names similar to the search term, which can help find matches when names are misspelled, have minor variations, or use cached Hebrew/Cyrillic transliterated aliases.").format(mod=mod)
+    return _(
+        "Toggle Fuzzy Search ({mod}U)\nAllow fuzzy name matching in search results."
+        " Fuzzy matching uses a similarity ratio to find names similar to the search term,"
+        " which can help find matches when names are misspelled, have minor variations,"
+        " or use cached Hebrew/Cyrillic transliterated aliases."
+    ).format(mod=mod)
+
 
 def get_tip_married_names():
-    display = _shortcut_by_action('toggle_married_name_search').display
-    return _("Toggle Married Names ({display})\nInclude women's married names in Find searches by combining each woman's given name with the last names of her husbands.").format(display=display)
+    display = _shortcut_by_action("toggle_married_name_search").display
+    return _(
+        "Toggle Married Names ({display})\nInclude women's married names in Find searches by"
+        " combining each woman's given name with the last names of her husbands."
+    ).format(display=display)
+
 
 # ---------------------------------------------------------------------------
 # Profile window
@@ -292,31 +346,51 @@ BTN_PEDIGREE_VIEW = _("Pedigree View")
 BTN_DESCENDANT_VIEW = _("Descendant View")
 BTN_PERSON_VIEW = _("Profile View")
 
+
 def get_tip_tree_view_btn():
     mod = get_mod_key()
-    return _("Tree View ({mod}T cycles views)\nShow the interactive family tree for this person.").format(mod=mod)
+    return _(
+        "Tree View ({mod}T cycles views)\nShow the interactive family tree for this person."
+    ).format(mod=mod)
+
 
 def get_tip_pedigree_view_btn():
     mod = get_mod_key()
-    return _("Pedigree View ({mod}T cycles views)\nShow this person's ancestors in a compact pedigree chart.").format(mod=mod)
+    return _(
+        "Pedigree View ({mod}T cycles views)\nShow this person's ancestors in a compact pedigree chart."
+    ).format(mod=mod)
+
 
 def get_tip_descendant_view_btn():
     mod = get_mod_key()
-    return _("Descendant View ({mod}T cycles views)\nShow this person's descendants with expandable child branches.").format(mod=mod)
+    return _(
+        "Descendant View ({mod}T cycles views)\nShow this person's descendants with expandable child branches."
+    ).format(mod=mod)
+
 
 def get_tip_person_view_btn():
     mod = get_mod_key()
-    return _("Profile View ({mod}T cycles views)\nShow the biographical profile for this person.").format(mod=mod)
+    return _(
+        "Profile View ({mod}T cycles views)\nShow the biographical profile for this person."
+    ).format(mod=mod)
+
 
 DLG_SAVE_PROFILE = _("Save profile")
 
+
 def get_tip_save_profile():
     mod = get_mod_key()
-    return _("Save profile ({mod}S)\nSave this biographical profile to a text file.").format(mod=mod)
+    return _(
+        "Save profile ({mod}S)\nSave this biographical profile to a text file."
+    ).format(mod=mod)
+
 
 def get_tip_copy_profile():
     mod = get_mod_key()
-    return _("Copy profile ({mod}C)\nCopy this biographical profile to clipboard.").format(mod=mod)
+    return _(
+        "Copy profile ({mod}C)\nCopy this biographical profile to clipboard."
+    ).format(mod=mod)
+
 
 WIN_FAMILY_TREE = _("Family Tree: {name}")
 WIN_PEDIGREE_TREE = _("Pedigree Tree: {name}")
@@ -361,11 +435,11 @@ RESULT_HOME_PATH_LOADING = _("Calculating path…")
 RESULT_NO_HOME_PATH = _("None found within the current max depth.")
 
 EDGE_LABELS = {
-    'father': _('father'),
-    'mother': _('mother'),
-    'sibling': _('sibling'),
-    'spouse': _('spouse'),
-    'child': _('child'),
+    "father": _("father"),
+    "mother": _("mother"),
+    "sibling": _("sibling"),
+    "spouse": _("spouse"),
+    "child": _("child"),
 }
 WIN_PATH_GRAPH = _("Relationship Graph")
 DLG_SAVE_RESULTS = _("Save results")
@@ -382,23 +456,38 @@ BTN_SEARCH_GRAPH = _("Search")
 BTN_JUMP_GRAPH = _("Jump")
 BTN_DEBUG_GRAPH = _("Debug JSON")
 
+
 def get_tip_save_graph():
     mod = get_mod_key()
-    return _("Save graphic ({mod}S)\nSave this graphical representation to a file.").format(mod=mod)
+    return _(
+        "Save graphic ({mod}S)\nSave this graphical representation to a file."
+    ).format(mod=mod)
+
 
 def get_tip_copy_graph():
     mod = get_mod_key()
-    return _("Copy graphic ({mod}C)\nCopy this graphical representation to clipboard.").format(mod=mod)
+    return _(
+        "Copy graphic ({mod}C)\nCopy this graphical representation to clipboard."
+    ).format(mod=mod)
+
 
 def get_tip_search_graph():
     mod = get_mod_key()
-    return _("Search ({mod}F)\nSelect a person and make them the center of this graphical view.").format(mod=mod)
+    return _(
+        "Search ({mod}F)\nSelect a person and make them the center of this graphical view."
+    ).format(mod=mod)
+
 
 def get_tip_jump_graph():
     mod = get_mod_key()
-    return _("Jump ({mod}J)\nPan to a person who is already visible in this graph view.").format(mod=mod)
+    return _(
+        "Jump ({mod}J)\nPan to a person who is already visible in this graph view."
+    ).format(mod=mod)
 
-TIP_DEBUG_GRAPH = _("Save layout debug JSON (Ctrl+Shift+D)\nExport graph layout data without person names.")
+
+TIP_DEBUG_GRAPH = _(
+    "Save layout debug JSON (Ctrl+Shift+D)\nExport graph layout data without person names."
+)
 TIP_SHOW_PARENTS = _("Show parents")
 TIP_HIDE_PARENTS = _("Hide parents")
 TIP_SHOW_SIBLINGS = _("Show siblings")
@@ -447,7 +536,7 @@ BTN_SELECT = _("Select")
 # ---------------------------------------------------------------------------
 # Preferences dialog
 # ---------------------------------------------------------------------------
-WIN_PREFERENCES = _("Settings") if sys.platform == 'darwin' else _("Preferences")
+WIN_PREFERENCES = _("Settings") if sys.platform == "darwin" else _("Preferences")
 FRAME_APPEARANCE = _("Appearance")
 FRAME_FONT_SIZE = _("Font size")
 FONT_SMALL = _("Small")
@@ -488,14 +577,20 @@ LBL_CACHE_NOTE = _("Remove all cached GEDCOM data")
 LBL_LANGUAGE = _("Language:")
 LANG_SYSTEM = _("System Default")
 LBL_LANGUAGE_CHANGED = _("Language Changed")
-MSG_LANGUAGE_CHANGED = _("Language changed from {old} to {new}. Please restart the application for the change to take effect.")
+MSG_LANGUAGE_CHANGED = _(
+    "Language changed from {old} to {new}. Please restart the application for the change to take effect."
+)
 
 # ---------------------------------------------------------------------------
 # Search progress popup
 # ---------------------------------------------------------------------------
 PROGRESS_SEARCHING_TITLE = _("Searching")
-PROGRESS_SEARCHING = _("Searching for tagged matches…\n(reduce 'max depth' setting for faster search)")
-PROGRESS_FINDING_PATH = _("Finding relationship paths…\n(reduce 'max depth' setting for faster search)")
+PROGRESS_SEARCHING = _(
+    "Searching for tagged matches…\n(reduce 'max depth' setting for faster search)"
+)
+PROGRESS_FINDING_PATH = _(
+    "Finding relationship paths…\n(reduce 'max depth' setting for faster search)"
+)
 PROGRESS_EXPANDING_DESCENDANTS = _("Expanding descendant branches…")
 
 # ---------------------------------------------------------------------------
@@ -509,7 +604,9 @@ STATUS_SHOWING_FIRST = _(
     "Showing first {max_display:,} of {total_matches:,} matches. "
     "Refine your search.  ({total:,} total, {flagged} tagged)"
 )
-STATUS_MATCHES = _("{shown:,} match{plural} shown.  ({total:,} total, {flagged} tagged)")
+STATUS_MATCHES = _(
+    "{shown:,} match{plural} shown.  ({total:,} total, {flagged} tagged)"
+)
 STATUS_OVERVIEW = _(
     "{total:,} individuals, {families:,} families, "
     "{flagged} tagged.  Type to search."
@@ -546,8 +643,7 @@ ERR_SAVE_GRAPH_DEBUG_MSG = _("Could not save graph layout debug data:\n\n{error}
 ERR_SAVE_RESULTS_MSG = _("Could not save results:\n\n{error}")
 ERR_SAVE_PROFILE_MSG = _("Could not save profile:\n\n{error}")
 ERR_GEDCOM_NOT_FOUND_MSG = _(
-    "GEDCOM file not found:\n{path}\n\n"
-    "Use Browse… to choose a different file."
+    "GEDCOM file not found:\n{path}\n\n" "Use Browse… to choose a different file."
 )
 
 # ---------------------------------------------------------------------------
@@ -590,39 +686,47 @@ BTN_WT_FINISH = _("Finish")
 WT_LIST_TITLE = _("People list")
 WT_LIST_BODY = _(
     "Everyone in your GEDCOM file appears here. Select a person to view "
-    "their profile, find DNA matches, or trace relationship paths.")
+    "their profile, find tag matches (such as DNA), or trace relationship paths."
+)
 WT_RESULTS_TITLE = _("Results pane")
 WT_RESULTS_BODY = _(
     "Profiles, tag matches (such as DNA), and relationship paths are shown here. "
-    "Names and relationship descriptions in this pane are clickable.")
+    "Names and relationship descriptions in this pane are clickable."
+)
 WT_STATUS_TITLE = _("Status bar")
 WT_STATUS_BODY = _(
     "Shows the loaded file and progress, and holds the Save and Copy buttons "
-    "for the current results.")
+    "for the current results."
+)
 WT_PERSON_LINK_TITLE = _("Clickable names")
 WT_PERSON_LINK_BODY = _(
     "Click any person's name in the results to jump to their profile. Use the "
-    "Use Back and Forward keyboard shortcuts to retrace your steps.")
+    "Back and Forward keyboard shortcuts (Alt-Left and Alt-Right) to retrace your steps."
+)
 WT_REL_LINK_TITLE = _("Clickable relationships")
 WT_REL_LINK_BODY = _(
     "Click an underlined relationship description to open it as a relationship "
-    "graph showing how the two people are connected.")
+    "graph showing how the two people are connected."
+)
 WT_MODES_TITLE = _("Display modes")
 WT_MODES_BODY = _(
     "Switch the right pane between Profile, Tag Matches (e.g. DNA Tags), "
     "and Relationship Paths for the selected person. Selecting 'Paths' "
-    "will prompt you to choose another person to find paths to.")
+    "will prompt you to choose another person to find paths to."
+)
 WT_MATCHES_SETTINGS_TITLE = _("Match tag settings")
 WT_MATCHES_SETTINGS_BODY = _(
     "In Matches mode, set the tag keyword and page marker that identify "
-    "tagged people (e.g. 'DNA'), or pick an existing tag from your file.")
+    "tagged people (e.g. 'DNA'), or pick an existing tag from your file."
+)
 WT_NODE_MENU_TITLE = _("Tree View menu")
 WT_NODE_MENU_BODY = _(
-    "Right-click (or click) any person in the tree view for quick actions: "
-    "{items}.")
+    "Right-click (or click) any person in the tree view for quick actions: " "{items}."
+)
 WT_SAMPLE_NOTICE = _(
     "A sample family tree has been loaded so you can try these features. It "
-    "will be unloaded when the walkthrough ends.")
+    "will be unloaded when the walkthrough ends."
+)
 
 COL_SHORTCUT = _("Shortcut")
 COL_ACTION = _("Action")
@@ -643,10 +747,13 @@ UPDATE_OPEN_RELEASES = _("Open GitHub Releases")
 # ---------------------------------------------------------------------------
 FILE_ASSOC_PROMPT_TITLE = _("Set as Default")
 FILE_ASSOC_PROMPT_MSG = _(
-    "Would you like GEDCOM Navigator to open .ged files by default?")
+    "Would you like GEDCOM Navigator to open .ged files by default?"
+)
 FILE_ASSOC_FAILED_TITLE = _("Could Not Set Default")
 FILE_ASSOC_FAILED_MSG = _(
-    "GEDCOM Navigator could not register as the default .ged handler.")
+    "GEDCOM Navigator could not register as the default .ged handler."
+)
+
 
 def get_keyboard_shortcut_rows():
     actions = {
@@ -664,8 +771,7 @@ def get_keyboard_shortcut_rows():
         "set_home": _("Set Home person to the selected person"),
         "display_paths": _("Switch the Display Pane to Paths"),
         "select_tag": _("Select new tag for finding relationship paths"),
-        "reverse_results": _(
-            "Reverse/restore the direction of all relationship paths"),
+        "reverse_results": _("Reverse/restore the direction of all relationship paths"),
         "save_results": _("Save results to a text file"),
         "copy_results": _("Copy result to clipboard"),
         "back": _("Go back to the previous view"),
