@@ -39,7 +39,7 @@ from gedcom_gui_results import ResultsMixin
 from gedcom_platform import configure_process_identity
 from gedcom_theme import THEME_NAMES, get_flag_bg, ttk_colors
 from gedcom_tooltip import Tooltip
-from gedcom_zoom import TextZoomController
+from gedcom_zoom import TextZoomController, scaled_tag_font
 from gedcom_gui_appearance import AppearanceMixin
 from gedcom_gui_dialogs import DialogsMixin
 from gedcom_walkthrough import WalkthroughMixin
@@ -279,17 +279,12 @@ class GedcomNavigatorApp(
     def _results_bold_font(self, size):
         """Bold mono font tuple for the results textbox, pre-scaled to match CTk.
 
-        CTkTextbox scales its (unscaled) base tuple font by the widget scaling,
-        but the 'bold' tag is set directly on the inner tk.Text and so bypasses
-        that scaling.  Multiply here so bold headers match the body at high DPI.
-        get_widget_scaling is 1.0 off Windows, leaving other platforms intact.
+        See gedcom_zoom.scaled_tag_font: the 'bold' tag is set directly on the
+        inner tk.Text and bypasses CTk's widget scaling, so it must be scaled
+        here to match the body at high DPI.
         """
-        try:
-            scale = ctk.ScalingTracker.get_widget_scaling(self.results)
-        except Exception:  # pylint: disable=broad-exception-caught
-            log_exception("reading CTk widget scaling for results bold font")
-            scale = 1.0
-        return (self._mono_family, max(1, round(size * scale)), 'bold')
+        return scaled_tag_font(
+            self.results, self._mono_family, size, weight='bold')
 
     def _configure_tree_columns(self):
         """Size fixed Treeview columns from the current UI font metrics."""

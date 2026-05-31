@@ -189,6 +189,41 @@ def test_main_window_loads_fixture_and_exercises_core_views(gui_app, tmp_path):
 
 
 @pytest.mark.gui
+def test_results_bold_tag_tracks_widget_scaling(gui_app, tmp_path):
+    """The results 'bold' tag must scale with CTk widget scaling so bold person
+    names/headers don't render tiny next to the scaled base font at high DPI.
+
+    Regression: _insert_person_profile (the default Profile render) reconfigured
+    the shared 'bold' tag with an UNSCALED font, which then made the Matches
+    bold rank-names tiny at 300%.  Forcing widget scaling to 2.0 makes the
+    scaled and unscaled sizes differ so the regression is detectable.
+    """
+    import customtkinter as ctk
+    import tkinter.font as tkfont
+
+    app = gui_app
+    root = app.root
+    ged_path = tmp_path / "scale.ged"
+    ged_path.write_text(GUI_GED, encoding="utf-8")
+    app.gedcom_path.set(str(ged_path))
+    app._load_file()
+    _mainloop_until(root, lambda: not app._busy and len(app.individuals) == 3)
+    assert app._select_person_in_main_tree("@I1@")
+
+    ctk.set_widget_scaling(2.0)
+    try:
+        app._set_display_mode("profile")
+        _pump_until(root, lambda: app.display_mode.get() == "profile")
+        scale = ctk.ScalingTracker.get_widget_scaling(app.results)
+        assert scale == pytest.approx(2.0, abs=0.01)
+        spec = app.results._textbox.tag_cget("bold", "font")
+        size = abs(tkfont.Font(root=root, font=spec).cget("size"))
+        assert size == round(app._mono_size * scale)
+    finally:
+        ctk.set_widget_scaling(1.0)
+
+
+@pytest.mark.gui
 def test_tree_view_opens_when_zoomed_attribute_raises(gui_app, tmp_path, monkeypatch):
     """Tree view must not crash when win.attributes('-zoomed', True) raises TclError.
 

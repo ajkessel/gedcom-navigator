@@ -28,7 +28,7 @@ from gedcom_platform import filedialog_parent
 from gedcom_relationship import _extract_event
 from gedcom_strings import *  # pylint: disable=unused-wildcard-import
 from gedcom_tooltip import Tooltip
-from gedcom_zoom import TextZoomController, bind_zoom_shortcuts
+from gedcom_zoom import TextZoomController, bind_zoom_shortcuts, scaled_tag_font
 
 
 class PersonDialogMixin:
@@ -89,7 +89,9 @@ class PersonDialogMixin:
     ):
         """Insert the textual profile for current_id into a textbox."""
         text._textbox.tag_configure(
-            "bold", font=(self._mono_family, self._mono_size, "bold")
+            "bold",
+            font=scaled_tag_font(
+                text, self._mono_family, self._mono_size, weight="bold"),
         )
         text._textbox.tag_configure("person_link")
         text._textbox.tag_bind(
@@ -656,7 +658,9 @@ class PersonDialogMixin:
             def _apply_person_zoom(size):
                 text.configure(font=(self._mono_family, size))
                 text._textbox.tag_configure(
-                    "bold", font=(self._mono_family, size, "bold")
+                    "bold",
+                    font=scaled_tag_font(
+                        text, self._mono_family, size, weight="bold"),
                 )
 
             state["zoom_controller"] = TextZoomController(
