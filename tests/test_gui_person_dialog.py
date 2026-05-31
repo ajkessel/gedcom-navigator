@@ -138,6 +138,29 @@ def test_tree_search_recenters_only_when_person_selected():
     assert recentered == ['@P1@']
 
 
+def test_add_canvas_highlighted_node_redraws_only_when_added():
+    """Tree jump highlighting redraws when it marks a newly selected person."""
+
+    class Canvas:
+        def __init__(self):
+            self._highlighted_nodes = {'@A@'}
+            self.redraws = 0
+            self._redraw_fn = self._redraw
+
+        def _redraw(self):
+            self.redraws += 1
+
+    canvas = Canvas()
+
+    added = PersonDialogMixin._add_canvas_highlighted_node(canvas, '@B@')
+    unchanged = PersonDialogMixin._add_canvas_highlighted_node(canvas, '@B@')
+
+    assert added is True
+    assert unchanged is False
+    assert canvas._highlighted_nodes == {'@A@', '@B@'}
+    assert canvas.redraws == 1
+
+
 def test_profile_home_path_appears_between_bio_and_full_gedcom():
     """Profile mode inserts the home path before later profile sections."""
 

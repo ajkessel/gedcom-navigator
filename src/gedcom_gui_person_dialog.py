@@ -47,6 +47,19 @@ class PersonDialogMixin:
             recenter_tree(indi_id)
         return indi_id
 
+    @staticmethod
+    def _add_canvas_highlighted_node(canvas, indi_id):
+        """Add indi_id to a graph canvas highlight set and redraw if needed."""
+        highlighted = set(getattr(canvas, "_highlighted_nodes", set()))
+        if indi_id in highlighted:
+            return False
+        highlighted.add(indi_id)
+        canvas._highlighted_nodes = highlighted
+        redraw = getattr(canvas, "_redraw_fn", None)
+        if redraw:
+            redraw()
+        return True
+
     def _default_tree_view_mode(self):
         """Return the configured initial tree view for person detail windows."""
         config = getattr(self, "_config", None)
@@ -1147,6 +1160,10 @@ class PersonDialogMixin:
                 )
                 if not indi_id:
                     return "break"
+                positions = getattr(canvas, "_family_tree_positions", {})
+                if indi_id not in positions:
+                    return "break"
+                self._add_canvas_highlighted_node(canvas, indi_id)
                 positions = getattr(canvas, "_family_tree_positions", {})
                 if indi_id not in positions:
                     return "break"
