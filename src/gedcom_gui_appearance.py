@@ -161,6 +161,38 @@ class AppearanceMixin:
         else:
             self._results_header_label.configure(fg_color='transparent')
 
+    def _ttk_dpi_scaling(self):
+        """CTk's effective widget scaling, for sizing ttk fonts/metrics on Windows.
+
+        ttk widgets and the named Tk fonts (set to negative pixels on Windows,
+        see _apply_font_size) do NOT scale with CTk's widget_scaling.  At high
+        DPI that leaves the people list, spinboxes and menus tiny while CTk
+        widgets render at full size.  Multiplying their pixel sizes / metrics by
+        this factor keeps them consistent with CTk.  Returns 1.0 off Windows or
+        on error (where Tk point sizes already track DPI)."""
+        if sys.platform != 'win32':
+            return 1.0
+        try:
+            return ctk.ScalingTracker.get_widget_scaling(self.root)
+        except Exception:  # pylint: disable=broad-exception-caught
+            log_exception("reading CTk widget scaling for ttk fonts")
+            return 1.0
+
+    def _recheck_ttk_scaling(self):
+        """Re-apply ttk font sizing if CTk's DPI scaling has changed.
+
+        Covers a startup race (CTk may settle its per-window DPI fractionally
+        after the first _apply_font_size) and moving the window to a monitor at
+        a different scale.  No-op when the factor is unchanged."""
+        if sys.platform != 'win32':
+            return
+        try:
+            current = self._ttk_dpi_scaling()
+            if current != getattr(self, '_applied_ttk_scaling', None):
+                self._apply_font_size(self._font_size_pref)
+        except Exception:  # pylint: disable=broad-exception-caught
+            log_exception("rechecking ttk DPI scaling")
+
     def _apply_font_size(self, size_name):
         """Apply a named font-size preset to CTk, monospace, and ttk fonts."""
         sizes = self._FONT_SIZES[size_name]
@@ -170,13 +202,17 @@ class AppearanceMixin:
         self._mono_font.configure(size=mono_sz)
         self._mono_font_bold.configure(size=mono_sz)
 
+        scaling = self._ttk_dpi_scaling()
+        self._applied_ttk_scaling = scaling
         for fname in ('TkDefaultFont', 'TkTextFont', 'TkMenuFont', 'TkSmallCaptionFont'):
             try:
                 # CTkFont stores sizes as negative pixels (size=-abs(px)).  On
                 # Windows with DPI virtualisation, Tk point sizes diverge from
                 # CTkFont pixel sizes, making mixed dialogs inconsistent.  Use
                 # the same negative-pixel convention so named fonts stay in sync.
-                sz = -ui_sz if sys.platform == 'win32' else ui_sz
+                # ttk does not honour CTk's widget_scaling, so pre-multiply the
+                # pixel size by it here to match CTk widgets at high DPI.
+                sz = -max(1, round(ui_sz * scaling)) if sys.platform == 'win32' else ui_sz
                 tkfont.nametofont(fname).configure(size=sz)
             except tk.TclError:
                 pass
@@ -224,11 +260,46 @@ class AppearanceMixin:
             else:
                 self.results.configure(font=(self._mono_family, mono_sz))
                 self.results._textbox.tag_configure(
-                    'bold', font=(self._mono_family, mono_sz, 'bold'))
+                    'bold', font=self._results_bold_font(mono_sz))
             if hasattr(self, '_results_header_label'):
                 self._results_header_label.configure(
                     font=ctk.CTkFont(size=mono_sz, weight='bold'))
             self.root.after(0, self._refit_windows)
+
+    def _work_area(self, win):  # pylint: disable=unused-argument
+        """Usable desktop rect (left, top, right, bottom) in PHYSICAL px.
+
+        Excludes the taskbar via SystemParametersInfo(SPI_GETWORKAREA) for the
+        primary monitor.  Windows only; returns None elsewhere or on error so
+        callers fall back to the full screen."""
+        if sys.platform != 'win32':
+            return None
+        try:
+            import ctypes  # pylint: disable=import-outside-toplevel
+            from ctypes import wintypes  # pylint: disable=import-outside-toplevel
+            rect = wintypes.RECT()
+            SPI_GETWORKAREA = 0x0030
+            if ctypes.windll.user32.SystemParametersInfoW(
+                    SPI_GETWORKAREA, 0, ctypes.byref(rect), 0):
+                return rect.left, rect.top, rect.right, rect.bottom
+        except Exception:  # pylint: disable=broad-exception-caught
+            log_exception("querying Windows work area")
+        return None
+
+    def _win_scalings(self, win):
+        """(window_scaling, widget_scaling) that CTk applies to *win*.
+
+        Returns (1.0, 1.0) for non-CTk windows — whose geometry() and child
+        widgets CTk does not scale — and on error, so Tk pixels and CTk design
+        units are interchangeable in that case."""
+        if not isinstance(win, (ctk.CTk, ctk.CTkToplevel)):
+            return 1.0, 1.0
+        try:
+            return (float(ctk.ScalingTracker.get_window_scaling(win)),
+                    float(ctk.ScalingTracker.get_widget_scaling(win)))
+        except Exception:  # pylint: disable=broad-exception-caught
+            log_exception("reading CTk scalings for window fit")
+            return 1.0, 1.0
 
     def _fit_window_to_content(
         self,
@@ -242,65 +313,106 @@ class AppearanceMixin:
         center_on_root=True,
         preserve_position=False,
     ):
-        """Size a window from requested content, clamped to the visible screen."""
+        """Size a window from requested content, clamped to the visible screen.
+
+        Size arguments (min_*, preferred_*) and the returned size are in CTk
+        *design* units — the unit CTk's geometry()/minsize() multiply by the
+        window scaling.  winfo_* values are raw Tk pixels and are converted to
+        design units here so the whole calculation lives in one space and the
+        window still fits after CTk applies DPI scaling.  Position (x/y) stays
+        in Tk pixels because CTk's geometry() passes x/y through unscaled.
+        At scaling 1.0 (macOS, Linux, non-virtualised Windows) every conversion
+        is a no-op, leaving prior behaviour unchanged.
+        """
         win.update_idletasks()
         self.root.update_idletasks()
 
-        req_w = win.winfo_reqwidth()
-        req_h = win.winfo_reqheight()
+        ws, wd = self._win_scalings(win)
+
+        # Requested content size (winfo_reqwidth is Tk px, widget-scaled).
+        req_w = win.winfo_reqwidth() / wd
+        req_h = win.winfo_reqheight() / wd
         target_w = max(req_w, preferred_w or 0, min_w)
         target_h = max(req_h, preferred_h or 0, min_h)
 
-        screen_w = win.winfo_screenwidth()
-        screen_h = win.winfo_screenheight()
+        # Usable desktop in PHYSICAL px.  winfo_screenwidth() is reported in
+        # *logical* pixels (== CTk design units), so the full physical screen is
+        # screenwidth*ws; the work area (taskbar excluded) is already physical.
+        phys_w = win.winfo_screenwidth() * ws
+        phys_h = win.winfo_screenheight() * ws
+        origin_x = origin_y = 0
+        avail_w_phys, avail_h_phys = phys_w, phys_h
+        wa = self._work_area(win)
+        if wa:
+            wa_l, wa_t, wa_r, wa_b = wa
+            awp, ahp = wa_r - wa_l, wa_b - wa_t
+            # Guard against a DPI-unit mismatch: the work area must be a large
+            # fraction of, and no larger than, the physical screen.
+            if (0.3 * phys_w <= awp <= 1.02 * phys_w
+                    and 0.3 * phys_h <= ahp <= 1.02 * phys_h):
+                origin_x, origin_y = wa_l, wa_t
+                avail_w_phys, avail_h_phys = awp, ahp
+
+        # Size clamp works in design units (physical available area / ws).
+        avail_w = avail_w_phys / ws
+        avail_h = avail_h_phys / ws
         margin = 32
-        max_w = max(min_w, min(
-            int(screen_w * max_screen_ratio), screen_w - margin))
-        max_h = max(min_h, min(
-            int(screen_h * max_screen_ratio), screen_h - margin))
+        # No min_w/min_h floor here: when the usable area is genuinely smaller
+        # than the preferred minimum (e.g. a high-DPI panel at 300%), the window
+        # must shrink to fit rather than overflow off-screen.
+        max_w = max(1, min(int(avail_w * max_screen_ratio), int(avail_w) - margin))
+        max_h = max(1, min(int(avail_h * max_screen_ratio), int(avail_h) - margin))
         w = min(target_w, max_w)
         h = min(target_h, max_h)
 
-        win.minsize(min(min_w, max_w), min(min_h, max_h))
+        win.minsize(round(min(min_w, max_w)), round(min(min_h, max_h)))
 
+        # x/y are passed through CTk geometry() UNSCALED, i.e. in physical Tk px.
+        # The window occupies w*ws physical px; winfo_x()/winfo_width() are the
+        # raw stored geometry (already physical) and combine directly with w_tk.
+        w_tk = w * ws
+        h_tk = h * ws
         if preserve_position:
             x = win.winfo_x()
             y = win.winfo_y()
         elif center_on_root and win is not self.root:
-            root_x = self.root.winfo_x()
-            root_y = self.root.winfo_y()
-            root_w = self.root.winfo_width()
-            root_h = self.root.winfo_height()
-            x = root_x + (root_w - w) // 2
-            y = root_y + (root_h - h) // 2
+            x = self.root.winfo_x() + (self.root.winfo_width() - w_tk) // 2
+            y = self.root.winfo_y() + (self.root.winfo_height() - h_tk) // 2
         else:
-            x = (screen_w - w) // 2
-            y = (screen_h - h) // 2
+            x = origin_x + (avail_w_phys - w_tk) // 2
+            y = origin_y + (avail_h_phys - h_tk) // 2
 
-        x = max(0, min(x, screen_w - w))
-        y = max(0, min(y, screen_h - h))
-        win.geometry(f"{w}x{h}+{x}+{y}")
+        x = int(max(origin_x, min(x, origin_x + avail_w_phys - w_tk)))
+        y = int(max(origin_y, min(y, origin_y + avail_h_phys - h_tk)))
+        win.geometry(f"{round(w)}x{round(h)}+{x}+{y}")
 
         if getattr(self, '_debug', False):
             log_debug(
                 f'[debug] fit_window {win.title()!r}: '
-                f'req={req_w}x{req_h}  preferred={preferred_w}x{preferred_h}  '
-                f'min={min_w}x{min_h}  screen={screen_w}x{screen_h}  '
-                f'max={max_w}x{max_h}  -> {w}x{h}'
+                f'req={req_w:.0f}x{req_h:.0f}  '
+                f'preferred={preferred_w}x{preferred_h}  min={min_w}x{min_h}  '
+                f'avail_design={avail_w:.0f}x{avail_h:.0f} '
+                f'(phys {avail_w_phys:.0f}x{avail_h_phys:.0f} @ +{origin_x}+{origin_y})  '
+                f'max={max_w}x{max_h}  -> {round(w)}x{round(h)} design '
+                f'(phys {round(w_tk)}x{round(h_tk)}) +{x}+{y}  '
+                f'scaling ws={ws} wd={wd}'
             )
 
-        return w, h
+        return round(w), round(h)
 
     def _refit_windows(self):
         """Grow open windows as needed to fit the current font metrics."""
         if hasattr(self, '_refresh_main_pane_layout'):
             self._refresh_main_pane_layout()
+        # winfo_width()/height() are Tk px; _fit_window_to_content expects the
+        # preferred size in CTk design units, so divide by the window scaling.
+        root_ws, _ = self._win_scalings(self.root)
         self._fit_window_to_content(
             self.root,
             min_w=1000,
             min_h=500,
-            preferred_w=self.root.winfo_width(),
-            preferred_h=self.root.winfo_height(),
+            preferred_w=self.root.winfo_width() / root_ws,
+            preferred_h=self.root.winfo_height() / root_ws,
             max_screen_ratio=0.92,
             center_on_root=False,
             preserve_position=True,
@@ -314,10 +426,11 @@ class AppearanceMixin:
             except tk.TclError:
                 pass
             try:
+                win_ws, _ = self._win_scalings(win)
                 self._fit_window_to_content(
                     win,
-                    preferred_w=win.winfo_width(),
-                    preferred_h=win.winfo_height(),
+                    preferred_w=win.winfo_width() / win_ws,
+                    preferred_h=win.winfo_height() / win_ws,
                     preserve_position=True,
                 )
             except tk.TclError:
@@ -390,7 +503,10 @@ class AppearanceMixin:
                   background=[('selected', sel_bg)],
                   foreground=[('selected', sel_fg)])
 
-        row_h = tkfont.nametofont('TkDefaultFont').metrics('linespace') + 6
+        # TkDefaultFont metrics already reflect the DPI-scaled pixel size (see
+        # _apply_font_size); scale the literal padding too so rows stay roomy.
+        row_h = (tkfont.nametofont('TkDefaultFont').metrics('linespace')
+                 + round(6 * self._ttk_dpi_scaling()))
         style.configure('Treeview', font='TkDefaultFont', rowheight=row_h)
         style.configure('Treeview.Heading', font='TkDefaultFont')
 

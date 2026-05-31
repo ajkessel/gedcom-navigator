@@ -549,12 +549,12 @@ BTN_WT_FINISH = _("Finish")
 # (title, body) pair; widgets that already carry a tooltip reuse that text.
 WT_LIST_TITLE = _("People list")
 WT_LIST_BODY = _(
-    "Everyone in the loaded GEDCOM file appears here. Select a person to view "
+    "Everyone in your GEDCOM file appears here. Select a person to view "
     "their profile, find DNA matches, or trace relationship paths.")
 WT_RESULTS_TITLE = _("Results pane")
 WT_RESULTS_BODY = _(
-    "Profiles, DNA matches, and relationship paths are shown here. Names and "
-    "relationship descriptions in this pane are clickable.")
+    "Profiles, tag matches (such as DNA), and relationship paths are shown here. "
+    "Names and relationship descriptions in this pane are clickable.")
 WT_STATUS_TITLE = _("Status bar")
 WT_STATUS_BODY = _(
     "Shows the loaded file and progress, and holds the Save and Copy buttons "

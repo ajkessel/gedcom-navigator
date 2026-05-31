@@ -64,11 +64,46 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
         min_h=_PREFS_MIN_HEIGHT,
         max_screen_ratio=0.9,
     ):
-        """Return the compact Preferences height for current content metrics."""
-        content_h = outer.winfo_reqheight() + 32
-        btn_h = btn_frame.winfo_reqheight() + 16
+        """Return the compact Preferences height in CTk design units.
+
+        winfo_reqheight() is physical Tk px, so divide by the widget scaling to
+        get design units (comparable to win.geometry(), which CTk reverse-scales
+        to design units, and safe as a design-unit preferred_h).  The screen_h
+        argument (winfo_screenheight) is already logical == design.  At scaling
+        1.0 this is a no-op."""
+        try:
+            scale = ctk.ScalingTracker.get_widget_scaling(outer)
+        except Exception:  # pylint: disable=broad-exception-caught
+            scale = 1.0
+        content_h = outer.winfo_reqheight() / scale + 32
+        btn_h = btn_frame.winfo_reqheight() / scale + 16
         max_h = max(min_h, min(int(screen_h * max_screen_ratio), screen_h - 32))
-        return max(min_h, min(content_h + btn_h, max_h))
+        return round(max(min_h, min(content_h + btn_h, max_h)))
+
+    @staticmethod
+    def _preferences_dialog_target_width(
+        outer,
+        screen_w,
+        *,
+        min_w=_PREFS_MIN_WIDTH,
+        overhead=_PREFS_LANG_WIDTH_OVERHEAD,
+        max_screen_ratio=0.9,
+    ):
+        """Return the Preferences width in CTk design units to fit content rows.
+
+        The content lives in a CTkScrollableFrame, which clips horizontal
+        overflow and does not widen the window for wide rows (e.g. the font/theme
+        CTkRadioButton rows), so the width is derived from outer's requested
+        width plus the scrollbar/padding overhead.  winfo_reqwidth() is physical
+        Tk px → /scale; screen_w (winfo_screenwidth) is already logical ==
+        design.  At scaling 1.0 this is a no-op."""
+        try:
+            scale = ctk.ScalingTracker.get_widget_scaling(outer)
+        except Exception:  # pylint: disable=broad-exception-caught
+            scale = 1.0
+        content_w = outer.winfo_reqwidth() / scale + overhead
+        max_w = max(min_w, min(int(screen_w * max_screen_ratio), screen_w - 32))
+        return round(max(min_w, min(content_w, max_w)))
 
     @staticmethod
     def _preferences_dialog_width(win, *, min_w=_PREFS_MIN_WIDTH):
@@ -612,8 +647,8 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
                      font=ctk.CTkFont(weight='bold')).pack(
             anchor='nw', padx=12, pady=(8, 4))
 
-        # Resolve the CTkFrame background so ttk.Radiobutton blends in.
-        # Walk up _fg_color chain past any transparent frames.
+        # Resolve the CTkFrame background so the native macOS tk.Radiobutton
+        # blends in.  Walk up _fg_color chain past any transparent frames.
         def _section_bg(frame):
             try:
                 fg = frame._fg_color
@@ -624,37 +659,20 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
             except AttributeError:
                 return frame.cget('background')
 
-        # On Windows/Linux, stamp the CTkFrame colour onto a named ttk style so
-        # ttk.Radiobutton blends in.  On macOS the Aqua ttk theme ignores the
-        # background style option; tk.Radiobutton (same native indicator, but
-        # classic widget) does respect it, so we use that instead.
-        _rb_style = ttk.Style()
-
-        # Match ttk.Radiobutton font to CTkFont pixel sizing.  CTkFont.cget('size')
-        # returns the positive pixel count; negate on Windows to use Tk's pixel
-        # notation so the radiobutton text renders at the same size as CTkLabel.
-        try:
-            _ctk_font_obj = ctk.CTkFont()
-            _size = _ctk_font_obj.cget('size')
-            _rb_font = (_ctk_font_obj.cget('family'),
-                        -_size if sys.platform == 'win32' else _size)
-        except Exception:  # pylint: disable=broad-exception-caught
-            log_exception("building preferences radiobutton font")
-            _rb_font = None
-
         def _radiobutton(parent, *, text, variable, value):
+            # On macOS the Aqua ttk theme ignores background styling, so the
+            # classic tk.Radiobutton (native indicator) is used and tinted to
+            # match the section.  Elsewhere use CTkRadioButton: unlike
+            # ttk.Radiobutton (whose clam indicator is a fixed size and whose
+            # text needs manual DPI scaling), it scales both indicator and text
+            # with CTk's widget scaling, so it stays correct at high DPI.
             if sys.platform == 'darwin':
                 bg = _section_bg(parent)
                 return tk.Radiobutton(parent, text=text, variable=variable,
                                       value=value, background=bg,
                                       activebackground=bg, highlightthickness=0)
-            if sys.platform != 'darwin':
-                style_kw = {'background': _section_bg(parent)}
-                if _rb_font:
-                    style_kw['font'] = _rb_font
-                _rb_style.configure('Pref.TRadiobutton', **style_kw)
-            return ttk.Radiobutton(parent, text=text, variable=variable,
-                                   value=value, style='Pref.TRadiobutton')
+            return ctk.CTkRadioButton(parent, text=text, variable=variable,
+                                      value=value)
 
         # Font size row
         font_row = ctk.CTkFrame(appearance_section, fg_color='transparent')
@@ -952,19 +970,25 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
 
         _pre_target_h = self._preferences_dialog_target_height(
             outer, btn_frame, win.winfo_screenheight())
+        _pre_target_w = self._preferences_dialog_target_width(
+            outer, win.winfo_screenwidth())
 
         self._fit_window_to_content(
             win,
             min_w=self._PREFS_MIN_WIDTH,
             min_h=self._PREFS_MIN_HEIGHT,
+            preferred_w=_pre_target_w,
             preferred_h=_pre_target_h,
         )
 
         def _correct_prefs_height():
             # Re-layout at the actual window width and resize if the pre-computed
-            # height was off.  Early Configure events can still report a width
-            # of 1, so fall back to the known window width minus the same
-            # scrollbar/padding allowance used for the pre-layout pass.
+            # size was off.  Early Configure events can still report a width of 1,
+            # so fall back to the known window width minus the same
+            # scrollbar/padding allowance used for the pre-layout pass.  CTk
+            # widgets (notably the font/theme CTkRadioButton rows) only report
+            # their full requested size once the window is mapped, so this
+            # post-show pass is the authoritative width correction too.
             lang_width = lang_btns_frame.winfo_width()
             if lang_width <= 1:
                 lang_width = (
@@ -975,14 +999,19 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
             win.update_idletasks()
             target_h = self._preferences_dialog_target_height(
                 outer, btn_frame, win.winfo_screenheight())
+            target_w = self._preferences_dialog_target_width(
+                outer, win.winfo_screenwidth())
             geo = win.geometry()
-            current_h = int(geo.split('x')[1].split('+')[0])
-            if abs(target_h - current_h) > 4:
-                fw = geo.split('x')[0]
+            cur_w = int(geo.split('x')[0])
+            cur_h = int(geo.split('x')[1].split('+')[0])
+            # Only grow width (content must fit); snap height to target.
+            new_w = max(cur_w, target_w)
+            new_h = target_h if abs(target_h - cur_h) > 4 else cur_h
+            if new_w != cur_w or new_h != cur_h:
                 pos = geo.split('+', 1)[1]
                 # Unlock CTkToplevel's scaling maxsize before resizing.
                 win.maxsize(10000, 10000)
-                win.geometry(f'{fw}x{target_h}+{pos}')
+                win.geometry(f'{new_w}x{new_h}+{pos}')
 
         for _i in range(self._PREFS_PRE_SHOW_SETTLE_PASSES):
             _correct_prefs_height()
