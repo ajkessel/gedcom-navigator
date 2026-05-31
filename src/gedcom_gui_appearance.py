@@ -909,7 +909,7 @@ class AppearanceMixin:
 
         app_menu = tk.Menu(menubar, tearoff=0, **_popup_kw)
         self._app_menu = app_menu
-        menubar.add_cascade(label=MENU_MENU, underline=0, menu=app_menu)
+        menubar.add_cascade(label=MENU_HELP, underline=0, menu=app_menu)
         if sys.platform == 'darwin':
             self.root.createcommand(
                 '::tk::mac::ShowPreferences', self._show_preferences)
