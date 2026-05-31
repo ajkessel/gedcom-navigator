@@ -139,6 +139,9 @@ pyinstaller --noconfirm ./dev/gedcom_navigator_gui.spec || {
 # signing/notarization, as install_name_tool invalidates signatures.
 ./dev/fix-dylib-paths.sh "dist/gedcom-navigator.app" || {
 	echo 'Failed to rewrite bundled dylib paths.'
+	# Remove the half-built bundle so a later App Store build cannot silently
+	# pick up a dist that still references absolute Homebrew paths.
+	rm -rf "dist/gedcom-navigator.app"
 	exit 1
 }
 # install_name_tool invalidates the signatures PyInstaller applied, so re-sign
