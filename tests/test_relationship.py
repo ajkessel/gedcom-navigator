@@ -10,6 +10,8 @@ from gedcom_relationship import (
     find_common_ancestors,
     get_ancestor_depths,
     get_descendant_depths,
+    parent_child_relationship,
+    sibling_relationship,
 )
 
 
@@ -41,8 +43,9 @@ def _make_indi_full(id, sex="", famc=None, fams=None):
     }
 
 
-def _make_fam(id, husb=None, wife=None, chil=None):
+def _make_fam(id, husb=None, wife=None, chil=None, child_links=None):
     return {"id": id, "husb": husb, "wife": wife, "chil": chil or [],
+            "child_links": child_links or {},
             "marr_date": "", "marr_place": ""}
 
 
@@ -626,6 +629,63 @@ class TestGraphAwareCompaction:
 
         assert describe_relationship(path, indiv, families=fams) == (
             "brother's mother")
+
+    def test_non_biological_parentage_is_not_common_ancestor(self):
+        indiv = {
+            "@A@": _make_indi_full("@A@", "M", famc=["@F1@"]),
+            "@B@": _make_indi_full("@B@", "F", famc=["@F1@"]),
+            "@DAD@": _make_indi_full("@DAD@", "M", fams=["@F1@"]),
+            "@STEP@": _make_indi_full("@STEP@", "F", fams=["@F1@"]),
+        }
+        fams = {
+            "@F1@": _make_fam(
+                "@F1@", husb="@DAD@", wife="@STEP@",
+                chil=["@A@", "@B@"],
+                child_links={
+                    "@A@": {"father": "birth", "mother": "step"},
+                    "@B@": {"father": "birth", "mother": "step"},
+                },
+            ),
+        }
+
+        assert parent_child_relationship(
+            "@STEP@", "@A@", indiv, fams) == "step"
+        assert get_ancestor_depths("@A@", indiv, fams) == {"@DAD@": 1}
+        assert find_common_ancestors("@A@", "@B@", indiv, fams) == ["@DAD@"]
+        assert describe_relationship(
+            _path("@A@", None, "@STEP@", "mother"),
+            indiv,
+            families=fams,
+        ) == "step-mother"
+
+    def test_sibling_relationship_distinguishes_full_half_and_step(self):
+        indiv = {
+            "@ME@": _make_indi_full("@ME@", "M", famc=["@F1@"]),
+            "@FULL@": _make_indi_full("@FULL@", "F", famc=["@F1@"]),
+            "@HALF@": _make_indi_full("@HALF@", "M", famc=["@F2@"]),
+            "@STEP@": _make_indi_full("@STEP@", "F", famc=["@F3@"]),
+            "@DAD@": _make_indi_full("@DAD@", "M", fams=["@F1@", "@F2@"]),
+            "@MOM@": _make_indi_full("@MOM@", "F", fams=["@F1@", "@F4@"]),
+            "@OTHER@": _make_indi_full("@OTHER@", "F", fams=["@F2@"]),
+            "@STEPDAD@": _make_indi_full("@STEPDAD@", "M", fams=["@F3@", "@F4@"]),
+        }
+        fams = {
+            "@F1@": _make_fam("@F1@", husb="@DAD@", wife="@MOM@",
+                              chil=["@ME@", "@FULL@"]),
+            "@F2@": _make_fam("@F2@", husb="@DAD@", wife="@OTHER@",
+                              chil=["@HALF@"]),
+            "@F3@": _make_fam("@F3@", husb="@STEPDAD@", chil=["@STEP@"]),
+            "@F4@": _make_fam("@F4@", husb="@STEPDAD@", wife="@MOM@"),
+        }
+
+        assert sibling_relationship("@ME@", "@FULL@", indiv, fams) == "full"
+        assert sibling_relationship("@ME@", "@HALF@", indiv, fams) == "half"
+        assert sibling_relationship("@ME@", "@STEP@", indiv, fams) == "step"
+        assert describe_relationship(
+            _path("@ME@", None, "@HALF@", "sibling"),
+            indiv,
+            families=fams,
+        ) == "half-brother"
 
 
 class TestFindCommonAncestors:

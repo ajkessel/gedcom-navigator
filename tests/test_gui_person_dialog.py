@@ -22,18 +22,27 @@ class FakeText:
     def __init__(self):
         self._textbox = self
         self.parts = []
+        self.inserted = []
+        self.bindings = {}
+        self.configured_tags = {}
+        self.deleted_tags = []
 
     def insert(self, _index, text, _tags=None):
         self.parts.append(text)
+        self.inserted.append((text, _tags))
 
     def tag_configure(self, *_args, **_kwargs):
-        pass
+        if _args:
+            self.configured_tags[_args[0]] = _kwargs
 
-    def tag_bind(self, *_args, **_kwargs):
-        pass
+    def tag_bind(self, tag, sequence, callback=None, **_kwargs):
+        self.bindings[(tag, sequence)] = callback
 
     def tag_names(self, *_args):
-        return []
+        return list(self.configured_tags)
+
+    def tag_delete(self, tag):
+        self.deleted_tags.append(tag)
 
 
 class Model:
@@ -219,3 +228,125 @@ def test_profile_home_path_appears_between_bio_and_full_gedcom():
     assert rendered.index(BIO_SECTION) < rendered.index(FAM_SECTION)
     assert rendered.index(FAM_SECTION) < rendered.index(RESULT_PATH_SECTION)
     assert rendered.index(RESULT_PATH_SECTION) < rendered.index(GEDCOM_SECTION)
+
+
+def test_full_gedcom_https_urls_are_clickable(monkeypatch):
+    """Full GEDCOM Record URLs are rendered as browser links."""
+
+    class App(PersonDialogMixin, ResultsMixin):
+        def _display_name(self, indi):
+            return indi['name']
+
+        def _get_family_members(self, _indi_id):
+            return [], [], [], []
+
+        def _show_path_graph(self, *_args):
+            pass
+
+    app = App()
+    app.individuals = {
+        '@A@': {
+            'name': 'Alex Person',
+            'sex': 'M',
+            'famc': [],
+            'fams': [],
+            'tags': [],
+            '_raw': [
+                (0, '@A@', 'INDI', ''),
+                (1, None, 'WWW', 'https://example.com/person?x=1.'),
+                (1, None, 'NOTE', 'See https://example.org/a and https://b.test/z)'),
+            ],
+        },
+    }
+    app.families = {}
+    app.show_ids = Var(False)
+    app.show_full_gedcom = Var(True)
+    app._link_color = '#0000ee'
+    app._mono_family = 'Courier'
+    app._mono_size = 12
+    app._model = Model()
+    text = FakeText()
+    opened = []
+    monkeypatch.setattr(
+        'gedcom_gui_person_dialog.webbrowser.open', lambda url: opened.append(url)
+    )
+
+    app._insert_person_profile(text, '@A@', lambda _indi_id: None)
+
+    rendered = ''.join(text.parts)
+    assert '1 WWW https://example.com/person?x=1.' in rendered
+    assert 'gedcom_url_link' not in text.deleted_tags
+    assert ('gedcom_url_link', 'gedcom_url_0') in [
+        tags for part, tags in text.inserted
+        if part == 'https://example.com/person?x=1'
+    ]
+    assert ('gedcom_url_link', 'gedcom_url_1') in [
+        tags for part, tags in text.inserted
+        if part == 'https://example.org/a'
+    ]
+    assert ('gedcom_url_link', 'gedcom_url_2') in [
+        tags for part, tags in text.inserted
+        if part == 'https://b.test/z'
+    ]
+
+    text.bindings[('gedcom_url_0', '<Button-1>')](None)
+    text.bindings[('gedcom_url_2', '<Button-1>')](None)
+
+    assert opened == ['https://example.com/person?x=1', 'https://b.test/z']
+
+
+def test_profile_labels_non_biological_and_half_relatives():
+    """Profile family section qualifies only non-ordinary relatives."""
+
+    class App(PersonDialogMixin, ResultsMixin):
+        def _display_name(self, indi):
+            return indi['name']
+
+        def _show_path_graph(self, *_args):
+            pass
+
+    app = App()
+    app.individuals = {
+        '@ME@': {
+            'id': '@ME@', 'name': 'Me Person', 'sex': 'M',
+            'famc': ['@F1@'], 'fams': [], 'tags': [], '_raw': [],
+        },
+        '@DAD@': {
+            'id': '@DAD@', 'name': 'Dad Person', 'sex': 'M',
+            'famc': [], 'fams': ['@F1@', '@F2@'], 'tags': [], '_raw': [],
+        },
+        '@STEP@': {
+            'id': '@STEP@', 'name': 'Step Parent', 'sex': 'F',
+            'famc': [], 'fams': ['@F1@'], 'tags': [], '_raw': [],
+        },
+        '@HALF@': {
+            'id': '@HALF@', 'name': 'Half Sibling', 'sex': 'F',
+            'famc': ['@F2@'], 'fams': [], 'tags': [], '_raw': [],
+        },
+    }
+    app.families = {
+        '@F1@': {
+            'id': '@F1@', 'husb': '@DAD@', 'wife': '@STEP@',
+            'chil': ['@ME@'],
+            'child_links': {'@ME@': {'father': 'birth', 'mother': 'step'}},
+        },
+        '@F2@': {
+            'id': '@F2@', 'husb': '@DAD@', 'wife': None,
+            'chil': ['@HALF@'], 'child_links': {},
+        },
+    }
+    app.show_ids = Var(False)
+    app.show_full_gedcom = Var(False)
+    app._link_color = '#0000ee'
+    app._mono_family = 'Courier'
+    app._mono_size = 12
+    app._model = Model()
+    text = FakeText()
+
+    app._insert_person_profile(text, '@ME@', lambda _indi_id: None)
+
+    rendered = ''.join(text.parts)
+    assert 'Father: Dad Person' in rendered
+    assert 'Step-mother: Step Parent' in rendered
+    assert 'Half-sister: Half Sibling' in rendered
+    assert 'Biological' not in rendered

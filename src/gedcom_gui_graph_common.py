@@ -76,8 +76,12 @@ class GraphCommonMixin:
             'badge_fill': accent,
             'badge_text': cls._readable_text_color(accent),
             'parent': accent,
+            'step': cls._mix_hex_color(accent, theme['fg'], 0.18),
+            'adopted': cls._mix_hex_color(accent, theme['fg'], 0.48),
+            'foster': cls._mix_hex_color(accent, theme['fg'], 0.62),
             'spouse': cls._mix_hex_color(accent, theme['fg'], 0.28),
             'sibling': cls._mix_hex_color(accent, theme['trough'], 0.45),
+            'half_sibling': cls._mix_hex_color(accent, theme['trough'], 0.18),
         }
 
     @staticmethod
@@ -577,10 +581,141 @@ class GraphCommonMixin:
     @staticmethod
     def _draw_sibling_line(canvas, start_x, start_y, end_x, end_y, color,
                            scale):
-        """Draw a sibling relationship as a dotted horizontal line."""
+        """Draw an ordinary/full sibling relationship as a solid line."""
         canvas.create_line(
             start_x, start_y, end_x, end_y,
-            fill=color, width=scale(4), dash=(scale(2), scale(7)))
+            fill=color, width=scale(4))
+
+    @staticmethod
+    def _draw_half_sibling_line(canvas, start_x, start_y, end_x, end_y, color,
+                                scale):
+        """Draw a half-sibling relationship as split paired dashed rails."""
+        gap = scale(24)
+        offset = scale(4)
+        dash = (scale(9), scale(5))
+        mid_x = (start_x + end_x) / 2
+        mid_y = (start_y + end_y) / 2
+        dx = end_x - start_x
+        dy = end_y - start_y
+        length = max((dx * dx + dy * dy) ** 0.5, 1)
+        gap_dx = dx / length * gap / 2
+        gap_dy = dy / length * gap / 2
+        offset_x = -dy / length * offset
+        offset_y = dx / length * offset
+        left_end = (mid_x - gap_dx, mid_y - gap_dy)
+        right_start = (mid_x + gap_dx, mid_y + gap_dy)
+        for rail_offset_x, rail_offset_y in (
+                (-offset_x, -offset_y),
+                (offset_x, offset_y)):
+            canvas.create_line(
+                start_x + rail_offset_x, start_y + rail_offset_y,
+                left_end[0] + rail_offset_x, left_end[1] + rail_offset_y,
+                fill=color, width=scale(3), dash=dash)
+            canvas.create_line(
+                right_start[0] + rail_offset_x,
+                right_start[1] + rail_offset_y,
+                end_x + rail_offset_x, end_y + rail_offset_y,
+                fill=color, width=scale(3), dash=dash)
+
+    @staticmethod
+    def _graph_parent_line_options(kind, colors, scale):
+        """Return canvas line options for a parent-child edge kind."""
+        if kind == 'step':
+            return {
+                'fill': colors['step'],
+                'width': scale(3),
+                'dash': (scale(10), scale(4), scale(2), scale(4)),
+            }
+        if kind == 'adopted':
+            return {
+                'fill': colors['adopted'],
+                'width': scale(3),
+                'dash': (scale(3), scale(6)),
+            }
+        if kind in ('foster', 'sealing', 'guardian', 'other'):
+            return {
+                'fill': colors['foster'],
+                'width': scale(3),
+                'dash': (scale(7), scale(5)),
+            }
+        return {'fill': colors['parent'], 'width': scale(3)}
+
+    def _draw_graph_sibling_line(self, canvas, start_x, start_y, end_x, end_y,
+                                 kind, colors, scale):
+        """Draw a sibling edge with full/half/step visual styles."""
+        if kind == 'half':
+            self._draw_half_sibling_line(
+                canvas, start_x, start_y, end_x, end_y,
+                colors['half_sibling'], scale)
+        elif kind == 'step':
+            canvas.create_line(
+                start_x, start_y, end_x, end_y,
+                fill=colors['step'], width=scale(4),
+                dash=(scale(10), scale(4), scale(2), scale(4)))
+        else:
+            self._draw_sibling_line(
+                canvas, start_x, start_y, end_x, end_y,
+                colors['sibling'], scale)
+
+    @staticmethod
+    def _graph_relationship_legend_items(kinds):
+        """Return legend rows, including biological baseline when needed."""
+        kinds = set(kinds or ())
+        legend_items = [('birth', GRAPH_LEGEND_BIOLOGICAL)]
+        if 'step' in kinds:
+            legend_items.append(('step', GRAPH_LEGEND_STEP))
+        if kinds.intersection({'adopted', 'foster', 'sealing', 'guardian', 'other'}):
+            legend_items.append(('adopted', GRAPH_LEGEND_ADOPTED_FOSTER))
+        if 'half' in kinds:
+            legend_items.append(('half', GRAPH_LEGEND_HALF))
+        if len(legend_items) == 1:
+            return []
+        return legend_items
+
+    def _graph_relationship_legend_size(self, font, scale, kinds):
+        """Return the compact relationship legend size, or (0, 0)."""
+        legend_items = self._graph_relationship_legend_items(kinds)
+        if not legend_items:
+            return 0, 0
+
+        line_len = scale(34)
+        row_h = max(scale(18), font.metrics('linespace') + scale(4))
+        label_w = max(font.measure(label) for _kind, label in legend_items)
+        box_w = line_len + scale(22) + label_w
+        box_h = row_h * len(legend_items) + scale(12)
+        return box_w + scale(8), box_h + scale(6)
+
+    def _draw_graph_relationship_legend(self, canvas, colors, scale, font,
+                                        kinds):
+        """Draw a compact legend when non-ordinary relationship styles appear."""
+        legend_items = self._graph_relationship_legend_items(kinds)
+        if not legend_items:
+            return
+
+        x = scale(18)
+        y = scale(18)
+        line_len = scale(34)
+        row_h = max(scale(18), font.metrics('linespace') + scale(4))
+        box_w, box_h = self._graph_relationship_legend_size(
+            font, scale, kinds)
+        box_w -= scale(8)
+        box_h -= scale(6)
+        canvas.create_rectangle(
+            x - scale(8), y - scale(6), x + box_w, y + box_h,
+            fill=colors['bg'], outline=colors['guide'])
+        for index, (kind, label) in enumerate(legend_items):
+            row_y = y + scale(6) + index * row_h
+            if kind == 'half':
+                self._draw_half_sibling_line(
+                    canvas, x, row_y, x + line_len, row_y,
+                    colors['half_sibling'], scale)
+            else:
+                options = self._graph_parent_line_options(
+                    kind, colors, scale)
+                canvas.create_line(x, row_y, x + line_len, row_y, **options)
+            canvas.create_text(
+                x + line_len + scale(10), row_y, text=label,
+                anchor='w', fill=colors['text'], font=font)
 
     def _hide_graph_buttons(self, canvas):
         for tag in self._GRAPH_BUTTON_TAGS:
@@ -679,18 +814,23 @@ class GraphCommonMixin:
         }
 
     @staticmethod
-    def _graph_debug_edge(edge):
+    def _graph_debug_edge(edge, relationship_lookup=None):
         """Return a JSON-safe graph edge."""
         source_id, target_id, category = edge
-        return {
+        result = {
             'source': source_id,
             'target': target_id,
             'category': category,
         }
+        if relationship_lookup is not None:
+            kind = relationship_lookup(source_id, target_id, category)
+            if kind and kind not in ('birth', category):
+                result['relationship_kind'] = kind
+        return result
 
     @classmethod
     def _graph_debug_payload(cls, graph_state, layout, extra_edges,
-                             family_lookup):
+                             family_lookup, relationship_lookup=None):
         """Return deterministic relationship-graph layout debug data."""
         visible_ids = sorted({node['id'] for node in layout})
         family_members = {}
@@ -731,15 +871,15 @@ class GraphCommonMixin:
                     ))
             ],
             'path_edges': [
-                {
-                    'source': graph_state['base_layout'][index - 1]['id'],
-                    'target': graph_state['base_layout'][index]['id'],
-                    'category': graph_state['base_layout'][index].get('edge'),
-                }
+                cls._graph_debug_edge((
+                    graph_state['base_layout'][index - 1]['id'],
+                    graph_state['base_layout'][index]['id'],
+                    graph_state['base_layout'][index].get('edge'),
+                ), relationship_lookup)
                 for index in range(1, len(graph_state.get('base_layout', ())))
             ],
             'extra_edges': [
-                cls._graph_debug_edge(edge)
+                cls._graph_debug_edge(edge, relationship_lookup)
                 for edge in sorted(extra_edges)
             ],
             'family_members': family_members,
@@ -759,7 +899,8 @@ class GraphCommonMixin:
     def _family_tree_debug_payload(cls, center_id, expanded, zoom,
                                    canvas_w, canvas_h, visible_ids,
                                    edges, layout, family_lookup,
-                                   graph_type='family_tree'):
+                                   graph_type='family_tree',
+                                   relationship_lookup=None):
         """Return deterministic Tree View layout debug data."""
         visible_ids = sorted(visible_ids)
         family_members = {}
@@ -785,7 +926,7 @@ class GraphCommonMixin:
             ],
             'visible_ids': visible_ids,
             'edges': [
-                cls._graph_debug_edge(edge)
+                cls._graph_debug_edge(edge, relationship_lookup)
                 for edge in edges
             ],
             'layout': [

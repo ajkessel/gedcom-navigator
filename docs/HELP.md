@@ -23,6 +23,8 @@ You can also use this tool to find multiple paths between any two people in your
 
 Any relationship description can be clicked to see a graphical representation of that relationship, which you can then copy and use as you like.
 
+Family graphs use line style to show non-biological relationships when the GEDCOM data identifies them. Ordinary biological/default family links, including full-sibling links, are solid. Step-family links use a dash-dot line, adopted or foster links use a dotted or short-dashed line, and half-sibling links use a split sibling connector. The graph includes a compact legend whenever one of these non-ordinary relationship styles is visible, and that legend includes the biological/default line style for comparison.
+
 If you set a person as the "Home Person" using the "Set Home" button, the Display Pane will include the path from the selected person to the Home Person in Profile, Matches, and Paths mode.
 
 Finally, if you have a large tree, you may find it difficult to search for specific individuals in other tools. Ancestry, for example, only searches on the person's "preferred name" and not any of the alternate names, and neither Ancestry nor Family Tree Maker allow fuzzy matching searches. Ancestry also does not allow you to easily search on multiple fields simultaneously, like name, location, and occupation. With this tool, you can search for a name with fuzzy matching (e.g. "John Smith" in the "Find:" box) and then further limit the results by a term that appears anywhere in the person's record (e.g. "Chicago" and "tailor" in the "Filter" box). If you have multiple names in a person's record (e.g. maiden name, married name, nicknames), this tool will match any of them. This search method avoids the clumsy workarounds people use to label people in their tree, for example, by packing all the person's different surnames into the surname field. You can create a separate "name" record for each name the person has, and then find them easily using this tool's search functionality.
@@ -32,6 +34,8 @@ I've also sought to make all actions accessible from the keyboard. See [the keyb
 ## How it works
 
 Given a GEDCOM file and a target individual, the tool performs a breadth-first search through the tree's relationship graph (parents, children, siblings, spouses) and returns the closest individuals flagged as DNA matches, along with the relationship path connecting each match to the target.
+
+For parent-child relationships, the tool reads GEDCOM pedigree metadata such as `FAMC`/`PEDI`, adoption records, and common Family Tree Maker relationship tags like `_FREL` and `_MREL`. If a GEDCOM file does not say otherwise, a parent-child link is treated as an ordinary biological/default relationship, which matches common GEDCOM export practice.
 
 Two flag formats are recognized by default:
 

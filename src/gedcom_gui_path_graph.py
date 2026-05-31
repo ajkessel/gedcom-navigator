@@ -123,10 +123,29 @@ class PathGraphMixin:
         max_generation = max(node['generation'] for node in layout)
         min_column = min(node['column'] for node in layout)
         max_column = max(node['column'] for node in layout)
+        relationship_kinds = set()
+        for index in range(1, len(layout)):
+            if (not layout[index - 1].get('is_path_node')
+                    or not layout[index].get('is_path_node')):
+                continue
+            edge = layout[index].get('edge')
+            if edge in ('father', 'mother', 'child', 'sibling'):
+                relationship_kinds.add(self._edge_relationship_kind(
+                    layout[index - 1]['id'], layout[index]['id'],
+                    'children' if edge == 'child'
+                    else ('siblings' if edge == 'sibling' else 'parents')))
+        relationship_kinds.update(
+            self._edge_relationship_kind(source_id, target_id, category)
+            for source_id, target_id, category in extra_edges
+            if category in ('parents', 'children', 'siblings')
+        )
+        _legend_w, legend_h = self._graph_relationship_legend_size(
+            label_font, scale, relationship_kinds)
+        top_margin = margin + (legend_h + scale(12) if legend_h else 0)
         positions = []
         for node in layout:
             x = margin + node_w / 2 + (node['column'] - min_column) * h_gap
-            y = margin + max_node_h / 2 + (
+            y = top_margin + max_node_h / 2 + (
                 node['generation'] - min_generation) * v_gap
             positions.append((x, y))
         position_by_id = {
@@ -148,13 +167,12 @@ class PathGraphMixin:
             for source_id, target_id, category in extra_edges
             if category == 'spouses'
         )
-
         canvas_w = margin * 2 + node_w + (max_column - min_column) * h_gap
-        canvas_h = margin * 2 + max_node_h + (
+        canvas_h = top_margin + margin + max_node_h + (
             max_generation - min_generation) * v_gap
 
         for generation in range(min_generation, max_generation + 1):
-            y = margin + max_node_h / 2 + (
+            y = top_margin + max_node_h / 2 + (
                 generation - min_generation) * v_gap
             canvas.create_line(
                 margin / 2, y, canvas_w - margin / 2, y,
@@ -176,8 +194,11 @@ class PathGraphMixin:
             elif edge == 'sibling':
                 start_x = x1 + node_w / 2
                 end_x = x2 - node_w / 2
-                self._draw_sibling_line(
-                    canvas, start_x, y1, end_x, y2, colors['sibling'], scale)
+                self._draw_graph_sibling_line(
+                    canvas, start_x, y1, end_x, y2,
+                    self._edge_relationship_kind(
+                        layout[index - 1]['id'], layout[index]['id'], edge),
+                    colors, scale)
             else:
                 from_h = node_heights[index - 1]
                 to_h = node_heights[index]
@@ -202,9 +223,14 @@ class PathGraphMixin:
                     from_h / 2 if y2 > from_y else -from_h / 2)
                 end_y = y2 - (to_h / 2 if y2 > from_y else -to_h / 2)
                 mid_y = (start_y + end_y) / 2
+                line_options = self._graph_parent_line_options(
+                    self._edge_relationship_kind(
+                        layout[index - 1]['id'], layout[index]['id'],
+                        'children' if edge == 'child' else 'parents'),
+                    colors, scale)
                 canvas.create_line(
                     from_x, start_y, from_x, mid_y, x2, mid_y, x2, end_y,
-                    fill=colors['parent'], width=scale(3), arrow='last',
+                    arrow='last', **line_options,
                     arrowshape=(scale(12), scale(14), scale(5)))
 
         drawn_parent_midpoint_edges = set()
@@ -237,8 +263,14 @@ class PathGraphMixin:
                     parent_h = node_heights[target_index]
                 child_x, child_y = sx, sy
                 child_h = node_heights[source_index]
+                parent_ids = (
+                    (target_id, coparent_id)
+                    if parent_midpoint and coparent_id else (target_id,))
             elif category == 'children':
                 parent_midpoint = self._child_parent_midpoint(
+                    source_id, target_id, position_by_id,
+                    self._co_parents_for_children, spouse_edges)
+                coparent_id = self._visible_coparent_id(
                     source_id, target_id, position_by_id,
                     self._co_parents_for_children, spouse_edges)
                 if parent_midpoint:
@@ -249,6 +281,9 @@ class PathGraphMixin:
                     parent_h = node_heights[source_index]
                 child_x, child_y = tx, ty
                 child_h = node_heights[target_index]
+                parent_ids = (
+                    (source_id, coparent_id)
+                    if parent_midpoint and coparent_id else (source_id,))
             elif category == 'spouses':
                 start_x = sx + (-node_w / 2 if tx < sx else node_w / 2)
                 end_x = tx + (node_w / 2 if tx < sx else -node_w / 2)
@@ -259,19 +294,27 @@ class PathGraphMixin:
             else:
                 start_x = sx + (-node_w / 2 if tx < sx else node_w / 2)
                 end_x = tx + (node_w / 2 if tx < sx else -node_w / 2)
-                self._draw_sibling_line(
+                self._draw_graph_sibling_line(
                     canvas, start_x, sy, end_x, ty,
-                    colors['sibling'], scale)
+                    self._edge_relationship_kind(
+                        source_id, target_id, category),
+                    colors, scale)
                 continue
 
             start_y = parent_y + parent_h / 2
             end_y = child_y - child_h / 2
             mid_y = (start_y + end_y) / 2
+            grouped_child_id = source_id if category == 'parents' else target_id
+            line_options = self._graph_parent_line_options(
+                self._combined_parent_child_kind(parent_ids, grouped_child_id),
+                colors, scale)
             canvas.create_line(
                 parent_x, start_y, parent_x, mid_y, child_x, mid_y,
-                child_x, end_y,
-                fill=colors['parent'], width=scale(3), arrow='last',
+                child_x, end_y, arrow='last', **line_options,
                 arrowshape=(scale(12), scale(14), scale(5)))
+
+        self._draw_graph_relationship_legend(
+            canvas, colors, scale, label_font, relationship_kinds)
 
         highlighted_nodes = getattr(canvas, '_highlighted_nodes', set())
 
@@ -602,7 +645,8 @@ class PathGraphMixin:
             if debug_enabled():
                 graph_state['debug_payload'] = self._graph_debug_payload(
                     graph_state, layout, extra_edges,
-                    self._family_tree_members_for)
+                    self._family_tree_members_for,
+                    relationship_lookup=self._edge_relationship_kind)
 
         canvas._redraw_fn = _redraw_graph
 

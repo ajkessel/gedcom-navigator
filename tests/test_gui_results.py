@@ -1915,6 +1915,34 @@ def test_family_tree_debug_payload_omits_display_names():
     assert 'name' not in str(payload).lower()
 
 
+def test_family_tree_debug_payload_includes_relationship_kind():
+    """Debug graph exports preserve non-ordinary edge styling metadata."""
+    visible = ['@A@', '@P@']
+    edges = [('@A@', '@P@', 'parents')]
+    layout = [
+        {'id': '@A@', 'generation': 0, 'column': 0, 'is_center': True},
+        {'id': '@P@', 'generation': -1, 'column': 0, 'is_center': False},
+    ]
+
+    def lookup(_indi_id):
+        return {'parents': [], 'siblings': [], 'spouses': [], 'children': []}
+
+    def relationship_lookup(source_id, target_id, category):
+        assert (source_id, target_id, category) == ('@A@', '@P@', 'parents')
+        return 'step'
+
+    payload = ResultsMixin._family_tree_debug_payload(
+        '@A@', [('@A@', 'parents')], 1.0, 640, 480, visible, edges, layout,
+        lookup, relationship_lookup=relationship_lookup)
+
+    assert payload['edges'] == [{
+        'source': '@A@',
+        'target': '@P@',
+        'category': 'parents',
+        'relationship_kind': 'step',
+    }]
+
+
 def test_path_graph_sibling_expansion_overrides_child_alignment_blocker():
     """Prior generations move so sibling groups do not create diagonal edges."""
     base = [
@@ -4115,6 +4143,145 @@ def test_path_graph_colors_follow_selected_theme():
     assert blue['parent'] == '#1155bb'
     assert green['parent'] == '#2e8b57'
     assert blue['node_fill'] != green['node_fill']
+
+
+def test_non_biological_graph_line_styles_are_graphical():
+    """Non-ordinary family edges use line style instead of text badges."""
+    colors = ResultsMixin._path_graph_colors(False, 'Blue')
+
+    step = ResultsMixin._graph_parent_line_options(
+        'step', colors, lambda value: value)
+    adopted = ResultsMixin._graph_parent_line_options(
+        'adopted', colors, lambda value: value)
+    ordinary = ResultsMixin._graph_parent_line_options(
+        'birth', colors, lambda value: value)
+
+    assert step['dash'] == (10, 4, 2, 4)
+    assert adopted['dash'] == (3, 6)
+    assert 'dash' not in ordinary
+
+
+def test_half_sibling_graph_line_is_visibly_distinct():
+    """Half-sibling edges draw as split double rails, not ordinary solid lines."""
+
+    class FakeCanvas:
+        def __init__(self):
+            self.lines = []
+
+        def create_line(self, *args, **kwargs):
+            self.lines.append((args, kwargs))
+
+    colors = ResultsMixin._path_graph_colors(False, 'Blue')
+    app = ResultsMixin()
+
+    ordinary_canvas = FakeCanvas()
+    app._draw_graph_sibling_line(
+        ordinary_canvas, 0, 20, 100, 20, 'full', colors, lambda value: value)
+
+    half_canvas = FakeCanvas()
+    app._draw_graph_sibling_line(
+        half_canvas, 0, 20, 100, 20, 'half', colors, lambda value: value)
+
+    assert len(ordinary_canvas.lines) == 1
+    assert 'dash' not in ordinary_canvas.lines[0][1]
+    assert len(half_canvas.lines) == 4
+    assert {line[1]['dash'] for line in half_canvas.lines} == {(9, 5)}
+    assert {line[0][1] for line in half_canvas.lines} == {16.0, 24.0}
+
+
+def test_graph_relationship_legend_includes_biological_baseline():
+    """A non-ordinary legend includes the ordinary biological line style too."""
+
+    class FakeCanvas:
+        def __init__(self):
+            self.lines = []
+            self.rectangles = []
+            self.text = []
+
+        def create_line(self, *args, **kwargs):
+            self.lines.append((args, kwargs))
+
+        def create_rectangle(self, *args, **kwargs):
+            self.rectangles.append((args, kwargs))
+
+        def create_text(self, *args, **kwargs):
+            self.text.append((args, kwargs))
+
+    class FakeFont:
+        @staticmethod
+        def metrics(_key):
+            return 12
+
+        @staticmethod
+        def measure(text):
+            return len(text) * 7
+
+    colors = ResultsMixin._path_graph_colors(False, 'Blue')
+    app = ResultsMixin()
+
+    ordinary_canvas = FakeCanvas()
+    app._draw_graph_relationship_legend(
+        ordinary_canvas, colors, lambda value: value, FakeFont(), {'birth'})
+
+    mixed_canvas = FakeCanvas()
+    app._draw_graph_relationship_legend(
+        mixed_canvas, colors, lambda value: value, FakeFont(),
+        {'birth', 'half'})
+
+    assert ordinary_canvas.rectangles == []
+    assert ordinary_canvas.text == []
+    assert [kwargs['text'] for _args, kwargs in mixed_canvas.text] == [
+        gs.GRAPH_LEGEND_BIOLOGICAL,
+        gs.GRAPH_LEGEND_HALF,
+    ]
+    assert 'dash' not in mixed_canvas.lines[0][1]
+    assert mixed_canvas.lines[0][1]['fill'] == colors['parent']
+
+
+def test_graph_relationship_legend_size_only_when_legend_draws():
+    """Renderers can reserve space only for visible relationship legends."""
+
+    class FakeFont:
+        @staticmethod
+        def metrics(_key):
+            return 12
+
+        @staticmethod
+        def measure(text):
+            return len(text) * 7
+
+    app = ResultsMixin()
+
+    assert app._graph_relationship_legend_size(
+        FakeFont(), lambda value: value, {'birth'}) == (0, 0)
+    assert app._graph_relationship_legend_size(
+        FakeFont(), lambda value: value, {'birth', 'adopted', 'half'}) == (
+            162, 72)
+
+
+def test_parent_couple_connector_prefers_step_style():
+    """Mixed biological/step parent couples still draw a non-ordinary child edge."""
+    app = ResultsMixin()
+    app.individuals = {
+        '@CHILD@': {'famc': ['@F1@'], 'fams': [], 'sex': ''},
+        '@BIO@': {'famc': [], 'fams': ['@F1@'], 'sex': ''},
+        '@STEP@': {'famc': [], 'fams': ['@F1@'], 'sex': ''},
+    }
+    app.families = {
+        '@F1@': {
+            'husb': '@STEP@',
+            'wife': '@BIO@',
+            'chil': ['@CHILD@'],
+            'child_links': {
+                '@CHILD@': {'father': 'step', 'mother': 'birth'},
+            },
+        },
+    }
+
+    assert app._combined_parent_child_kind(
+        ('@BIO@', '@STEP@'), '@CHILD@') == 'step'
+    assert app._combined_parent_child_kind(
+        ('@STEP@', '@BIO@'), '@CHILD@') == 'step'
 
 
 def test_person_box_fill_follows_gedcom_sex_independent_of_theme():

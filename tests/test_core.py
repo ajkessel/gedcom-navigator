@@ -409,6 +409,40 @@ class TestBuildModel:
         assert "@F1@" in indiv["@I1@"]["fams"]
         assert "@F1@" in indiv["@I3@"]["famc"]
 
+    def test_parses_parentage_metadata(self, tmp_path):
+        ged = """\
+0 HEAD
+1 GEDC
+2 VERS 5.5.1
+0 @DAD@ INDI
+1 NAME Dad /Person/
+1 FAMS @F1@
+0 @MOM@ INDI
+1 NAME Mom /Person/
+1 FAMS @F1@
+0 @CHILD@ INDI
+1 NAME Child /Person/
+1 FAMC @F1@
+2 PEDI foster
+1 ADOP
+2 FAMC @F1@
+3 ADOP HUSB
+0 @F1@ FAM
+1 HUSB @DAD@
+1 WIFE @MOM@
+1 CHIL @CHILD@
+2 _FREL natural
+2 _MREL step
+0 TRLR
+"""
+        p = _write_ged(tmp_path, ged)
+        _indiv, fams, _, _, _ = build_model(p, "DNA", "AncestryDNA")
+
+        link = fams["@F1@"]["child_links"]["@CHILD@"]
+        assert link["family"] == "foster"
+        assert link["father"] == "adopted"
+        assert link["mother"] == "step"
+
     def test_no_dna_markers_in_plain_file(self, tmp_path):
         p = _write_ged(tmp_path, SIMPLE_GED)
         indiv, _, _, _, _ = build_model(p, "DNA", "AncestryDNA")
