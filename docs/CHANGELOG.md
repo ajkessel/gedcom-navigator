@@ -1,5 +1,30 @@
 # Changelog
 
+## [1.9.10] - 2026-05-31
+
+### Added
+
+- **Welcome window and interactive walkthrough** — a first-run Welcome window now greets new users with the in-app help guide, a "show next time" checkbox, and a **Walkthrough** button (also available any time from the Help menu). The walkthrough (`gedcom_walkthrough.py`) highlights each area of the main window in sequence with Back / Next / Skip navigation, using an amber "outline ring" drawn from borderless Toplevel strips so it never covers the highlighted control and needs no compositor transparency. It temporarily loads the bundled sample tree (`samples/fictional_genealogy.ged`) — unless a file is already open — to demonstrate the clickable names, relationship links, and graph node menu, then unloads it when the walkthrough ends. New `ConfigManager` settings persist whether the welcome window has been seen for the current version (`get/set_welcome_seen_version`) and whether to show it on every launch (`get/set_show_welcome_on_startup`).
+- **BCE/CE and Julian/Gregorian dual dates** — the date parser now understands historical date styles. BCE years (`44 BC`, `44 BCE`, `44 B.C.E.`, case-insensitive, 1–4 digits) are parsed as negative years and rendered as e.g. `44 BC` in lifespans and people-list columns via a new `format_year()` helper. Julian/Gregorian dual years such as `10 JAN 1708/9` resolve to the New Style (later) calendar year. A new `extract_year()` returns a signed year (or `None`) and is used consistently across the people list, results pane, profile, and search dialogs.
+
+### Fixed
+
+- **Copying and saving relationship graphs as images on macOS App Store builds** — copying a family tree, pedigree, or relationship-path graph to the clipboard (and saving it as PNG) silently did nothing in the sandboxed Mac App Store build. The bundled Pillow imaging extension failed to load because one of its support libraries (`libxcb`) referenced `libXau` by an absolute Homebrew path (`/usr/local/opt/...`) that the App Sandbox blocks from loading, even though a copy was bundled inside the app. The build now rewrites every bundled library's absolute Homebrew load path to a bundle-relative `@rpath` reference (`dev/fix-dylib-paths.sh`, run from `dev/build-mac.sh`), so the in-bundle copies load correctly under the sandbox. This was the underlying cause; the `copy_text_to_clipboard` NSPasteboard workaround added in 1.9.9 (which addressed a misdiagnosis) has been reverted, and plain-text copy again uses Tk's clipboard directly.
+
+### Changed
+
+- **Graph copy now reports failures instead of silently doing nothing** — `_copy_graph_canvas` now catches export/clipboard errors, logs the real exception, and shows a "Copy error" dialog (`ERR_COPY_GRAPH_TITLE` / `ERR_COPY_GRAPH_MSG`) with the actual cause, matching the existing graph-save error handling.
+
+### Development
+
+- **Sandbox self-test gate in the App Store build** — a new `--self-test` mode (`src/gedcom_selftest.py`) runs headless runtime checks (import Pillow's native extension, render a canvas to PNG, load the macOS pasteboard bridge) and exits non-zero on failure. `dev/build-mac-appstore.sh` runs it against the freshly signed, sandboxed bundle and aborts the build/upload if it fails, so sandbox-only breakage (such as a library still referencing an absolute Homebrew path) can no longer reach Apple's review queue unnoticed.
+- **Build/release script fixes** — `dev/build-and-release.sh` now passes the selected git branch through to `dev/build.sh -b` correctly and resolves the current release tag more reliably.
+
+### Tests
+
+- **Historical date parsing tests** — `tests/test_core.py` gains coverage for BCE years (1–4 digits, with and without periods, `BCE` spelling, case-insensitive), Julian/Gregorian dual-year resolution, BCE/CE-spanning lifespans, and end-to-end birth/death year extraction from GEDCOM date fields.
+- **Welcome/walkthrough tests** — `tests/test_gui_smoke.py` and `tests/test_config.py` cover the welcome window, the walkthrough launch path, and the new welcome-related configuration accessors.
+
 ## [1.9.9] - 2026-05-30
 
 ### Fixed

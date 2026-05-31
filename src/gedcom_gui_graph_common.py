@@ -652,6 +652,13 @@ class GraphCommonMixin:
                 except tk.TclError:
                     parent.clipboard_append(postscript)
                 parent.update()
+        except (OSError, tk.TclError, ImportError, ValueError) as exc:
+            log_exception("copying relationship graph to clipboard")
+            messagebox.showerror(
+                ERR_COPY_GRAPH_TITLE,
+                ERR_COPY_GRAPH_MSG.format(error=exc),
+                parent=parent,
+            )
         finally:
             self._show_graph_buttons(canvas)
         return 'break'

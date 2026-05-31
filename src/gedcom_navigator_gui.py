@@ -802,7 +802,17 @@ def main():
         help='Enable debug diagnostics, including exception logging, and print '
              'DPI/scaling diagnostics to stderr.'
     )
+    parser.add_argument(
+        '--self-test', action='store_true',
+        help='Run headless runtime self-checks (native imports, canvas->PNG, '
+             'pasteboard) and exit non-zero on failure. Used by the build/CI '
+             'pipeline to catch sandbox-only breakage.'
+    )
     args = parser.parse_args()
+
+    if args.self_test:
+        from gedcom_selftest import run_self_test
+        sys.exit(run_self_test())
 
     if args.debug:
         set_debug_enabled(True)

@@ -1,3 +1,3 @@
 """GEDCOM Navigator — powerful tool to explore large GEDCOM family tree files."""
-__version__ = "1.9.9"
-__release_date__ = "2026-05-30"
+__version__ = "1.9.10"
+__release_date__ = "2026-05-31"

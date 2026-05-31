@@ -23,7 +23,7 @@ from gedcom_relationship import (
     get_descendant_depths,
 )
 import gedcom_strings as gs
-from gedcom_platform import copy_text_to_clipboard, filedialog_parent
+from gedcom_platform import filedialog_parent
 from gedcom_tooltip import TextTagTooltip
 
 
@@ -432,10 +432,11 @@ class ResultsMixin(GraphRenderMixin, GraphLayoutMixin):
         menu = tk.Menu(self._results_header_label, tearoff=0, **_menu_kw)
 
         def _copy_name():
-            name = self._display_name(self.individuals[indi_id])
+            self.root.clipboard_clear()
+            self.root.clipboard_append(
+                self._display_name(self.individuals[indi_id]))
             if self.show_ids.get():
-                name += f" ({indi_id})"
-            copy_text_to_clipboard(self.root, name)
+                self.root.clipboard_append(f" ({indi_id})")
 
         menu.add_command(
             label=gs.RESULTS_HEADER_MENU_COPY_NAME,
@@ -462,7 +463,8 @@ class ResultsMixin(GraphRenderMixin, GraphLayoutMixin):
         header = self._results_header_var.get().strip()
         if header:
             text = header + '\n\n' + text
-        copy_text_to_clipboard(self.root, text)
+        self.root.clipboard_clear()
+        self.root.clipboard_append(text)
     def _save_results(self):
         """Save the current results text to a user-selected text file."""
         text = self.results.get('1.0', 'end').rstrip()
@@ -529,8 +531,8 @@ class ResultsMixin(GraphRenderMixin, GraphLayoutMixin):
                     'edge': edge,
                 })
             out['paths'].append({'label': label, 'nodes': nodes})
-        copy_text_to_clipboard(
-            self.root, json.dumps(out, indent=2, ensure_ascii=False))
+        self.root.clipboard_clear()
+        self.root.clipboard_append(json.dumps(out, indent=2, ensure_ascii=False))
 
     def _reset_results_pane(self):
         """Reset invalid result state after the underlying person data changes."""

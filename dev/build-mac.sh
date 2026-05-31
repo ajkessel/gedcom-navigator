@@ -134,6 +134,13 @@ pyinstaller --noconfirm ./dev/gedcom_navigator_gui.spec || {
 	echo 'Cannot find dist build folder.'
 	exit 1
 }
+# Rewrite absolute Homebrew dylib paths (e.g. libxcb -> /usr/local/.../libXau)
+# to @rpath so the bundled copies load under the App Sandbox.  Must run before
+# signing/notarization, as install_name_tool invalidates signatures.
+./dev/fix-dylib-paths.sh "dist/gedcom-navigator.app" || {
+	echo 'Failed to rewrite bundled dylib paths.'
+	exit 1
+}
 [ "$DRY" ] && exit 0
 ditto -c -k --sequesterRsrc --keepParent "dist/gedcom-navigator.app" "${output_file}" || {
 	echo 'Cannot build zip file.'

@@ -130,6 +130,18 @@ if [[ -n "${AS_APP_CERT}" && -n "${AS_INST_CERT}" ]]; then
 		exit 1
 	}
 
+	# Run the headless self-test against the now-signed, sandboxed bundle.
+	# The sandbox entitlement is embedded and signed, so this process runs under
+	# the App Sandbox and catches sandbox-only failures (e.g. a dylib still
+	# pointing at /usr/local) before the package is ever uploaded.
+	echo "Running sandboxed self-test..."
+	"${APP_AS}/Contents/MacOS/gedcom-navigator" --self-test || {
+		echo "Sandboxed self-test FAILED; refusing to build/upload package."
+		echo "  Usually a bundled dylib still references an absolute Homebrew"
+		echo "  path (/usr/local or /opt/homebrew). See dev/fix-dylib-paths.sh."
+		exit 1
+	}
+
 	productbuild \
 		--component "${APP_AS}" /Applications \
 		--sign "${AS_INST_CERT}" \
