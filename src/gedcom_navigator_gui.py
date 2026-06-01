@@ -681,12 +681,18 @@ class GedcomNavigatorApp(
                                        command=self._copy_results)
         self._copy_btn.grid(row=0, column=4, padx=(4, 4), pady=4)
         Tooltip(self._copy_btn, get_tip_copy())
+        self._profile_gallery_btn = ctk.CTkButton(
+            status_bar, text=BTN_PROFILE_GALLERY, width=90,
+            command=self._show_current_profile_gallery)
+        self._profile_gallery_btn.grid(row=0, column=5, padx=(4, 8), pady=4)
+        self._profile_gallery_btn.grid_remove()
+        Tooltip(self._profile_gallery_btn, get_tip_profile_gallery())
         if debug_enabled():
             self._copy_json_btn = ctk.CTkButton(
                 status_bar, text='Copy JSON', width=90,
                 command=self._copy_paths_json)
             Tooltip(self._copy_json_btn, get_tip_copy_json())
-            self._copy_json_btn.grid(row=0, column=5, padx=(0, 8), pady=4)
+            self._copy_json_btn.grid(row=0, column=6, padx=(0, 8), pady=4)
         self._progress_bar = ctk.CTkProgressBar(status_bar, width=130)
         self._progress_bar.set(0)
         self._progress_bar.grid(row=0, column=3, columnspan=2, padx=(4, 8), pady=4)

@@ -101,6 +101,7 @@ class ResultsMixin(GraphRenderMixin, GraphLayoutMixin):
         if self._last_result and self._last_result.get('type') == 'profile':
             self._last_result['start_id'] = start_id
         w = self.results
+        self._set_profile_gallery_button_visible(start_id)
         try:
             w.configure(state='normal')
             w.delete('1.0', 'end')
@@ -138,6 +139,32 @@ class ResultsMixin(GraphRenderMixin, GraphLayoutMixin):
             w.configure(state='disabled')
         except tk.TclError:
             return
+
+    def _set_profile_gallery_button_visible(self, indi_id=None):
+        """Show the Display Pane Gallery button for profile records with images."""
+        button = getattr(self, '_profile_gallery_btn', None)
+        if button is None:
+            return
+        visible = False
+        if (self.display_mode.get() == 'profile' and indi_id
+                and hasattr(self, '_profile_gallery_candidates')):
+            visible = bool(self._profile_gallery_candidates(indi_id))
+        try:
+            if visible:
+                button.grid()
+            else:
+                button.grid_remove()
+        except tk.TclError:
+            pass
+
+    def _show_current_profile_gallery(self):
+        """Open the gallery for the active Display Pane profile person."""
+        if not self._last_result or self._last_result.get('type') != 'profile':
+            return
+        indi_id = self._last_result.get('start_id')
+        if not indi_id:
+            return
+        self._show_profile_image_gallery(indi_id, parent=self.root)
 
     def _coerce_home_path_data(self, home_paths):
         """Normalize home-path payloads from old and new render callers."""

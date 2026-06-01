@@ -145,6 +145,16 @@ def test_display_size_for_photo_preserves_small_images_and_fits_large(tmp_path):
     )
 
 
+def test_zoomed_display_size_scales_from_preview_base():
+    assert ProfileMediaService.zoomed_display_size(
+        (800, 400), 1.0) == (800, 400)
+    assert ProfileMediaService.zoomed_display_size(
+        (800, 400), 1.1) == (880, 440)
+    assert ProfileMediaService.zoomed_display_size(
+        (800, 400), 0.5) == (400, 200)
+    assert ProfileMediaService.zoomed_display_size((12, 6), 0.1) == (48, 24)
+
+
 @pytest.mark.skipif(Image is None, reason="Pillow not installed")
 def test_full_size_png_bytes_match_display_size(tmp_path):
     photo = tmp_path / "large.png"

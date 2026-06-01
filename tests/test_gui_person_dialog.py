@@ -7,6 +7,7 @@ from gedcom_strings import (
     FAM_SECTION,
     FACTS_EVENTS_SECTION,
     GEDCOM_SECTION,
+    PROFILE_IMAGE_NAV_STATUS,
     RESULT_PATH_SECTION,
     TAGS_SECTION,
 )
@@ -130,6 +131,26 @@ def test_button_bar_needed_width_includes_window_padding():
 
     assert PersonDialogMixin._button_bar_needed_width(frame) == 844
     assert frame.updated is True
+
+
+def test_profile_preview_window_dimensions_include_button_width():
+    """Small images still produce a preview wide enough for all buttons."""
+
+    win_w, win_h, min_w, min_h = (
+        PersonDialogMixin._profile_preview_window_dimensions(
+            image_w=72,
+            image_h=48,
+            max_w=800,
+            max_h=600,
+            button_w=330,
+            button_h=54,
+        )
+    )
+
+    assert win_w == 330
+    assert win_h == 104
+    assert min_w == 330
+    assert min_h == 104
 
 
 def test_tree_search_recenters_only_when_person_selected():
@@ -339,6 +360,122 @@ def test_initial_media_directory_falls_back_to_gedcom_directory(tmp_path):
     app._profile_media_dirs = lambda: []
 
     assert app._initial_media_directory() == str(tmp_path)
+
+
+def test_profile_gallery_candidates_exclude_profile_and_unsupported():
+    class App(PersonDialogMixin):
+        pass
+
+    class Media:
+        @staticmethod
+        def is_supported_path(path):
+            return path.endswith(".jpg")
+
+    app = App()
+    app.show_profile_image = Var(True)
+    app._media_service = Media()
+    app.individuals = {
+        "@A@": {
+            "media_candidates": [
+                {"file": "profile.jpg", "title": "Profile"},
+                {"file": "album.jpg", "title": "Album"},
+                {"file": "notes.pdf", "title": "Document"},
+                {"file": "album.jpg", "title": "Album"},
+                {"file": "", "title": "Missing"},
+            ],
+        },
+    }
+
+    assert app._profile_gallery_candidates("@A@") == [
+        {"file": "album.jpg", "title": "Album"},
+    ]
+
+    app.show_profile_image = Var(False)
+    assert app._profile_gallery_candidates("@A@") == []
+
+
+def test_profile_gallery_items_prompt_for_missing_media_dir(monkeypatch):
+    class App(PersonDialogMixin):
+        pass
+
+    class GedcomPath:
+        @staticmethod
+        def get():
+            return "/tmp/tree.ged"
+
+    class Config:
+        def __init__(self):
+            self.directory = None
+
+        def get_media_parent_dir(self, _gedcom_path):
+            return self.directory
+
+        def set_media_parent_dir(self, _gedcom_path, directory):
+            self.directory = directory
+
+    class Media:
+        @staticmethod
+        def is_supported_path(path):
+            return path.endswith(".jpg")
+
+        @staticmethod
+        def resolve_media_path(path, _gedcom_path, media_dirs=None):
+            if media_dirs:
+                return f"{media_dirs[0]}/{path}"
+            return None
+
+        @staticmethod
+        def tk_thumbnail(_path, _size):
+            return "thumbnail"
+
+    app = App()
+    app.show_profile_image = Var(True)
+    app.gedcom_path = GedcomPath()
+    app._config = Config()
+    app._media_service = Media()
+    app._initial_media_directory = lambda: "/tmp"
+    app.root = object()
+    app.individuals = {
+        "@A@": {
+            "media_candidates": [
+                {"file": "profile.jpg", "title": "Profile"},
+                {"file": "album.jpg", "title": "Album"},
+            ],
+        },
+    }
+    monkeypatch.setattr(
+        "gedcom_gui_person_dialog.messagebox.askyesno",
+        lambda *_args, **_kwargs: True,
+    )
+    monkeypatch.setattr(
+        "gedcom_gui_person_dialog.filedialog.askdirectory",
+        lambda **_kwargs: "/new/media",
+    )
+
+    items = app._profile_gallery_items("@A@", (120, 120), prompt_missing=True)
+
+    assert items == [{
+        "path": "/new/media/album.jpg",
+        "image": "thumbnail",
+        "title": "Album",
+        "file": "album.jpg",
+    }]
+    assert app._config.directory == "/new/media"
+
+
+def test_profile_image_navigation_state_requires_current_gallery_path():
+    paths = ["/media/one.jpg", "/media/two.jpg", "/media/three.jpg"]
+
+    assert PersonDialogMixin._profile_image_navigation_state(
+        "/media/two.jpg", paths) == (paths, 1)
+    assert PersonDialogMixin._profile_image_navigation_state(
+        "/media/missing.jpg", paths) == ([], 0)
+    assert PersonDialogMixin._profile_image_navigation_state(
+        "/media/two.jpg", None) == ([], 0)
+
+
+def test_profile_image_navigation_status_text_is_one_based():
+    assert PROFILE_IMAGE_NAV_STATUS.format(current=2, total=5) == "2 of 5"
 
 
 def test_profile_sections_render_in_requested_order():

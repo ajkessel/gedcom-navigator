@@ -153,6 +153,47 @@ class _HomePathApp(ResultsMixin):
         return f'{indent}{edge}: '
 
 
+class _Var:
+    def __init__(self, value):
+        self.value = value
+
+    def get(self):
+        return self.value
+
+    def set(self, value):
+        self.value = value
+
+
+def test_profile_gallery_button_visible_only_for_profile_with_extra_images():
+    class Button:
+        def __init__(self):
+            self.visible = None
+
+        def grid(self):
+            self.visible = True
+
+        def grid_remove(self):
+            self.visible = False
+
+    class App(ResultsMixin):
+        def _profile_gallery_candidates(self, indi_id):
+            return ['image'] if indi_id == '@A@' else []
+
+    app = App()
+    app.display_mode = _Var('profile')
+    app._profile_gallery_btn = Button()
+
+    app._set_profile_gallery_button_visible('@A@')
+    assert app._profile_gallery_btn.visible is True
+
+    app._set_profile_gallery_button_visible('@B@')
+    assert app._profile_gallery_btn.visible is False
+
+    app.display_mode.set('matches')
+    app._set_profile_gallery_button_visible('@A@')
+    assert app._profile_gallery_btn.visible is False
+
+
 def test_pedigree_font_extra_shrink_only_applies_below_normal_zoom():
     assert FamilyTreeRenderMixin._horizontal_tree_font_shrink(1.0) == 0
     assert FamilyTreeRenderMixin._horizontal_tree_font_shrink(1.5) == 0

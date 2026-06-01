@@ -33,7 +33,7 @@ class GedcomDataModel:
 
     # Bump this whenever the cached individual/family schema changes so that
     # stale cache files are automatically discarded and reparsed.
-    _CACHE_VERSION = 8
+    _CACHE_VERSION = 9
 
     def __init__(self):
         self.individuals = {}

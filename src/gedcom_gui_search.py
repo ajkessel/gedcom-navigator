@@ -63,6 +63,8 @@ class SearchMixin:
                 button.grid_remove()
         except tk.TclError:
             pass
+        if not visible and hasattr(self, '_set_profile_gallery_button_visible'):
+            self._set_profile_gallery_button_visible(None)
 
     def _set_matches_settings_visible(self, visible):
         """Show DNA marker controls only when Matches mode is active."""

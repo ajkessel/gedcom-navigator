@@ -14,6 +14,7 @@
 | **Ctrl+O** | **O**pen a new GEDCOM file |
 | **Ctrl+N** | Switch the Display Pane to **N**earest Matches |
 | **Ctrl+E** | Switch the Display Pane to Profil**e** |
+| **Ctrl+G** | Open the selected person's image **G**allery |
 | **Ctrl+H** / **⌘⇧H** | Set **H**ome person to the selected person |
 | **Ctrl+P** | Switch the Display Pane to Relationship **P**aths |
 | **Ctrl+T** | Select new **t**ag for finding relationship paths |

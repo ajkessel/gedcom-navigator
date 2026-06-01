@@ -260,6 +260,22 @@ class ProfileMediaService:
         except Exception:  # pylint: disable=broad-exception-caught
             return None
 
+    def photo_at_size(self, source_path, size):
+        """Return a Tk image resized to exact display size."""
+        if Image is None or ImageTk is None:
+            return None
+        width, height = max(1, int(size[0])), max(1, int(size[1]))
+        try:
+            with Image.open(source_path) as img:
+                img = ImageOps.exif_transpose(img).convert('RGBA')
+                if img.size != (width, height):
+                    img = img.resize((width, height), Image.Resampling.LANCZOS)
+                image = ImageTk.PhotoImage(img)
+                self._tk_refs.append(image)
+                return image
+        except Exception:  # pylint: disable=broad-exception-caught
+            return None
+
     def full_size_png_bytes(self, source_path, max_size):
         """Return PNG bytes for source_path scaled like full_size_photo."""
         if Image is None:
@@ -286,3 +302,20 @@ class ProfileMediaService:
         max_w, max_h = max(1, int(max_size[0])), max(1, int(max_size[1]))
         scale = min(1.0, max_w / max(width, 1), max_h / max(height, 1))
         return max(1, int(round(width * scale))), max(1, int(round(height * scale)))
+
+    @staticmethod
+    def zoomed_display_size(base_size, zoom, *, min_size=24, max_size=8192):
+        """Return dimensions for a zoomed preview image."""
+        width, height = max(1, int(base_size[0])), max(1, int(base_size[1]))
+        zoom = max(0.1, min(8.0, float(zoom)))
+        scaled_w = width * zoom
+        scaled_h = height * zoom
+        if min(scaled_w, scaled_h) < min_size:
+            factor = min_size / max(min(scaled_w, scaled_h), 0.001)
+            scaled_w *= factor
+            scaled_h *= factor
+        if scaled_w > max_size or scaled_h > max_size:
+            factor = min(max_size / scaled_w, max_size / scaled_h)
+            scaled_w *= factor
+            scaled_h *= factor
+        return max(1, int(round(scaled_w))), max(1, int(round(scaled_h)))

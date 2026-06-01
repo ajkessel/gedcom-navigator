@@ -233,6 +233,17 @@ class PersonDialogMixin:
         size = scale(84)
         return size, size
 
+    def _profile_gallery_thumbnail_size(self):
+        """Return thumbnail size for the profile image gallery."""
+        font_based = int(round(self._mono_size * 8.0))
+        try:
+            screen_h = self.root.winfo_screenheight()
+            display_based = int(round(screen_h * 0.11))
+        except (AttributeError, tk.TclError):
+            display_based = font_based
+        size = min(160, max(112, font_based, display_based))
+        return size, size
+
     def _profile_media_payload(self, indi_id, size):
         """Return thumbnail payload for indi_id when profile images are enabled."""
         show_var = getattr(self, 'show_profile_image', None)
@@ -283,15 +294,19 @@ class PersonDialogMixin:
 
     def _maybe_show_missing_profile_image_notice(self, indi, media):
         """Show one per-session note when a selected FILE path is missing."""
-        if getattr(self, '_profile_image_missing_notice_shown', False):
-            return
         media_path = media.selected_media_file(indi)
+        self._maybe_prompt_for_missing_media_file(media_path, media)
+
+    def _maybe_prompt_for_missing_media_file(self, media_path, media):
+        """Offer a replacement media folder for the first missing media path."""
+        if getattr(self, '_profile_image_missing_notice_shown', False):
+            return False
         if not media_path or not media.is_supported_path(media_path):
-            return
+            return False
         gedcom_path = self.gedcom_path.get()
         if media.resolve_media_path(
                 media_path, gedcom_path, self._profile_media_dirs()):
-            return
+            return False
         self._profile_image_missing_notice_shown = True
         try:
             choose_dir = messagebox.askyesno(
@@ -300,19 +315,370 @@ class PersonDialogMixin:
                 parent=getattr(self, 'root', None),
             )
             if not choose_dir:
-                return
+                return False
             directory = filedialog.askdirectory(
                 parent=filedialog_parent(getattr(self, 'root', None)),
                 title=PROFILE_IMAGE_DIR_TITLE,
                 initialdir=self._initial_media_directory(),
             )
             if not directory:
-                return
+                return False
             config = getattr(self, '_config', None)
             if config is not None and hasattr(config, 'set_media_parent_dir'):
                 config.set_media_parent_dir(gedcom_path, directory)
+            return True
+        except tk.TclError:
+            return False
+
+    def _profile_gallery_candidates(self, indi_id):
+        """Return non-profile image media candidates for the person."""
+        show_var = getattr(self, 'show_profile_image', None)
+        if show_var is None or not show_var.get():
+            return []
+        media = getattr(self, '_media_service', None)
+        if media is None or indi_id not in self.individuals:
+            return []
+        candidates = self.individuals[indi_id].get('media_candidates') or []
+        gallery = []
+        seen = set()
+        for candidate in candidates[1:]:
+            media_path = (candidate.get('file') or '').strip()
+            if not media_path or not media.is_supported_path(media_path):
+                continue
+            key = (media_path.replace('\\', '/').lower(),
+                   (candidate.get('title') or '').strip().lower())
+            if key in seen:
+                continue
+            seen.add(key)
+            gallery.append(candidate)
+        return gallery
+
+    def _profile_gallery_items(self, indi_id, size, prompt_missing=False):
+        """Return resolved gallery thumbnail payloads for non-profile images."""
+        media = getattr(self, '_media_service', None)
+        if media is None or indi_id not in self.individuals:
+            return []
+        gedcom_path = self.gedcom_path.get()
+        candidates = self._profile_gallery_candidates(indi_id)
+
+        def _resolve_items():
+            resolved = []
+            missing_path = None
+            for candidate in candidates:
+                media_path = (candidate.get('file') or '').strip()
+                path = media.resolve_media_path(
+                    media_path, gedcom_path, self._profile_media_dirs())
+                if not path:
+                    if missing_path is None:
+                        missing_path = media_path
+                    continue
+                image = media.tk_thumbnail(path, size)
+                if image is None:
+                    continue
+                resolved.append({
+                    'path': path,
+                    'image': image,
+                    'title': (candidate.get('title') or '').strip(),
+                    'file': media_path,
+                })
+            return resolved, missing_path
+
+        items, missing = _resolve_items()
+        if prompt_missing and missing:
+            if self._maybe_prompt_for_missing_media_file(missing, media):
+                items, _missing = _resolve_items()
+        return items
+
+    def _show_profile_image_gallery(self, indi_id, parent=None):
+        """Open a thumbnail gallery for non-profile images linked to a person."""
+        if indi_id not in self.individuals:
+            return
+        parent = parent or self.root
+        size = self._profile_gallery_thumbnail_size()
+        items = self._profile_gallery_items(
+            indi_id, size, prompt_missing=True)
+        indi = self.individuals[indi_id]
+        name = indi.get('name') or indi_id
+
+        win = getattr(self, '_profile_image_gallery_win', None)
+        try:
+            if win is not None and not win.winfo_exists():
+                win = None
+        except tk.TclError:
+            win = None
+        if win is None:
+            win = ctk.CTkToplevel(parent)
+            self._profile_image_gallery_win = win
+            win.protocol('WM_DELETE_WINDOW', win.destroy)
+            win.bind('<Escape>', lambda *_: win.destroy() or 'break')
+        else:
+            for child in win.winfo_children():
+                child.destroy()
+            try:
+                win.deiconify()
+            except tk.TclError:
+                pass
+
+        win.title(WIN_PROFILE_IMAGE_GALLERY.format(name=name))
+        outer = ctk.CTkFrame(win, fg_color='transparent')
+        outer.pack(fill='both', expand=True, padx=12, pady=12)
+
+        win._profile_gallery_refs = []
+        if not items:
+            label = ctk.CTkLabel(outer, text=PROFILE_IMAGE_GALLERY_EMPTY)
+            label.pack(fill='both', expand=True, padx=24, pady=24)
+            win.geometry('360x160')
+            win.lift()
+            return
+
+        scroll = ctk.CTkScrollableFrame(outer, fg_color='transparent')
+        scroll.pack(fill='both', expand=True)
+        columns = 4
+        thumb_w, _thumb_h = size
+        gallery_paths = [item['path'] for item in items]
+        for idx, item in enumerate(items):
+            row, col = divmod(idx, columns)
+            tile = ctk.CTkFrame(scroll, corner_radius=6)
+            tile.grid(row=row, column=col, padx=6, pady=6, sticky='n')
+            label = tk.Label(
+                tile,
+                image=item['image'],
+                borderwidth=0,
+                highlightthickness=1,
+                highlightbackground='#9ca3af',
+                cursor='hand2',
+            )
+            label.pack(padx=8, pady=(8, 4))
+            label.bind(
+                '<Button-1>',
+                lambda _event, path=item['path'], paths=gallery_paths:
+                    self._show_gallery_full_profile_image(path, win, paths),
+            )
+            caption = item['title'] or Path(item['file']).name
+            cap = ctk.CTkLabel(
+                tile, text=caption, wraplength=thumb_w, justify='center')
+            cap.pack(fill='x', padx=8, pady=(0, 8))
+            win._profile_gallery_refs.extend([item['image'], label])
+        for col in range(columns):
+            scroll.columnconfigure(col, weight=1)
+
+        try:
+            screen_w = max(parent.winfo_screenwidth(), 640)
+            screen_h = max(parent.winfo_screenheight(), 480)
+        except tk.TclError:
+            screen_w, screen_h = 1024, 768
+        item_w = thumb_w + 32
+        rows = (len(items) + columns - 1) // columns
+        win_w = min(int(screen_w * 0.82), max(360, columns * item_w + 54))
+        win_h = min(int(screen_h * 0.78), max(260, rows * (size[1] + 70) + 48))
+        win.geometry(f'{win_w}x{win_h}')
+        win.minsize(min(win_w, 360), min(win_h, 220))
+        win.lift()
+
+    @staticmethod
+    def _profile_image_navigation_state(image_path, gallery_paths):
+        """Return valid gallery navigation paths and current image index."""
+        paths = list(gallery_paths or [])
+        if image_path not in paths:
+            return [], 0
+        return paths, paths.index(image_path)
+
+    def _configure_full_profile_gallery_navigation(
+            self, win, image_path, parent, gallery_paths):
+        """Update gallery navigation metadata and controls for a preview."""
+        win._profile_full_image_parent = parent
+        paths, index = self._profile_image_navigation_state(
+            image_path, gallery_paths)
+        win._profile_full_image_gallery_paths = paths
+        win._profile_full_image_gallery_index = index
+
+        prev_btn = getattr(win, '_profile_full_image_prev_btn', None)
+        next_btn = getattr(win, '_profile_full_image_next_btn', None)
+        status_label = getattr(win, '_profile_full_image_status_label', None)
+        if prev_btn is None or next_btn is None:
+            return
+        try:
+            if len(paths) > 1:
+                if not prev_btn.winfo_ismapped():
+                    prev_btn.pack(side='left', padx=(0, 6))
+                if not next_btn.winfo_ismapped():
+                    next_btn.pack(side='left', padx=(0, 10))
+                if (status_label is not None
+                        and not status_label.winfo_ismapped()):
+                    status_label.pack(side='left', padx=(0, 10))
+                if status_label is not None:
+                    status_label.configure(
+                        text=PROFILE_IMAGE_NAV_STATUS.format(
+                            current=index + 1, total=len(paths)))
+                prev_btn.configure(state='normal')
+                next_btn.configure(state='normal')
+            else:
+                prev_btn.pack_forget()
+                next_btn.pack_forget()
+                if status_label is not None:
+                    status_label.pack_forget()
         except tk.TclError:
             pass
+
+    def _draw_full_profile_image(self, win, image_path, media, *,
+                                 base_size=None, zoom=None, canvas_size=None):
+        """Draw image_path into the existing full-size preview canvas."""
+        try:
+            canvas = win._profile_full_image_canvas
+            state = getattr(win, '_profile_full_image_state', {})
+        except tk.TclError:
+            return False
+        if zoom is None:
+            zoom = float(state.get('zoom', 1.0))
+        zoom = max(0.1, min(8.0, float(zoom)))
+        if base_size is None:
+            base_size = (
+                int(state.get('base_w', 0)),
+                int(state.get('base_h', 0)),
+            )
+        try:
+            base_w = max(1, int(base_size[0]))
+            base_h = max(1, int(base_size[1]))
+        except (TypeError, ValueError, IndexError):
+            return False
+
+        display_size = media.zoomed_display_size((base_w, base_h), zoom)
+        image = media.photo_at_size(image_path, display_size)
+        if image is None:
+            messagebox.showerror(
+                ERR_PARSE_TITLE,
+                f"Could not open image:\n\n{image_path}",
+                parent=win,
+            )
+            return False
+
+        try:
+            canvas.update_idletasks()
+            if canvas_size is None:
+                canvas_w = max(
+                    canvas.winfo_width(),
+                    int(state.get('canvas_w', 0)),
+                    240,
+                )
+                canvas_h = max(
+                    canvas.winfo_height(),
+                    int(state.get('canvas_h', 0)),
+                    180,
+                )
+            else:
+                canvas_w = max(1, int(canvas_size[0]))
+                canvas_h = max(1, int(canvas_size[1]))
+        except (tk.TclError, ValueError, TypeError, IndexError):
+            return False
+
+        image_w, image_h = image.width(), image.height()
+        scroll_w = max(canvas_w, image_w)
+        scroll_h = max(canvas_h, image_h)
+        image_x = max(0, (scroll_w - image_w) // 2)
+        image_y = max(0, (scroll_h - image_h) // 2)
+
+        canvas.delete('all')
+        canvas._profile_full_image_ref = image
+        canvas.configure(bg='#f3f4f6', width=canvas_w, height=canvas_h)
+        canvas.create_image(image_x, image_y, image=image, anchor='nw')
+        canvas.configure(scrollregion=(0, 0, scroll_w, scroll_h))
+        win._profile_full_image_source_path = image_path
+        win._profile_full_image_state = {
+            'canvas_w': canvas_w,
+            'canvas_h': canvas_h,
+            'base_w': base_w,
+            'base_h': base_h,
+            'image_w': image_w,
+            'image_h': image_h,
+            'zoom': zoom,
+        }
+        return True
+
+    def _set_full_profile_image_zoom(self, win, media, zoom):
+        """Apply a new zoom level to the open full-size preview."""
+        image_path = getattr(win, '_profile_full_image_source_path', '')
+        if not image_path:
+            return
+        state = getattr(win, '_profile_full_image_state', {})
+        base_size = (
+            int(state.get('base_w', state.get('canvas_w', 1))),
+            int(state.get('base_h', state.get('canvas_h', 1))),
+        )
+        if self._draw_full_profile_image(
+                win, image_path, media, base_size=base_size, zoom=zoom):
+            try:
+                canvas = win._profile_full_image_canvas
+                canvas.focus_set()
+            except tk.TclError:
+                pass
+
+    def _replace_full_profile_image(self, win, image_path, media):
+        """Replace the image inside an already-open full-size preview window."""
+        try:
+            canvas = win._profile_full_image_canvas
+            win.update_idletasks()
+            state = getattr(win, '_profile_full_image_state', {})
+            canvas_w = max(
+                canvas.winfo_width(),
+                int(state.get('canvas_w', 0)),
+                240,
+            )
+            canvas_h = max(
+                canvas.winfo_height(),
+                int(state.get('canvas_h', 0)),
+                180,
+            )
+        except (tk.TclError, ValueError, TypeError):
+            return False
+
+        try:
+            base_size = media.display_size_for_photo(
+                image_path, (canvas_w, canvas_h))
+        except Exception:  # pylint: disable=broad-exception-caught
+            base_size = (canvas_w, canvas_h)
+        zoom = float(state.get('zoom', 1.0))
+        if not self._draw_full_profile_image(
+                win, image_path, media, base_size=base_size, zoom=zoom,
+                canvas_size=(canvas_w, canvas_h)):
+            return False
+
+        win.title(image_path)
+        paths = getattr(win, '_profile_full_image_gallery_paths', [])
+        if image_path in paths:
+            index = paths.index(image_path)
+            win._profile_full_image_gallery_index = index
+            status_label = getattr(
+                win, '_profile_full_image_status_label', None)
+            if status_label is not None and len(paths) > 1:
+                try:
+                    status_label.configure(
+                        text=PROFILE_IMAGE_NAV_STATUS.format(
+                            current=index + 1, total=len(paths)))
+                except tk.TclError:
+                    pass
+        try:
+            canvas.focus_set()
+        except tk.TclError:
+            pass
+        return True
+
+    def _show_gallery_full_profile_image(self, image_path, parent, gallery_paths):
+        """Open or update the full-image preview from a gallery thumbnail."""
+        win = getattr(self, '_profile_image_preview_win', None)
+        try:
+            exists = bool(win is not None and win.winfo_exists())
+        except tk.TclError:
+            exists = False
+        if not exists:
+            self._show_full_profile_image(
+                image_path, parent=parent, gallery_paths=gallery_paths)
+            return
+        media = getattr(self, '_media_service', None)
+        if media is None:
+            return
+        self._configure_full_profile_gallery_navigation(
+            win, image_path, parent, gallery_paths)
+        self._replace_full_profile_image(win, image_path, media)
 
     @staticmethod
     def _copy_windows_dib_bytes_to_clipboard(parent, dib_bytes):
@@ -378,7 +744,7 @@ class PersonDialogMixin:
             if memory:
                 kernel32.GlobalFree(memory)
 
-    def _show_full_profile_image(self, image_path, parent=None):
+    def _show_full_profile_image(self, image_path, parent=None, gallery_paths=None):
         """Open or reuse a scrollable preview window for a resolved local image."""
         if not image_path:
             return
@@ -414,6 +780,23 @@ class PersonDialogMixin:
             btn_frame = ctk.CTkFrame(outer, fg_color='transparent')
             btn_frame.pack(fill='x', padx=10, pady=(6, 8))
             win._profile_full_image_button_frame = btn_frame
+
+            def _nav_image(delta):
+                paths = getattr(win, '_profile_full_image_gallery_paths', [])
+                if len(paths) <= 1:
+                    return 'break'
+                index = getattr(win, '_profile_full_image_gallery_index', 0)
+                index = (index + delta) % len(paths)
+                self._replace_full_profile_image(win, paths[index], media)
+                return 'break'
+
+            def _nav_image_to(index):
+                paths = getattr(win, '_profile_full_image_gallery_paths', [])
+                if len(paths) <= 1:
+                    return 'break'
+                index = max(0, min(len(paths) - 1, index))
+                self._replace_full_profile_image(win, paths[index], media)
+                return 'break'
 
             def _copy_image(*_):
                 graph_state = getattr(win, '_profile_full_image_state', None)
@@ -484,12 +867,55 @@ class PersonDialogMixin:
                     )
                 return 'break'
 
+            prev_btn = ctk.CTkButton(
+                btn_frame, text=BTN_PROFILE_IMAGE_PREV, width=44,
+                command=lambda: _nav_image(-1))
+            Tooltip(prev_btn, get_tip_profile_image_previous())
+            next_btn = ctk.CTkButton(
+                btn_frame, text=BTN_PROFILE_IMAGE_NEXT, width=44,
+                command=lambda: _nav_image(1))
+            Tooltip(next_btn, get_tip_profile_image_next())
+            status_label = ctk.CTkLabel(
+                btn_frame, text='', width=70, anchor='center')
+            win._profile_full_image_prev_btn = prev_btn
+            win._profile_full_image_next_btn = next_btn
+            win._profile_full_image_status_label = status_label
+
+            def _profile_zoom_level():
+                state = getattr(win, '_profile_full_image_state', {})
+                return float(state.get('zoom', 1.0))
+
+            def _zoom_image_in():
+                self._set_full_profile_image_zoom(
+                    win, media, _profile_zoom_level() * 1.1)
+
+            def _zoom_image_out():
+                self._set_full_profile_image_zoom(
+                    win, media, _profile_zoom_level() / 1.1)
+
+            def _zoom_image_reset():
+                self._set_full_profile_image_zoom(win, media, 1.0)
+
             copy_btn = ctk.CTkButton(
                 btn_frame, text=BTN_COPY_GRAPH, width=80, command=_copy_image)
             copy_btn.pack(side='right', padx=(6, 0))
             save_btn = ctk.CTkButton(
                 btn_frame, text=BTN_SAVE_GRAPH, width=80, command=_save_image)
             save_btn.pack(side='right')
+            win.bind('<Left>', lambda *_: _nav_image(-1))
+            win.bind('<Right>', lambda *_: _nav_image(1))
+            win.bind('<Home>', lambda *_: _nav_image_to(0))
+            win.bind('<End>', lambda *_: _nav_image_to(
+                len(getattr(win, '_profile_full_image_gallery_paths', [])) - 1))
+            canvas.bind('<Left>', lambda *_: _nav_image(-1))
+            canvas.bind('<Right>', lambda *_: _nav_image(1))
+            canvas.bind('<Home>', lambda *_: _nav_image_to(0))
+            canvas.bind('<End>', lambda *_: _nav_image_to(
+                len(getattr(win, '_profile_full_image_gallery_paths', [])) - 1))
+            bind_zoom_shortcuts(
+                win, _zoom_image_in, _zoom_image_out, _zoom_image_reset)
+            bind_zoom_shortcuts(
+                canvas, _zoom_image_in, _zoom_image_out, _zoom_image_reset)
 
             def _close_preview(*_):
                 if getattr(self, '_profile_image_preview_win', None) is win:
@@ -506,43 +932,54 @@ class PersonDialogMixin:
             except tk.TclError:
                 pass
 
+        try:
+            win.transient(parent)
+        except tk.TclError:
+            pass
         win.title(image_path)
         win._profile_full_image_source_path = image_path
+        self._configure_full_profile_gallery_navigation(
+            win, image_path, parent, gallery_paths)
+
+        def _focus_preview():
+            try:
+                win.lift()
+                win.focus_force()
+                canvas.focus_set()
+            except tk.TclError:
+                pass
 
         def _render():
             screen_w = max(parent.winfo_screenwidth(), 640)
             screen_h = max(parent.winfo_screenheight(), 480)
             max_w = max(240, int(screen_w * 0.82))
             max_h = max(180, int(screen_h * 0.78))
-            image = media.full_size_photo(image_path, (max_w, max_h))
-            if image is None:
+            try:
+                base_size = media.display_size_for_photo(
+                    image_path, (max_w, max_h))
+            except Exception:  # pylint: disable=broad-exception-caught
                 messagebox.showerror(
                     ERR_PARSE_TITLE,
                     f"Could not open image:\n\n{image_path}",
                     parent=win,
                 )
                 return
-            canvas.delete('all')
-            canvas._profile_full_image_ref = image
-            canvas.configure(width=image.width(), height=image.height())
-            canvas.create_image(0, 0, image=image, anchor='nw')
-            canvas.configure(scrollregion=(0, 0, image.width(), image.height()))
-            win._profile_full_image_state = {
-                'canvas_w': image.width(),
-                'canvas_h': image.height(),
-            }
+            if not self._draw_full_profile_image(
+                    win, image_path, media, base_size=base_size, zoom=1.0,
+                    canvas_size=base_size):
+                return
             btn_frame = getattr(win, '_profile_full_image_button_frame', None)
             button_h = 0
+            button_w = 0
             if btn_frame is not None:
                 btn_frame.update_idletasks()
-                button_h = btn_frame.winfo_reqheight() + 14
-            chrome_w = 22 if image.width() >= max_w else 2
-            chrome_h = 22 if image.height() >= max_h else 2
-            win_w = image.width() + chrome_w
-            win_h = image.height() + button_h + chrome_h
+                button_h = btn_frame.winfo_reqheight() + 44
+                button_w = btn_frame.winfo_reqwidth() + 20
+            win_w, win_h, min_w, min_h = self._profile_preview_window_dimensions(
+                base_size[0], base_size[1], max_w, max_h, button_w,
+                button_h)
             win.geometry(f'{win_w}x{win_h}')
-            win.minsize(min(image.width() + chrome_w, 240),
-                        min(image.height() + chrome_h, 180))
+            win.minsize(min_w, min_h)
             try:
                 parent.update_idletasks()
                 px = parent.winfo_rootx()
@@ -556,11 +993,8 @@ class PersonDialogMixin:
                 y = max(0, (screen_h - win_h) // 2)
             win.geometry(f'{win_w}x{win_h}+{x}+{y}')
             win.deiconify()
-            win.lift()
-            try:
-                win.focus_force()
-            except tk.TclError:
-                pass
+            _focus_preview()
+            win.after(80, _focus_preview)
 
         win.after_idle(_render)
 
@@ -674,6 +1108,18 @@ class PersonDialogMixin:
             return btn_frame.winfo_reqwidth() + 24
         except tk.TclError:
             return 0
+
+    @staticmethod
+    def _profile_preview_window_dimensions(
+            image_w, image_h, max_w, max_h, button_w, button_h):
+        """Return window and minimum dimensions for a full-image preview."""
+        chrome_w = 22 if image_w >= max_w else 2
+        chrome_h = 22 if image_h >= max_h else 2
+        min_w = max(240, button_w)
+        win_w = max(image_w + chrome_w, min_w)
+        win_h = image_h + button_h + chrome_h
+        min_h = min(image_h + button_h + chrome_h, 180)
+        return win_w, win_h, min_w, min_h
 
     def _show_person(self, initial_view=None):
         """Open the GEDCOM record viewer for the selected person."""
@@ -1217,7 +1663,8 @@ class PersonDialogMixin:
                     radio.pack(side="left", padx=(0, 6))
                     Tooltip(radio, view_mode_tooltips[mode])
 
-        def _render_person_buttons(select_window_view, copy_profile, save_profile):
+        def _render_person_buttons(
+                select_window_view, copy_profile, save_profile, show_gallery=None):
             _clear_buttons()
             _render_view_selector(select_window_view)
             ctk.CTkButton(
@@ -1233,6 +1680,13 @@ class PersonDialogMixin:
             )
             save_btn.pack(side="right", padx=(0, 8))
             Tooltip(save_btn, get_tip_save_profile())
+            if show_gallery is not None:
+                gallery_btn = ctk.CTkButton(
+                    btn_frame, text=BTN_PROFILE_GALLERY, width=90,
+                    command=show_gallery,
+                )
+                gallery_btn.pack(side="right", padx=(0, 8))
+                Tooltip(gallery_btn, get_tip_profile_gallery())
 
         def _render_tree_buttons(
             select_window_view,
@@ -1392,10 +1846,15 @@ class PersonDialogMixin:
 
             win.bind(copy_shortcut, _copy_profile)
             win.bind(save_shortcut, _save_profile)
+            show_gallery = None
+            if self._profile_gallery_candidates(current_id):
+                show_gallery = lambda iid=current_id: self._show_profile_image_gallery(
+                    iid, parent=win)
             _render_person_buttons(
                 _select_window_view,
                 _copy_profile,
                 _save_profile,
+                show_gallery,
             )
             text.focus_set()
 

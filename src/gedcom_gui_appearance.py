@@ -773,6 +773,7 @@ class AppearanceMixin:
             'open_gedcom': self._browse,
             'set_home': self._set_home_person,
             'display_tree': lambda: self._show_person(initial_view='tree'),
+            'show_gallery': self._show_current_profile_gallery,
             'save_results': self._save_results,
             'display_matches': lambda: self._set_display_mode('matches'),
             'reverse_results': self._reverse_results,

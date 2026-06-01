@@ -416,6 +416,12 @@ def get_tip_person_view_btn():
 
 
 DLG_SAVE_PROFILE = _("Save profile")
+BTN_PROFILE_GALLERY = _("Gallery")
+BTN_PROFILE_IMAGE_PREV = _("←")
+BTN_PROFILE_IMAGE_NEXT = _("→")
+WIN_PROFILE_IMAGE_GALLERY = _("Image Gallery: {name}")
+PROFILE_IMAGE_GALLERY_EMPTY = _("No additional images found.")
+PROFILE_IMAGE_NAV_STATUS = _("{current} of {total}")
 
 
 def get_tip_save_profile():
@@ -430,6 +436,22 @@ def get_tip_copy_profile():
     return _(
         "Copy profile ({mod}C)\nCopy this biographical profile to clipboard."
     ).format(mod=mod)
+
+
+def get_tip_profile_gallery():
+    display = _shortcut_by_action("show_gallery").display
+    return _(
+        "Image gallery ({display})\n"
+        "Show thumbnails for additional images associated with this person."
+    ).format(display=display)
+
+
+def get_tip_profile_image_previous():
+    return _("Previous image\nShow the previous image in this gallery.")
+
+
+def get_tip_profile_image_next():
+    return _("Next image\nShow the next image in this gallery.")
 
 
 WIN_FAMILY_TREE = _("Family Tree: {name}")
@@ -816,6 +838,7 @@ def get_keyboard_shortcut_rows():
         "open_gedcom": _("Open a new GEDCOM file"),
         "display_matches": _("Switch the Display Pane to Matches"),
         "display_tree": _("Open Tree View for selected person"),
+        "show_gallery": _("Open the selected person's image gallery"),
         "set_home": _("Set or unset the selected person as Home person"),
         "display_paths": _("Switch the Display Pane to Paths"),
         "select_tag": _("Select new tag for finding relationship paths"),
