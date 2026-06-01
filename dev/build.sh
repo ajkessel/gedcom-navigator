@@ -7,8 +7,8 @@ cd "${SCRIPT_DIR}/.." || exit 1
 	exit 1
 }
 if [[ "$STDBUF_ACTIVE" != "1" ]]; then
-        export STDBUF_ACTIVE=1
-        exec stdbuf -oL "$0" "$@"
+	export STDBUF_ACTIVE=1
+	exec stdbuf -oL "$0" "$@"
 fi
 git_branch=$(git branch --show-current)
 while getopts "hnco:b:" opt; do

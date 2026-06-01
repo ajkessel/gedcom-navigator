@@ -711,12 +711,23 @@ class FamilyTreeRenderMixin:
                     payload = self._profile_media_payload(node_id, (thumb_w, thumb_h))
                     if payload and payload.get('image') is not None:
                         image_tag = f'{node_tag}_photo'
+                        image_tags = (
+                            ('family_tree_node_photo', image_tag)
+                            if payload.get('kind') == 'real'
+                            else ('family_tree_node', node_tag, image_tag)
+                        )
                         canvas.create_image(
                             x, y1 + image_inset + thumb_h / 2,
                             image=payload['image'], anchor='center',
-                            tags=('family_tree_node', node_tag, image_tag))
+                            tags=image_tags)
                         canvas._profile_image_refs.append(payload['image'])
                         if payload.get('kind') == 'real':
+                            canvas.tag_bind(
+                                image_tag, '<Enter>',
+                                lambda *_: canvas.configure(cursor='hand2'))
+                            canvas.tag_bind(
+                                image_tag, '<Leave>',
+                                lambda *_: canvas.configure(cursor=''))
                             canvas.tag_bind(
                                 image_tag, '<Button-1>',
                                 lambda event, path=payload.get('path'): (
@@ -744,12 +755,23 @@ class FamilyTreeRenderMixin:
                     payload = self._profile_media_payload(node_id, (thumb_w, thumb_h))
                     if payload and payload.get('image') is not None:
                         image_tag = f'{node_tag}_photo'
+                        image_tags = (
+                            ('family_tree_node_photo', image_tag)
+                            if payload.get('kind') == 'real'
+                            else ('family_tree_node', node_tag, image_tag)
+                        )
                         canvas.create_image(
                             x, y1 + image_inset + thumb_h / 2,
                             image=payload['image'], anchor='center',
-                            tags=('family_tree_node', node_tag, image_tag))
+                            tags=image_tags)
                         canvas._profile_image_refs.append(payload['image'])
                         if payload.get('kind') == 'real':
+                            canvas.tag_bind(
+                                image_tag, '<Enter>',
+                                lambda *_: canvas.configure(cursor='hand2'))
+                            canvas.tag_bind(
+                                image_tag, '<Leave>',
+                                lambda *_: canvas.configure(cursor=''))
                             canvas.tag_bind(
                                 image_tag, '<Button-1>',
                                 lambda event, path=payload.get('path'): (

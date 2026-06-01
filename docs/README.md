@@ -14,8 +14,9 @@ This application provides useful ways to rapidly explore a GEDCOM file exported 
 * Rapidly explore names and connections, even in a very large tree with very distant connections
 * Generate custom images of parts of your tree, expanding or collapsing the connections you want to see and saving them to your clipboard or an image file
 * Visualize relationships between any two people graphically
+* If you have photos in your GEDCOM that are stored locally, they will appear in your tree as well
 
-The tool does not modify your GEDCOM file. It is used for exploring connections.
+The tool does not modify your GEDCOM. It is used for exploring connections.
 
 In addition to the GUI, this application also includes a command-line tool for fast queries or incorporating into other programmatic workflows.
 

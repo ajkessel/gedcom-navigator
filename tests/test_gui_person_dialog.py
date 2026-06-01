@@ -289,6 +289,58 @@ def test_missing_profile_image_notice_skips_absent_or_resolved_file(monkeypatch)
     assert not getattr(app, "_profile_image_missing_notice_shown", False)
 
 
+def test_initial_media_directory_prefers_saved_directory(tmp_path):
+    class App(PersonDialogMixin):
+        pass
+
+    class GedcomPath:
+        @staticmethod
+        def get():
+            return str(tmp_path / "tree.ged")
+
+    saved = tmp_path / "saved"
+    saved.mkdir()
+    app = App()
+    app.gedcom_path = GedcomPath()
+    app._profile_media_dirs = lambda: [str(saved)]
+
+    assert app._initial_media_directory() == str(saved)
+
+
+def test_initial_media_directory_prefers_nearby_media_folder(tmp_path):
+    class App(PersonDialogMixin):
+        pass
+
+    class GedcomPath:
+        @staticmethod
+        def get():
+            return str(tmp_path / "tree.ged")
+
+    media = tmp_path / "Photos"
+    media.mkdir()
+    app = App()
+    app.gedcom_path = GedcomPath()
+    app._profile_media_dirs = lambda: []
+
+    assert app._initial_media_directory() == str(media)
+
+
+def test_initial_media_directory_falls_back_to_gedcom_directory(tmp_path):
+    class App(PersonDialogMixin):
+        pass
+
+    class GedcomPath:
+        @staticmethod
+        def get():
+            return str(tmp_path / "tree.ged")
+
+    app = App()
+    app.gedcom_path = GedcomPath()
+    app._profile_media_dirs = lambda: []
+
+    assert app._initial_media_directory() == str(tmp_path)
+
+
 def test_profile_sections_render_in_requested_order():
     """Profile sections render Biography, Family, Home Path, Facts, then Tags."""
 

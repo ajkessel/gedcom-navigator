@@ -271,9 +271,9 @@ class TestShowIds:
 # ===========================================================================
 
 class TestShowProfileImage:
-    def test_default_is_false(self, tmp_path):
+    def test_default_is_true(self, tmp_path):
         mgr = _mgr(tmp_path)
-        assert mgr.get_show_profile_image() is False
+        assert mgr.get_show_profile_image() is True
 
     def test_roundtrip(self, tmp_path):
         mgr = _mgr(tmp_path)

@@ -12,6 +12,7 @@ import tkinter as tk
 import tkinter.font as tkfont
 import webbrowser
 from datetime import date
+from pathlib import Path
 from tkinter import filedialog, messagebox
 
 import customtkinter as ctk
@@ -38,6 +39,10 @@ from gedcom_zoom import TextZoomController, bind_zoom_shortcuts, scaled_tag_font
 class PersonDialogMixin:
     """Person detail window helpers."""
 
+    _MEDIA_DIR_NAMES = (
+        'media', 'Media', 'photos', 'Photos', 'images', 'Images',
+        'pictures', 'Pictures'
+    )
     _TREE_VIEW_MODES = ("tree", "pedigree", "descendant")
     _HTTPS_URL_RE = re.compile(r"https://[^\s<>\"']+")
     _URL_TRAILING_PUNCTUATION = ".,;:!?)]}"
@@ -251,6 +256,31 @@ class PersonDialogMixin:
         directory = config.get_media_parent_dir(gedcom_path)
         return [directory] if directory else []
 
+    def _initial_media_directory(self):
+        """Return the best starting directory for selecting linked media."""
+        for directory in self._profile_media_dirs():
+            if directory and Path(directory).expanduser().is_dir():
+                return str(Path(directory).expanduser())
+
+        gedcom_path = self.gedcom_path.get()
+        gedcom_dir = None
+        if gedcom_path:
+            try:
+                gedcom_dir = Path(gedcom_path).expanduser().resolve().parent
+            except OSError:
+                gedcom_dir = Path(gedcom_path).expanduser().parent
+            if gedcom_dir.is_dir():
+                for name in self._MEDIA_DIR_NAMES:
+                    candidate = gedcom_dir / name
+                    if candidate.is_dir():
+                        return str(candidate)
+                return str(gedcom_dir)
+
+        pictures = Path.home() / 'Pictures'
+        if pictures.is_dir():
+            return str(pictures)
+        return str(Path.home())
+
     def _maybe_show_missing_profile_image_notice(self, indi, media):
         """Show one per-session note when a selected FILE path is missing."""
         if getattr(self, '_profile_image_missing_notice_shown', False):
@@ -274,6 +304,7 @@ class PersonDialogMixin:
             directory = filedialog.askdirectory(
                 parent=filedialog_parent(getattr(self, 'root', None)),
                 title=PROFILE_IMAGE_DIR_TITLE,
+                initialdir=self._initial_media_directory(),
             )
             if not directory:
                 return

@@ -161,7 +161,7 @@ class ConfigManager:
 
     def get_show_profile_image(self):
         """Return whether profile thumbnails should be shown in profiles and graphs."""
-        return bool(self.load_value('show_profile_image', False))
+        return bool(self.load_value('show_profile_image', True))
 
     def set_show_profile_image(self, value):
         """Save whether profile thumbnails should be shown in profiles and graphs."""
