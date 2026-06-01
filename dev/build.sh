@@ -10,7 +10,7 @@ if [[ "$STDBUF_ACTIVE" != "1" ]]; then
         export STDBUF_ACTIVE=1
         exec stdbuf -oL "$0" "$@"
 fi
-git_branch="main"
+git_branch=$(git branch --show-current)
 while getopts "hnco:b:" opt; do
 	case $opt in
 	h)
@@ -25,13 +25,22 @@ while getopts "hnco:b:" opt; do
 	n) DRY=true ;;
 	c) CLEAN=true ;;
 	o) output_file=$OPTARG ;;
-	b) git_branch=$OPTARG ;;
+	b) new_git_branch=$OPTARG ;;
 	*)
 		echo "Invalid option"
 		exit 1
 		;;
 	esac
 done
+if [ "${git_branch}" != "main" ] && [ -z "${new_git_branch}" ]; then
+	echo "Current git branch is ${git_branch}. Do you want to build from this branch? (y/n)"
+	read -r answer
+	if [[ "$answer" != "y" ]]; then
+		echo "Exiting."
+		exit 0
+	fi
+fi
+[ -n "${new_git_branch}" ] && git_branch="${new_git_branch}"
 git switch "$git_branch" || {
 	echo "Failed to switch to git branch $git_branch. Exiting."
 	exit 1
