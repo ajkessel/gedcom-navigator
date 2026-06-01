@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.9.11] - 2026-06-01
+
+### Added
+
+- **Profile view Facts & Events section** — Profile now renders additional individual GEDCOM facts and events from the raw record, including common entries such as occupation, residence, census, education, immigration, military, religion, probate, wills, generic `EVEN`/`FACT` records, notes, source page details, and clickable `https://` links. Profile sections now appear in this order: Biography, Family, Path to Home Person, Facts & Events, Tags, then the optional Full GEDCOM Record.
+- **Unset the Home Person from the action bar** — when the current Home Person is selected in the people list, the "Set Home" button now changes to "Unset Home". Clicking it clears the Home Person (removing the path-to-home section and the saved `home_persons` entry for the file). The button label tracks the selection automatically, including after loading a file or unloading data, and the `Set Home` keyboard shortcut now toggles the same way. `ConfigManager.set_home_person` accepts `None` to clear the stored value.
+
+### Fixed
+
+- **Intermittent tooltip crash on Windows multi-monitor / DPI changes** — hovering a tooltip could occasionally raise `AttributeError: '_SizedToolTip' object has no attribute 'block_update_dimensions_event'`. The tooltip subclasses a plain Tk `Toplevel` but contains CustomTkinter widgets, which register the tooltip window with CustomTkinter's `ScalingTracker`; when its DPI-check loop detects a monitor scaling change (Windows only) it calls `block_update_dimensions_event()`/`unblock_update_dimensions_event()`, methods that exist only on `CTk`/`CTkToplevel`. `_SizedToolTip` now provides these methods as no-ops matching CustomTkinter's own implementation, so the tracker rescales the tooltip's inner widgets without crashing.
+- **Family tree rendering for step, half, and multi-spouse families** — Tree View now draws visible sibling links as adjacent segments so full- and half-sibling styles do not overlap into misleading long lines. Parent-child connectors are grouped by the actual visible parent couple instead of any visible spouse, preventing step-parents from appearing as biological parents. Multi-spouse parent rows keep each spouse-family group visually distinct, child groups are re-centered under their parents after compaction, and leaf sibling outliers are pulled back next to their sibling group to avoid large empty spans.
+
 ## [1.9.10] - 2026-05-31
 
 ### Added

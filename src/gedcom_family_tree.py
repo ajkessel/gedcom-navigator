@@ -99,6 +99,39 @@ def build_family_tree_graph(center_id, expanded, family_lookup,
                             not in edge_set):
                         add_edge(parent_id, other_parent_id, 'spouses')
 
+    parent_edge_children = {center_id}
+    center_members = family_lookup(center_id)
+    parent_edge_children.update(
+        child_id for child_id in center_members.get('siblings', ())
+        if child_id in visible_set)
+    for source_id, target_id, category in edges:
+        if category == 'children' and target_id in visible_set:
+            parent_edge_children.add(target_id)
+
+    for child_id in list(visible):
+        if child_id not in parent_edge_children:
+            continue
+        parents = [
+            parent_id for parent_id in family_lookup(child_id).get('parents', ())
+            if parent_id in visible_set and parent_id != child_id
+        ]
+        for parent_id in parents:
+            add_edge(child_id, parent_id, 'parents')
+        for index, parent_id in enumerate(parents):
+            for other_parent_id in parents[index + 1:]:
+                if coparent_lookup:
+                    parent_coparents = set(coparent_lookup(
+                        parent_id, (child_id,)))
+                    other_coparents = set(coparent_lookup(
+                        other_parent_id, (child_id,)))
+                    if (other_parent_id not in parent_coparents
+                            and parent_id not in other_coparents):
+                        continue
+                if ((parent_id, other_parent_id, 'spouses') not in edge_set
+                        and (other_parent_id, parent_id, 'spouses')
+                        not in edge_set):
+                    add_edge(parent_id, other_parent_id, 'spouses')
+
     return visible, edges
 
 
@@ -1302,6 +1335,72 @@ def layout_family_tree(center_id, visible_ids, edges):
                 positions[spouse_id] = (spouse_generation, desired_column)
                 ctx.rebuild()
 
+    def enforce_multi_spouse_family_groups():
+        for source_id in sorted(
+                list(positions),
+                key=lambda item: (positions[item][0], positions[item][1])):
+            source_generation, source_column = positions[source_id]
+            spouse_groups = []
+            seen_spouses = set()
+            for spouse_id in _visible_spouse_ids(source_id, relations, positions):
+                if spouse_id in seen_spouses:
+                    continue
+                seen_spouses.add(spouse_id)
+                spouse_generation, _spouse_column = positions[spouse_id]
+                if spouse_generation != source_generation:
+                    continue
+                child_generation = source_generation + 1
+                shared_children = [
+                    child_id for child_id in children_by_parent.get(source_id, ())
+                    if child_id in children_by_parent.get(spouse_id, ())
+                    and child_id in positions
+                    and positions[child_id][0] == child_generation
+                ]
+                if not shared_children:
+                    continue
+                child_columns = [
+                    positions[child_id][1] for child_id in shared_children
+                ]
+                spouse_groups.append({
+                    'spouse_id': spouse_id,
+                    'child_center': (
+                        min(child_columns) + max(child_columns)) / 2,
+                })
+            if len(spouse_groups) < 2:
+                continue
+
+            spouse_groups.sort(
+                key=lambda group: (group['child_center'], group['spouse_id']))
+            left_groups = [
+                group for group in spouse_groups
+                if group['child_center'] < source_column
+            ]
+            right_groups = [
+                group for group in spouse_groups
+                if group['child_center'] >= source_column
+            ]
+            if not left_groups or not right_groups:
+                split_at = max(1, len(spouse_groups) // 2)
+                left_groups = spouse_groups[:split_at]
+                right_groups = spouse_groups[split_at:]
+
+            desired = {}
+            for offset, group in enumerate(reversed(left_groups), start=1):
+                desired[group['spouse_id']] = source_column - (
+                    offset * MIN_COLUMN_SPACING)
+            for offset, group in enumerate(right_groups, start=1):
+                desired[group['spouse_id']] = source_column + (
+                    offset * MIN_COLUMN_SPACING)
+
+            protected_ids = {source_id, *desired}
+            for spouse_id, column in sorted(
+                    desired.items(), key=lambda item: item[1]):
+                if abs(positions[spouse_id][1] - column) < 0.001:
+                    continue
+                ctx.reserve(source_generation, column, protected_ids)
+                positions[spouse_id] = (source_generation, column)
+                ctx.rebuild()
+
     def enforce_child_alignment():
         assigned_child_columns_by_generation = defaultdict(list)
         aligned_child_groups = set()
@@ -2019,6 +2118,144 @@ def layout_family_tree(center_id, visible_ids, edges):
                 return True
         return False
 
+    def compact_unbranched_center_siblings():
+        if center_id not in positions:
+            return
+        center_generation, center_column = positions[center_id]
+        spouse_ids = [
+            spouse_id for spouse_id in _visible_spouse_ids(
+                center_id, relations, positions)
+            if positions[spouse_id][0] == center_generation
+        ]
+        if not spouse_ids:
+            return
+        visible_siblings = _visible_sibling_ids(
+            center_id, relations, positions)
+        if len(visible_siblings) != 1:
+            return
+        spouse_columns = [positions[spouse_id][1] for spouse_id in spouse_ids]
+        direction = (
+            -1 if any(column > center_column for column in spouse_columns)
+            else 1
+        )
+        sibling_ids = []
+        for sibling_id in visible_siblings:
+            if positions[sibling_id][0] != center_generation:
+                continue
+            has_visible_child = any(
+                positions[child_id][0] == center_generation + 1
+                for child_id in _visible_child_ids(
+                    sibling_id, relations, positions))
+            has_visible_spouse = any(
+                positions[spouse_id][0] == center_generation
+                for spouse_id in _visible_spouse_ids(
+                    sibling_id, relations, positions))
+            if has_visible_child or has_visible_spouse:
+                continue
+            sibling_column = positions[sibling_id][1]
+            on_preferred_side = (
+                direction < 0 and sibling_column < center_column
+                or direction > 0 and sibling_column > center_column
+            )
+            if not on_preferred_side:
+                sibling_ids.append(sibling_id)
+        if not sibling_ids:
+            return
+
+        sibling_ids.sort(key=lambda sibling_id: (
+            abs(positions[sibling_id][1] - center_column),
+            positions[sibling_id][1],
+            sibling_id,
+        ))
+        protected_ids = {center_id, *spouse_ids, *sibling_ids}
+        for sibling_id, offset in zip(
+                sibling_ids, _side_offsets(len(sibling_ids), direction)):
+            column = center_column + offset
+            ctx.reserve(center_generation, column, protected_ids)
+            positions[sibling_id] = (center_generation, column)
+            ctx.rebuild()
+
+    def compact_unbranched_sibling_outliers():
+        handled_groups = set()
+        for source_id in sorted(
+                list(positions),
+                key=lambda item: (positions[item][0], positions[item][1])):
+            source_generation, _source_column = positions[source_id]
+            sibling_ids = [
+                sibling_id for sibling_id in _visible_sibling_ids(
+                    source_id, relations, positions)
+                if positions[sibling_id][0] == source_generation
+            ]
+            if len(sibling_ids) < 2:
+                continue
+            group_ids = frozenset([source_id, *sibling_ids])
+            group_key = (source_generation, group_ids)
+            if group_key in handled_groups:
+                continue
+            handled_groups.add(group_key)
+
+            leaf_ids = []
+            for person_id in group_ids:
+                has_visible_child = any(
+                    positions[child_id][0] == source_generation + 1
+                    for child_id in _visible_child_ids(
+                        person_id, relations, positions))
+                has_visible_spouse = any(
+                    positions[spouse_id][0] == source_generation
+                    for spouse_id in _visible_spouse_ids(
+                        person_id, relations, positions))
+                if has_visible_child or has_visible_spouse:
+                    continue
+                if person_id != source_id:
+                    leaf_ids.append(person_id)
+            if not leaf_ids:
+                continue
+
+            protected_ids = set(group_ids)
+            leaf_columns = {
+                person_id: positions[person_id][1]
+                for person_id in leaf_ids
+            }
+            other_columns = {
+                person_id: [
+                    positions[other_id][1]
+                    for other_id in group_ids
+                    if other_id != person_id
+                ]
+                for person_id in leaf_ids
+            }
+            left_leaf_ids = []
+            right_leaf_ids = []
+            for person_id, column in leaf_columns.items():
+                columns = other_columns[person_id]
+                if not columns:
+                    continue
+                if column < min(columns) - MIN_COLUMN_SPACING * 2:
+                    left_leaf_ids.append(person_id)
+                elif column > max(columns) + MIN_COLUMN_SPACING * 2:
+                    right_leaf_ids.append(person_id)
+            for leaf_id in sorted(
+                    left_leaf_ids,
+                    key=lambda person_id: positions[person_id][1],
+                    reverse=True):
+                column = min(
+                    positions[person_id][1]
+                    for person_id in group_ids
+                    if person_id != leaf_id) - MIN_COLUMN_SPACING
+                ctx.reserve(source_generation, column, protected_ids)
+                positions[leaf_id] = (source_generation, column)
+                ctx.rebuild()
+            for leaf_id in sorted(
+                    right_leaf_ids,
+                    key=lambda person_id: positions[person_id][1]):
+                column = max(
+                    positions[person_id][1]
+                    for person_id in group_ids
+                    if person_id != leaf_id) + MIN_COLUMN_SPACING
+                ctx.reserve(source_generation, column, protected_ids)
+                positions[leaf_id] = (source_generation, column)
+                ctx.rebuild()
+
     def sibling_cluster_branch_block(root_id, source_generation):
         root_ids = set()
         queue = deque([root_id])
@@ -2410,20 +2647,24 @@ def layout_family_tree(center_id, visible_ids, edges):
 
     def settle_core_constraints():
         ctx.run_until_stable(
-            (enforce_spouse_adjacency, enforce_child_alignment),
+            (enforce_spouse_adjacency, enforce_multi_spouse_family_groups,
+             enforce_child_alignment),
             max_iterations=10,
         )
 
     def resolve_initial_row_conflicts():
         enforce_spouse_adjacency()
+        enforce_multi_spouse_family_groups()
         ctx.compact_row_gaps({center_id})
         enforce_spouse_adjacency()
+        enforce_multi_spouse_family_groups()
         ctx.resolve_same_row_conflicts({center_id})
 
     def settle_sibling_positions():
         enforce_sibling_adjacency()
         ctx.rebuild()
         enforce_spouse_adjacency()
+        enforce_multi_spouse_family_groups()
         ctx.resolve_same_row_conflicts({center_id})
         ctx.compact_row_gaps({center_id})
         ctx.resolve_same_row_conflicts({center_id})
@@ -2433,29 +2674,37 @@ def layout_family_tree(center_id, visible_ids, edges):
     def align_family_groups():
         enforce_child_alignment()
         enforce_spouse_adjacency()
+        enforce_multi_spouse_family_groups()
         enforce_sibling_adjacency()
         enforce_spouse_adjacency()
+        enforce_multi_spouse_family_groups()
         enforce_parent_child_alignment()
         enforce_spouse_adjacency()
+        enforce_multi_spouse_family_groups()
         compact_sibling_side_gaps()
         compact_child_row_clusters()
         enforce_child_alignment()
         enforce_spouse_adjacency()
+        enforce_multi_spouse_family_groups()
         enforce_spouse_sibling_side_groups()
         align_detached_child_branches()
         enforce_spouse_adjacency()
+        enforce_multi_spouse_family_groups()
 
     def compact_family_branches():
         compact_sibling_branch_blocks()
         enforce_spouse_adjacency()
+        enforce_multi_spouse_family_groups()
         enforce_child_alignment()
         compact_interleaved_child_family_groups()
         align_detached_child_branches()
         enforce_spouse_adjacency()
+        enforce_multi_spouse_family_groups()
         ctx.run_until_stable(
             (
                 compact_sibling_branch_blocks,
                 enforce_spouse_adjacency,
+                enforce_multi_spouse_family_groups,
                 compact_sibling_side_gaps,
                 compact_interleaved_child_family_groups,
                 align_detached_child_branches,
@@ -2465,7 +2714,11 @@ def layout_family_tree(center_id, visible_ids, edges):
         realign_child_branch_groups()
         enforce_parent_child_alignment()
         compact_interleaved_child_family_groups()
+        compact_unbranched_center_siblings()
+        compact_unbranched_sibling_outliers()
+        enforce_parent_child_alignment()
         enforce_spouse_adjacency()
+        enforce_multi_spouse_family_groups()
 
     place_initial_nodes()
     settle_core_constraints()

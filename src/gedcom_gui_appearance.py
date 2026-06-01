@@ -705,7 +705,12 @@ class AppearanceMixin:
             print(f"Error persisting profile geometry: {e}")
 
     def _set_home_person(self):
-        """Save the selected person as the home person for the active GEDCOM."""
+        """Set or unset the selected person as the home person.
+
+        If the selected person is already the home person, this unsets the
+        home person; otherwise it sets them as the home person for the active
+        GEDCOM.
+        """
         if not self.individuals:
             messagebox.showwarning(ERR_NO_DATA_TITLE, ERR_NO_DATA_MSG)
             return
@@ -717,11 +722,33 @@ class AppearanceMixin:
         gedcom_path = self.gedcom_path.get().strip()
         if not gedcom_path:
             return
-        self._home_person_id = indi_id
-        self._clear_home_path_cache()
-        self._save_home_person(gedcom_path, indi_id)
-        name = self.individuals[indi_id]['name'] or indi_id
-        self.status_text.set(STATUS_HOME_SET.format(name=name))
+        if indi_id == getattr(self, '_home_person_id', None):
+            self._home_person_id = None
+            self._clear_home_path_cache()
+            self._save_home_person(gedcom_path, None)
+            self.status_text.set(STATUS_HOME_UNSET)
+        else:
+            self._home_person_id = indi_id
+            self._clear_home_path_cache()
+            self._save_home_person(gedcom_path, indi_id)
+            name = self.individuals[indi_id]['name'] or indi_id
+            self.status_text.set(STATUS_HOME_SET.format(name=name))
+        self._update_home_button()
+
+    def _update_home_button(self):
+        """Sync the Set/Unset Home button label with the current selection."""
+        btn = getattr(self, 'set_home_btn', None)
+        if btn is None:
+            return
+        sel = self.tree.selection()
+        indi_id = sel[0] if sel else getattr(self, '_active_id', None)
+        home_id = getattr(self, '_home_person_id', None)
+        text = (BTN_UNSET_HOME if home_id and indi_id == home_id
+                else BTN_SET_HOME)
+        try:
+            btn.configure(text=text)
+        except tk.TclError:
+            pass
 
     # ---------------------------------------------------------- Keybindings
     def _setup_keybindings(self):

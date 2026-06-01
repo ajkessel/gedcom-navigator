@@ -39,6 +39,152 @@ class PersonDialogMixin:
     _TREE_VIEW_MODES = ("tree", "pedigree", "descendant")
     _HTTPS_URL_RE = re.compile(r"https://[^\s<>\"']+")
     _URL_TRAILING_PUNCTUATION = ".,;:!?)]}"
+    _FACT_EVENT_TAGS = {
+        "ADOP",
+        "BAPM",
+        "CAST",
+        "CENS",
+        "CHR",
+        "CREM",
+        "DSCR",
+        "EDUC",
+        "EMIG",
+        "EVEN",
+        "FACT",
+        "GRAD",
+        "IMMI",
+        "MILI",
+        "NATI",
+        "NATU",
+        "OCCU",
+        "PROB",
+        "RELI",
+        "RESI",
+        "TITL",
+        "WILL",
+    }
+    _FACT_EVENT_LABELS = {
+        "ADOP": FACT_EVENT_ADOP,
+        "BAPM": FACT_EVENT_BAPM,
+        "CAST": FACT_EVENT_CAST,
+        "CENS": FACT_EVENT_CENS,
+        "CHR": FACT_EVENT_CHR,
+        "CREM": FACT_EVENT_CREM,
+        "DSCR": FACT_EVENT_DSCR,
+        "EDUC": FACT_EVENT_EDUC,
+        "EMIG": FACT_EVENT_EMIG,
+        "EVEN": FACT_EVENT_EVEN,
+        "FACT": FACT_EVENT_FACT,
+        "GRAD": FACT_EVENT_GRAD,
+        "IMMI": FACT_EVENT_IMMI,
+        "MILI": FACT_EVENT_MILI,
+        "NATI": FACT_EVENT_NATI,
+        "NATU": FACT_EVENT_NATU,
+        "OCCU": FACT_EVENT_OCCU,
+        "PROB": FACT_EVENT_PROB,
+        "RELI": FACT_EVENT_RELI,
+        "RESI": FACT_EVENT_RESI,
+        "TITL": FACT_EVENT_TITL,
+        "WILL": FACT_EVENT_WILL,
+    }
+
+    @classmethod
+    def _profile_fact_event_lines(cls, raw):
+        """Return formatted Facts & Events lines from an individual raw record."""
+        lines = []
+        i = 0
+        while i < len(raw):
+            level, _xref, tag, value = raw[i]
+            if level != 1 or tag not in cls._FACT_EVENT_TAGS:
+                i += 1
+                continue
+
+            subrecords = []
+            i += 1
+            while i < len(raw) and raw[i][0] > 1:
+                subrecords.append(raw[i])
+                i += 1
+
+            event = cls._format_profile_fact_event(tag, value, subrecords)
+            if event:
+                lines.append(event)
+        return lines
+
+    @classmethod
+    def _format_profile_fact_event(cls, tag, value, subrecords):
+        event_type = ""
+        date_value = ""
+        place_value = ""
+        age_value = ""
+        cause_value = ""
+        note_parts = []
+        source_pages = []
+        active_note_level = None
+        active_source_level = None
+
+        for level, _xref, subtag, subvalue in subrecords:
+            raw_text = subvalue or ""
+            text = raw_text.strip()
+            if active_note_level is not None and level <= active_note_level:
+                active_note_level = None
+            if active_source_level is not None and level <= active_source_level:
+                active_source_level = None
+
+            if level == 2 and subtag == "TYPE" and not event_type:
+                event_type = text
+            elif level == 2 and subtag == "DATE" and not date_value:
+                date_value = text
+            elif level == 2 and subtag == "PLAC" and not place_value:
+                place_value = text
+            elif level == 2 and subtag == "AGE" and not age_value:
+                age_value = text
+            elif level == 2 and subtag == "CAUS" and not cause_value:
+                cause_value = text
+            elif level == 2 and subtag == "NOTE":
+                active_note_level = level
+                if text and not (text.startswith("@") and text.endswith("@")):
+                    note_parts.append(raw_text)
+            elif active_note_level is not None and subtag in ("CONT", "CONC"):
+                if not note_parts:
+                    note_parts.append(text)
+                elif subtag == "CONC":
+                    note_parts[-1] += raw_text
+                elif text:
+                    note_parts.append(text)
+            elif level == 2 and subtag == "SOUR":
+                active_source_level = level
+            elif (
+                active_source_level is not None
+                and subtag == "PAGE"
+                and text
+            ):
+                source_pages.append(text)
+
+        label = cls._FACT_EVENT_LABELS.get(tag, tag)
+        if tag in ("EVEN", "FACT") and event_type:
+            label = event_type
+
+        value_text = (value or "").strip()
+        details = []
+        if value_text:
+            details.append(value_text)
+        if event_type and tag not in ("EVEN", "FACT"):
+            details.append(event_type)
+        for detail in (date_value, place_value):
+            if detail:
+                details.append(detail)
+        if age_value:
+            details.append(FACT_EVENT_AGE.format(value=age_value))
+        if cause_value:
+            details.append(FACT_EVENT_CAUSE.format(value=cause_value))
+        if note_parts:
+            details.append(FACT_EVENT_NOTE.format(value=" ".join(note_parts)))
+        for page in source_pages:
+            details.append(FACT_EVENT_SOURCE.format(value=page))
+
+        if not details:
+            return ""
+        return FACTS_EVENTS_LINE.format(label=label, details=", ".join(details))
 
     def _show_profile_from_tree_context(self, indi_id, show_person_view):
         """Show indi_id's profile in the current person detail window."""
@@ -343,6 +489,13 @@ class PersonDialogMixin:
             relationship_line=relationship_line,
             common_ancestor_line=common_ancestor_line,
         )
+
+        fact_event_lines = self._profile_fact_event_lines(indi.get("_raw", []))
+        if fact_event_lines:
+            add(FACTS_EVENTS_SECTION, bold=True)
+            for line in fact_event_lines:
+                add_with_https_links(line)
+            add("")
 
         indi_tags = indi.get("tags", [])
         if indi_tags:

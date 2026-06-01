@@ -101,6 +101,12 @@ class TestHomePerson:
         mgr = _mgr(tmp_path)
         assert mgr.get_home_person("/no/such.ged") is None
 
+    def test_unset_clears_home_person(self, tmp_path):
+        mgr = _mgr(tmp_path)
+        mgr.set_home_person("/path/to/tree.ged", "@I42@")
+        mgr.set_home_person("/path/to/tree.ged", None)
+        assert mgr.get_home_person("/path/to/tree.ged") is None
+
 
 # ===========================================================================
 # Font preference

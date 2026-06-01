@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-05-28 16:51-0400\n"
+"POT-Creation-Date: 2026-05-31 16:42-0400\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,207 +18,212 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 2.18.0\n"
 
-#: src/gedcom_strings.py:19
+#: src/gedcom_strings.py:24
 #, fuzzy
 msgid "GEDCOM Navigator"
 msgstr "GEDCOM נווט"
 
-#: src/gedcom_strings.py:20
+#: src/gedcom_strings.py:25
 #, fuzzy
 msgid "No file loaded."
 msgstr "לא נטען קובץ."
 
-#: src/gedcom_strings.py:25
+#: src/gedcom_strings.py:30
 #, fuzzy
 msgid "File"
 msgstr "קובץ"
 
-#: src/gedcom_strings.py:26
+#: src/gedcom_strings.py:31
 #, fuzzy
 msgid "Open GEDCOM File…"
 msgstr "פתח GEDCOM קובץ…"
 
-#: src/gedcom_strings.py:27
+#: src/gedcom_strings.py:32
 #, fuzzy
 msgid "Open Recent"
 msgstr "פתח אחרון"
 
-#: src/gedcom_strings.py:28
+#: src/gedcom_strings.py:33
 #, fuzzy
 msgid "No Recent Files"
 msgstr "אין קבצים אחרונים"
 
-#: src/gedcom_strings.py:29 src/gedcom_strings.py:546
+#: src/gedcom_strings.py:34 src/gedcom_strings.py:760
 #, fuzzy
 msgid "Help"
 msgstr "עזרה"
 
-#: src/gedcom_strings.py:30
+#: src/gedcom_strings.py:36
 #, fuzzy
 msgid "Settings…"
 msgstr "הגדרות…"
 
-#: src/gedcom_strings.py:30
+#: src/gedcom_strings.py:36
 #, fuzzy
 msgid "Preferences… (F3)"
 msgstr "הגדרות… (F3)"
 
-#: src/gedcom_strings.py:35
-#, python-brace-format, fuzzy
-msgid "How to use ({mod}?)"
-msgstr "אופן השימוש ({mod}?)"
-
-#: src/gedcom_strings.py:37
-#, fuzzy
-msgid "How to use (F1)"
-msgstr "כיצד להשתמש ב-(F1)"
-
 #: src/gedcom_strings.py:43
 #, python-brace-format, fuzzy
-msgid "Keyboard shortcuts ({mod}K)"
-msgstr "קיצורי מקלדת ({mod}K)"
+msgid "How to Use ({mod}?)"
+msgstr "אופן השימוש ({mod}?)"
 
 #: src/gedcom_strings.py:45
+#, fuzzy
+msgid "How to Use (F1)"
+msgstr "כיצד להשתמש ב-(F1)"
+
+#: src/gedcom_strings.py:52
+#, python-brace-format, fuzzy
+msgid "Keyboard Shortcuts ({mod}K)"
+msgstr "קיצורי מקלדת ({mod}K)"
+
+#: src/gedcom_strings.py:54
 #, fuzzy
 msgid "Keyboard Shortcuts (F2)"
 msgstr "קיצורי מקלדת (F2)"
 
-#: src/gedcom_strings.py:48
+#: src/gedcom_strings.py:59 src/gedcom_strings.py:678
+#, fuzzy
+msgid "Walkthrough"
+msgstr "מדריך צעד אחר צעד"
+
+#: src/gedcom_strings.py:62
 #, fuzzy
 msgid "Check for updates…"
 msgstr "בדוק אם יש עדכונים…"
 
-#: src/gedcom_strings.py:49 src/gedcom_strings.py:526
+#: src/gedcom_strings.py:63 src/gedcom_strings.py:669
 #, fuzzy
 msgid "Privacy Policy"
 msgstr "מדיניות פרטיות"
 
-#: src/gedcom_strings.py:50 src/gedcom_strings.py:525
+#: src/gedcom_strings.py:64 src/gedcom_strings.py:668
 #, fuzzy
 msgid "About"
 msgstr "אודות"
 
-#: src/gedcom_strings.py:51
+#: src/gedcom_strings.py:65
 #, fuzzy
 msgid "Quit"
 msgstr "לצאת"
 
-#: src/gedcom_strings.py:56
+#: src/gedcom_strings.py:70
 #, fuzzy
 msgid "Select GEDCOM file"
 msgstr "בחר את הקובץ GEDCOM"
 
-#: src/gedcom_strings.py:61
+#: src/gedcom_strings.py:75
 #, fuzzy
 msgid "Tag keyword:"
 msgstr "מילת מפתח:"
 
-#: src/gedcom_strings.py:62
+#: src/gedcom_strings.py:76
 #, fuzzy
 msgid "Page marker:"
 msgstr "סימניית דף:"
 
-#: src/gedcom_strings.py:63
+#: src/gedcom_strings.py:77
 #, fuzzy
 msgid "Select Tag"
 msgstr "בחר תווית"
 
-#: src/gedcom_strings.py:68
+#: src/gedcom_strings.py:82
 #, fuzzy
 msgid "Find:"
 msgstr "חפש:"
 
-#: src/gedcom_strings.py:69 src/gedcom_strings.py:76
+#: src/gedcom_strings.py:83 src/gedcom_strings.py:90
 #, fuzzy
 msgid "Tagged"
 msgstr "מתויג"
 
-#: src/gedcom_strings.py:70
+#: src/gedcom_strings.py:84
 #, fuzzy
 msgid "Fuzzy"
 msgstr "חיפוש מקורב"
 
-#: src/gedcom_strings.py:71
+#: src/gedcom_strings.py:85
 #, fuzzy
 msgid "Married"
 msgstr "שמות נישואין"
 
-#: src/gedcom_strings.py:72
+#: src/gedcom_strings.py:86
 #, fuzzy
 msgid "Filter:"
 msgstr "סנן:"
 
-#: src/gedcom_strings.py:73
+#: src/gedcom_strings.py:87
 #, fuzzy
 msgid "Name"
 msgstr "שם"
 
-#: src/gedcom_strings.py:74
+#: src/gedcom_strings.py:88
 #, fuzzy
 msgid "Birth"
 msgstr "לידה"
 
-#: src/gedcom_strings.py:75
+#: src/gedcom_strings.py:89
 #, fuzzy
 msgid "Death"
 msgstr "מוות"
 
-#: src/gedcom_strings.py:81 src/gedcom_strings.py:416
+#: src/gedcom_strings.py:95 src/gedcom_strings.py:550
 #, fuzzy
 msgid "Results:"
 msgstr "תוצאות:"
 
-#: src/gedcom_strings.py:82 src/gedcom_strings.py:417
+#: src/gedcom_strings.py:96 src/gedcom_strings.py:551
 #, fuzzy
 msgid "Max Depth:"
 msgstr "עומק מרבי:"
 
-#: src/gedcom_strings.py:83 src/gedcom_strings.py:90
+#: src/gedcom_strings.py:97 src/gedcom_strings.py:104
 #, fuzzy
 msgid "Profile"
 msgstr "פרופיל"
 
-#: src/gedcom_strings.py:84 src/gedcom_strings.py:437
+#: src/gedcom_strings.py:98 src/gedcom_strings.py:571
 #, fuzzy
 msgid "Tree"
 msgstr "עץ"
 
-#: src/gedcom_strings.py:85
+#: src/gedcom_strings.py:99
 #, fuzzy
 msgid "Set Home"
 msgstr "הגדר אדם ראשי"
 
-#: src/gedcom_strings.py:91
+#: src/gedcom_strings.py:105
 #, fuzzy
 msgid "Matches"
 msgstr "משחקים"
 
-#: src/gedcom_strings.py:92 src/gedcom_strings.py:287
+#: src/gedcom_strings.py:106 src/gedcom_strings.py:402
 #, fuzzy
 msgid "Paths"
 msgstr "שבילים"
 
-#: src/gedcom_strings.py:94 src/gedcom_strings.py:335
+#: src/gedcom_strings.py:108 src/gedcom_strings.py:454
 #, fuzzy
 msgid "Copy"
 msgstr "העתק"
 
-#: src/gedcom_strings.py:95
+#: src/gedcom_strings.py:109
 #, fuzzy
 msgid "Reverse"
 msgstr "הפוך"
 
-#: src/gedcom_strings.py:96
+#: src/gedcom_strings.py:110
 #, fuzzy
 msgid "Normal Path"
 msgstr "המסלול הרגיל"
 
-#: src/gedcom_strings.py:97 src/gedcom_strings.py:334
+#: src/gedcom_strings.py:111 src/gedcom_strings.py:453
 #, fuzzy
 msgid "Save"
 msgstr "שמור"
 
-#: src/gedcom_strings.py:102
+#: src/gedcom_strings.py:117
 #, python-brace-format, fuzzy
 msgid ""
 "Reverse ({mod}R)\n"
@@ -227,7 +232,7 @@ msgstr ""
 "הפוך ({mod}R)\n"
 "הפוך את כיוון כל מסלולי הקשרים המוצגים, תוך חישוב הקשר מנקודת המבט של האדם האחר. לחץ שוב כדי להחזיר את המסלול המקורי."
 
-#: src/gedcom_strings.py:114
+#: src/gedcom_strings.py:130
 #, python-brace-format, fuzzy
 msgid ""
 "Copy results ({mod}C)\n"
@@ -236,7 +241,7 @@ msgstr ""
 "העתק תוצאות ({mod}C)\n"
 "העתק את כל תוכן חלונית התוצאות ללוח. כאשר אזור הטקסט של התוצאות נמצא בפוקוס המקלדת, {mod}C מעתיק רק את הטקסט שנבחר כרגיל."
 
-#: src/gedcom_strings.py:123
+#: src/gedcom_strings.py:140
 #, python-brace-format, fuzzy
 msgid ""
 "Copy JSON ({mod}J)\n"
@@ -245,7 +250,7 @@ msgstr ""
 "העתק JSON ({mod}J)\n"
 "העתק את כל תוכן חלונית התוצאות כ-JSON ללוח. משמש אך ורק לאיתור באגים."
 
-#: src/gedcom_strings.py:130
+#: src/gedcom_strings.py:148
 #, python-brace-format, fuzzy
 msgid ""
 "Save ({mod}S)\n"
@@ -254,34 +259,34 @@ msgstr ""
 "שמור ({mod}S)\n"
 "שמור את התוצאות לקובץ טקסט."
 
-#: src/gedcom_strings.py:135
+#: src/gedcom_strings.py:154
 #, python-brace-format, fuzzy
 msgid ""
 "Find ({mod}F)\n"
-"Type to filter the list of people. Search by any name variation. Use the filter box to search by other information in a person's GEDCOM record, such as geographic location. Press Enter to jump directly to the first match. Use the checkboxes to show only people matching tags, allow fuzzy name matching (including Cyrillic and Hebrew characters), or include married names."
+"Type to filter the list of people. Search by any name variation. Use the filter box to search by other information in a person's GEDCOM record, such as geographic location or occupation. Press Enter to jump directly to the first match. Use the checkboxes to show only people matching tags, allow fuzzy name matching (including Cyrillic and Hebrew characters), or include married names."
 msgstr ""
 "חפש ({mod}F)\n"
-"הקלד כדי לסנן את רשימת האנשים. חפש לפי כל וריאציה של שם. השתמש בתיבת הסינון כדי לחפש לפי מידע אחר ברשומת GEDCOM של אדם, כגון מיקום גיאוגרפי. לחץ על Enter כדי לקפוץ ישירות לתוצאה הראשונה. השתמש בתיבות הסימון כדי להציג רק אנשים התואמים לתגיות, לאפשר התאמת שמות לא מדויקת (כולל תווים קיריליים ועבריים) או לכלול שמות נישואין."
+"הקלד כדי לסנן את רשימת האנשים. חפש לפי כל וריאציה של שם. השתמש בתיבת הסינון כדי לחפש לפי מידע אחר ברשומת GEDCOM של אדם, כגון מיקום גיאוגרפי או עיסוק. לחץ על Enter כדי לקפוץ ישירות לתוצאה הראשונה. השתמש בתיבות הסימון כדי להציג רק אנשים התואמים לתגיות, לאפשר התאמת שמות לא מדויקת (כולל תווים קיריליים ועבריים), או לכלול שמות נישואין."
 
-#: src/gedcom_strings.py:146
+#: src/gedcom_strings.py:166
 #, python-brace-format, fuzzy
 msgid ""
 "Matches ({mod}N)\n"
 "Show the closest tagged matches to the selected person. The results are ranked by proximity to the selected person, with ties broken by the number of tags (if any) associated with the match. Use the 'Results' and 'Max Depth' settings to adjust how many results are returned and how far to search within the tree."
 msgstr ""
 "התאמות ({mod}N)\n"
-"הצג את ההתאמות המתויגות הקרובות ביותר לאדם הנבחר. התוצאות מדורגות לפי קרבה לאדם הנבחר, ובמקרה של שוויון – לפי מספר התיוגים (אם יש) הקשורים להתאמה. השתמש בהגדרות 'תוצאות' ו-'עומק מרבי' כדי לקבוע כמה תוצאות יוצגו ועד לאיזה מרחק בעץ יבוצע החיפוש."
+"הצג את ההתאמות המתויגות הקרובות ביותר לאדם הנבחר. התוצאות מדורגות לפי קרבתן לאדם הנבחר, ובמקרה של שוויון – לפי מספר התיוגים (אם ישנם) הקשורים להתאמה. השתמש בהגדרות 'תוצאות' ו-'עומק מרבי' כדי לקבוע כמה תוצאות יוחזרו ועד לאיזה מרחק בתוך העץ יבוצע החיפוש."
 
-#: src/gedcom_strings.py:157
+#: src/gedcom_strings.py:178
 #, python-brace-format, fuzzy
 msgid ""
 "Filter ({mod}I)\n"
-"Type to filter the list of people by any information in their GEDCOM record, such as geographic location. This filter is applied in addition to the Find box above."
+"Type to filter the list of people by any information in their GEDCOM record, such as geographic location or occupation. This filter is applied in addition to the Find box above."
 msgstr ""
 "סנן ({mod}I)\n"
-"הקלד כדי לסנן את רשימת האנשים לפי כל מידע המופיע ברשומתם GEDCOM, כגון מיקום גיאוגרפי. סינון זה מוחל בנוסף לתיבה חפש שלעיל."
+"הקלד כדי לסנן את רשימת האנשים לפי כל מידע המופיע ברשומתם GEDCOM, כגון מיקום גיאוגרפי או עיסוק. מסנן זה מוחל בנוסף לתיבה חפש שלעיל."
 
-#: src/gedcom_strings.py:163
+#: src/gedcom_strings.py:186
 #, fuzzy
 msgid ""
 "Enter a keyword to filter the list of tags used for finding relationship "
@@ -291,7 +296,7 @@ msgstr ""
 "הזן מילת מפתח כדי לסנן את רשימת התגים המשמשת לאיתור נתיבי קשרים. השאר שדה זה"
 " ריק כדי להשתמש רק במילת המפתח של סימן הדף לאיתור נתיבי קשרים."
 
-#: src/gedcom_strings.py:167
+#: src/gedcom_strings.py:190
 #, fuzzy
 msgid ""
 "Enter a unique keyword to use as a page marker when finding relationship "
@@ -301,16 +306,16 @@ msgstr ""
 "הזן מילת מפתח ייחודית שישמש כסימן דף בעת איתור נתיבי קשרים. השאר שדה זה ריק "
 "כדי להשתמש רק במילת המפתח של התגית לאיתור נתיבי קשרים."
 
-#: src/gedcom_strings.py:173
+#: src/gedcom_strings.py:198
 #, python-brace-format, fuzzy
 msgid ""
 "Set Home Person ({display})\n"
 "Set the selected person as the home person for finding relationship paths."
 msgstr ""
 "הגדר אדם ראשי ({display})\n"
-"הגדר את האדם הנבחר כאדם הבית לצורך איתור נתיבי הקשר."
+"הגדר את האדם הנבחר כאדם הבית לצורך איתור מסלולי הקשר."
 
-#: src/gedcom_strings.py:176
+#: src/gedcom_strings.py:204
 #, fuzzy
 msgid ""
 "Profile\n"
@@ -319,34 +324,34 @@ msgstr ""
 "פרופיל\n"
 "הצג את הפרטים הביוגרפיים, המשפחתיים, התגים ופרטי הרשומה המלאים (אופציונלי) של האדם הנבחר בחלונית התצוגה."
 
-#: src/gedcom_strings.py:180
+#: src/gedcom_strings.py:211
 #, python-brace-format, fuzzy
 msgid ""
 "Tree View ({mod}E)\n"
-"Open the configured default tree view for the selected person. Shift-Click for Profile View."
+"Open the configured default tree view for the selected person."
 msgstr ""
 "תצוגת עץ משפחה ({mod}E)\n"
-"פתח תצוגת העץ המוגדרת כברירת מחדל עבור האדם שנבחר. Shift-לחץ כאן עבור תצוגת פרופיל."
+"פתח תצוגת העץ המוגדרת כברירת מחדל עבור האדם שנבחר."
 
-#: src/gedcom_strings.py:184
+#: src/gedcom_strings.py:218
 #, python-brace-format, fuzzy
 msgid ""
-"Select Tag for Finding Matches ({mod}T)\n"
-"Select a tag to use when finding closest matches for the selected person."
+"Select tag for Finding Matches ({mod}T)\n"
+"Select a tag (e.g. ) to use when finding closest matches for the selected person."
 msgstr ""
 "בחר תווית עבור חפש תוצאות התאמה ({mod}T)\n"
-"בחר תווית לשימוש בעת חיפוש התוצאות הקרובות ביותר לאדם שנבחר."
+"בחר תווית (לדוגמה ) לשימוש בעת חיפוש התוצאות הקרובות ביותר לאדם שנבחר."
 
-#: src/gedcom_strings.py:188
+#: src/gedcom_strings.py:226
 #, python-brace-format, fuzzy
 msgid ""
 "Paths ({mod}P)\n"
 "Show relationship paths between the selected person and a target person. The first time you enter Paths mode, choose the target person."
 msgstr ""
 "נתיבים ({mod}P)\n"
-"הצג נתיבי הקשר בין האדם הנבחר לאדם היעד. בפעם הראשונה שתכנס למצב 'נתיבים', בחר את האדם היעד."
+"הצג נתיבי הקשר בין האדם הנבחר לאדם היעד. בפעם הראשונה שתעבור למצב 'נתיבים', בחר את האדם היעד."
 
-#: src/gedcom_strings.py:191
+#: src/gedcom_strings.py:232
 #, fuzzy
 msgid ""
 "Number of Results\n"
@@ -355,52 +360,52 @@ msgstr ""
 "מספר תוצאות\n"
 "ציין כמה תוצאות להציג בעת חיפוש האנשים הקרובים ביותר שתויגו, וכן את מספר הנתיבים בין האדם הנבחר לאדם הביתי."
 
-#: src/gedcom_strings.py:197
+#: src/gedcom_strings.py:238
 #, fuzzy
 msgid ""
 "Maximum Depth For Finding Relationships\n"
-"Specify how far to search within the tree for tagged matches and relationship paths between two people. Higher values will find more distant connections but will take longer to find in large trees. Reasonable values are 10 for fast searching or 50 to find very distant but often interesting paths between people in your tree. To change this setting permanently, alter it in the preferences window."
+"Specify how far to search within the tree for tagged matches and relationship paths between two people. Higher values will find more distant connections but will take longer to find in large trees. Reasonable values are 10 for fast searching or 50 to find extremely distant but often interesting paths between people in your tree. To change this setting permanently, alter it in the preferences window."
 msgstr ""
 "עומק מרבי לחיפוש חפש של קשר משפחתי\n"
 "ציין עד לאיזה עומק יש לחפש בתוך העץ אחר התאמות מתויגות ונתיבי קשרים בין שני אנשים. ערכים גבוהים יותר ימצאו קשרים מרוחקים יותר, אך ייקח זמן רב יותר למצוא אותם בעצים גדולים. ערכים סבירים הם 10 לחיפוש מהיר או 50 למציאת נתיבים מרוחקים מאוד אך לעתים קרובות מעניינים בין אנשים בעץ שלך. כדי לשנות הגדרה זו באופן קבוע, שנה אותה בחלון ההעדפות."
 
-#: src/gedcom_strings.py:207
+#: src/gedcom_strings.py:248
 #, fuzzy
 msgid ""
 "Fuzzy Threshold\n"
-"Similarity cutoff for fuzzy name search, from 0.00 to 1.00. Lower values allow more matches; higher values are stricter."
+"Similarity cutoff for fuzzy name search, from 0.00 to 1.00 (default 0.72). Lower values allow more matches; higher values are stricter."
 msgstr ""
 "חיפוש מקורב סף\n"
-"סף הדמיון לחיפוש שמות מעורפל, בין 0.00 ל-1.00. ערכים נמוכים יותר מאפשרים יותר תוצאות תואמות; ערכים גבוהים יותר מחמירים יותר."
+"סף הדמיון לחיפוש שמות לא מדויק, בין 0.00 ל-1.00 (ברירת מחדל: 0.72). ערכים נמוכים יותר מאפשרים יותר תוצאות תואמות; ערכים גבוהים יותר מחמירים יותר."
 
-#: src/gedcom_strings.py:212
+#: src/gedcom_strings.py:253
 #, fuzzy
 msgid ""
 "Maximum Search Results\n"
 "Maximum number of people shown in the search results list. Higher values may slow down filtering in very large trees."
 msgstr ""
 "חיפוש מרבי תוצאות\n"
-"המספר המרבי של אנשים המוצגים ברשימת תוצאות החיפוש. ערכים גבוהים יותר עלולים להאט את תהליך הסינון בעצים גדולים מאוד."
+"המספר המרבי של אנשים המוצגים ברשימת תוצאות החיפוש. ערכים גבוהים יותר עלולים להאט את תהליך הסינון בעצים גדולים במיוחד."
 
-#: src/gedcom_strings.py:219
+#: src/gedcom_strings.py:262
 #, python-brace-format, fuzzy
 msgid ""
 "Toggle Tagged Only ({mod}D)\n"
-"When checked, only people flagged as tagged will be shown in search results. Default Tags are DNA-related, but you can set other tag terms. Default is unchecked to show all people, but checking this focusses on tagged matches in large trees."
+"When checked, only people flagged as tagged will be shown in search results. Default Tags are DNA-related, but you can set other tag terms. Default is unchecked to show all people, but checking this focuses on tagged matches in large trees."
 msgstr ""
 "החלף מתויג בלבד ({mod}D)\n"
 "כאשר אפשרות זו מסומנת, רק אנשים שסומנו כתויגים יופיעו בתוצאות החיפוש. ברירת המחדל תגים היא \"קשורים ל-DNA\", אך ניתן להגדיר מונחי תיוג אחרים. ברירת המחדל היא שהאפשרות אינה מסומנת, כך שמוצגים כל האנשים, אך סימון אפשרות זו מתמקד בהתאמות מתויגות בעצי משפחה גדולים."
 
-#: src/gedcom_strings.py:223
+#: src/gedcom_strings.py:271
 #, python-brace-format, fuzzy
 msgid ""
 "Toggle Fuzzy Search ({mod}U)\n"
 "Allow fuzzy name matching in search results. Fuzzy matching uses a similarity ratio to find names similar to the search term, which can help find matches when names are misspelled, have minor variations, or use cached Hebrew/Cyrillic transliterated aliases."
 msgstr ""
 "החלף חיפוש מקורב חיפוש ({mod}U)\n"
-"אפשר התאמת שמות לא מדויקת בתוצאות החיפוש. חיפוש מקורב ההתאמה משתמשת ביחס דמיון כדי לאתר שמות הדומים למונח החיפוש, דבר שיכול לסייע באיתור תוצאות תואמות כאשר שמות כתובים באופן שגוי, כוללים שינויים קלים או משתמשים בכינויים מתועתקים בעברית/בקירילית שנשמרו במטמון."
+"אפשר התאמת שמות לא מדויקת בתוצאות החיפוש. חיפוש מקורב ההתאמה משתמשת ביחס דמיון כדי לאתר שמות הדומים למונח החיפוש, דבר שיכול לסייע באיתור תוצאות תואמות כאשר שמות כתובים באופן שגוי, כוללים שינויים קלים או משתמשים בכינויים מתועתקים בעברית או בקירילית שנשמרו במטמון."
 
-#: src/gedcom_strings.py:227
+#: src/gedcom_strings.py:281
 #, python-brace-format, fuzzy
 msgid ""
 "Toggle Married Names ({display})\n"
@@ -409,112 +414,302 @@ msgstr ""
 "החלף שמות נישואין שמות ({display})\n"
 "כלול שמות נישואין של נשים בחיפושים ב-חפש על ידי שילוב שם הפרטי של כל אישה עם שמות המשפחה של בעליה."
 
-#: src/gedcom_strings.py:232
+#: src/gedcom_strings.py:289
 #, python-brace-format, fuzzy
 msgid "GEDCOM Record: {name}"
 msgstr "GEDCOM רשומה: {name}"
 
-#: src/gedcom_strings.py:233
+#: src/gedcom_strings.py:290
 #, fuzzy
 msgid "Biography"
 msgstr "ביוגרפיה"
 
-#: src/gedcom_strings.py:234
+#: src/gedcom_strings.py:291
 #, python-brace-format, fuzzy
 msgid "  Born:    {event}"
 msgstr "  נולד:    {event}"
 
-#: src/gedcom_strings.py:235
+#: src/gedcom_strings.py:292
 #, python-brace-format, fuzzy
 msgid "  Married: {spouses}"
 msgstr "  שמות נישואין: {spouses}"
 
-#: src/gedcom_strings.py:236
+#: src/gedcom_strings.py:293
 #, python-brace-format, fuzzy
 msgid "  Died:    {event}"
 msgstr "  נפטר:    {event}"
 
-#: src/gedcom_strings.py:237
+#: src/gedcom_strings.py:294
 #, python-brace-format, fuzzy
 msgid "  Buried:  {event}"
 msgstr "  נקבר:  {event}"
 
-#: src/gedcom_strings.py:238
+#: src/gedcom_strings.py:295
+#, python-brace-format, fuzzy
+msgid "  Age:     {age}"
+msgstr "  גיל:     {age}"
+
+#: src/gedcom_strings.py:296
+#, python-brace-format, fuzzy
+msgid "  Age:     {age} (at death)"
+msgstr "  גיל:     {age} (במותו)"
+
+#: src/gedcom_strings.py:297
 #, fuzzy
 msgid "  (no biographical information found)"
 msgstr "  (לא נמצאו פרטים ביוגרפיים)"
 
-#: src/gedcom_strings.py:239
+#: src/gedcom_strings.py:298
 #, fuzzy
 msgid "Family"
 msgstr "משפחה"
 
-#: src/gedcom_strings.py:240
+#: src/gedcom_strings.py:299
 #, fuzzy
 msgid "  Parents:"
 msgstr "  הורים:"
 
-#: src/gedcom_strings.py:241
+#: src/gedcom_strings.py:300
 #, fuzzy
 msgid "  Siblings:"
 msgstr "  אחים:"
 
-#: src/gedcom_strings.py:242
+#: src/gedcom_strings.py:301
 #, fuzzy
 msgid "  Spouse:"
 msgstr "  בן/בת זוג:"
 
-#: src/gedcom_strings.py:243
+#: src/gedcom_strings.py:302
 #, fuzzy
 msgid "  Spouses:"
 msgstr "  בני זוג:"
 
-#: src/gedcom_strings.py:244
+#: src/gedcom_strings.py:303
 #, fuzzy
 msgid "  Children:"
 msgstr "  ילדים:"
 
-#: src/gedcom_strings.py:245
+#: src/gedcom_strings.py:304
 #, fuzzy
 msgid "  (no family information found)"
 msgstr "  (לא נמצאו פרטים על המשפחה)"
 
-#: src/gedcom_strings.py:246
+#: src/gedcom_strings.py:305
+#, fuzzy
+msgid "Father"
+msgstr "אבא"
+
+#: src/gedcom_strings.py:306
+#, fuzzy
+msgid "Mother"
+msgstr "אמא"
+
+#: src/gedcom_strings.py:307
+#, fuzzy
+msgid "Parent"
+msgstr "הורה"
+
+#: src/gedcom_strings.py:308
+#, fuzzy
+msgid "Step-father"
+msgstr "אב חורג"
+
+#: src/gedcom_strings.py:309
+#, fuzzy
+msgid "Step-mother"
+msgstr "אמא חורגת"
+
+#: src/gedcom_strings.py:310
+#, fuzzy
+msgid "Step-parent"
+msgstr "הורה חורג"
+
+#: src/gedcom_strings.py:311
+#, fuzzy
+msgid "Adoptive father"
+msgstr "אב מאמץ"
+
+#: src/gedcom_strings.py:312
+#, fuzzy
+msgid "Adoptive mother"
+msgstr "אם מאמצת"
+
+#: src/gedcom_strings.py:313
+#, fuzzy
+msgid "Adoptive parent"
+msgstr "הורה מאמץ"
+
+#: src/gedcom_strings.py:314
+#, fuzzy
+msgid "Foster father"
+msgstr "אב מאמץ"
+
+#: src/gedcom_strings.py:315
+#, fuzzy
+msgid "Foster mother"
+msgstr "אם אומנת"
+
+#: src/gedcom_strings.py:316
+#, fuzzy
+msgid "Foster parent"
+msgstr "הורה אומנה"
+
+#: src/gedcom_strings.py:317
+#, fuzzy
+msgid "Son"
+msgstr "צליל"
+
+#: src/gedcom_strings.py:318
+#, fuzzy
+msgid "Daughter"
+msgstr "בת"
+
+#: src/gedcom_strings.py:319
+#, fuzzy
+msgid "Child"
+msgstr "ילד"
+
+#: src/gedcom_strings.py:320
+#, fuzzy
+msgid "Step-son"
+msgstr "בן חורג"
+
+#: src/gedcom_strings.py:321
+#, fuzzy
+msgid "Step-daughter"
+msgstr "בת חורגת"
+
+#: src/gedcom_strings.py:322
+#, fuzzy
+msgid "Step-child"
+msgstr "בן חורג"
+
+#: src/gedcom_strings.py:323
+#, fuzzy
+msgid "Adopted son"
+msgstr "בן מאומץ"
+
+#: src/gedcom_strings.py:324
+#, fuzzy
+msgid "Adopted daughter"
+msgstr "בת מאומצת"
+
+#: src/gedcom_strings.py:325
+#, fuzzy
+msgid "Adopted child"
+msgstr "ילד מאומץ"
+
+#: src/gedcom_strings.py:326
+#, fuzzy
+msgid "Foster son"
+msgstr "בן מאומץ"
+
+#: src/gedcom_strings.py:327
+#, fuzzy
+msgid "Foster daughter"
+msgstr "בת מאומצת"
+
+#: src/gedcom_strings.py:328
+#, fuzzy
+msgid "Foster child"
+msgstr "ילד אומנה"
+
+#: src/gedcom_strings.py:329
+#, fuzzy
+msgid "Brother"
+msgstr "אחי"
+
+#: src/gedcom_strings.py:330
+#, fuzzy
+msgid "Sister"
+msgstr "אחות"
+
+#: src/gedcom_strings.py:331
+#, fuzzy
+msgid "Sibling"
+msgstr "אח או אחות"
+
+#: src/gedcom_strings.py:332
+#, fuzzy
+msgid "Half-brother"
+msgstr "אח למחצה"
+
+#: src/gedcom_strings.py:333
+#, fuzzy
+msgid "Half-sister"
+msgstr "אחות למחצה"
+
+#: src/gedcom_strings.py:334
+#, fuzzy
+msgid "Half-sibling"
+msgstr "אח למחצה"
+
+#: src/gedcom_strings.py:335
+#, fuzzy
+msgid "Step-brother"
+msgstr "אח חורג"
+
+#: src/gedcom_strings.py:336
+#, fuzzy
+msgid "Step-sister"
+msgstr "אחות חורגת"
+
+#: src/gedcom_strings.py:337
+#, fuzzy
+msgid "Step-sibling"
+msgstr "אח חורג"
+
+#: src/gedcom_strings.py:338
+#, fuzzy
+msgid "Adoptive sibling"
+msgstr "אח מאומץ"
+
+#: src/gedcom_strings.py:339
+#, fuzzy
+msgid "Foster sibling"
+msgstr "אח מאומץ"
+
+#: src/gedcom_strings.py:340
+#, python-brace-format, fuzzy
+msgid "    {role}: "
+msgstr "    {role}: "
+
+#: src/gedcom_strings.py:341
 #, fuzzy
 msgid "Tags"
 msgstr "תגים"
 
-#: src/gedcom_strings.py:247
+#: src/gedcom_strings.py:342
 #, fuzzy
 msgid "Full GEDCOM Record"
 msgstr "רשומה מלאה GEDCOM"
 
-#: src/gedcom_strings.py:248
+#: src/gedcom_strings.py:343
 #, fuzzy
 msgid "Close"
 msgstr "סגור"
 
-#: src/gedcom_strings.py:249
+#: src/gedcom_strings.py:344
 #, fuzzy
 msgid "Tree View"
 msgstr "תצוגת עץ משפחה"
 
-#: src/gedcom_strings.py:250
+#: src/gedcom_strings.py:345
 #, fuzzy
 msgid "Pedigree View"
 msgstr "תצוגת אילן יוחסין"
 
-#: src/gedcom_strings.py:251
+#: src/gedcom_strings.py:346
 #, fuzzy
 msgid "Descendant View"
 msgstr "תצוגת צאצאים"
 
-#: src/gedcom_strings.py:252
+#: src/gedcom_strings.py:347
 #, fuzzy
 msgid "Profile View"
 msgstr "תצוגת פרופיל"
 
-#: src/gedcom_strings.py:256
+#: src/gedcom_strings.py:353
 #, python-brace-format, fuzzy
 msgid ""
 "Tree View ({mod}T cycles views)\n"
@@ -523,16 +718,16 @@ msgstr ""
 "תצוגת עץ משפחה ({mod}T צפיות)\n"
 "הצג את אילן היוחסין האינטראקטיבי של אדם זה."
 
-#: src/gedcom_strings.py:260
+#: src/gedcom_strings.py:360
 #, python-brace-format, fuzzy
 msgid ""
 "Pedigree View ({mod}T cycles views)\n"
 "Show this person's ancestors in a compact pedigree chart."
 msgstr ""
 "תצוגת אילן יוחסין ({mod}T צפיות)\n"
-"הצג את אבותיו של אדם זה בתרשים אילן יוחסין תמציתי."
+"הצג את אבותיו של אדם זה בתרשים אילן יוחסין קומפקטי."
 
-#: src/gedcom_strings.py:264
+#: src/gedcom_strings.py:367
 #, python-brace-format, fuzzy
 msgid ""
 "Descendant View ({mod}T cycles views)\n"
@@ -541,7 +736,7 @@ msgstr ""
 "תצוגת צאצאים ({mod}T מחזורי תצוגה)\n"
 "הצג את צאצאיו של אדם זה עם ענפי צאצאים הניתנים להרחבה."
 
-#: src/gedcom_strings.py:268
+#: src/gedcom_strings.py:374
 #, python-brace-format, fuzzy
 msgid ""
 "Profile View ({mod}T cycles views)\n"
@@ -550,12 +745,12 @@ msgstr ""
 "תצוגת פרופיל ({mod} צפיות)\n"
 "הצג את הפרופיל הביוגרפי של אדם זה."
 
-#: src/gedcom_strings.py:270
+#: src/gedcom_strings.py:378
 #, fuzzy
 msgid "Save profile"
 msgstr "שמור פרופיל"
 
-#: src/gedcom_strings.py:274
+#: src/gedcom_strings.py:384
 #, python-brace-format, fuzzy
 msgid ""
 "Save profile ({mod}S)\n"
@@ -564,7 +759,7 @@ msgstr ""
 "שמור פרופיל ({mod}S)\n"
 "שמור פרופיל ביוגרפי זה לקובץ טקסט."
 
-#: src/gedcom_strings.py:278
+#: src/gedcom_strings.py:391
 #, python-brace-format, fuzzy
 msgid ""
 "Copy profile ({mod}C)\n"
@@ -573,207 +768,227 @@ msgstr ""
 "העתק פרופיל ({mod}C)\n"
 "העתק הוסף פרופיל ביוגרפי זה ללוח."
 
-#: src/gedcom_strings.py:280
+#: src/gedcom_strings.py:395
 #, python-brace-format, fuzzy
 msgid "Family Tree: {name}"
 msgstr "עץ משפחה: {name}"
 
-#: src/gedcom_strings.py:281
+#: src/gedcom_strings.py:396
 #, python-brace-format, fuzzy
 msgid "Pedigree Tree: {name}"
 msgstr "אילן יוחסין עץ: {name}"
 
-#: src/gedcom_strings.py:282
+#: src/gedcom_strings.py:397
 #, python-brace-format, fuzzy
 msgid "Descendant Tree: {name}"
 msgstr "צאצא עץ: {name}"
 
-#: src/gedcom_strings.py:283
+#: src/gedcom_strings.py:398
 #, fuzzy
 msgid "Save family tree"
 msgstr "שמור אילן יוחסין"
 
-#: src/gedcom_strings.py:284
+#: src/gedcom_strings.py:399
 #, fuzzy
 msgid "Save pedigree tree"
 msgstr "שמור עץ יוחסין"
 
-#: src/gedcom_strings.py:285
+#: src/gedcom_strings.py:400
 #, fuzzy
 msgid "Save descendant tree"
 msgstr "שמור עץ צאצאים"
 
-#: src/gedcom_strings.py:286
+#: src/gedcom_strings.py:401
 #, fuzzy
 msgid "Center"
 msgstr "מרכז"
 
-#: src/gedcom_strings.py:288
+#: src/gedcom_strings.py:403
 #, fuzzy
 msgid "Expand All"
 msgstr "הרחב הכל"
 
-#: src/gedcom_strings.py:289
+#: src/gedcom_strings.py:404
 #, fuzzy
 msgid "Highlight"
 msgstr "הדגשה"
 
-#: src/gedcom_strings.py:302
+#: src/gedcom_strings.py:413
+#, fuzzy
+msgid "biological"
+msgstr "ביולוגי"
+
+#: src/gedcom_strings.py:414
+#, fuzzy
+msgid "step"
+msgstr "צעד"
+
+#: src/gedcom_strings.py:415
+#, fuzzy
+msgid "adopted/foster"
+msgstr "מאומץ/במשפחת אומנה"
+
+#: src/gedcom_strings.py:416
+#, fuzzy
+msgid "half sibling"
+msgstr "אח למחצה"
+
+#: src/gedcom_strings.py:421
 #, fuzzy
 msgid "Closest Tagged Matches"
 msgstr "סגור תוצאות ראשונות מתויג"
 
-#: src/gedcom_strings.py:303
+#: src/gedcom_strings.py:422
 #, fuzzy
 msgid "  Note: this person has a matching tag."
 msgstr "  הערה: לאדם זה יש תווית תואמת."
 
-#: src/gedcom_strings.py:304
+#: src/gedcom_strings.py:423
 #, fuzzy
 msgid "No tagged relatives found within the search depth."
 msgstr "לא נמצאו קרובי משפחה מתויגים בטווח החיפוש."
 
-#: src/gedcom_strings.py:305
+#: src/gedcom_strings.py:424
 #, python-brace-format, fuzzy
 msgid "#{rank}: "
 msgstr "#{rank}: "
 
-#: src/gedcom_strings.py:306
+#: src/gedcom_strings.py:425
 #, fuzzy
 msgid "   Tags:"
 msgstr "   תגים:"
 
-#: src/gedcom_strings.py:307
+#: src/gedcom_strings.py:426
 #, python-brace-format, fuzzy
 msgid "Relationship: {rel}"
 msgstr "קשר משפחתי: {rel}"
 
-#: src/gedcom_strings.py:308
+#: src/gedcom_strings.py:427
 #, fuzzy
 msgid "Show relationship graphically"
 msgstr "הצג את הקשר בצורה גרפית"
 
-#: src/gedcom_strings.py:309
+#: src/gedcom_strings.py:428
 #, fuzzy
 msgid "Common ancestor: "
 msgstr "אב קדמון משותף: "
 
-#: src/gedcom_strings.py:310
+#: src/gedcom_strings.py:429
 #, fuzzy
 msgid "Common ancestors:"
 msgstr "אבות קדמונים משותפים:"
 
-#: src/gedcom_strings.py:311
+#: src/gedcom_strings.py:430
 #, fuzzy
 msgid "None found."
 msgstr "לא נמצא דבר."
 
-#: src/gedcom_strings.py:312
+#: src/gedcom_strings.py:431
 #, fuzzy
 msgid "Path:"
 msgstr "נתיב:"
 
-#: src/gedcom_strings.py:313
+#: src/gedcom_strings.py:432
 #, fuzzy
 msgid "Path to Home Person"
 msgstr "הנתיב אל אדם ראשי"
 
-#: src/gedcom_strings.py:314
+#: src/gedcom_strings.py:433
 #, fuzzy
 msgid "Home: "
 msgstr "דף הבית: "
 
-#: src/gedcom_strings.py:315
+#: src/gedcom_strings.py:434
 #, fuzzy
 msgid "Calculating path…"
 msgstr "מחשב את המסלול…"
 
-#: src/gedcom_strings.py:316
+#: src/gedcom_strings.py:435
 #, fuzzy
 msgid "None found within the current max depth."
 msgstr "לא נמצאו תוצאות בעומק המרבי הנוכחי."
 
-#: src/gedcom_strings.py:319
+#: src/gedcom_strings.py:438
 #, fuzzy
 msgid "father"
 msgstr "אבא"
 
-#: src/gedcom_strings.py:320
+#: src/gedcom_strings.py:439
 #, fuzzy
 msgid "mother"
 msgstr "אמא"
 
-#: src/gedcom_strings.py:321
+#: src/gedcom_strings.py:440
 #, fuzzy
 msgid "sibling"
 msgstr "אח או אחות"
 
-#: src/gedcom_strings.py:322
+#: src/gedcom_strings.py:441
 #, fuzzy
 msgid "spouse"
 msgstr "בן/בת זוג"
 
-#: src/gedcom_strings.py:323
+#: src/gedcom_strings.py:442
 #, fuzzy
 msgid "child"
 msgstr "ילד"
 
-#: src/gedcom_strings.py:325
+#: src/gedcom_strings.py:444
 #, fuzzy
 msgid "Relationship Graph"
 msgstr "קשר משפחתי גרף"
 
-#: src/gedcom_strings.py:326
+#: src/gedcom_strings.py:445
 #, fuzzy
 msgid "Save results"
 msgstr "שמור תוצאות"
 
-#: src/gedcom_strings.py:327
+#: src/gedcom_strings.py:446
 #, fuzzy
 msgid "Save relationship graph"
 msgstr "שמור גרף הקשרים"
 
-#: src/gedcom_strings.py:328
+#: src/gedcom_strings.py:447
 #, fuzzy
 msgid "Save graph layout debug data"
-msgstr "שמור נתוני ניפוי באגים של פריסת הגרף"
+msgstr "שמור נתוני איתור באגים של פריסת הגרף"
 
-#: src/gedcom_strings.py:329 src/gedcom_strings.py:333
+#: src/gedcom_strings.py:448 src/gedcom_strings.py:452
 #, fuzzy
 msgid "Show Tree"
 msgstr "הצג עץ"
 
-#: src/gedcom_strings.py:330
+#: src/gedcom_strings.py:449
 #, fuzzy
 msgid "Find Path"
 msgstr "חפש נתיב"
 
-#: src/gedcom_strings.py:331
+#: src/gedcom_strings.py:450
 #, fuzzy
 msgid "Copy Name"
 msgstr "העתק שם"
 
-#: src/gedcom_strings.py:332
+#: src/gedcom_strings.py:451
 #, fuzzy
 msgid "Show Profile"
 msgstr "הצג פרופיל"
 
-#: src/gedcom_strings.py:336
+#: src/gedcom_strings.py:455
 #, fuzzy
 msgid "Search"
 msgstr "חיפוש"
 
-#: src/gedcom_strings.py:337
+#: src/gedcom_strings.py:456
 #, fuzzy
 msgid "Jump"
 msgstr "קפוץ"
 
-#: src/gedcom_strings.py:338
+#: src/gedcom_strings.py:457
 #, fuzzy
 msgid "Debug JSON"
 msgstr "איתור באגים JSON"
 
-#: src/gedcom_strings.py:342
+#: src/gedcom_strings.py:463
 #, python-brace-format, fuzzy
 msgid ""
 "Save graphic ({mod}S)\n"
@@ -782,7 +997,7 @@ msgstr ""
 "שמור גרפי ({mod}S)\n"
 "שמור ייצוג גרפי זה לקובץ."
 
-#: src/gedcom_strings.py:346
+#: src/gedcom_strings.py:470
 #, python-brace-format, fuzzy
 msgid ""
 "Copy graphic ({mod}C)\n"
@@ -791,7 +1006,7 @@ msgstr ""
 "העתק גרפיקה ({mod}C)\n"
 "העתק העתק את הייצוג הגרפי הזה ללוח."
 
-#: src/gedcom_strings.py:350
+#: src/gedcom_strings.py:477
 #, python-brace-format, fuzzy
 msgid ""
 "Search ({mod}F)\n"
@@ -800,7 +1015,7 @@ msgstr ""
 "חיפוש ({mod}F)\n"
 "בחר אדם והפוך אותו למוקד התצוגה הגרפית הזו."
 
-#: src/gedcom_strings.py:354
+#: src/gedcom_strings.py:484
 #, python-brace-format, fuzzy
 msgid ""
 "Jump ({mod}J)\n"
@@ -809,7 +1024,7 @@ msgstr ""
 "קפיצה ({mod}J)\n"
 "העבר את המצלמה לאדם שכבר נראה בתצוגת הגרף הזו."
 
-#: src/gedcom_strings.py:356
+#: src/gedcom_strings.py:489
 #, fuzzy
 msgid ""
 "Save layout debug JSON (Ctrl+Shift+D)\n"
@@ -818,87 +1033,87 @@ msgstr ""
 "שמור איתור באגים בפריסה JSON (Ctrl+Shift+D)\n"
 "ייצא נתוני פריסת הגרף ללא שמות אנשים."
 
-#: src/gedcom_strings.py:357
+#: src/gedcom_strings.py:491
 #, fuzzy
 msgid "Show parents"
 msgstr "הצג להורים"
 
-#: src/gedcom_strings.py:358
+#: src/gedcom_strings.py:492
 #, fuzzy
 msgid "Hide parents"
 msgstr "הסתר הורים"
 
-#: src/gedcom_strings.py:359
+#: src/gedcom_strings.py:493
 #, fuzzy
 msgid "Show siblings"
 msgstr "הצג אחים"
 
-#: src/gedcom_strings.py:360
+#: src/gedcom_strings.py:494
 #, fuzzy
 msgid "Hide siblings"
 msgstr "הסתר אחים"
 
-#: src/gedcom_strings.py:361
+#: src/gedcom_strings.py:495
 #, fuzzy
 msgid "Show spouses"
 msgstr "הצג בני זוג"
 
-#: src/gedcom_strings.py:362
+#: src/gedcom_strings.py:496
 #, fuzzy
 msgid "Hide spouses"
 msgstr "הסתר בני זוג"
 
-#: src/gedcom_strings.py:363
+#: src/gedcom_strings.py:497
 #, fuzzy
 msgid "Show children"
 msgstr "הראו לילדים"
 
-#: src/gedcom_strings.py:364
+#: src/gedcom_strings.py:498
 #, fuzzy
 msgid "Hide children"
 msgstr "הסתר ילדים"
 
-#: src/gedcom_strings.py:365
+#: src/gedcom_strings.py:499
 #, fuzzy
 msgid "START"
 msgstr "התחל"
 
-#: src/gedcom_strings.py:366
+#: src/gedcom_strings.py:500
 #, fuzzy
 msgid "END"
 msgstr "סוף"
 
-#: src/gedcom_strings.py:371
+#: src/gedcom_strings.py:505
 #, fuzzy
 msgid "Relationship path:"
 msgstr "מסלול קשר:"
 
-#: src/gedcom_strings.py:372
+#: src/gedcom_strings.py:506
 #, fuzzy
 msgid "  From: "
 msgstr "  מאת: "
 
-#: src/gedcom_strings.py:373
+#: src/gedcom_strings.py:507
 #, fuzzy
 msgid "  To:   "
 msgstr "  אל:   "
 
-#: src/gedcom_strings.py:374
+#: src/gedcom_strings.py:508
 #, fuzzy
 msgid "(Same person selected for both.)"
 msgstr "(אותו אדם נבחר לשני התפקידים.)"
 
-#: src/gedcom_strings.py:375
+#: src/gedcom_strings.py:509
 #, python-brace-format, fuzzy
 msgid "No relationship path found within max depth {depth}."
 msgstr "לא נמצא מסלול קשר בעומק המרבי {depth}."
 
-#: src/gedcom_strings.py:376
+#: src/gedcom_strings.py:510
 #, python-brace-format, fuzzy
 msgid "Path #{rank}:"
 msgstr "נתיב #{rank}:"
 
-#: src/gedcom_strings.py:378
+#: src/gedcom_strings.py:512
 #, fuzzy
 msgid ""
 "(Search cap reached — there may be additional paths. Reduce Max depth to "
@@ -907,12 +1122,12 @@ msgstr ""
 "(הגענו למגבלת החיפוש — ייתכן שיש נתיבים נוספים. צמצמו את עומק החיפוש המרבי "
 "כדי לחפש באזור מצומצם יותר.)"
 
-#: src/gedcom_strings.py:385
+#: src/gedcom_strings.py:519
 #, fuzzy
 msgid "Tag definitions"
 msgstr "הגדרות תגיות"
 
-#: src/gedcom_strings.py:387
+#: src/gedcom_strings.py:521
 #, fuzzy
 msgid ""
 "No _MTTAG records found in the loaded file.\n"
@@ -923,138 +1138,138 @@ msgstr ""
 "\n"
 "(אם עדיין לא טענת קובץ, לחץ תחילה על 'טען'.)"
 
-#: src/gedcom_strings.py:390
+#: src/gedcom_strings.py:524
 #, fuzzy
 msgid "ID"
 msgstr "מספר זיהוי"
 
-#: src/gedcom_strings.py:391
+#: src/gedcom_strings.py:525
 #, fuzzy
 msgid "Tag Name"
 msgstr "יום שם"
 
-#: src/gedcom_strings.py:392
+#: src/gedcom_strings.py:526
 #, fuzzy
 msgid "OK"
 msgstr "בסדר"
 
-#: src/gedcom_strings.py:393
+#: src/gedcom_strings.py:527
 #, fuzzy
 msgid "Cancel"
 msgstr "בטל"
 
-#: src/gedcom_strings.py:398
+#: src/gedcom_strings.py:532
 #, fuzzy
 msgid "Select a Person"
 msgstr "בחר אדם"
 
-#: src/gedcom_strings.py:399
+#: src/gedcom_strings.py:533
 #, fuzzy
 msgid "Select Relationship Target"
 msgstr "בחר קשר משפחתי יעד"
 
-#: src/gedcom_strings.py:400
+#: src/gedcom_strings.py:534
 #, fuzzy
 msgid "Select"
 msgstr "בחר"
 
-#: src/gedcom_strings.py:405
+#: src/gedcom_strings.py:539
 #, fuzzy
 msgid "Settings"
 msgstr "הגדרות"
 
-#: src/gedcom_strings.py:405
+#: src/gedcom_strings.py:539
 #, fuzzy
 msgid "Preferences"
 msgstr "הגדרות"
 
-#: src/gedcom_strings.py:406
+#: src/gedcom_strings.py:540
 #, fuzzy
 msgid "Appearance"
 msgstr "מראה"
 
-#: src/gedcom_strings.py:407
+#: src/gedcom_strings.py:541
 #, fuzzy
 msgid "Font size"
 msgstr "גודל הגופן"
 
-#: src/gedcom_strings.py:408
+#: src/gedcom_strings.py:542
 #, fuzzy
 msgid "Small"
 msgstr "קטן"
 
-#: src/gedcom_strings.py:409
+#: src/gedcom_strings.py:543
 #, fuzzy
 msgid "Medium"
 msgstr "בינוני"
 
-#: src/gedcom_strings.py:410
+#: src/gedcom_strings.py:544
 #, fuzzy
 msgid "Large"
 msgstr "גדול"
 
-#: src/gedcom_strings.py:411
+#: src/gedcom_strings.py:545
 #, fuzzy
 msgid "Jumbo"
 msgstr "ענק"
 
-#: src/gedcom_strings.py:412
+#: src/gedcom_strings.py:546
 #, fuzzy
 msgid "Theme"
 msgstr "נושא"
 
-#: src/gedcom_strings.py:413
+#: src/gedcom_strings.py:547
 #, fuzzy
 msgid "Hide Tooltips"
 msgstr "הסתר תיאורי כלים"
 
-#: src/gedcom_strings.py:414
+#: src/gedcom_strings.py:548
 #, fuzzy
 msgid "Hide popup explanations like this one."
 msgstr "הסתר הסברים מוקפצים כמו זה."
 
-#: src/gedcom_strings.py:415
+#: src/gedcom_strings.py:549
 #, fuzzy
 msgid "Search defaults"
 msgstr "הגדרות ברירת מחדל לחיפוש"
 
-#: src/gedcom_strings.py:418
+#: src/gedcom_strings.py:552
 #, fuzzy
 msgid "Fuzzy threshold:"
-msgstr "חיפוש מקורב סף:"
+msgstr "סף חיפוש מקורב:"
 
-#: src/gedcom_strings.py:419
+#: src/gedcom_strings.py:553
 #, fuzzy
 msgid "Max search results:"
 msgstr "מספר תוצאות החיפוש המרבי:"
 
-#: src/gedcom_strings.py:420
+#: src/gedcom_strings.py:554
 #, fuzzy
 msgid "Display"
 msgstr "תצוגה"
 
-#: src/gedcom_strings.py:421
+#: src/gedcom_strings.py:555
 #, fuzzy
 msgid "Show GEDCOM IDs"
 msgstr "הצג GEDCOM מזהים"
 
-#: src/gedcom_strings.py:423
+#: src/gedcom_strings.py:557
 #, fuzzy
 msgid ""
 "When enabled, the GEDCOM ID for each person is shown in parentheses after "
 "their name. This can help disambiguate people with the same name and allows "
 "you to access the raw IDs for GEDCOM research with other tools."
 msgstr ""
-"כאשר אפשרות זו מופעלת, מזהה ה-GEDCOM של כל אדם מוצג בסוגריים לאחר שמו. הדבר "
+"כאשר האפשרות מופעלת, מזהה ה-GEDCOM של כל אדם מוצג בסוגריים לאחר שמו. הדבר "
 "יכול לסייע בהבחנה בין אנשים בעלי שם זהה ומאפשר לך לגשת למזהים הגולמיים לצורך"
-" מחקר על GEDCOM באמצעות כלים אחרים."
+" מחקר GEDCOM באמצעות כלים אחרים."
 
-#: src/gedcom_strings.py:427
+#: src/gedcom_strings.py:561
 #, fuzzy
 msgid "Show Full GEDCOM"
 msgstr "הצג הכל GEDCOM"
 
-#: src/gedcom_strings.py:429
+#: src/gedcom_strings.py:563
 #, fuzzy
 msgid ""
 "When enabled, the Full GEDCOM Record section is included at the bottom of "
@@ -1063,72 +1278,72 @@ msgstr ""
 "כאשר האפשרות מופעלת, קטע \"תיעוד מלא GEDCOM\" מופיע בתחתית חלון פרופיל, "
 "ומציג את הנתונים הגולמיים GEDCOM של האדם."
 
-#: src/gedcom_strings.py:432
+#: src/gedcom_strings.py:566
 #, fuzzy
 msgid "Name format:"
 msgstr "פורמט השם:"
 
-#: src/gedcom_strings.py:433
+#: src/gedcom_strings.py:567
 #, fuzzy
 msgid "First Last"
 msgstr "שם פרטי שם משפחה"
 
-#: src/gedcom_strings.py:434
+#: src/gedcom_strings.py:568
 #, fuzzy
 msgid "Last, First"
 msgstr "שם משפחה, שם פרטי"
 
-#: src/gedcom_strings.py:435
+#: src/gedcom_strings.py:569
 #, fuzzy
 msgid "Default display:"
 msgstr "תצוגה ברירת מחדל:"
 
-#: src/gedcom_strings.py:436
+#: src/gedcom_strings.py:570
 #, fuzzy
 msgid "Default tree:"
 msgstr "עץ ברירת המחדל:"
 
-#: src/gedcom_strings.py:438
+#: src/gedcom_strings.py:572
 #, fuzzy
 msgid "Pedigree"
 msgstr "אילן יוחסין"
 
-#: src/gedcom_strings.py:439
+#: src/gedcom_strings.py:573
 #, fuzzy
 msgid "Descendants"
 msgstr "צאצאים"
 
-#: src/gedcom_strings.py:440 src/gedcom_strings.py:509
+#: src/gedcom_strings.py:574 src/gedcom_strings.py:652
 #, fuzzy
 msgid "Cache"
 msgstr "מטמון"
 
-#: src/gedcom_strings.py:441
+#: src/gedcom_strings.py:575
 #, fuzzy
 msgid "Clear Cache…"
 msgstr "נקה את המטמון…"
 
-#: src/gedcom_strings.py:442
+#: src/gedcom_strings.py:576
 #, fuzzy
 msgid "Remove all cached GEDCOM data"
 msgstr "נקה את כל הנתונים המטמון של GEDCOM"
 
-#: src/gedcom_strings.py:443
+#: src/gedcom_strings.py:577
 #, fuzzy
 msgid "Language:"
 msgstr "שפה:"
 
-#: src/gedcom_strings.py:444
+#: src/gedcom_strings.py:578
 #, fuzzy
 msgid "System Default"
 msgstr "הגדרת ברירת המחדל של המערכת"
 
-#: src/gedcom_strings.py:445
+#: src/gedcom_strings.py:579
 #, fuzzy
 msgid "Language Changed"
 msgstr "השפה שונתה"
 
-#: src/gedcom_strings.py:446
+#: src/gedcom_strings.py:581
 #, python-brace-format, fuzzy
 msgid ""
 "Language changed from {old} to {new}. Please restart the application for the"
@@ -1136,12 +1351,12 @@ msgid ""
 msgstr ""
 "השפה שונתה מ-{old} ל-{new}. אנא הפעל מחדש את היישום כדי שהשינוי ייכנס לתוקף."
 
-#: src/gedcom_strings.py:451
+#: src/gedcom_strings.py:587
 #, fuzzy
 msgid "Searching"
 msgstr "חיפוש"
 
-#: src/gedcom_strings.py:452
+#: src/gedcom_strings.py:589
 #, fuzzy
 msgid ""
 "Searching for tagged matches…\n"
@@ -1150,7 +1365,7 @@ msgstr ""
 "מחפש תוצאות עם תגיות...\n"
 "(הפחת את הגדרת 'עומק מקסימלי' כדי להאיץ את החיפוש)"
 
-#: src/gedcom_strings.py:453
+#: src/gedcom_strings.py:592
 #, fuzzy
 msgid ""
 "Finding relationship paths…\n"
@@ -1159,46 +1374,46 @@ msgstr ""
 "חפש בחינת נתיבי הקשר…\n"
 "(הפחת את הגדרת 'עומק מקסימלי' כדי להאיץ את החיפוש)"
 
-#: src/gedcom_strings.py:454
+#: src/gedcom_strings.py:594
 #, fuzzy
 msgid "Expanding descendant branches…"
 msgstr "הרחבת ענפי הצאצאים…"
 
-#: src/gedcom_strings.py:459
+#: src/gedcom_strings.py:599
 #, fuzzy
 msgid "Loading…"
 msgstr "טוען..."
 
-#: src/gedcom_strings.py:460
+#: src/gedcom_strings.py:600
 #, fuzzy
 msgid "Load failed."
 msgstr "הטעינה נכשלה."
 
-#: src/gedcom_strings.py:461
+#: src/gedcom_strings.py:601
 #, python-brace-format, fuzzy
 msgid "Loaded {count:,} individuals (from cache)."
 msgstr "נטענו {count:,} רשומות (מהמטמון)."
 
-#: src/gedcom_strings.py:462
+#: src/gedcom_strings.py:602
 #, python-brace-format, fuzzy
 msgid "Loaded {count:,} individuals."
 msgstr "נטענו {count:,} אנשים."
 
-#: src/gedcom_strings.py:464
+#: src/gedcom_strings.py:604
 #, python-brace-format, fuzzy
 msgid ""
 "Showing first {max_display:,} of {total_matches:,} matches. Refine your "
 "search.  ({total:,} total, {flagged} tagged)"
 msgstr ""
 "מוצגים {max_display:,} מתוך {total_matches:,} תוצאות. צמצם את החיפוש.  "
-"({total:,} סה\"כ, {flagged} מתויגים)"
+"({total:,} סה\"כ, {flagged} מתויגות)"
 
-#: src/gedcom_strings.py:467
+#: src/gedcom_strings.py:608
 #, python-brace-format, fuzzy
 msgid "{shown:,} match{plural} shown.  ({total:,} total, {flagged} tagged)"
 msgstr "{shown:,} התאמה{plural} מוצגת.  ({total:,} סה\"כ, {flagged} מתויגות)"
 
-#: src/gedcom_strings.py:469
+#: src/gedcom_strings.py:611
 #, python-brace-format, fuzzy
 msgid ""
 "{total:,} individuals, {families:,} families, {flagged} tagged.  Type to "
@@ -1206,27 +1421,27 @@ msgid ""
 msgstr ""
 "{total:,} אנשים, {families:,} משפחות, {flagged} מתויגים.  הקלד כדי לחפש."
 
-#: src/gedcom_strings.py:472
+#: src/gedcom_strings.py:614
 #, python-brace-format, fuzzy
 msgid "Home person set: {name}"
 msgstr "אדם ראשי נקבע: {name}"
 
-#: src/gedcom_strings.py:477
+#: src/gedcom_strings.py:619
 #, fuzzy
 msgid "No file"
 msgstr "אין קובץ"
 
-#: src/gedcom_strings.py:478
+#: src/gedcom_strings.py:620
 #, fuzzy
 msgid "Please choose a GEDCOM file first."
 msgstr "אנא בחר תחילה קובץ GEDCOM."
 
-#: src/gedcom_strings.py:479
+#: src/gedcom_strings.py:621
 #, fuzzy
 msgid "Not found"
 msgstr "לא נמצא"
 
-#: src/gedcom_strings.py:480
+#: src/gedcom_strings.py:622
 #, python-brace-format, fuzzy
 msgid ""
 "File not found:\n"
@@ -1235,12 +1450,12 @@ msgstr ""
 "הקובץ לא נמצא:\n"
 "{path}"
 
-#: src/gedcom_strings.py:481
+#: src/gedcom_strings.py:623
 #, fuzzy
 msgid "ZIP error"
 msgstr "ZIP שגיאה"
 
-#: src/gedcom_strings.py:482
+#: src/gedcom_strings.py:624
 #, python-brace-format, fuzzy
 msgid ""
 "Could not extract GEDCOM from ZIP:\n"
@@ -1251,12 +1466,12 @@ msgstr ""
 "\n"
 "{error}"
 
-#: src/gedcom_strings.py:483
+#: src/gedcom_strings.py:625
 #, fuzzy
 msgid "Parse error"
 msgstr "שגיאת ניתוח"
 
-#: src/gedcom_strings.py:484
+#: src/gedcom_strings.py:626
 #, python-brace-format, fuzzy
 msgid ""
 "Error reading GEDCOM:\n"
@@ -1267,57 +1482,57 @@ msgstr ""
 "\n"
 "{error}"
 
-#: src/gedcom_strings.py:485
+#: src/gedcom_strings.py:627
 #, fuzzy
 msgid "Encoding warning"
 msgstr "אזהרת קידוד"
 
-#: src/gedcom_strings.py:486
+#: src/gedcom_strings.py:628
 #, fuzzy
 msgid "No data"
 msgstr "אין נתונים"
 
-#: src/gedcom_strings.py:487
+#: src/gedcom_strings.py:629
 #, fuzzy
 msgid "Load a GEDCOM file first."
 msgstr "טען תחילה קובץ GEDCOM."
 
-#: src/gedcom_strings.py:488
+#: src/gedcom_strings.py:630
 #, fuzzy
 msgid "No selection"
 msgstr "לא נבחר"
 
-#: src/gedcom_strings.py:489
+#: src/gedcom_strings.py:631
 #, fuzzy
 msgid "Select a person from the list first."
 msgstr "בחר תחילה אדם מהרשימה."
 
-#: src/gedcom_strings.py:490
+#: src/gedcom_strings.py:632
 #, fuzzy
 msgid "Bad value"
 msgstr "ערך שגוי"
 
-#: src/gedcom_strings.py:491
+#: src/gedcom_strings.py:633
 #, fuzzy
 msgid "Results and Max Depth must be integers."
 msgstr "תוצאות ו-עומק מרבי חייבים להיות מספרים שלמים."
 
-#: src/gedcom_strings.py:492
+#: src/gedcom_strings.py:634
 #, fuzzy
 msgid "Max Depth must be an integer."
 msgstr "עומק מרבי חייב להיות מספר שלם."
 
-#: src/gedcom_strings.py:493
+#: src/gedcom_strings.py:635
 #, fuzzy
 msgid "Select a starting person from the main list first."
 msgstr "בחר תחילה אדם מהרשימה הראשית."
 
-#: src/gedcom_strings.py:494
+#: src/gedcom_strings.py:636
 #, fuzzy
 msgid "File not found"
 msgstr "הקובץ לא נמצא"
 
-#: src/gedcom_strings.py:495
+#: src/gedcom_strings.py:637
 #, python-brace-format, fuzzy
 msgid ""
 "Could not open:\n"
@@ -1330,12 +1545,12 @@ msgstr ""
 "\n"
 "{error}"
 
-#: src/gedcom_strings.py:496
+#: src/gedcom_strings.py:638
 #, fuzzy
 msgid "Save error"
 msgstr "שמור שגיאה"
 
-#: src/gedcom_strings.py:497
+#: src/gedcom_strings.py:639
 #, python-brace-format, fuzzy
 msgid ""
 "Could not save relationship graph:\n"
@@ -1346,18 +1561,34 @@ msgstr ""
 "\n"
 "{error}"
 
-#: src/gedcom_strings.py:498
+#: src/gedcom_strings.py:640
+#, fuzzy
+msgid "Copy error"
+msgstr "העתק שגיאה"
+
+#: src/gedcom_strings.py:641
+#, python-brace-format, fuzzy
+msgid ""
+"Could not copy relationship graph:\n"
+"\n"
+"{error}"
+msgstr ""
+"לא ניתן להעתיק את גרף הקשרים:\n"
+"\n"
+"{error}"
+
+#: src/gedcom_strings.py:642
 #, python-brace-format, fuzzy
 msgid ""
 "Could not save graph layout debug data:\n"
 "\n"
 "{error}"
 msgstr ""
-"לא ניתן לשמור את נתוני האיתור והתיקון של פריסת הגרף:\n"
+"לא ניתן לשמור את נתוני האיתור באגים של פריסת הגרף:\n"
 "\n"
 "{error}"
 
-#: src/gedcom_strings.py:499
+#: src/gedcom_strings.py:643
 #, python-brace-format, fuzzy
 msgid ""
 "Could not save results:\n"
@@ -1368,7 +1599,7 @@ msgstr ""
 "\n"
 "{error}"
 
-#: src/gedcom_strings.py:500
+#: src/gedcom_strings.py:644
 #, python-brace-format, fuzzy
 msgid ""
 "Could not save profile:\n"
@@ -1379,7 +1610,7 @@ msgstr ""
 "\n"
 "{error}"
 
-#: src/gedcom_strings.py:502
+#: src/gedcom_strings.py:646
 #, python-brace-format, fuzzy
 msgid ""
 "GEDCOM file not found:\n"
@@ -1392,17 +1623,17 @@ msgstr ""
 "\n"
 "השתמש ב'עיון...' כדי לבחור קובץ אחר."
 
-#: src/gedcom_strings.py:510
+#: src/gedcom_strings.py:653
 #, fuzzy
 msgid "No cache files found."
 msgstr "לא נמצאו קבצי מטמון."
 
-#: src/gedcom_strings.py:511
+#: src/gedcom_strings.py:654
 #, fuzzy
 msgid "Clear cache"
 msgstr "נקה את המטמון"
 
-#: src/gedcom_strings.py:513
+#: src/gedcom_strings.py:656
 #, python-brace-format, fuzzy
 msgid ""
 "Delete {count} cached file(s)?\n"
@@ -1413,57 +1644,211 @@ msgstr ""
 "\n"
 "הערה: המטמון עשוי להכיל מידע אישי ורשומות גולמיות מהקובצים שלך GEDCOM."
 
-#: src/gedcom_strings.py:517
+#: src/gedcom_strings.py:660
 #, fuzzy
 msgid "Cache cleared"
 msgstr "הזיכרון המטמון נמחק"
 
-#: src/gedcom_strings.py:518
+#: src/gedcom_strings.py:661
 #, python-brace-format, fuzzy
 msgid "{deleted} file(s) deleted."
 msgstr "{deleted} קבצים נמחקו."
 
-#: src/gedcom_strings.py:523
+#: src/gedcom_strings.py:666
 #, fuzzy
 msgid "How to Use"
 msgstr "אופן השימוש"
 
-#: src/gedcom_strings.py:524 src/gedcom_strings.py:547
+#: src/gedcom_strings.py:667 src/gedcom_strings.py:761
 #, fuzzy
 msgid "Keyboard Shortcuts"
 msgstr "קיצורי מקלדת"
 
-#: src/gedcom_strings.py:527
+#: src/gedcom_strings.py:670
 #, fuzzy
 msgid "Checking for Updates"
 msgstr "בדיקת עדכונים"
 
-#: src/gedcom_strings.py:528
+#: src/gedcom_strings.py:671
 #, fuzzy
 msgid "Update Available"
 msgstr "קיים עדכון"
 
-#: src/gedcom_strings.py:530
+#: src/gedcom_strings.py:676
+#, fuzzy
+msgid "Welcome to GEDCOM Navigator"
+msgstr "ברוכים הבאים ל-GEDCOM Navigator"
+
+#: src/gedcom_strings.py:677
+#, fuzzy
+msgid "Show this window next time"
+msgstr "הצג חלון זה בפעם הבאה"
+
+#: src/gedcom_strings.py:679
+#, fuzzy
+msgid "Next"
+msgstr "הבא"
+
+#: src/gedcom_strings.py:680
+#, fuzzy
+msgid "Back"
+msgstr "חזרה"
+
+#: src/gedcom_strings.py:681
+#, fuzzy
+msgid "Skip"
+msgstr "דילוג"
+
+#: src/gedcom_strings.py:682
+#, fuzzy
+msgid "Finish"
+msgstr "לסיים"
+
+#: src/gedcom_strings.py:686
+#, fuzzy
+msgid "People list"
+msgstr "רשימת אנשים"
+
+#: src/gedcom_strings.py:688
+#, fuzzy
+msgid ""
+"Everyone in your GEDCOM file appears here. Select a person to view their "
+"profile, find tag matches (such as DNA), or trace relationship paths."
+msgstr ""
+"כל האנשים המופיעים בקובץ GEDCOM שלך מופיעים כאן. בחר אדם כדי להציג את "
+"הפרופיל שלו, למצוא התאמות לתגיות (כגון DNA) או לעקוב אחר קשרי משפחה."
+
+#: src/gedcom_strings.py:691
+#, fuzzy
+msgid "Results pane"
+msgstr "תוצאות הוסף"
+
+#: src/gedcom_strings.py:693
+#, fuzzy
+msgid ""
+"Profiles, tag matches (such as DNA), and relationship paths are shown here. "
+"Names and relationship descriptions in this pane are clickable."
+msgstr ""
+"פרופילs, התאמות תגיות (כגון DNA) ונתיבי קשרים מוצגים כאן. ניתן ללחוץ על "
+"השמות ותיאורי הקשרים בחלונית זו."
+
+#: src/gedcom_strings.py:696
+#, fuzzy
+msgid "Status bar"
+msgstr "שורת המצב"
+
+#: src/gedcom_strings.py:698
+#, fuzzy
+msgid ""
+"Shows the loaded file and progress, and holds the Save and Copy buttons for "
+"the current results."
+msgstr ""
+"מציג את הקובץ שנטען ואת התקדמות הטעינה, ומציג את הכפתורים שמור ו-העתק עבור "
+"התוצאות הנוכחיות."
+
+#: src/gedcom_strings.py:701
+#, fuzzy
+msgid "Clickable names"
+msgstr "שמות שניתן ללחוץ עליהם"
+
+#: src/gedcom_strings.py:703
+#, fuzzy
+msgid ""
+"Click any person's name in the results to jump to their profile. Use the "
+"Back and Forward keyboard shortcuts (Alt-Left and Alt-Right) to retrace your"
+" steps."
+msgstr ""
+"לחץ על שם של כל אדם בתוצאות כדי לעבור לפרופיל שלו. השתמש בקיצורי המקלדת "
+"'הקודם' ו'הבא' (Alt-Left ו-Alt-Right) כדי לחזור על צעדיך."
+
+#: src/gedcom_strings.py:706
+#, fuzzy
+msgid "Clickable relationships"
+msgstr "קשרים הניתנים ללחיצה"
+
+#: src/gedcom_strings.py:708
+#, fuzzy
+msgid ""
+"Click an underlined relationship description to open it as a relationship "
+"graph showing how the two people are connected."
+msgstr ""
+"לחץ על תיאור הקשר המודגש כדי לפתוח אותו כתרשים קשרים המציג את הקשר בין שני "
+"האנשים."
+
+#: src/gedcom_strings.py:711
+#, fuzzy
+msgid "Display modes"
+msgstr "מצבי תצוגה"
+
+#: src/gedcom_strings.py:713
+#, fuzzy
+msgid ""
+"Switch the right pane between Profile, Tag Matches (e.g. DNA Tags), and "
+"Relationship Paths for the selected person. Selecting 'Paths' will prompt "
+"you to choose another person to find paths to."
+msgstr ""
+"החלף בין החלונית הימנית בין פרופיל, התאמות תגיות (למשל, DNA תגים) ו-מסלול "
+"קשר עבור האדם הנבחר. בחירה ב'נתיבים' תבקש ממך לבחור אדם אחר כדי למצוא נתיבים"
+" אליו."
+
+#: src/gedcom_strings.py:717
+#, fuzzy
+msgid "Match tag settings"
+msgstr "התאם את הגדרות התגים"
+
+#: src/gedcom_strings.py:719
+#, fuzzy
+msgid ""
+"In Matches mode, set the tag keyword and page marker that identify tagged "
+"people (e.g. 'DNA'), or pick an existing tag from your file."
+msgstr ""
+"במצב 'התאמות', הגדר את מילת המפתח של התג ואת סימן הדף המזהים את האנשים "
+"המתויגים (למשל, 'DNA'), או בחר תג קיים מהקובץ שלך."
+
+#: src/gedcom_strings.py:722
+#, fuzzy
+msgid "Tree View menu"
+msgstr "תצוגת עץ משפחה תפריט"
+
+#: src/gedcom_strings.py:724
+#, python-brace-format, fuzzy
+msgid ""
+"Right-click (or click) any person in the tree view for quick actions: "
+"{items}."
+msgstr ""
+"לחץ לחיצה ימנית (או לחץ) על כל אדם בתצוגת העץ כדי לבצע פעולות מהירות: "
+"{items}."
+
+#: src/gedcom_strings.py:727
+#, fuzzy
+msgid ""
+"A sample family tree has been loaded so you can try these features. It will "
+"be unloaded when the walkthrough ends."
+msgstr ""
+"עץ משפחה לדוגמה נטען כדי שתוכלו להתנסות בתכונות אלה. הוא יוסר עם סיום "
+"ההדרכה."
+
+#: src/gedcom_strings.py:731
 #, fuzzy
 msgid "Shortcut"
 msgstr "קיצור דרך"
 
-#: src/gedcom_strings.py:531
+#: src/gedcom_strings.py:732
 #, fuzzy
 msgid "Action"
 msgstr "פעולה"
 
-#: src/gedcom_strings.py:533
+#: src/gedcom_strings.py:734
 #, fuzzy
 msgid "Checking GitHub for the latest release…"
 msgstr "בודק את GitHub כדי לראות אם יש גרסה חדשה..."
 
-#: src/gedcom_strings.py:534
+#: src/gedcom_strings.py:735
 #, fuzzy
 msgid "Update check failed"
 msgstr "בדיקת העדכונים נכשלה"
 
-#: src/gedcom_strings.py:535
+#: src/gedcom_strings.py:736
 #, python-brace-format, fuzzy
 msgid ""
 "Could not check for updates right now.\n"
@@ -1474,132 +1859,152 @@ msgstr ""
 "\n"
 "{error}"
 
-#: src/gedcom_strings.py:536
+#: src/gedcom_strings.py:737
 #, fuzzy
 msgid "No update available"
 msgstr "אין עדכון זמין"
 
-#: src/gedcom_strings.py:537
+#: src/gedcom_strings.py:738
 #, python-brace-format, fuzzy
 msgid "You are running the latest version ({current})."
 msgstr "אתה מריץ את הגרסה העדכנית ביותר ({current})."
 
-#: src/gedcom_strings.py:538
+#: src/gedcom_strings.py:739
 #, fuzzy
 msgid "A newer version is available."
 msgstr "קיימת גרסה חדשה יותר."
 
-#: src/gedcom_strings.py:539
+#: src/gedcom_strings.py:740
 #, python-brace-format, fuzzy
 msgid "Installed version: {current}"
 msgstr "גרסה מותקנת: {current}"
 
-#: src/gedcom_strings.py:540
+#: src/gedcom_strings.py:741
 #, python-brace-format, fuzzy
 msgid "Latest version: {latest}"
 msgstr "הגרסה האחרונה: {latest}"
 
-#: src/gedcom_strings.py:541
+#: src/gedcom_strings.py:742
 #, fuzzy
 msgid "Download the latest release from GitHub:"
 msgstr "הורד את המהדורה האחרונה של GitHub:"
 
-#: src/gedcom_strings.py:542
+#: src/gedcom_strings.py:743
 #, fuzzy
 msgid "Open GitHub Releases"
 msgstr "פתח GitHub מהדורות"
 
-#: src/gedcom_strings.py:548
+#: src/gedcom_strings.py:748
+#, fuzzy
+msgid "Set as Default"
+msgstr "הגדר כברירת מחדל"
+
+#: src/gedcom_strings.py:750
+#, fuzzy
+msgid "Would you like GEDCOM Navigator to open .ged files by default?"
+msgstr "האם ברצונך ש-GEDCOM Navigator יפתח קבצי .ged כברירת מחדל?"
+
+#: src/gedcom_strings.py:752
+#, fuzzy
+msgid "Could Not Set Default"
+msgstr "לא ניתן להגדיר כברירת מחדל"
+
+#: src/gedcom_strings.py:754
+#, fuzzy
+msgid "GEDCOM Navigator could not register as the default .ged handler."
+msgstr "GEDCOM Navigator לא הצליח להירשם כמטפל ברירת המחדל של קבצי .ged."
+
+#: src/gedcom_strings.py:762
 #, fuzzy
 msgid "Open Preferences"
 msgstr "פתח הגדרות"
 
-#: src/gedcom_strings.py:549
+#: src/gedcom_strings.py:763
 #, fuzzy
 msgid "Find Person"
 msgstr "חפש אדם"
 
-#: src/gedcom_strings.py:550
+#: src/gedcom_strings.py:764
 #, fuzzy
 msgid "Filter Results"
 msgstr "סנן תוצאות"
 
-#: src/gedcom_strings.py:551
+#: src/gedcom_strings.py:765
 #, fuzzy
 msgid "Toggle the tagged filter"
 msgstr "הפעל/כבה את מסנן התגים"
 
-#: src/gedcom_strings.py:552
+#: src/gedcom_strings.py:766
 #, fuzzy
 msgid "Toggle fuzzy search mode"
 msgstr "הפעל/כבה את מצב החיפוש המדויק"
 
-#: src/gedcom_strings.py:553
+#: src/gedcom_strings.py:767
 #, fuzzy
 msgid "Toggle married-name search mode"
 msgstr "הפעל/כבה את מצב החיפוש לפי שם נישואין"
 
-#: src/gedcom_strings.py:554
+#: src/gedcom_strings.py:768
 #, fuzzy
 msgid "Open a new GEDCOM file"
 msgstr "פתח קובץ חדש GEDCOM"
 
-#: src/gedcom_strings.py:555
+#: src/gedcom_strings.py:769
 #, fuzzy
 msgid "Switch the Display Pane to Matches"
 msgstr "העבר את חלונית התצוגה למצב 'התאמות'"
 
-#: src/gedcom_strings.py:556
+#: src/gedcom_strings.py:770
 #, fuzzy
 msgid "Open Tree View for selected person"
 msgstr "פתח תצוגת עץ משפחה עבור האדם שנבחר"
 
-#: src/gedcom_strings.py:557
+#: src/gedcom_strings.py:771
 #, fuzzy
 msgid "Set Home person to the selected person"
 msgstr "הגדר את אדם ראשי לאדם שנבחר"
 
-#: src/gedcom_strings.py:558
+#: src/gedcom_strings.py:772
 #, fuzzy
 msgid "Switch the Display Pane to Paths"
 msgstr "החלף את חלונית התצוגה ל\"נתיבים\""
 
-#: src/gedcom_strings.py:559
+#: src/gedcom_strings.py:773
 #, fuzzy
 msgid "Select new tag for finding relationship paths"
 msgstr "בחר תווית חדשה לחיפוש נתיבי קשרים"
 
-#: src/gedcom_strings.py:561
+#: src/gedcom_strings.py:774
 #, fuzzy
 msgid "Reverse/restore the direction of all relationship paths"
 msgstr "הפוך/שחזר את כיוון כל נתיבי הקשרים"
 
-#: src/gedcom_strings.py:562
+#: src/gedcom_strings.py:775
 #, fuzzy
 msgid "Save results to a text file"
 msgstr "שמור תוצאות לקובץ טקסט"
 
-#: src/gedcom_strings.py:563
+#: src/gedcom_strings.py:776
 #, fuzzy
 msgid "Copy result to clipboard"
 msgstr "העתק העתק את התוצאה ללוח"
 
-#: src/gedcom_strings.py:564
+#: src/gedcom_strings.py:777
 #, fuzzy
 msgid "Go back to the previous view"
 msgstr "חזור לתצוגה הקודמת"
 
-#: src/gedcom_strings.py:565
+#: src/gedcom_strings.py:778
 #, fuzzy
 msgid "Go forward to the next view"
 msgstr "עבור לתצוגה הבאה"
 
-#: src/gedcom_strings.py:566
+#: src/gedcom_strings.py:779
 #, fuzzy
 msgid "Zoom the focused text or graph view"
 msgstr "הגדל את הטקסט או את תצוגת הגרף שבמוקד"
 
-#: src/gedcom_strings.py:567
+#: src/gedcom_strings.py:780
 #, fuzzy
 msgid "Reset zoom in the focused text or graph view"
 msgstr "איפוס הזום בטקסט הממוקד או בתצוגת הגרף"

@@ -97,6 +97,7 @@ LBL_MAX_DEPTH = _("Max Depth:")
 BTN_SHOW_PERSON = _("Profile")
 BTN_SHOW_PERSON_TREE = _("Tree")
 BTN_SET_HOME = _("Set Home")
+BTN_UNSET_HOME = _("Unset Home")
 
 # ---------------------------------------------------------------------------
 # Display Pane
@@ -195,7 +196,7 @@ TIP_PAGE_MARKER = _(
 def get_tip_set_home():
     display = _shortcut_by_action("set_home").display
     return _(
-        "Set Home Person ({display})\nSet the selected person as the home person for finding relationship paths."
+        "Set Home Person ({display})\nSet the selected person as the home person for finding relationship paths. Select the current home person to unset it."
     ).format(display=display)
 
 
@@ -215,7 +216,7 @@ def get_tip_show_person_tree():
 def get_tip_select_tag():
     mod = get_mod_key()
     return _(
-        "Select tag for Finding Matches ({mod}T)\nSelect a tag (e.g. "DNA") to use when finding closest "
+        "Select tag for Finding Matches ({mod}T)\nSelect a tag (e.g. 'DNA') to use when finding closest "
         "matches for the selected person."
     ).format(mod=mod)
 
@@ -295,6 +296,35 @@ BIO_BURIED = _("  Buried:  {event}")
 BIO_AGE = _("  Age:     {age}")
 BIO_AGE_AT_DEATH = _("  Age:     {age} (at death)")
 BIO_NO_INFO = _("  (no biographical information found)")
+FACTS_EVENTS_SECTION = _("Facts & Events")
+FACTS_EVENTS_NO_INFO = _("  (no facts or events found)")
+FACTS_EVENTS_LINE = _("  {label}: {details}")
+FACT_EVENT_ADOP = _("Adoption")
+FACT_EVENT_BAPM = _("Baptism")
+FACT_EVENT_CAST = _("Caste")
+FACT_EVENT_CENS = _("Census")
+FACT_EVENT_CHR = _("Christening")
+FACT_EVENT_CREM = _("Cremation")
+FACT_EVENT_DSCR = _("Description")
+FACT_EVENT_EDUC = _("Education")
+FACT_EVENT_EMIG = _("Emigration")
+FACT_EVENT_EVEN = _("Event")
+FACT_EVENT_FACT = _("Fact")
+FACT_EVENT_GRAD = _("Graduation")
+FACT_EVENT_IMMI = _("Immigration")
+FACT_EVENT_MILI = _("Military")
+FACT_EVENT_NATI = _("Nationality")
+FACT_EVENT_NATU = _("Naturalization")
+FACT_EVENT_OCCU = _("Occupation")
+FACT_EVENT_PROB = _("Probate")
+FACT_EVENT_RELI = _("Religion")
+FACT_EVENT_RESI = _("Residence")
+FACT_EVENT_TITL = _("Title")
+FACT_EVENT_WILL = _("Will")
+FACT_EVENT_AGE = _("Age: {value}")
+FACT_EVENT_CAUSE = _("Cause: {value}")
+FACT_EVENT_NOTE = _("Note: {value}")
+FACT_EVENT_SOURCE = _("Source: {value}")
 FAM_SECTION = _("Family")
 FAM_PARENTS = _("  Parents:")
 FAM_SIBLINGS = _("  Siblings:")
@@ -612,6 +642,7 @@ STATUS_OVERVIEW = _(
     "{flagged} tagged.  Type to search."
 )
 STATUS_HOME_SET = _("Home person set: {name}")
+STATUS_HOME_UNSET = _("Home person unset")
 
 # ---------------------------------------------------------------------------
 # Error / warning dialogs
@@ -768,7 +799,7 @@ def get_keyboard_shortcut_rows():
         "open_gedcom": _("Open a new GEDCOM file"),
         "display_matches": _("Switch the Display Pane to Matches"),
         "display_tree": _("Open Tree View for selected person"),
-        "set_home": _("Set Home person to the selected person"),
+        "set_home": _("Set or unset the selected person as Home person"),
         "display_paths": _("Switch the Display Pane to Paths"),
         "select_tag": _("Select new tag for finding relationship paths"),
         "reverse_results": _("Reverse/restore the direction of all relationship paths"),

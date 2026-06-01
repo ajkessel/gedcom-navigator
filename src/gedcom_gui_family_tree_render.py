@@ -76,6 +76,48 @@ class FamilyTreeRenderMixin:
         return source_right_x + offset
 
     @staticmethod
+    def _family_tree_visible_sibling_segments(edges, positions,
+                                              same_generation_axis='y'):
+        """Return adjacent visible sibling pairs to render without overlap."""
+        sibling_groups = []
+        for source_id, _target_id, category in edges:
+            if category != 'siblings' or source_id not in positions:
+                continue
+            group = {source_id}
+            source_pos = positions[source_id]
+            for edge_source, edge_target, edge_category in edges:
+                if edge_category != 'siblings' or edge_source != source_id:
+                    continue
+                if edge_target not in positions:
+                    continue
+                target_pos = positions[edge_target]
+                if same_generation_axis == 'x':
+                    same_generation = abs(target_pos[0] - source_pos[0]) < 0.001
+                else:
+                    same_generation = abs(target_pos[1] - source_pos[1]) < 0.001
+                if same_generation:
+                    group.add(edge_target)
+            if len(group) > 1:
+                sibling_groups.append(group)
+
+        segments = []
+        seen_segments = set()
+        for group in sibling_groups:
+            if same_generation_axis == 'x':
+                ordered = sorted(group, key=lambda item: (
+                    positions[item][1], positions[item][0], item))
+            else:
+                ordered = sorted(group, key=lambda item: (
+                    positions[item][0], positions[item][1], item))
+            for left_id, right_id in zip(ordered, ordered[1:]):
+                key = tuple(sorted((left_id, right_id)))
+                if key in seen_segments:
+                    continue
+                segments.append((left_id, right_id))
+                seen_segments.add(key)
+        return segments
+
+    @staticmethod
     def _arc_points(cx, cy, radius, start_degrees, end_degrees, steps=8):
         """Return points approximating a canvas arc."""
         if steps <= 0:
@@ -173,13 +215,16 @@ class FamilyTreeRenderMixin:
 
     @staticmethod
     def _visible_coparent_id(parent_id, child_id, positions,
-                             coparent_lookup, spouse_edges=()):
+                             coparent_lookup, spouse_edges=(),
+                             allow_spouse_fallback=True):
         """Return a displayed co-parent for the parent and child."""
         if parent_id not in positions:
             return None
         for coparent_id in coparent_lookup(parent_id, (child_id,)):
             if coparent_id in positions:
                 return coparent_id
+        if not allow_spouse_fallback:
+            return None
         for left_id, right_id in spouse_edges:
             if left_id == parent_id and right_id in positions:
                 return right_id
@@ -220,7 +265,8 @@ class FamilyTreeRenderMixin:
                 continue
 
             coparent_id = cls._visible_coparent_id(
-                parent_id, child_id, positions, coparent_lookup, spouse_edges)
+                parent_id, child_id, positions, coparent_lookup, spouse_edges,
+                allow_spouse_fallback=False)
             if coparent_id and coparent_id in positions:
                 parent_ids = tuple(sorted((parent_id, coparent_id)))
                 parent_x = (
@@ -439,15 +485,18 @@ class FamilyTreeRenderMixin:
             for source_id, target_id, category in edges
             if category == 'spouses'
         ]
+        child_edge_groups = self._family_tree_child_edge_groups(
+            edges, positions, self._co_parents_for_children, spouse_edges)
         canvas_w = margin * 2 + node_w + (max_column - min_column) * h_gap
         canvas_h = top_margin + margin + node_h + (
             max_generation - min_generation) * v_gap
         if debug_enabled():
-                canvas._family_tree_debug_payload = self._family_tree_debug_payload(
-                    center_id, expanded, zoom, canvas_w, canvas_h, visible_ids,
-                    edges, layout, self._family_tree_members_for,
-                    graph_type=graph_type,
-                    relationship_lookup=self._edge_relationship_kind)
+            canvas._family_tree_debug_payload = self._family_tree_debug_payload(
+                center_id, expanded, zoom, canvas_w, canvas_h, visible_ids,
+                edges, layout, self._family_tree_members_for,
+                graph_type=graph_type,
+                relationship_lookup=self._edge_relationship_kind,
+                child_groups=child_edge_groups)
         else:
             canvas._family_tree_debug_payload = None
 
@@ -486,6 +535,25 @@ class FamilyTreeRenderMixin:
                     pulse_progress()
                     canvas.create_line(
                         *points, smooth=False, **line_options)
+            for left_id, right_id in self._family_tree_visible_sibling_segments(
+                    edges, positions, same_generation_axis='x'):
+                pulse_progress()
+                lx, ly = positions[left_id]
+                rx, ry = positions[right_id]
+                kind = self._edge_relationship_kind(
+                    left_id, right_id, 'siblings')
+                if kind == 'half' and abs(lx - rx) < 0.001:
+                    lane_x = lx - scale(12)
+                    start_x = lane_x
+                    end_x = lane_x
+                else:
+                    start_x = lx
+                    end_x = rx
+                start_y = ly + (node_h / 2 if ry >= ly else -node_h / 2)
+                end_y = ry - node_h / 2 if ry >= ly else ry + node_h / 2
+                self._draw_graph_sibling_line(
+                    canvas, start_x, start_y, end_x, end_y,
+                    kind, colors, scale)
         else:
             for generation in range(
                     int(min_generation), int(max_generation) + 1):
@@ -507,17 +575,23 @@ class FamilyTreeRenderMixin:
                     self._draw_spouse_line(
                         canvas, start_x, sy, end_x, ty, colors['spouse'], scale)
                     continue
-                if category == 'siblings':
-                    start_x = sx + (-node_w / 2 if tx < sx else node_w / 2)
-                    end_x = tx + (node_w / 2 if tx < sx else -node_w / 2)
-                    self._draw_graph_sibling_line(
-                        canvas, start_x, sy, end_x, ty,
-                        self._edge_relationship_kind(
-                            source_id, target_id, category),
-                        colors, scale)
-            for group in self._family_tree_child_edge_groups(
-                    edges, positions, self._co_parents_for_children,
-                    spouse_edges):
+            for left_id, right_id in self._family_tree_visible_sibling_segments(
+                    edges, positions):
+                pulse_progress()
+                lx, ly = positions[left_id]
+                rx, ry = positions[right_id]
+                kind = self._edge_relationship_kind(
+                    left_id, right_id, 'siblings')
+                start_x = lx + (node_w / 2 if rx >= lx else -node_w / 2)
+                end_x = rx - node_w / 2 if rx >= lx else rx + node_w / 2
+                start_y = end_y = ly
+                if kind == 'half' and abs(ly - ry) < 0.001:
+                    start_y = end_y = ly - scale(12)
+                self._draw_graph_sibling_line(
+                    canvas, start_x, start_y, end_x, end_y,
+                    kind,
+                    colors, scale)
+            for group in child_edge_groups:
                 pulse_progress()
                 parent_x = group['parent_x']
                 parent_y = group['parent_y']

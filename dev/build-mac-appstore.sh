@@ -69,6 +69,17 @@ if [[ -n "${AS_APP_CERT}" && -n "${AS_INST_CERT}" ]]; then
 	rm -rf "${APP_AS}"
 	cp -R "${APP_SRC}" "${APP_AS}"
 
+	# Rewrite absolute Homebrew dylib paths to @rpath on our own copy rather than
+	# trusting that build-mac.sh already did so.  The source dist may have been
+	# built by any means (or left half-built if an earlier build-mac.sh rewrite
+	# failed), and the App Sandbox blocks /usr/local|/opt/homebrew, so an
+	# unrewritten dylib silently breaks graph image copy/save.  install_name_tool
+	# invalidates signatures, but everything below is re-signed anyway.
+	./dev/fix-dylib-paths.sh "${APP_AS}" || {
+		echo 'Failed to rewrite bundled dylib paths for App Store build.'
+		exit 1
+	}
+
 	# Embed provisioning profile (required for TestFlight eligibility).
 	PROVISION_PROFILE="${HOME}/Library/MobileDevice/Provisioning Profiles/gedcom-navigator.provisionprofile"
 	if [[ ! -f "${PROVISION_PROFILE}" ]]; then
