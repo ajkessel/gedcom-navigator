@@ -38,6 +38,17 @@ from gedcom_tooltip import TextTagTooltip
 class ResultsMixin(GraphRenderMixin, GraphLayoutMixin):
     """Render search results and handle result-pane navigation."""
 
+    @staticmethod
+    def _widget_exists(widget):
+        """Return whether a Tk/CTk widget still exists."""
+        try:
+            winfo_exists = getattr(widget, 'winfo_exists', None)
+            if winfo_exists is None:
+                return True
+            return bool(winfo_exists())
+        except tk.TclError:
+            return False
+
     def _set_results_header_for_person(self, indi_id):
         """Show the selected person's name in the Display Pane header."""
         start = self.individuals[indi_id]
@@ -90,8 +101,11 @@ class ResultsMixin(GraphRenderMixin, GraphLayoutMixin):
         if self._last_result and self._last_result.get('type') == 'profile':
             self._last_result['start_id'] = start_id
         w = self.results
-        w.configure(state='normal')
-        w.delete('1.0', 'end')
+        try:
+            w.configure(state='normal')
+            w.delete('1.0', 'end')
+        except tk.TclError:
+            return
         self._set_results_header_for_person(start_id)
 
         def _on_tag_click(tag_name):
@@ -117,8 +131,13 @@ class ResultsMixin(GraphRenderMixin, GraphLayoutMixin):
         self._insert_person_profile(
             w, start_id, self._navigate_to, tag_callback=_on_tag_click,
             home_paths=home_path_data)
+        if not self._widget_exists(w):
+            return
         self._reverse_btn.configure(state='disabled', text=gs.BTN_REVERSE)
-        w.configure(state='disabled')
+        try:
+            w.configure(state='disabled')
+        except tk.TclError:
+            return
 
     def _coerce_home_path_data(self, home_paths):
         """Normalize home-path payloads from old and new render callers."""
