@@ -33,12 +33,13 @@ class GedcomDataModel:
 
     # Bump this whenever the cached individual/family schema changes so that
     # stale cache files are automatically discarded and reparsed.
-    _CACHE_VERSION = 7
+    _CACHE_VERSION = 8
 
     def __init__(self):
         self.individuals = {}
         self.families = {}
         self.tag_records = {}
+        self.media_records = {}
         self.married_name_index = {}
 
     # ------------------------------------------------------------------
@@ -54,7 +55,12 @@ class GedcomDataModel:
         """
         cached = self._load_from_cache(gedcom_path, cache_dir)
         if cached is not None:
-            self.individuals, self.families, self.tag_records = cached
+            (
+                self.individuals,
+                self.families,
+                self.tag_records,
+                self.media_records,
+            ) = cached
             apply_dna_flags(self.individuals, self.tag_records, dna_keyword, page_marker)
             self.married_name_index = self._build_married_name_index()
             return True, None, None
@@ -63,6 +69,7 @@ class GedcomDataModel:
             self.individuals,
             self.families,
             self.tag_records,
+            self.media_records,
             warning,
             model_error,
         ) = build_model(
@@ -74,6 +81,7 @@ class GedcomDataModel:
             self.individuals = {}
             self.families = {}
             self.tag_records = {}
+            self.media_records = {}
             self.married_name_index = {}
             return False, warning, model_error
         self.married_name_index = self._build_married_name_index()
@@ -174,7 +182,12 @@ class GedcomDataModel:
                 return None
             if not data.get('individuals'):
                 return None
-            return data['individuals'], data['families'], data['tag_records']
+            return (
+                data['individuals'],
+                data['families'],
+                data['tag_records'],
+                data.get('media_records', {}),
+            )
         except Exception: # pylint: disable=broad-exception-caught
             log_exception(f"loading parse cache for {gedcom_path!r}")
             return None
@@ -190,6 +203,7 @@ class GedcomDataModel:
                 'individuals': self.individuals,
                 'families': self.families,
                 'tag_records': self.tag_records,
+                'media_records': self.media_records,
             }
             tmp = cache_file.with_suffix('.tmp')
             with tmp.open('w', encoding='utf-8') as f:

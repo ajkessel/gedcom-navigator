@@ -73,8 +73,12 @@ class PathGraphMixin:
                 *(label_font.measure(line)
                   for line in detail_label.splitlines()),
             )
+        show_images = bool(
+            getattr(getattr(self, 'show_profile_image', None), 'get', lambda: False)())
         node_w = min(max(longest + scale(24), scale(112)), scale(190))
-        label_width = node_w - scale(22)
+        if show_images:
+            node_w = max(node_w, scale(126))
+        label_width = node_w - (scale(12) if show_images else scale(22))
         wrapped_label_blocks = []
         for index, label in enumerate(labels):
             if layout[index].get('is_endpoint'):
@@ -105,7 +109,21 @@ class PathGraphMixin:
             in enumerate(wrapped_label_blocks)
         ]
         max_label_h = max(block_heights, default=line_space)
-        base_node_h = max(scale(82), max_label_h + scale(26))
+        thumb_w, thumb_h = (
+            self._graph_thumbnail_size(scale) if show_images else (0, 0))
+        if show_images:
+            thumb_w = max(scale(48), node_w - scale(4))
+            thumb_h = min(thumb_h, thumb_w)
+        image_gap = scale(5) if show_images else 0
+        image_inset = scale(2) if show_images else 0
+        text_bottom_margin = scale(5) if show_images else 0
+        if show_images:
+            base_node_h = max(
+                scale(82),
+                image_inset + thumb_h + image_gap
+                + max_label_h + text_bottom_margin)
+        else:
+            base_node_h = max(scale(82), max_label_h + scale(26))
         badge_h = badge_font.metrics('linespace') + scale(4)
         endpoint_header_h = badge_h + scale(14)
         node_heights = [
@@ -317,6 +335,7 @@ class PathGraphMixin:
             canvas, colors, scale, label_font, relationship_kinds)
 
         highlighted_nodes = getattr(canvas, '_highlighted_nodes', set())
+        canvas._profile_image_refs = []
 
         def _toggle_highlight(indi_id):
             nodes = getattr(canvas, '_highlighted_nodes', set())
@@ -376,6 +395,26 @@ class PathGraphMixin:
                 name_h = name_lines * endpoint_line_space
                 detail_h = detail_lines * line_space
                 text_top = text_y - (name_h + detail_h) / 2
+                if show_images:
+                    payload = self._profile_media_payload(node_id, (thumb_w, thumb_h))
+                    if payload and payload.get('image') is not None:
+                        image_tag = f'{node_tag}_photo'
+                        image_top = y1 + endpoint_header_h + image_inset
+                        canvas.create_image(
+                            x, image_top + thumb_h / 2,
+                            image=payload['image'], anchor='center',
+                            tags=('path_node', node_tag, image_tag))
+                        canvas._profile_image_refs.append(payload['image'])
+                        if payload.get('kind') == 'real':
+                            canvas.tag_bind(
+                                image_tag, '<Button-1>',
+                                lambda event, path=payload.get('path'): (
+                                    self._show_full_profile_image(
+                                        path, parent=canvas.winfo_toplevel()),
+                                    'break',
+                                )[-1])
+                    text_top = (
+                        y1 + endpoint_header_h + image_inset + thumb_h + image_gap)
                 if name_label:
                     canvas.create_text(
                         x, text_top + name_h / 2,
@@ -390,8 +429,29 @@ class PathGraphMixin:
                         justify='center', tags=('path_node', node_tag))
             else:
                 label, _ = label_block
+                text_y = y
+                text_top = None
+                if show_images:
+                    payload = self._profile_media_payload(node_id, (thumb_w, thumb_h))
+                    if payload and payload.get('image') is not None:
+                        image_tag = f'{node_tag}_photo'
+                        canvas.create_image(
+                            x, y1 + image_inset + thumb_h / 2, image=payload['image'],
+                            anchor='center',
+                            tags=('path_node', node_tag, image_tag))
+                        canvas._profile_image_refs.append(payload['image'])
+                        if payload.get('kind') == 'real':
+                            canvas.tag_bind(
+                                image_tag, '<Button-1>',
+                                lambda event, path=payload.get('path'): (
+                                    self._show_full_profile_image(
+                                        path, parent=canvas.winfo_toplevel()),
+                                    'break',
+                                )[-1])
+                        text_top = y1 + image_inset + thumb_h + image_gap
+                        text_y = text_top + block_heights[index] / 2
                 canvas.create_text(
-                    x, y, text=label, fill=self.PERSON_BOX_TEXT,
+                    x, text_y, text=label, fill=self.PERSON_BOX_TEXT,
                     font=label_font,
                     width=label_width, justify='center',
                     tags=('path_node', node_tag))

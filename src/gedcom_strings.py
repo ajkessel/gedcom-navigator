@@ -288,6 +288,16 @@ def get_tip_married_names():
 # Profile window
 # ---------------------------------------------------------------------------
 WIN_GEDCOM_RECORD = _("GEDCOM Record: {name}")
+PROFILE_IMAGE_MISSING_TITLE = _("Profile Image Not Found")
+PROFILE_IMAGE_MISSING_MSG = _(
+    "This GEDCOM file includes a profile image path, but the image file could "
+    "not be found on this computer.\n\n"
+    "Missing path:\n{path}\n\n"
+    "Would you like to choose the folder where this GEDCOM file's media files "
+    "are stored? The app will remember that folder for this GEDCOM file and "
+    "search it for other profile images."
+)
+PROFILE_IMAGE_DIR_TITLE = _("Select Media Folder")
 BIO_SECTION = _("Biography")
 BIO_BORN = _("  Born:    {event}")
 BIO_MARRIED = _("  Married: {spouses}")
@@ -593,6 +603,11 @@ TIP_SHOW_FULL_GEDCOM = _(
     "When enabled, the Full GEDCOM Record section is included at the bottom of "
     "the Profile window, showing the raw GEDCOM data for the person."
 )
+CHK_SHOW_PROFILE_IMAGE = _("Show Profile Image")
+TIP_SHOW_PROFILE_IMAGE = _(
+    "When enabled, profile thumbnails are shown for people with local GEDCOM "
+    "media, with generic placeholders used when no local image is available."
+)
 LBL_NAME_FORMAT = _("Name format:")
 NAME_FIRST_LAST = _("First Last")
 NAME_LAST_FIRST = _("Last, First")
@@ -670,6 +685,8 @@ ERR_SAVE_GRAPH_TITLE = _("Save error")
 ERR_SAVE_GRAPH_MSG = _("Could not save relationship graph:\n\n{error}")
 ERR_COPY_GRAPH_TITLE = _("Copy error")
 ERR_COPY_GRAPH_MSG = _("Could not copy relationship graph:\n\n{error}")
+ERR_SAVE_PROFILE_IMAGE_MSG = _("Could not save profile image:\n\n{error}")
+ERR_COPY_PROFILE_IMAGE_MSG = _("Could not copy profile image:\n\n{error}")
 ERR_SAVE_GRAPH_DEBUG_MSG = _("Could not save graph layout debug data:\n\n{error}")
 ERR_SAVE_RESULTS_MSG = _("Could not save results:\n\n{error}")
 ERR_SAVE_PROFILE_MSG = _("Could not save profile:\n\n{error}")

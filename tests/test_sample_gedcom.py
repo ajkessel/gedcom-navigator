@@ -20,7 +20,7 @@ def _id_for_name(individuals, name):
 
 
 def test_synthetic_sample_parse_counts_and_dna_markers():
-    individuals, families, tag_records, warning, error = build_model(
+    individuals, families, tag_records, _, warning, error = build_model(
         str(SAMPLE_GEDCOM), "DNA", "AncestryDNA Match"
     )
 
@@ -49,7 +49,7 @@ def test_synthetic_sample_parse_counts_and_dna_markers():
 
 
 def test_synthetic_sample_has_cross_branch_cousin_marriage():
-    individuals, families, _, _, error = build_model(
+    individuals, families, _, _, _, error = build_model(
         str(SAMPLE_GEDCOM), "DNA", "AncestryDNA Match"
     )
 

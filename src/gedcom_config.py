@@ -159,6 +159,33 @@ class ConfigManager:
         """Save whether the Full GEDCOM Record section should appear in the Profile window."""
         self.save_value('show_full_gedcom', bool(value))
 
+    def get_show_profile_image(self):
+        """Return whether profile thumbnails should be shown in profiles and graphs."""
+        return bool(self.load_value('show_profile_image', False))
+
+    def set_show_profile_image(self, value):
+        """Save whether profile thumbnails should be shown in profiles and graphs."""
+        self.save_value('show_profile_image', bool(value))
+
+    def get_media_parent_dir(self, gedcom_path):
+        """Return the saved replacement media directory for a GEDCOM path."""
+        dirs = self.load_value('media_parent_dirs', {})
+        if not isinstance(dirs, dict):
+            return None
+        value = dirs.get(gedcom_path)
+        return value if isinstance(value, str) and value else None
+
+    def set_media_parent_dir(self, gedcom_path, directory):
+        """Save or clear the replacement media directory for a GEDCOM path."""
+        dirs = self.load_value('media_parent_dirs', {})
+        if not isinstance(dirs, dict):
+            dirs = {}
+        if directory:
+            dirs[gedcom_path] = str(directory)
+        else:
+            dirs.pop(gedcom_path, None)
+        self.save_value('media_parent_dirs', dirs)
+
     def get_name_order(self):
         """Return the saved display name order, defaulting to first-name first."""
         val = self.load_value('name_order', 'first_last')

@@ -211,6 +211,7 @@ def main():
             individuals,
             families,
             tag_records,
+            _media_records,
             encoding_warning,
             model_error,
         ) = build_model(

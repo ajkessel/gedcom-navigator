@@ -6,8 +6,10 @@ Person profile and family-tree detail windows for GedcomNavigatorApp.
 """
 
 import re
+import shutil
 import sys
 import tkinter as tk
+import tkinter.font as tkfont
 import webbrowser
 from datetime import date
 from tkinter import filedialog, messagebox
@@ -210,6 +212,413 @@ class PersonDialogMixin:
             redraw()
         return True
 
+    def _profile_thumbnail_size(self):
+        """Return profile thumbnail size in pixels for the current display."""
+        font_based = int(round(self._mono_size * 7.5))
+        try:
+            screen_h = self.root.winfo_screenheight()
+            display_based = int(round(screen_h * 0.12))
+        except (AttributeError, tk.TclError):
+            display_based = font_based
+        size = min(176, max(112, font_based, display_based))
+        return size, size
+
+    def _graph_thumbnail_size(self, scale):
+        """Return graph thumbnail size in canvas pixels."""
+        size = scale(84)
+        return size, size
+
+    def _profile_media_payload(self, indi_id, size):
+        """Return thumbnail payload for indi_id when profile images are enabled."""
+        show_var = getattr(self, 'show_profile_image', None)
+        if show_var is None or not show_var.get():
+            return None
+        media = getattr(self, '_media_service', None)
+        if media is None or indi_id not in self.individuals:
+            return None
+        self._maybe_show_missing_profile_image_notice(
+            self.individuals[indi_id], media)
+        return media.profile_image_for_person(
+            self.individuals[indi_id], self.gedcom_path.get(), size,
+            media_dirs=self._profile_media_dirs())
+
+    def _profile_media_dirs(self):
+        """Return configured replacement media directories for the loaded GEDCOM."""
+        config = getattr(self, '_config', None)
+        gedcom_path = self.gedcom_path.get()
+        if config is None or not hasattr(config, 'get_media_parent_dir'):
+            return []
+        directory = config.get_media_parent_dir(gedcom_path)
+        return [directory] if directory else []
+
+    def _maybe_show_missing_profile_image_notice(self, indi, media):
+        """Show one per-session note when a selected FILE path is missing."""
+        if getattr(self, '_profile_image_missing_notice_shown', False):
+            return
+        media_path = media.selected_media_file(indi)
+        if not media_path or not media.is_supported_path(media_path):
+            return
+        gedcom_path = self.gedcom_path.get()
+        if media.resolve_media_path(
+                media_path, gedcom_path, self._profile_media_dirs()):
+            return
+        self._profile_image_missing_notice_shown = True
+        try:
+            choose_dir = messagebox.askyesno(
+                PROFILE_IMAGE_MISSING_TITLE,
+                PROFILE_IMAGE_MISSING_MSG.format(path=media_path),
+                parent=getattr(self, 'root', None),
+            )
+            if not choose_dir:
+                return
+            directory = filedialog.askdirectory(
+                parent=filedialog_parent(getattr(self, 'root', None)),
+                title=PROFILE_IMAGE_DIR_TITLE,
+            )
+            if not directory:
+                return
+            config = getattr(self, '_config', None)
+            if config is not None and hasattr(config, 'set_media_parent_dir'):
+                config.set_media_parent_dir(gedcom_path, directory)
+        except tk.TclError:
+            pass
+
+    @staticmethod
+    def _copy_windows_dib_bytes_to_clipboard(parent, dib_bytes):
+        """Copy DIB bytes to the Windows clipboard."""
+        import ctypes  # pylint: disable=import-outside-toplevel
+        import time  # pylint: disable=import-outside-toplevel
+
+        user32 = ctypes.windll.user32
+        kernel32 = ctypes.windll.kernel32
+        handle = ctypes.c_void_p
+
+        user32.OpenClipboard.argtypes = [handle]
+        user32.OpenClipboard.restype = ctypes.c_bool
+        user32.EmptyClipboard.argtypes = []
+        user32.EmptyClipboard.restype = ctypes.c_bool
+        user32.SetClipboardData.argtypes = [ctypes.c_uint, handle]
+        user32.SetClipboardData.restype = handle
+        user32.CloseClipboard.argtypes = []
+        user32.CloseClipboard.restype = ctypes.c_bool
+
+        kernel32.GlobalAlloc.argtypes = [ctypes.c_uint, ctypes.c_size_t]
+        kernel32.GlobalAlloc.restype = handle
+        kernel32.GlobalLock.argtypes = [handle]
+        kernel32.GlobalLock.restype = handle
+        kernel32.GlobalUnlock.argtypes = [handle]
+        kernel32.GlobalUnlock.restype = ctypes.c_bool
+        kernel32.GlobalFree.argtypes = [handle]
+        kernel32.GlobalFree.restype = handle
+
+        cf_dib = 8
+        gmem_moveable = 0x0002
+        hwnd = handle(parent.winfo_id())
+
+        memory = kernel32.GlobalAlloc(gmem_moveable, len(dib_bytes))
+        if not memory:
+            raise tk.TclError("Could not allocate Windows clipboard image.")
+
+        clipboard_open = False
+        try:
+            locked = kernel32.GlobalLock(memory)
+            if not locked:
+                raise tk.TclError("Could not lock Windows clipboard image.")
+            try:
+                ctypes.memmove(locked, dib_bytes, len(dib_bytes))
+            finally:
+                kernel32.GlobalUnlock(memory)
+
+            for _ in range(8):
+                if user32.OpenClipboard(hwnd):
+                    clipboard_open = True
+                    break
+                time.sleep(0.05)
+            if not clipboard_open:
+                raise tk.TclError("Could not open the Windows clipboard.")
+            if not user32.EmptyClipboard():
+                raise tk.TclError("Could not clear the Windows clipboard.")
+            if not user32.SetClipboardData(cf_dib, memory):
+                raise tk.TclError("Could not set Windows clipboard bitmap.")
+            memory = None
+        finally:
+            if clipboard_open:
+                user32.CloseClipboard()
+            if memory:
+                kernel32.GlobalFree(memory)
+
+    def _show_full_profile_image(self, image_path, parent=None):
+        """Open or reuse a scrollable preview window for a resolved local image."""
+        if not image_path:
+            return
+        media = getattr(self, '_media_service', None)
+        if media is None:
+            return
+        parent = parent or self.root
+        win = getattr(self, '_profile_image_preview_win', None)
+        try:
+            if win is not None and not win.winfo_exists():
+                win = None
+        except tk.TclError:
+            win = None
+
+        if win is None:
+            win = ctk.CTkToplevel(parent)
+            win.withdraw()
+            self._profile_image_preview_win = win
+            outer = ctk.CTkFrame(win, fg_color='transparent')
+            outer.pack(fill='both', expand=True)
+            frame = ctk.CTkFrame(outer, fg_color='transparent')
+            frame.pack(fill='both', expand=True)
+            canvas = tk.Canvas(frame, highlightthickness=0)
+            ybar = tk.Scrollbar(frame, orient='vertical', command=canvas.yview)
+            xbar = tk.Scrollbar(frame, orient='horizontal', command=canvas.xview)
+            canvas.configure(yscrollcommand=ybar.set, xscrollcommand=xbar.set)
+            canvas.grid(row=0, column=0, sticky='nsew')
+            ybar.grid(row=0, column=1, sticky='ns')
+            xbar.grid(row=1, column=0, sticky='ew')
+            frame.rowconfigure(0, weight=1)
+            frame.columnconfigure(0, weight=1)
+            win._profile_full_image_canvas = canvas
+            btn_frame = ctk.CTkFrame(outer, fg_color='transparent')
+            btn_frame.pack(fill='x', padx=10, pady=(6, 8))
+            win._profile_full_image_button_frame = btn_frame
+
+            def _copy_image(*_):
+                graph_state = getattr(win, '_profile_full_image_state', None)
+                if not graph_state:
+                    return 'break'
+                try:
+                    if sys.platform == 'win32':
+                        png_bytes = media.full_size_png_bytes(
+                            getattr(win, '_profile_full_image_source_path', ''),
+                            (graph_state['canvas_w'], graph_state['canvas_h']))
+                        if png_bytes is None:
+                            raise tk.TclError("Could not read profile image.")
+                        if not hasattr(self, '_windows_dib_from_png_bytes'):
+                            raise tk.TclError(
+                                "Pillow is required for Windows image copy.")
+                        dib_bytes = self._windows_dib_from_png_bytes(png_bytes)
+                        self._copy_windows_dib_bytes_to_clipboard(
+                            win, dib_bytes)
+                    elif sys.platform == 'darwin' and hasattr(
+                            self, '_copy_macos_canvas_png'):
+                        self._copy_macos_canvas_png(
+                            canvas, graph_state['canvas_w'],
+                            graph_state['canvas_h'])
+                    else:
+                        postscript = canvas.postscript(
+                            colormode='color', x=0, y=0,
+                            width=graph_state['canvas_w'],
+                            height=graph_state['canvas_h'])
+                        win.clipboard_clear()
+                        try:
+                            win.clipboard_append(postscript, type='PostScript')
+                        except tk.TclError:
+                            win.clipboard_append(postscript)
+                        win.update()
+                except (OSError, tk.TclError, ImportError, ValueError) as exc:
+                    messagebox.showerror(
+                        ERR_COPY_GRAPH_TITLE,
+                        ERR_COPY_PROFILE_IMAGE_MSG.format(error=exc),
+                        parent=win,
+                    )
+                return 'break'
+
+            def _save_image(*_):
+                source_path = getattr(win, '_profile_full_image_source_path', '')
+                if not source_path:
+                    return 'break'
+                ext = re.sub(r'[^A-Za-z0-9]', '', source_path.split('.')[-1])
+                ext = f'.{ext.lower()}' if ext else '.png'
+                path = filedialog.asksaveasfilename(
+                    parent=filedialog_parent(win),
+                    title=DLG_SAVE_PROFILE,
+                    initialfile=source_path.split('/')[-1].split('\\')[-1],
+                    defaultextension=ext,
+                    filetypes=[
+                        ("Image files", "*.png *.jpg *.jpeg *.gif *.bmp *.tif *.tiff *.webp"),
+                        ("All files", "*.*"),
+                    ],
+                )
+                if not path:
+                    return 'break'
+                try:
+                    shutil.copyfile(source_path, path)
+                except OSError as exc:
+                    messagebox.showerror(
+                        ERR_SAVE_GRAPH_TITLE,
+                        ERR_SAVE_PROFILE_IMAGE_MSG.format(error=exc),
+                        parent=win,
+                    )
+                return 'break'
+
+            copy_btn = ctk.CTkButton(
+                btn_frame, text=BTN_COPY_GRAPH, width=80, command=_copy_image)
+            copy_btn.pack(side='right', padx=(6, 0))
+            save_btn = ctk.CTkButton(
+                btn_frame, text=BTN_SAVE_GRAPH, width=80, command=_save_image)
+            save_btn.pack(side='right')
+
+            def _close_preview(*_):
+                if getattr(self, '_profile_image_preview_win', None) is win:
+                    self._profile_image_preview_win = None
+                win.destroy()
+                return 'break'
+
+            win.bind('<Escape>', _close_preview)
+            win.protocol('WM_DELETE_WINDOW', _close_preview)
+        else:
+            canvas = win._profile_full_image_canvas
+            try:
+                win.deiconify()
+            except tk.TclError:
+                pass
+
+        win.title(image_path)
+        win._profile_full_image_source_path = image_path
+
+        def _render():
+            screen_w = max(parent.winfo_screenwidth(), 640)
+            screen_h = max(parent.winfo_screenheight(), 480)
+            max_w = max(240, int(screen_w * 0.82))
+            max_h = max(180, int(screen_h * 0.78))
+            image = media.full_size_photo(image_path, (max_w, max_h))
+            if image is None:
+                messagebox.showerror(
+                    ERR_PARSE_TITLE,
+                    f"Could not open image:\n\n{image_path}",
+                    parent=win,
+                )
+                return
+            canvas.delete('all')
+            canvas._profile_full_image_ref = image
+            canvas.configure(width=image.width(), height=image.height())
+            canvas.create_image(0, 0, image=image, anchor='nw')
+            canvas.configure(scrollregion=(0, 0, image.width(), image.height()))
+            win._profile_full_image_state = {
+                'canvas_w': image.width(),
+                'canvas_h': image.height(),
+            }
+            btn_frame = getattr(win, '_profile_full_image_button_frame', None)
+            button_h = 0
+            if btn_frame is not None:
+                btn_frame.update_idletasks()
+                button_h = btn_frame.winfo_reqheight() + 14
+            chrome_w = 22 if image.width() >= max_w else 2
+            chrome_h = 22 if image.height() >= max_h else 2
+            win_w = image.width() + chrome_w
+            win_h = image.height() + button_h + chrome_h
+            win.geometry(f'{win_w}x{win_h}')
+            win.minsize(min(image.width() + chrome_w, 240),
+                        min(image.height() + chrome_h, 180))
+            try:
+                parent.update_idletasks()
+                px = parent.winfo_rootx()
+                py = parent.winfo_rooty()
+                pw = parent.winfo_width()
+                ph = parent.winfo_height()
+                x = px + max(0, (pw - win_w) // 2)
+                y = py + max(0, (ph - win_h) // 2)
+            except tk.TclError:
+                x = max(0, (screen_w - win_w) // 2)
+                y = max(0, (screen_h - win_h) // 2)
+            win.geometry(f'{win_w}x{win_h}+{x}+{y}')
+            win.deiconify()
+            win.lift()
+            try:
+                win.focus_force()
+            except tk.TclError:
+                pass
+
+        win.after_idle(_render)
+
+    def _clear_profile_thumbnail(self, text):
+        """Remove any placed profile thumbnail from a reused textbox."""
+        label = getattr(text, '_profile_image_label', None)
+        if label is not None:
+            try:
+                label.destroy()
+            except tk.TclError:
+                pass
+        text._profile_image_label = None
+        text._profile_image_refs = []
+        try:
+            text._textbox.tag_delete('profile_image_wrap')
+        except tk.TclError:
+            pass
+
+    @staticmethod
+    def _profile_text_exists(text):
+        """Return whether the wrapped Tk text widget still exists."""
+        try:
+            winfo_exists = getattr(text._textbox, 'winfo_exists', None)
+            if winfo_exists is None:
+                return True
+            return bool(winfo_exists())
+        except tk.TclError:
+            return False
+
+    def _place_profile_thumbnail(self, text, indi_id):
+        """Place a top-right thumbnail over a profile textbox."""
+        self._clear_profile_thumbnail(text)
+        payload = self._profile_media_payload(indi_id, self._profile_thumbnail_size())
+        if not payload or payload.get('image') is None:
+            return None
+        try:
+            text.configure(wrap='word')
+        except tk.TclError:
+            return None
+        pad = 8
+        try:
+            label = tk.Label(
+                text._textbox,
+                image=payload['image'],
+                borderwidth=0,
+                highlightthickness=1,
+                highlightbackground='#9ca3af',
+                cursor='hand2' if payload.get('kind') == 'real' else '',
+            )
+        except tk.TclError:
+            return None
+        label._profile_image_ref = payload['image']
+        if payload.get('kind') == 'real':
+            label.bind(
+                '<Button-1>',
+                lambda _event, path=payload.get('path'): self._show_full_profile_image(
+                    path, parent=text.winfo_toplevel()),
+            )
+        refs = getattr(text, '_profile_image_refs', [])
+        refs.extend([payload['image'], label])
+        text._profile_image_refs = refs
+        text._profile_image_label = label
+        try:
+            label.place(relx=1.0, x=-pad, y=pad, anchor='ne')
+        except tk.TclError:
+            return None
+        return {
+            'width': payload['image'].width(),
+            'height': payload['image'].height(),
+            'pad': pad,
+        }
+
+    def _apply_profile_thumbnail_wrap(self, text, layout):
+        """Reserve right margin beside the placed profile thumbnail."""
+        if not layout or not self._profile_text_exists(text):
+            return
+        try:
+            font = tkfont.Font(font=text._textbox.cget('font'))
+            line_space = max(font.metrics('linespace'), 1)
+        except tk.TclError:
+            line_space = max(int(self._mono_size * 1.4), 1)
+        reserved_w = layout['width'] + layout['pad'] * 2
+        reserved_h = layout['height'] + layout['pad'] * 2
+        line_count = max(1, int((reserved_h + line_space - 1) // line_space))
+        text._textbox.tag_configure(
+            'profile_image_wrap', rmargin=reserved_w)
+        text._textbox.tag_add(
+            'profile_image_wrap', '1.0', f'{line_count + 1}.0')
+
     def _default_tree_view_mode(self):
         """Return the configured initial tree view for person detail windows."""
         config = getattr(self, "_config", None)
@@ -295,6 +704,9 @@ class PersonDialogMixin:
         self._clear_person_tags(text)
 
         indi = self.individuals[current_id]
+        thumbnail_layout = self._place_profile_thumbnail(text, current_id)
+        if not self._profile_text_exists(text):
+            return
 
         def add(line="", bold=False):
             text.insert("end", line + "\n", ("bold",) if bold else ())
@@ -523,6 +935,8 @@ class PersonDialogMixin:
                 if value:
                     parts.append(value)
                 add_with_https_links(" ".join(parts))
+
+        self._apply_profile_thumbnail_wrap(text, thumbnail_layout)
 
     def _show_person_for(self, indi_id, initial_view=None, existing_window=None):
         """Open a detail window for a specific individual ID."""

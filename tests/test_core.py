@@ -269,24 +269,24 @@ class TestHistoricalDateParsing:
 
     def test_bce_birth_and_death_years(self, tmp_path):
         p = _write_ged(tmp_path, HISTORICAL_DATES_GED)
-        indiv, _, _, _, _ = build_model(p, "DNA", "AncestryDNA")
+        indiv, _, _, _, _, _ = build_model(p, "DNA", "AncestryDNA")
         assert indiv["@I1@"]["birth_year"] == -100
         assert indiv["@I1@"]["death_year"] == -44
 
     def test_dual_years_resolve_to_new_style(self, tmp_path):
         p = _write_ged(tmp_path, HISTORICAL_DATES_GED)
-        indiv, _, _, _, _ = build_model(p, "DNA", "AncestryDNA")
+        indiv, _, _, _, _, _ = build_model(p, "DNA", "AncestryDNA")
         assert indiv["@I2@"]["birth_year"] == 1709
         assert indiv["@I2@"]["death_year"] == 1700
 
     def test_single_digit_bce_birth_year(self, tmp_path):
         p = _write_ged(tmp_path, HISTORICAL_DATES_GED)
-        indiv, _, _, _, _ = build_model(p, "DNA", "AncestryDNA")
+        indiv, _, _, _, _, _ = build_model(p, "DNA", "AncestryDNA")
         assert indiv["@I3@"]["birth_year"] == -1
 
     def test_bce_lifespan_rendering(self, tmp_path):
         p = _write_ged(tmp_path, HISTORICAL_DATES_GED)
-        indiv, _, _, _, _ = build_model(p, "DNA", "AncestryDNA")
+        indiv, _, _, _, _, _ = build_model(p, "DNA", "AncestryDNA")
         assert lifespan(indiv["@I1@"]) == "100 BC-44 BC"
 
 
@@ -365,12 +365,12 @@ class TestIterRecordsChecked:
 class TestBuildModel:
     def test_parses_all_individuals(self, tmp_path):
         p = _write_ged(tmp_path, SIMPLE_GED)
-        indiv, _, _, _, _ = build_model(p, "DNA", "AncestryDNA")
+        indiv, _, _, _, _, _ = build_model(p, "DNA", "AncestryDNA")
         assert set(indiv) >= {"@I1@", "@I2@", "@I3@", "@I4@"}
 
     def test_parses_family(self, tmp_path):
         p = _write_ged(tmp_path, SIMPLE_GED)
-        _, fams, _, _, _ = build_model(p, "DNA", "AncestryDNA")
+        _, fams, _, _, _, _ = build_model(p, "DNA", "AncestryDNA")
         fam = fams["@F1@"]
         assert fam["husb"] == "@I1@"
         assert fam["wife"] == "@I2@"
@@ -379,33 +379,33 @@ class TestBuildModel:
 
     def test_parses_name_components(self, tmp_path):
         p = _write_ged(tmp_path, SIMPLE_GED)
-        indiv, _, _, _, _ = build_model(p, "DNA", "AncestryDNA")
+        indiv, _, _, _, _, _ = build_model(p, "DNA", "AncestryDNA")
         assert indiv["@I1@"]["name"] == "John Smith"
         assert indiv["@I1@"]["surname"] == "Smith"
         assert indiv["@I1@"]["given_name"] == "John"
 
     def test_parses_sex(self, tmp_path):
         p = _write_ged(tmp_path, SIMPLE_GED)
-        indiv, _, _, _, _ = build_model(p, "DNA", "AncestryDNA")
+        indiv, _, _, _, _, _ = build_model(p, "DNA", "AncestryDNA")
         assert indiv["@I1@"]["sex"] == "M"
         assert indiv["@I2@"]["sex"] == "F"
 
     def test_parses_birth_year(self, tmp_path):
         p = _write_ged(tmp_path, SIMPLE_GED)
-        indiv, _, _, _, _ = build_model(p, "DNA", "AncestryDNA")
+        indiv, _, _, _, _, _ = build_model(p, "DNA", "AncestryDNA")
         assert indiv["@I1@"]["birth_year"] == 1950
         assert indiv["@I2@"]["birth_year"] == 1952
         assert indiv["@I3@"]["birth_year"] == 1980
 
     def test_parses_death_year(self, tmp_path):
         p = _write_ged(tmp_path, SIMPLE_GED)
-        indiv, _, _, _, _ = build_model(p, "DNA", "AncestryDNA")
+        indiv, _, _, _, _, _ = build_model(p, "DNA", "AncestryDNA")
         assert indiv["@I2@"]["death_year"] == 2010
         assert indiv["@I1@"]["death_year"] is None
 
     def test_parses_famc_fams(self, tmp_path):
         p = _write_ged(tmp_path, SIMPLE_GED)
-        indiv, _, _, _, _ = build_model(p, "DNA", "AncestryDNA")
+        indiv, _, _, _, _, _ = build_model(p, "DNA", "AncestryDNA")
         assert "@F1@" in indiv["@I1@"]["fams"]
         assert "@F1@" in indiv["@I3@"]["famc"]
 
@@ -436,7 +436,7 @@ class TestBuildModel:
 0 TRLR
 """
         p = _write_ged(tmp_path, ged)
-        _indiv, fams, _, _, _ = build_model(p, "DNA", "AncestryDNA")
+        _indiv, fams, _, _, _, _ = build_model(p, "DNA", "AncestryDNA")
 
         link = fams["@F1@"]["child_links"]["@CHILD@"]
         assert link["family"] == "foster"
@@ -445,43 +445,43 @@ class TestBuildModel:
 
     def test_no_dna_markers_in_plain_file(self, tmp_path):
         p = _write_ged(tmp_path, SIMPLE_GED)
-        indiv, _, _, _, _ = build_model(p, "DNA", "AncestryDNA")
+        indiv, _, _, _, _, _ = build_model(p, "DNA", "AncestryDNA")
         for indi in indiv.values():
             assert indi["dna_markers"] == []
 
     def test_mttag_pointer_adds_dna_marker(self, tmp_path):
         p = _write_ged(tmp_path, DNA_MTTAG_GED)
-        indiv, _, _, _, _ = build_model(p, "DNA", "AncestryDNA")
+        indiv, _, _, _, _, _ = build_model(p, "DNA", "AncestryDNA")
         assert len(indiv["@I2@"]["dna_markers"]) > 0
         # Non-matching tag should not be flagged
         assert len(indiv["@I3@"]["dna_markers"]) == 0
 
     def test_mttag_tag_records_collected(self, tmp_path):
         p = _write_ged(tmp_path, DNA_MTTAG_GED)
-        _, _, tags, _, _ = build_model(p, "DNA", "AncestryDNA")
+        _, _, tags, _, _, _ = build_model(p, "DNA", "AncestryDNA")
         assert "@T1@" in tags
         assert tags["@T1@"] == "DNA Match Tag"
 
     def test_page_marker_adds_dna_marker(self, tmp_path):
         p = _write_ged(tmp_path, DNA_PAGE_GED)
-        indiv, _, _, _, _ = build_model(p, "DNA", "AncestryDNA")
+        indiv, _, _, _, _, _ = build_model(p, "DNA", "AncestryDNA")
         assert len(indiv["@I2@"]["dna_markers"]) > 0
         assert any("AncestryDNA" in m for m in indiv["@I2@"]["dna_markers"])
 
     def test_page_marker_case_insensitive(self, tmp_path):
         content = DNA_PAGE_GED.replace("AncestryDNA", "ANCESTRYDNA")
         p = _write_ged(tmp_path, content)
-        indiv, _, _, _, _ = build_model(p, "DNA", "ancestrydna")
+        indiv, _, _, _, _, _ = build_model(p, "DNA", "ancestrydna")
         assert len(indiv["@I2@"]["dna_markers"]) > 0
 
     def test_inline_mttag_adds_dna_marker(self, tmp_path):
         p = _write_ged(tmp_path, DNA_INLINE_GED)
-        indiv, _, _, _, _ = build_model(p, "DNA", "AncestryDNA")
+        indiv, _, _, _, _, _ = build_model(p, "DNA", "AncestryDNA")
         assert len(indiv["@I2@"]["dna_markers"]) > 0
 
     def test_clean_file_no_encoding_warning(self, tmp_path):
         p = _write_ged(tmp_path, SIMPLE_GED)
-        _, _, _, warn, error = build_model(p, "DNA", "AncestryDNA")
+        _, _, _, _, warn, error = build_model(p, "DNA", "AncestryDNA")
         assert warn is None
         assert error is None
 
@@ -489,12 +489,12 @@ class TestBuildModel:
         # DNA_MTTAG_GED uses "DNA Match Tag"; searching for a different keyword
         # should not flag I2
         p = _write_ged(tmp_path, DNA_MTTAG_GED)
-        indiv, _, _, _, _ = build_model(p, "XYZ_NOMATCH", "AncestryDNA")
+        indiv, _, _, _, _, _ = build_model(p, "XYZ_NOMATCH", "AncestryDNA")
         assert indiv["@I2@"]["dna_markers"] == []
 
     def test_empty_file_returns_model_error(self, tmp_path):
         p = _write_ged(tmp_path, "")
-        individuals, families, tags, warning, error = build_model(
+        individuals, families, tags, _, warning, error = build_model(
             p, "DNA", "AncestryDNA")
         assert individuals == {}
         assert families == {}
@@ -505,10 +505,98 @@ class TestBuildModel:
 
     def test_file_without_individuals_returns_model_error(self, tmp_path):
         p = _write_ged(tmp_path, "0 HEAD\n1 GEDC\n2 VERS 5.5.1\n0 TRLR\n")
-        individuals, _, _, _, error = build_model(p, "DNA", "AncestryDNA")
+        individuals, _, _, _, _, error = build_model(p, "DNA", "AncestryDNA")
         assert individuals == {}
         assert error is not None
         assert "No individual records" in error
+
+    def test_ftm_photo_candidate_is_first(self, tmp_path):
+        ged = """\
+0 HEAD
+1 GEDC
+2 VERS 5.5.1
+0 @I1@ INDI
+1 NAME Alice /Smith/
+1 OBJE
+2 FILE other.jpg
+1 _PHOTO portrait.jpg
+0 TRLR
+"""
+        p = _write_ged(tmp_path, ged)
+        individuals, _, _, _, _, _ = build_model(p, "DNA", "AncestryDNA")
+        candidates = individuals["@I1@"]["media_candidates"]
+        assert candidates[0]["kind"] == "_PHOTO"
+        assert candidates[0]["file"] == "portrait.jpg"
+
+    def test_primary_obje_reference_merges_top_level_media(self, tmp_path):
+        ged = """\
+0 HEAD
+1 GEDC
+2 VERS 5.5.1
+0 @I1@ INDI
+1 NAME Alice /Smith/
+1 OBJE @M1@
+2 _PRIM Y
+0 @M1@ OBJE
+1 FILE portraits/alice.jpg
+1 FORM jpg
+1 TITL Alice Smith
+0 TRLR
+"""
+        p = _write_ged(tmp_path, ged)
+        individuals, _, _, media, _, _ = build_model(p, "DNA", "AncestryDNA")
+        candidate = individuals["@I1@"]["media_candidates"][0]
+        assert media["@M1@"]["file"] == "portraits/alice.jpg"
+        assert candidate["ref"] == "@M1@"
+        assert candidate["file"] == "portraits/alice.jpg"
+        assert candidate["primary"] is True
+
+    def test_inline_obje_and_empty_file_metadata_are_preserved(self, tmp_path):
+        ged = """\
+0 HEAD
+1 GEDC
+2 VERS 5.5.1
+0 @I1@ INDI
+1 NAME Alice /Smith/
+1 OBJE
+2 FILE
+3 FORM jpg
+3 TITL Ancestry placeholder
+1 OBJE
+2 FILE Alice Smith.png
+3 FORM png
+3 TITL Alice Smith
+0 TRLR
+"""
+        p = _write_ged(tmp_path, ged)
+        individuals, _, _, _, _, _ = build_model(p, "DNA", "AncestryDNA")
+        candidates = individuals["@I1@"]["media_candidates"]
+        assert candidates[0]["file"] == "Alice Smith.png"
+        assert candidates[0]["name_match"] is True
+        assert candidates[1]["file"] == ""
+        assert candidates[1]["title"] == "Ancestry placeholder"
+
+    def test_empty_primary_media_stays_selected_for_fallback(self, tmp_path):
+        ged = """\
+0 HEAD
+1 GEDC
+2 VERS 5.5.1
+0 @I1@ INDI
+1 NAME Alice /Smith/
+1 OBJE
+2 FILE
+2 _PRIM Y
+2 TITL Missing primary
+1 OBJE
+2 FILE Alice Smith.png
+2 TITL Alice Smith
+0 TRLR
+"""
+        p = _write_ged(tmp_path, ged)
+        individuals, _, _, _, _, _ = build_model(p, "DNA", "AncestryDNA")
+        candidates = individuals["@I1@"]["media_candidates"]
+        assert candidates[0]["primary"] is True
+        assert candidates[0]["file"] == ""
 
 
 # ===========================================================================

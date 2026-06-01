@@ -172,6 +172,123 @@ def test_add_canvas_highlighted_node_redraws_only_when_added():
     assert canvas.redraws == 1
 
 
+def test_profile_thumbnail_size_is_larger_than_graph_thumbnail_and_clamped():
+    class Root:
+        def winfo_screenheight(self):
+            return 1440
+
+    class App(PersonDialogMixin):
+        pass
+
+    app = App()
+    app.root = Root()
+    app._mono_size = 14
+
+    assert app._profile_thumbnail_size() == (173, 173)
+    assert app._graph_thumbnail_size(lambda value, minimum=1: value) == (84, 84)
+
+    app.root = type("SmallRoot", (), {"winfo_screenheight": lambda self: 720})()
+    assert app._profile_thumbnail_size() == (112, 112)
+
+    app.root = type("LargeRoot", (), {"winfo_screenheight": lambda self: 3000})()
+    assert app._profile_thumbnail_size() == (176, 176)
+
+
+def test_missing_profile_image_notice_shows_once_for_missing_file(monkeypatch):
+    class App(PersonDialogMixin):
+        pass
+
+    class Media:
+        @staticmethod
+        def selected_media_file(_indi):
+            return "missing/photo.jpg"
+
+        @staticmethod
+        def is_supported_path(_path):
+            return True
+
+        @staticmethod
+        def resolve_media_path(_path, _gedcom_path, _media_dirs=None):
+            return None
+
+    class GedcomPath:
+        @staticmethod
+        def get():
+            return "/tmp/tree.ged"
+
+    class Config:
+        def __init__(self):
+            self.saved = []
+
+        def get_media_parent_dir(self, _gedcom_path):
+            return None
+
+        def set_media_parent_dir(self, gedcom_path, directory):
+            self.saved.append((gedcom_path, directory))
+
+    app = App()
+    app.gedcom_path = GedcomPath()
+    app._config = Config()
+    app.root = object()
+    prompts = []
+    monkeypatch.setattr(
+        "gedcom_gui_person_dialog.messagebox.askyesno",
+        lambda title, message, parent=None: prompts.append((title, message, parent)) or True,
+    )
+    monkeypatch.setattr(
+        "gedcom_gui_person_dialog.filedialog.askdirectory",
+        lambda **_kwargs: "/new/media",
+    )
+
+    app._maybe_show_missing_profile_image_notice({"name": "Alex"}, Media())
+    app._maybe_show_missing_profile_image_notice({"name": "Alex"}, Media())
+
+    assert len(prompts) == 1
+    assert "missing/photo.jpg" in prompts[0][1]
+    assert app._config.saved == [("/tmp/tree.ged", "/new/media")]
+    assert app._profile_image_missing_notice_shown is True
+
+
+def test_missing_profile_image_notice_skips_absent_or_resolved_file(monkeypatch):
+    class App(PersonDialogMixin):
+        pass
+
+    class GedcomPath:
+        @staticmethod
+        def get():
+            return "/tmp/tree.ged"
+
+    class Media:
+        def __init__(self, media_path, resolved):
+            self.media_path = media_path
+            self.resolved = resolved
+
+        def selected_media_file(self, _indi):
+            return self.media_path
+
+        @staticmethod
+        def is_supported_path(_path):
+            return True
+
+        def resolve_media_path(self, _path, _gedcom_path, _media_dirs=None):
+            return self.resolved
+
+    app = App()
+    app.gedcom_path = GedcomPath()
+    app._config = None
+    notices = []
+    monkeypatch.setattr(
+        "gedcom_gui_person_dialog.messagebox.askyesno",
+        lambda *_args, **_kwargs: notices.append(_args),
+    )
+
+    app._maybe_show_missing_profile_image_notice({}, Media("", None))
+    app._maybe_show_missing_profile_image_notice({}, Media("found.jpg", "/tmp/found.jpg"))
+
+    assert notices == []
+    assert not getattr(app, "_profile_image_missing_notice_shown", False)
+
+
 def test_profile_sections_render_in_requested_order():
     """Profile sections render Biography, Family, Home Path, Facts, then Tags."""
 

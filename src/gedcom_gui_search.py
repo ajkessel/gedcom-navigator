@@ -165,6 +165,7 @@ class SearchMixin:
             self.individuals = self._model.individuals
             self.families = self._model.families
             self.tag_records = self._model.tag_records
+            self.media_records = self._model.media_records
             self._display_path_target_id = None
             self._last_result = None
             self._clear_home_path_cache()
@@ -195,6 +196,7 @@ class SearchMixin:
         self.individuals = {}
         self.families = {}
         self.tag_records = {}
+        self.media_records = {}
         self.sorted_ids = []
         self._home_person_id = None
         self._last_result = None

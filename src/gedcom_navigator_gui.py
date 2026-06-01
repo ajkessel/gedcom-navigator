@@ -31,6 +31,7 @@ _config = ConfigManager(ConfigManager.default_path())
 setup_i18n(_config.get_language())
 
 from gedcom_data_model import GedcomDataModel
+from gedcom_media import ProfileMediaService
 # gedcom_strings imports will happen after setup_i18n
 from gedcom_strings import *  # pylint: disable=unused-wildcard-import
 from gedcom_gui_background import BackgroundTaskMixin
@@ -111,6 +112,7 @@ class GedcomNavigatorApp(
         configure_process_identity()
         self._config = ConfigManager(ConfigManager.default_path())
         self._model = GedcomDataModel()
+        self._media_service = ProfileMediaService(self._cache_dir())
 
         self.root = root
         self.root.title(APP_TITLE)
@@ -135,6 +137,7 @@ class GedcomNavigatorApp(
         self.individuals = {}
         self.families = {}
         self.tag_records = {}
+        self.media_records = {}
         self.sorted_ids = []
         self._home_person_id = None
         self._home_path_cache = {}
@@ -161,6 +164,8 @@ class GedcomNavigatorApp(
         self.married_name_search = tk.BooleanVar(value=False)
         self.show_ids = tk.BooleanVar(value=self._config.get_show_ids())
         self.show_full_gedcom = tk.BooleanVar(value=self._config.get_show_full_gedcom())
+        self.show_profile_image = tk.BooleanVar(
+            value=self._config.get_show_profile_image())
         self._name_order = self._config.get_name_order()
         self.display_mode = tk.StringVar(value=self._config.get_default_display())
 

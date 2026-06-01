@@ -11,6 +11,10 @@ This application provides useful ways to rapidly explore a GEDCOM file exported 
 
 **New here?** Click **Walkthrough** below for a guided, interactive tour that highlights each part of the window and shows what it does. You can also start it any time from **Help ▸ Walkthrough**.
 
+## Images
+
+If your GEDCOM file includes profile photographs, this tool will show them if they can be located. If you have images but aren't seeing them, make sure "Show Profile Images" is checked in Preferences, and that the image paths in your GEDCOM file correspond to paths that can be accessed on your computer.
+
 ## The problems this solves
 
 Although there are many genealogy websites and desktop tools, they all have shortcomings when you are managing very large trees (thousands or tens of thousands of records).

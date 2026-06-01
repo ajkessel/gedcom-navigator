@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased] - 2026-06-XX
+
+### Added
+
+- **Optional profile photo thumbnails** — Preferences now includes "Show Profile Image" for rendering local GEDCOM media as profile thumbnails in the Display Pane, Profile View window, path graphs, and family-tree graph nodes. The parser recognizes standard `OBJE` records, inline person-level `OBJE`, FTM `_PHOTO`, and primary-media markers, resolves only local filesystem paths, and uses generated sex-based fallback images when no usable local photo is available. Thumbnails preserve the full image instead of cropping faces, graph nodes use photo-forward card layouts when images are enabled, and clicking a real thumbnail opens a reusable full-image preview with Copy and Save buttons. When a GEDCOM image path cannot be found locally, the app can prompt once per session for a replacement media folder, remember that folder for the current GEDCOM file, and use it to resolve other exported media paths from a different filesystem.
+
 ## [1.9.11] - 2026-06-01
 
 ### Added
