@@ -5,8 +5,10 @@ from gedcom_gui_results import ResultsMixin
 from gedcom_strings import (
     BIO_SECTION,
     FAM_SECTION,
+    FACTS_EVENTS_SECTION,
     GEDCOM_SECTION,
     RESULT_PATH_SECTION,
+    TAGS_SECTION,
 )
 
 
@@ -170,8 +172,8 @@ def test_add_canvas_highlighted_node_redraws_only_when_added():
     assert canvas.redraws == 1
 
 
-def test_profile_home_path_appears_between_bio_and_full_gedcom():
-    """Profile mode inserts the home path before later profile sections."""
+def test_profile_sections_render_in_requested_order():
+    """Profile sections render Biography, Family, Home Path, Facts, then Tags."""
 
     class App(PersonDialogMixin, ResultsMixin):
         def _display_name(self, indi):
@@ -190,10 +192,11 @@ def test_profile_home_path_appears_between_bio_and_full_gedcom():
             'sex': 'M',
             'famc': [],
             'fams': [],
-            'tags': [],
+            'tags': ['DNA Match'],
             '_raw': [(0, '@A@', 'INDI', ''),
                      (1, None, 'BIRT', ''),
-                     (2, None, 'DATE', '1900')],
+                     (2, None, 'DATE', '1900'),
+                     (1, None, 'OCCU', 'Blacksmith')],
         },
         '@H@': {
             'name': 'Home Person',
@@ -227,7 +230,146 @@ def test_profile_home_path_appears_between_bio_and_full_gedcom():
     assert rendered.index(BIO_SECTION) < rendered.index(RESULT_PATH_SECTION)
     assert rendered.index(BIO_SECTION) < rendered.index(FAM_SECTION)
     assert rendered.index(FAM_SECTION) < rendered.index(RESULT_PATH_SECTION)
-    assert rendered.index(RESULT_PATH_SECTION) < rendered.index(GEDCOM_SECTION)
+    assert rendered.index(RESULT_PATH_SECTION) < rendered.index(FACTS_EVENTS_SECTION)
+    assert rendered.index(FACTS_EVENTS_SECTION) < rendered.index(TAGS_SECTION)
+    assert rendered.index(TAGS_SECTION) < rendered.index(GEDCOM_SECTION)
+
+
+def test_profile_facts_events_render_raw_gedcom_facts_in_order():
+    """Profile mode renders non-biographical GEDCOM facts after Biography."""
+
+    class App(PersonDialogMixin, ResultsMixin):
+        def _display_name(self, indi):
+            return indi['name']
+
+        def _get_family_members(self, _indi_id):
+            return [], [], [], []
+
+        def _show_path_graph(self, *_args):
+            pass
+
+    app = App()
+    app.individuals = {
+        '@A@': {
+            'name': 'Alex Person',
+            'sex': 'M',
+            'famc': [],
+            'fams': [],
+            'tags': [],
+            '_raw': [
+                (0, '@A@', 'INDI', ''),
+                (1, None, 'BIRT', ''),
+                (2, None, 'DATE', '1900'),
+                (1, None, 'OCCU', 'Blacksmith'),
+                (2, None, 'DATE', '1910'),
+                (2, None, 'PLAC', 'Boston, Massachusetts'),
+                (1, None, 'EVEN', 'Eagle Scout'),
+                (2, None, 'TYPE', 'Award'),
+                (2, None, 'DATE', '1920'),
+                (2, None, 'NOTE', 'earned '),
+                (3, None, 'CONC', 'merit badges'),
+                (3, None, 'CONT', 'over two lines'),
+                (1, None, 'BURI', ''),
+                (2, None, 'DATE', '1980'),
+            ],
+        },
+    }
+    app.families = {}
+    app.show_ids = Var(False)
+    app.show_full_gedcom = Var(False)
+    app._link_color = '#0000ee'
+    app._mono_family = 'Courier'
+    app._mono_size = 12
+    app._model = Model()
+    text = FakeText()
+
+    app._insert_person_profile(text, '@A@', lambda _indi_id: None)
+
+    rendered = ''.join(text.parts)
+    assert rendered.index(BIO_SECTION) < rendered.index(FAM_SECTION)
+    assert rendered.index(FAM_SECTION) < rendered.index(FACTS_EVENTS_SECTION)
+    assert (
+        '  Occupation: Blacksmith, 1910, Boston, Massachusetts\n'
+        in rendered
+    )
+    assert (
+        '  Award: Eagle Scout, 1920, Note: earned merit badges over two lines\n'
+        in rendered
+    )
+    assert 'Birth:' not in rendered
+    assert 'Burial:' not in rendered
+
+
+def test_profile_facts_events_render_sources_and_clickable_urls(monkeypatch):
+    """Facts & Events detail lines reuse Profile URL hyperlink rendering."""
+
+    class App(PersonDialogMixin, ResultsMixin):
+        def _display_name(self, indi):
+            return indi['name']
+
+        def _get_family_members(self, _indi_id):
+            return [], [], [], []
+
+        def _show_path_graph(self, *_args):
+            pass
+
+    app = App()
+    app.individuals = {
+        '@A@': {
+            'name': 'Alex Person',
+            'sex': 'M',
+            'famc': [],
+            'fams': [],
+            'tags': [],
+            '_raw': [
+                (0, '@A@', 'INDI', ''),
+                (1, None, 'RESI', ''),
+                (2, None, 'DATE', '1930'),
+                (2, None, 'PLAC', 'Chicago, Illinois'),
+                (2, None, 'NOTE', 'See https://example.test/residence)'),
+                (2, None, 'SOUR', '@S1@'),
+                (3, None, 'PAGE', 'https://source.test/page.'),
+            ],
+        },
+    }
+    app.families = {}
+    app.show_ids = Var(False)
+    app.show_full_gedcom = Var(False)
+    app._link_color = '#0000ee'
+    app._mono_family = 'Courier'
+    app._mono_size = 12
+    app._model = Model()
+    text = FakeText()
+    opened = []
+    monkeypatch.setattr(
+        'gedcom_gui_person_dialog.webbrowser.open', lambda url: opened.append(url)
+    )
+
+    app._insert_person_profile(text, '@A@', lambda _indi_id: None)
+
+    rendered = ''.join(text.parts)
+    assert (
+        '  Residence: 1930, Chicago, Illinois, '
+        'Note: See https://example.test/residence), '
+        'Source: https://source.test/page.\n'
+        in rendered
+    )
+    assert ('gedcom_url_link', 'gedcom_url_0') in [
+        tags for part, tags in text.inserted
+        if part == 'https://example.test/residence'
+    ]
+    assert ('gedcom_url_link', 'gedcom_url_1') in [
+        tags for part, tags in text.inserted
+        if part == 'https://source.test/page'
+    ]
+
+    text.bindings[('gedcom_url_0', '<Button-1>')](None)
+    text.bindings[('gedcom_url_1', '<Button-1>')](None)
+
+    assert opened == [
+        'https://example.test/residence',
+        'https://source.test/page',
+    ]
 
 
 def test_full_gedcom_https_urls_are_clickable(monkeypatch):

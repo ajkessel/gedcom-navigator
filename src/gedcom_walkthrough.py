@@ -459,6 +459,7 @@ class WalkthroughMixin:
                 pass
         # Restore the home person and display mode.
         self._home_person_id = self._wt_orig_home
+        self._update_home_button()
         on_end = self._wt_on_end
 
         if self._wt_used_sample:

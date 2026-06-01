@@ -900,7 +900,8 @@ class GraphCommonMixin:
                                    canvas_w, canvas_h, visible_ids,
                                    edges, layout, family_lookup,
                                    graph_type='family_tree',
-                                   relationship_lookup=None):
+                                   relationship_lookup=None,
+                                   child_groups=None):
         """Return deterministic Tree View layout debug data."""
         visible_ids = sorted(visible_ids)
         family_members = {}
@@ -937,6 +938,18 @@ class GraphCommonMixin:
                         item.get('generation', 0),
                         item.get('column', 0),
                         item.get('id', ''),
+                    ))
+            ],
+            'child_groups': [
+                {
+                    'parent_ids': list(group.get('parent_ids', ())),
+                    'children': list(group.get('children', ())),
+                }
+                for group in sorted(
+                    child_groups or (),
+                    key=lambda item: (
+                        tuple(item.get('parent_ids', ())),
+                        tuple(item.get('children', ())),
                     ))
             ],
             'family_members': family_members,

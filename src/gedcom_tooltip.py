@@ -55,6 +55,21 @@ class _SizedToolTip(_CTkToolTip):
                        text_color=self.text_color,
                        padx=4, pady=8)
 
+    # CTkToolTip subclasses a plain tkinter.Toplevel but fills itself with CTk
+    # widgets (CTkFrame/CTkLabel). Those widgets register *this* window with
+    # customtkinter's ScalingTracker, whose check_dpi_scaling loop calls
+    # block/unblock_update_dimensions_event() on the window when it detects a
+    # monitor DPI change (Windows only). Those methods only exist on
+    # CTk/CTkToplevel, so a bare Toplevel raises AttributeError intermittently.
+    # Provide them as no-ops matching CTk's own implementation; the surrounding
+    # update_scaling_callbacks_for_window() still runs and rescales the inner
+    # widgets correctly.
+    def block_update_dimensions_event(self):
+        self._block_update_dimensions_event = False
+
+    def unblock_update_dimensions_event(self):
+        self._block_update_dimensions_event = False
+
     def _configure_macos_window_behavior(self):
         if sys.platform != 'darwin':
             return
