@@ -178,6 +178,7 @@ class SearchMixin:
                 self._add_to_history(path)
             self._home_person_id = self._load_home_person(path)
             self._populate_tree()
+            self._update_home_button()
             status = (gs.STATUS_LOADED_CACHED.format(count=len(self.individuals))
                       if from_cache
                       else gs.STATUS_LOADED.format(count=len(self.individuals)))
@@ -200,6 +201,7 @@ class SearchMixin:
         self._display_path_target_id = None
         self._clear_home_path_cache()
         self._populate_tree()
+        self._update_home_button()
         self._reset_results_pane()
         self.status_text.set(gs.STATUS_NO_FILE)
 
@@ -406,6 +408,7 @@ class SearchMixin:
 
     def _on_tree_selection_change(self, *_):
         """Refresh the Display Pane after the selected person changes."""
+        self._update_home_button()
         if getattr(self, '_suppress_display_refresh', False):
             return
         self._refresh_display_pane()

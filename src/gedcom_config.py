@@ -61,9 +61,12 @@ class ConfigManager:
         return self.load_value('home_persons', {}).get(gedcom_path)
 
     def set_home_person(self, gedcom_path, indi_id):
-        """Save the home person ID associated with a GEDCOM path."""
+        """Save (or clear, when indi_id is None) the home person for a path."""
         home_persons = self.load_value('home_persons', {})
-        home_persons[gedcom_path] = indi_id
+        if indi_id is None:
+            home_persons.pop(gedcom_path, None)
+        else:
+            home_persons[gedcom_path] = indi_id
         self.save_value('home_persons', home_persons)
 
     def get_font_preference(self, valid_sizes):

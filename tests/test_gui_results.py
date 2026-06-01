@@ -4189,6 +4189,31 @@ def test_half_sibling_graph_line_is_visibly_distinct():
     assert {line[0][1] for line in half_canvas.lines} == {16.0, 24.0}
 
 
+def test_family_tree_sibling_segments_are_adjacent_not_overlapping_star():
+    """Expanded siblings render as an adjacent chain so line styles do not stack."""
+    edges = [
+        ('@CENTER@', '@FULL@', 'siblings'),
+        ('@CENTER@', '@HALF1@', 'siblings'),
+        ('@CENTER@', '@HALF2@', 'siblings'),
+        ('@CENTER@', '@HALF3@', 'siblings'),
+    ]
+    positions = {
+        '@HALF3@': (0, 20),
+        '@HALF2@': (100, 20),
+        '@HALF1@': (200, 20),
+        '@FULL@': (300, 20),
+        '@CENTER@': (400, 20),
+    }
+
+    assert FamilyTreeRenderMixin._family_tree_visible_sibling_segments(
+        edges, positions) == [
+            ('@HALF3@', '@HALF2@'),
+            ('@HALF2@', '@HALF1@'),
+            ('@HALF1@', '@FULL@'),
+            ('@FULL@', '@CENTER@'),
+        ]
+
+
 def test_graph_relationship_legend_includes_biological_baseline():
     """A non-ordinary legend includes the ordinary biological line style too."""
 
@@ -4578,6 +4603,135 @@ def test_family_tree_child_expansion_adds_missing_coparent():
     assert '@C1@' in visible
     assert '@SPOUSE@' in visible
     assert ('@A@', '@SPOUSE@', 'spouses') in edges
+
+
+def test_family_tree_multi_spouse_children_use_actual_parent_groups():
+    """Visible half-siblings stay grouped under their own recorded parents."""
+    families = {
+        '@HYMAN@': {
+            'parents': ['@HARRIS@', '@JOCHEBED@'],
+            'siblings': [
+                '@BENJAMIN@',
+                '@JOSEPH@',
+                '@LOUIS@',
+                '@SAMUEL@',
+                '@SARAH@',
+                '@CHARLES@',
+            ],
+            'spouses': [],
+            'children': [],
+        },
+        '@BENJAMIN@': {
+            'parents': ['@HARRIS@', '@JOCHEBED@'],
+            'siblings': ['@HYMAN@'],
+            'spouses': [],
+            'children': [],
+        },
+        '@JOCHEBED@': {
+            'parents': [],
+            'siblings': [],
+            'spouses': ['@HARRIS@'],
+            'children': ['@HYMAN@', '@BENJAMIN@'],
+        },
+        '@HARRIS@': {
+            'parents': [],
+            'siblings': [],
+            'spouses': ['@EVA@', '@JOCHEBED@'],
+            'children': [
+                '@CHARLES@',
+                '@SARAH@',
+                '@SAMUEL@',
+                '@LOUIS@',
+                '@JOSEPH@',
+                '@HYMAN@',
+                '@BENJAMIN@',
+            ],
+        },
+        '@EVA@': {
+            'parents': [],
+            'siblings': [],
+            'spouses': ['@HARRIS@'],
+            'children': [
+                '@CHARLES@',
+                '@SARAH@',
+                '@SAMUEL@',
+                '@LOUIS@',
+                '@JOSEPH@',
+            ],
+        },
+    }
+    for child_id in ('@CHARLES@', '@SARAH@', '@SAMUEL@', '@LOUIS@',
+                     '@JOSEPH@'):
+        families[child_id] = {
+            'parents': ['@HARRIS@', '@EVA@'],
+            'siblings': [],
+            'spouses': [],
+            'children': [],
+        }
+
+    def lookup(indi_id):
+        return families.get(indi_id, {
+            'parents': [],
+            'siblings': [],
+            'spouses': [],
+            'children': [],
+        })
+
+    def coparents(parent_id, child_ids):
+        child_ids = set(child_ids)
+        parents = []
+        if parent_id == '@HARRIS@':
+            if child_ids & {'@HYMAN@', '@BENJAMIN@'}:
+                parents.append('@JOCHEBED@')
+            if child_ids & {'@CHARLES@', '@SARAH@', '@SAMUEL@',
+                            '@LOUIS@', '@JOSEPH@'}:
+                parents.append('@EVA@')
+        elif parent_id == '@JOCHEBED@' and child_ids & {
+                '@HYMAN@', '@BENJAMIN@'}:
+            parents.append('@HARRIS@')
+        elif parent_id == '@EVA@' and child_ids & {
+                '@CHARLES@', '@SARAH@', '@SAMUEL@', '@LOUIS@', '@JOSEPH@'}:
+            parents.append('@HARRIS@')
+        return parents
+
+    visible, edges = build_family_tree_graph(
+        '@HYMAN@',
+        [
+            ('@HYMAN@', 'parents'),
+            ('@HYMAN@', 'siblings'),
+            ('@HARRIS@', 'spouses'),
+        ],
+        lookup,
+        coparents,
+    )
+    layout = layout_family_tree('@HYMAN@', visible, edges)
+    positions = {
+        node['id']: (node['column'], node['generation'])
+        for node in layout
+    }
+    spouse_edges = [
+        (source_id, target_id)
+        for source_id, target_id, category in edges
+        if category == 'spouses'
+    ]
+    groups = ResultsMixin._family_tree_child_edge_groups(
+        edges, positions, coparents, spouse_edges)
+    groups_by_parents = {
+        group['parent_ids']: set(group['children'])
+        for group in groups
+    }
+
+    assert ('@HYMAN@', '@HARRIS@', 'parents') in edges
+    assert ('@BENJAMIN@', '@JOCHEBED@', 'parents') in edges
+    assert groups_by_parents[('@EVA@', '@HARRIS@')] == {
+        '@CHARLES@', '@SARAH@', '@SAMUEL@', '@LOUIS@', '@JOSEPH@'}
+    assert groups_by_parents[('@HARRIS@', '@JOCHEBED@')] == {
+        '@HYMAN@', '@BENJAMIN@'}
+    assert (
+        positions['@EVA@'][0]
+        < positions['@HARRIS@'][0]
+        < positions['@JOCHEBED@'][0]
+    )
 
 
 def test_family_tree_spouse_expansion_adds_hidden_spouse():
@@ -5201,6 +5355,89 @@ def test_family_tree_debug_parent_couple_moves_above_child_when_unblocked():
     _assert_visible_spouses_adjacent(layout, edges)
     assert abs(
         parent_midpoint - by_id['@I102667033207@']['column']) <= 0.5
+
+
+def test_family_tree_debug_single_unbranched_sibling_stays_compact():
+    """A lone center sibling is not pushed across excess empty columns."""
+    layout, _edges = _load_debug_family_tree_layout('21')
+    center = next(node for node in layout if node['is_center'])
+    same_row = [
+        node for node in layout
+        if node['generation'] == center['generation']
+    ]
+
+    assert _max_family_tree_row_width(layout) <= 7.0
+    assert max(
+        abs(node['column'] - center['column'])
+        for node in same_row
+        if not node['is_center']
+    ) <= 2.1
+
+
+def test_family_tree_debug_step_parent_does_not_pull_parent_couple_off_children():
+    """Rebuilt debug/22 centers children under their actual parent couple."""
+    path = Path('debug/22.json')
+    if not path.exists():
+        pytest.skip('debug/22.json not found')
+    payload = json.loads(path.read_text())
+    family_members = payload['family_members']
+
+    def lookup(indi_id):
+        return family_members.get(indi_id, {
+            'parents': [],
+            'siblings': [],
+            'spouses': [],
+            'children': [],
+        })
+
+    def coparents(parent_id, child_ids):
+        child_ids = set(child_ids)
+        parents = []
+        for group in payload.get('child_groups', ()):
+            if parent_id not in group.get('parent_ids', ()):
+                continue
+            if not child_ids.intersection(group.get('children', ())):
+                continue
+            parents.extend(
+                other_id for other_id in group['parent_ids']
+                if other_id != parent_id)
+        return parents
+
+    visible, edges = build_family_tree_graph(
+        payload['center_id'],
+        [
+            (entry['source'], entry['category'])
+            for entry in payload['expanded']
+        ],
+        lookup,
+        coparents,
+    )
+    layout = layout_family_tree(payload['center_id'], visible, edges)
+    by_id = {node['id']: node for node in layout}
+    parent_ids = ('@I102724938622@', '@I102724939247@')
+    child_ids = ('@I102724907444@', '@I102724939468@')
+    parent_midpoint = sum(by_id[parent_id]['column']
+                          for parent_id in parent_ids) / 2
+    child_midpoint = (
+        min(by_id[child_id]['column'] for child_id in child_ids)
+        + max(by_id[child_id]['column'] for child_id in child_ids)
+    ) / 2
+
+    assert ('@I102724939247@', '@I102667033275@', 'spouses') not in edges
+    assert ('@I102724938622@', '@I102667033275@', 'spouses') not in edges
+    assert abs(parent_midpoint - child_midpoint) <= 0.5
+
+
+def test_family_tree_debug_unbranched_sibling_outlier_stays_compact():
+    """A leaf sibling in a lower generation is not left across empty columns."""
+    layout, _edges = _load_debug_family_tree_layout('23')
+    by_id = {node['id']: node for node in layout}
+
+    assert _max_family_tree_row_width(layout) <= 4.0
+    assert (
+        by_id['@I102724942433@']['column']
+        - by_id['@I102724921629@']['column']
+    ) <= 1.1
 
 
 def test_family_tree_debug_large_tree_preserves_target_spouse_adjacency():
