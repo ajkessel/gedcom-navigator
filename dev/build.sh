@@ -33,7 +33,7 @@ while getopts "hnco:b:" opt; do
 	esac
 done
 if [ "${git_branch}" != "main" ] && [ -z "${new_git_branch}" ]; then
-	echo "Current git branch is ${git_branch}. Do you want to build from this branch? (y/n/b/m) [b = show git branches, m = switch to main and pull latest changes]"]"
+	echo "Current git branch is ${git_branch}. Do you want to build from this branch? (y/n/b/m) [b = show git branches, m = switch to main and pull latest changes]"
 	read -r answer
 	if [[ "$answer" == "b" ]]; then
 		git branch -a
