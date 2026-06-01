@@ -1,13 +1,11 @@
 # Changelog
 
-## [Unreleased] - 2026-06-XX
+## [1.9.11] - 2026-06-01
 
 ### Added
 
 - **Profile view Facts & Events section** — Profile now renders additional individual GEDCOM facts and events from the raw record, including common entries such as occupation, residence, census, education, immigration, military, religion, probate, wills, generic `EVEN`/`FACT` records, notes, source page details, and clickable `https://` links. Profile sections now appear in this order: Biography, Family, Path to Home Person, Facts & Events, Tags, then the optional Full GEDCOM Record.
 - **Unset the Home Person from the action bar** — when the current Home Person is selected in the people list, the "Set Home" button now changes to "Unset Home". Clicking it clears the Home Person (removing the path-to-home section and the saved `home_persons` entry for the file). The button label tracks the selection automatically, including after loading a file or unloading data, and the `Set Home` keyboard shortcut now toggles the same way. `ConfigManager.set_home_person` accepts `None` to clear the stored value.
-
-### Changed
 
 ### Fixed
 
