@@ -483,6 +483,13 @@ class PersonDialogMixin:
             return [], 0
         return paths, paths.index(image_path)
 
+    @staticmethod
+    def _profile_full_image_title(image_path):
+        """Return a compact title for a full-size profile image window."""
+        path = Path(str(image_path).replace('\\', '/'))
+        title = path.stem
+        return title or path.name or image_path
+
     def _configure_full_profile_gallery_navigation(
             self, win, image_path, parent, gallery_paths):
         """Update gallery navigation metadata and controls for a preview."""
@@ -642,7 +649,7 @@ class PersonDialogMixin:
                 canvas_size=(canvas_w, canvas_h)):
             return False
 
-        win.title(image_path)
+        win.title(self._profile_full_image_title(image_path))
         paths = getattr(win, '_profile_full_image_gallery_paths', [])
         if image_path in paths:
             index = paths.index(image_path)
@@ -936,7 +943,7 @@ class PersonDialogMixin:
             win.transient(parent)
         except tk.TclError:
             pass
-        win.title(image_path)
+        win.title(self._profile_full_image_title(image_path))
         win._profile_full_image_source_path = image_path
         self._configure_full_profile_gallery_navigation(
             win, image_path, parent, gallery_paths)

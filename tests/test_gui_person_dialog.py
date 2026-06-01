@@ -478,6 +478,13 @@ def test_profile_image_navigation_status_text_is_one_based():
     assert PROFILE_IMAGE_NAV_STATUS.format(current=2, total=5) == "2 of 5"
 
 
+def test_profile_full_image_title_uses_filename_without_extension():
+    assert PersonDialogMixin._profile_full_image_title(
+        "/media/family/Adam J. Kessel.jpg") == "Adam J. Kessel"
+    assert PersonDialogMixin._profile_full_image_title(
+        r"C:\media\Family Photo.PNG") == "Family Photo"
+
+
 def test_profile_sections_render_in_requested_order():
     """Profile sections render Biography, Family, Home Path, Facts, then Tags."""
 
