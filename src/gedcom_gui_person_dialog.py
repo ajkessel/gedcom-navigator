@@ -281,16 +281,34 @@ class PersonDialogMixin:
             except OSError:
                 gedcom_dir = Path(gedcom_path).expanduser().parent
             if gedcom_dir.is_dir():
-                for name in self._MEDIA_DIR_NAMES:
-                    candidate = gedcom_dir / name
-                    if candidate.is_dir():
-                        return str(candidate)
+                media_dir = self._nearby_media_directory(gedcom_dir)
+                if media_dir is not None:
+                    return str(media_dir)
                 return str(gedcom_dir)
 
         pictures = Path.home() / 'Pictures'
         if pictures.is_dir():
             return str(pictures)
         return str(Path.home())
+
+    def _nearby_media_directory(self, parent_dir):
+        """Return a nearby media folder using the filesystem's actual casing."""
+        try:
+            entries = [entry for entry in Path(parent_dir).iterdir()
+                       if entry.is_dir()]
+        except OSError:
+            return None
+        by_exact = {entry.name: entry for entry in entries}
+        by_lower = {}
+        for entry in entries:
+            by_lower.setdefault(entry.name.lower(), entry)
+        for name in self._MEDIA_DIR_NAMES:
+            if name in by_exact:
+                return by_exact[name]
+            match = by_lower.get(name.lower())
+            if match is not None:
+                return match
+        return None
 
     def _maybe_show_missing_profile_image_notice(self, indi, media):
         """Show one per-session note when a selected FILE path is missing."""
