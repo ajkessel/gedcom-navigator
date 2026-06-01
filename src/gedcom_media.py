@@ -111,7 +111,7 @@ class ProfileMediaService:
         for candidate in candidates:
             try:
                 if candidate.is_file():
-                    return str(candidate.resolve())
+                    return str(self._case_preserving_resolve(candidate))
             except OSError:
                 continue
 
@@ -123,7 +123,7 @@ class ProfileMediaService:
                         if basename in files:
                             found = Path(root) / basename
                             if self.is_supported_path(found):
-                                return str(found.resolve())
+                                return str(self._case_preserving_resolve(found))
                 except OSError:
                     continue
             try:
@@ -131,10 +131,36 @@ class ProfileMediaService:
                     if basename in files:
                         found = Path(root) / basename
                         if self.is_supported_path(found):
-                            return str(found.resolve())
+                            return str(self._case_preserving_resolve(found))
             except OSError:
                 return None
         return None
+
+    @staticmethod
+    def _case_preserving_resolve(path):
+        """Resolve path while preserving actual directory-entry casing."""
+        resolved = Path(path).resolve()
+        if os.name == 'nt':
+            return resolved
+        parts = resolved.parts
+        if not parts:
+            return resolved
+        current = Path(parts[0])
+        for part in parts[1:]:
+            try:
+                entries = os.listdir(current)
+            except OSError:
+                current = current / part
+                continue
+            match = next((entry for entry in entries if entry == part), None)
+            if match is None:
+                part_l = part.lower()
+                match = next(
+                    (entry for entry in entries if entry.lower() == part_l),
+                    part,
+                )
+            current = current / match
+        return current
 
     def _thumbnail_cache_path(self, source_path, size):
         stat = os.stat(source_path)
