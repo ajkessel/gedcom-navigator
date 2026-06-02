@@ -46,6 +46,7 @@ This is a beta release. If you are interested in experimenting with a "dummy" GE
 ## The problems this solves
 
 ![Main window](https://raw.githubusercontent.com/ajkessel/gedcom-navigator/main/docs/screenshots/appstore/screen_recording.gif)
+![Tree window](https://raw.githubusercontent.com/ajkessel/gedcom-navigator/main/docs/screenshots/appstore/screenshot_06_tree.png)
 
 Many genealogists working with autosomal DNA add unfamiliar people to their family tree based on DNA matches and then build out those people's lines, hoping to find the most recent common ancestor between the match and themselves. After accumulating thousands of these speculative additions, you often end up looking at a person in your tree and thinking: *why is this person here? which DNA match did this branch come from?*
 
