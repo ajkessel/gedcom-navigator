@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-06-01 12:14-0400\n"
+"POT-Creation-Date: 2026-06-02 16:56-0400\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -41,7 +41,7 @@ msgstr ""
 msgid "No Recent Files"
 msgstr ""
 
-#: src/gedcom_strings.py:34 src/gedcom_strings.py:791
+#: src/gedcom_strings.py:34 src/gedcom_strings.py:847
 msgid "Help"
 msgstr ""
 
@@ -71,7 +71,7 @@ msgstr ""
 msgid "Keyboard Shortcuts (F2)"
 msgstr ""
 
-#: src/gedcom_strings.py:59 src/gedcom_strings.py:709
+#: src/gedcom_strings.py:59 src/gedcom_strings.py:765
 msgid "Walkthrough"
 msgstr ""
 
@@ -79,11 +79,11 @@ msgstr ""
 msgid "Check for updates…"
 msgstr ""
 
-#: src/gedcom_strings.py:63 src/gedcom_strings.py:700
+#: src/gedcom_strings.py:63 src/gedcom_strings.py:756
 msgid "Privacy Policy"
 msgstr ""
 
-#: src/gedcom_strings.py:64 src/gedcom_strings.py:699
+#: src/gedcom_strings.py:64 src/gedcom_strings.py:755
 msgid "About"
 msgstr ""
 
@@ -139,11 +139,11 @@ msgstr ""
 msgid "Death"
 msgstr ""
 
-#: src/gedcom_strings.py:95 src/gedcom_strings.py:580
+#: src/gedcom_strings.py:95 src/gedcom_strings.py:611
 msgid "Results:"
 msgstr ""
 
-#: src/gedcom_strings.py:96 src/gedcom_strings.py:581
+#: src/gedcom_strings.py:96 src/gedcom_strings.py:612
 msgid "Max Depth:"
 msgstr ""
 
@@ -151,7 +151,7 @@ msgstr ""
 msgid "Profile"
 msgstr ""
 
-#: src/gedcom_strings.py:98 src/gedcom_strings.py:601
+#: src/gedcom_strings.py:98 src/gedcom_strings.py:637
 msgid "Tree"
 msgstr ""
 
@@ -167,11 +167,11 @@ msgstr ""
 msgid "Matches"
 msgstr ""
 
-#: src/gedcom_strings.py:107 src/gedcom_strings.py:432
+#: src/gedcom_strings.py:107 src/gedcom_strings.py:464
 msgid "Paths"
 msgstr ""
 
-#: src/gedcom_strings.py:109 src/gedcom_strings.py:484
+#: src/gedcom_strings.py:109 src/gedcom_strings.py:515
 msgid "Copy"
 msgstr ""
 
@@ -183,7 +183,7 @@ msgstr ""
 msgid "Normal Path"
 msgstr ""
 
-#: src/gedcom_strings.py:112 src/gedcom_strings.py:483
+#: src/gedcom_strings.py:112 src/gedcom_strings.py:514
 msgid "Save"
 msgstr ""
 
@@ -371,967 +371,1048 @@ msgid "GEDCOM Record: {name}"
 msgstr ""
 
 #: src/gedcom_strings.py:291
-msgid "Biography"
-msgstr ""
-
-#: src/gedcom_strings.py:292
-#, python-brace-format
-msgid "  Born:    {event}"
+msgid "Profile Image Not Found"
 msgstr ""
 
 #: src/gedcom_strings.py:293
 #, python-brace-format
+msgid ""
+"This GEDCOM file includes a profile image path, but the image file could "
+"not be found on this computer.\n"
+"\n"
+"Missing path:\n"
+"{path}\n"
+"\n"
+"Would you like to choose the folder where this GEDCOM file's media files "
+"are stored? The app will remember that folder for this GEDCOM file and "
+"search it for other profile images."
+msgstr ""
+
+#: src/gedcom_strings.py:300
+msgid "Select Media Folder"
+msgstr ""
+
+#: src/gedcom_strings.py:301
+msgid "Biography"
+msgstr ""
+
+#: src/gedcom_strings.py:302
+#, python-brace-format
+msgid "  Born:    {event}"
+msgstr ""
+
+#: src/gedcom_strings.py:303
+#, python-brace-format
 msgid "  Married: {spouses}"
 msgstr ""
 
-#: src/gedcom_strings.py:294
+#: src/gedcom_strings.py:304
 #, python-brace-format
 msgid "  Died:    {event}"
 msgstr ""
 
-#: src/gedcom_strings.py:295
+#: src/gedcom_strings.py:305
 #, python-brace-format
 msgid "  Buried:  {event}"
 msgstr ""
 
-#: src/gedcom_strings.py:296
+#: src/gedcom_strings.py:306
 #, python-brace-format
 msgid "  Age:     {age}"
 msgstr ""
 
-#: src/gedcom_strings.py:297
+#: src/gedcom_strings.py:307
 #, python-brace-format
 msgid "  Age:     {age} (at death)"
 msgstr ""
 
-#: src/gedcom_strings.py:298
+#: src/gedcom_strings.py:308
 msgid "  (no biographical information found)"
 msgstr ""
 
-#: src/gedcom_strings.py:299
+#: src/gedcom_strings.py:309
 msgid "Facts & Events"
 msgstr ""
 
-#: src/gedcom_strings.py:300
+#: src/gedcom_strings.py:310
 msgid "  (no facts or events found)"
 msgstr ""
 
-#: src/gedcom_strings.py:301
+#: src/gedcom_strings.py:311
 #, python-brace-format
 msgid "  {label}: {details}"
 msgstr ""
 
-#: src/gedcom_strings.py:302
+#: src/gedcom_strings.py:312
 msgid "Adoption"
 msgstr ""
 
-#: src/gedcom_strings.py:303
+#: src/gedcom_strings.py:313
 msgid "Baptism"
 msgstr ""
 
-#: src/gedcom_strings.py:304
+#: src/gedcom_strings.py:314
 msgid "Caste"
 msgstr ""
 
-#: src/gedcom_strings.py:305
+#: src/gedcom_strings.py:315
 msgid "Census"
 msgstr ""
 
-#: src/gedcom_strings.py:306
+#: src/gedcom_strings.py:316
 msgid "Christening"
 msgstr ""
 
-#: src/gedcom_strings.py:307
+#: src/gedcom_strings.py:317
 msgid "Cremation"
 msgstr ""
 
-#: src/gedcom_strings.py:308
+#: src/gedcom_strings.py:318
 msgid "Description"
 msgstr ""
 
-#: src/gedcom_strings.py:309
+#: src/gedcom_strings.py:319
 msgid "Education"
 msgstr ""
 
-#: src/gedcom_strings.py:310
+#: src/gedcom_strings.py:320
 msgid "Emigration"
 msgstr ""
 
-#: src/gedcom_strings.py:311
+#: src/gedcom_strings.py:321
 msgid "Event"
 msgstr ""
 
-#: src/gedcom_strings.py:312
+#: src/gedcom_strings.py:322
 msgid "Fact"
 msgstr ""
 
-#: src/gedcom_strings.py:313
+#: src/gedcom_strings.py:323
 msgid "Graduation"
 msgstr ""
 
-#: src/gedcom_strings.py:314
+#: src/gedcom_strings.py:324
 msgid "Immigration"
 msgstr ""
 
-#: src/gedcom_strings.py:315
+#: src/gedcom_strings.py:325
 msgid "Military"
 msgstr ""
 
-#: src/gedcom_strings.py:316
+#: src/gedcom_strings.py:326
 msgid "Nationality"
 msgstr ""
 
-#: src/gedcom_strings.py:317
+#: src/gedcom_strings.py:327
 msgid "Naturalization"
 msgstr ""
 
-#: src/gedcom_strings.py:318
+#: src/gedcom_strings.py:328
 msgid "Occupation"
 msgstr ""
 
-#: src/gedcom_strings.py:319
+#: src/gedcom_strings.py:329
 msgid "Probate"
 msgstr ""
 
-#: src/gedcom_strings.py:320
+#: src/gedcom_strings.py:330
 msgid "Religion"
 msgstr ""
 
-#: src/gedcom_strings.py:321
+#: src/gedcom_strings.py:331
 msgid "Residence"
 msgstr ""
 
-#: src/gedcom_strings.py:322
+#: src/gedcom_strings.py:332
 msgid "Title"
 msgstr ""
 
-#: src/gedcom_strings.py:323
+#: src/gedcom_strings.py:333
 msgid "Will"
 msgstr ""
 
-#: src/gedcom_strings.py:324
+#: src/gedcom_strings.py:334
 #, python-brace-format
 msgid "Age: {value}"
 msgstr ""
 
-#: src/gedcom_strings.py:325
+#: src/gedcom_strings.py:335
 #, python-brace-format
 msgid "Cause: {value}"
 msgstr ""
 
-#: src/gedcom_strings.py:326
+#: src/gedcom_strings.py:336
 #, python-brace-format
 msgid "Note: {value}"
 msgstr ""
 
-#: src/gedcom_strings.py:327
+#: src/gedcom_strings.py:337
 #, python-brace-format
 msgid "Source: {value}"
 msgstr ""
 
-#: src/gedcom_strings.py:328
+#: src/gedcom_strings.py:338
 msgid "Family"
 msgstr ""
 
-#: src/gedcom_strings.py:329
+#: src/gedcom_strings.py:339
 msgid "  Parents:"
 msgstr ""
 
-#: src/gedcom_strings.py:330
+#: src/gedcom_strings.py:340
 msgid "  Siblings:"
 msgstr ""
 
-#: src/gedcom_strings.py:331
+#: src/gedcom_strings.py:341
 msgid "  Spouse:"
 msgstr ""
 
-#: src/gedcom_strings.py:332
+#: src/gedcom_strings.py:342
 msgid "  Spouses:"
 msgstr ""
 
-#: src/gedcom_strings.py:333
+#: src/gedcom_strings.py:343
 msgid "  Children:"
 msgstr ""
 
-#: src/gedcom_strings.py:334
+#: src/gedcom_strings.py:344
 msgid "  (no family information found)"
 msgstr ""
 
-#: src/gedcom_strings.py:335
+#: src/gedcom_strings.py:345
 msgid "Father"
 msgstr ""
 
-#: src/gedcom_strings.py:336
+#: src/gedcom_strings.py:346
 msgid "Mother"
 msgstr ""
 
-#: src/gedcom_strings.py:337
+#: src/gedcom_strings.py:347
 msgid "Parent"
 msgstr ""
 
-#: src/gedcom_strings.py:338
+#: src/gedcom_strings.py:348
 msgid "Step-father"
 msgstr ""
 
-#: src/gedcom_strings.py:339
+#: src/gedcom_strings.py:349
 msgid "Step-mother"
 msgstr ""
 
-#: src/gedcom_strings.py:340
+#: src/gedcom_strings.py:350
 msgid "Step-parent"
 msgstr ""
 
-#: src/gedcom_strings.py:341
+#: src/gedcom_strings.py:351
 msgid "Adoptive father"
 msgstr ""
 
-#: src/gedcom_strings.py:342
+#: src/gedcom_strings.py:352
 msgid "Adoptive mother"
 msgstr ""
 
-#: src/gedcom_strings.py:343
+#: src/gedcom_strings.py:353
 msgid "Adoptive parent"
 msgstr ""
 
-#: src/gedcom_strings.py:344
+#: src/gedcom_strings.py:354
 msgid "Foster father"
 msgstr ""
 
-#: src/gedcom_strings.py:345
+#: src/gedcom_strings.py:355
 msgid "Foster mother"
 msgstr ""
 
-#: src/gedcom_strings.py:346
+#: src/gedcom_strings.py:356
 msgid "Foster parent"
 msgstr ""
 
-#: src/gedcom_strings.py:347
+#: src/gedcom_strings.py:357
 msgid "Son"
 msgstr ""
 
-#: src/gedcom_strings.py:348
+#: src/gedcom_strings.py:358
 msgid "Daughter"
 msgstr ""
 
-#: src/gedcom_strings.py:349
+#: src/gedcom_strings.py:359
 msgid "Child"
 msgstr ""
 
-#: src/gedcom_strings.py:350
+#: src/gedcom_strings.py:360
 msgid "Step-son"
 msgstr ""
 
-#: src/gedcom_strings.py:351
+#: src/gedcom_strings.py:361
 msgid "Step-daughter"
 msgstr ""
 
-#: src/gedcom_strings.py:352
+#: src/gedcom_strings.py:362
 msgid "Step-child"
 msgstr ""
 
-#: src/gedcom_strings.py:353
+#: src/gedcom_strings.py:363
 msgid "Adopted son"
 msgstr ""
 
-#: src/gedcom_strings.py:354
+#: src/gedcom_strings.py:364
 msgid "Adopted daughter"
 msgstr ""
 
-#: src/gedcom_strings.py:355
+#: src/gedcom_strings.py:365
 msgid "Adopted child"
 msgstr ""
 
-#: src/gedcom_strings.py:356
+#: src/gedcom_strings.py:366
 msgid "Foster son"
 msgstr ""
 
-#: src/gedcom_strings.py:357
+#: src/gedcom_strings.py:367
 msgid "Foster daughter"
 msgstr ""
 
-#: src/gedcom_strings.py:358
+#: src/gedcom_strings.py:368
 msgid "Foster child"
 msgstr ""
 
-#: src/gedcom_strings.py:359
+#: src/gedcom_strings.py:369
 msgid "Brother"
 msgstr ""
 
-#: src/gedcom_strings.py:360
+#: src/gedcom_strings.py:370
 msgid "Sister"
 msgstr ""
 
-#: src/gedcom_strings.py:361
+#: src/gedcom_strings.py:371
 msgid "Sibling"
 msgstr ""
 
-#: src/gedcom_strings.py:362
+#: src/gedcom_strings.py:372
 msgid "Half-brother"
 msgstr ""
 
-#: src/gedcom_strings.py:363
+#: src/gedcom_strings.py:373
 msgid "Half-sister"
 msgstr ""
 
-#: src/gedcom_strings.py:364
+#: src/gedcom_strings.py:374
 msgid "Half-sibling"
 msgstr ""
 
-#: src/gedcom_strings.py:365
+#: src/gedcom_strings.py:375
 msgid "Step-brother"
 msgstr ""
 
-#: src/gedcom_strings.py:366
+#: src/gedcom_strings.py:376
 msgid "Step-sister"
 msgstr ""
 
-#: src/gedcom_strings.py:367
+#: src/gedcom_strings.py:377
 msgid "Step-sibling"
 msgstr ""
 
-#: src/gedcom_strings.py:368
+#: src/gedcom_strings.py:378
 msgid "Adoptive sibling"
 msgstr ""
 
-#: src/gedcom_strings.py:369
+#: src/gedcom_strings.py:379
 msgid "Foster sibling"
 msgstr ""
 
-#: src/gedcom_strings.py:370
+#: src/gedcom_strings.py:380
 #, python-brace-format
 msgid "    {role}: "
 msgstr ""
 
-#: src/gedcom_strings.py:371
+#: src/gedcom_strings.py:381
 msgid "Tags"
 msgstr ""
 
-#: src/gedcom_strings.py:372
+#: src/gedcom_strings.py:382
 msgid "Full GEDCOM Record"
 msgstr ""
 
-#: src/gedcom_strings.py:373
+#: src/gedcom_strings.py:383
 msgid "Close"
 msgstr ""
 
-#: src/gedcom_strings.py:374
+#: src/gedcom_strings.py:384
 msgid "Tree View"
 msgstr ""
 
-#: src/gedcom_strings.py:375
+#: src/gedcom_strings.py:385
 msgid "Pedigree View"
 msgstr ""
 
-#: src/gedcom_strings.py:376
+#: src/gedcom_strings.py:386
 msgid "Descendant View"
 msgstr ""
 
-#: src/gedcom_strings.py:377
+#: src/gedcom_strings.py:387
 msgid "Profile View"
 msgstr ""
 
-#: src/gedcom_strings.py:383
+#: src/gedcom_strings.py:393
 #, python-brace-format
 msgid ""
 "Tree View ({mod}T cycles views)\n"
 "Show the interactive family tree for this person."
 msgstr ""
 
-#: src/gedcom_strings.py:390
+#: src/gedcom_strings.py:400
 #, python-brace-format
 msgid ""
 "Pedigree View ({mod}T cycles views)\n"
 "Show this person's ancestors in a compact pedigree chart."
 msgstr ""
 
-#: src/gedcom_strings.py:397
+#: src/gedcom_strings.py:407
 #, python-brace-format
 msgid ""
 "Descendant View ({mod}T cycles views)\n"
 "Show this person's descendants with expandable child branches."
 msgstr ""
 
-#: src/gedcom_strings.py:404
+#: src/gedcom_strings.py:414
 #, python-brace-format
 msgid ""
 "Profile View ({mod}T cycles views)\n"
 "Show the biographical profile for this person."
 msgstr ""
 
-#: src/gedcom_strings.py:408
+#: src/gedcom_strings.py:418
 msgid "Save profile"
 msgstr ""
 
-#: src/gedcom_strings.py:414
+#: src/gedcom_strings.py:419
+msgid "Gallery"
+msgstr ""
+
+#: src/gedcom_strings.py:420
+msgid "←"
+msgstr ""
+
+#: src/gedcom_strings.py:421
+msgid "→"
+msgstr ""
+
+#: src/gedcom_strings.py:422
+#, python-brace-format
+msgid "Image Gallery: {name}"
+msgstr ""
+
+#: src/gedcom_strings.py:423
+msgid "No additional images found."
+msgstr ""
+
+#: src/gedcom_strings.py:424
+#, python-brace-format
+msgid "{current} of {total}"
+msgstr ""
+
+#: src/gedcom_strings.py:430
 #, python-brace-format
 msgid ""
 "Save profile ({mod}S)\n"
 "Save this biographical profile to a text file."
 msgstr ""
 
-#: src/gedcom_strings.py:421
+#: src/gedcom_strings.py:437
 #, python-brace-format
 msgid ""
 "Copy profile ({mod}C)\n"
 "Copy this biographical profile to clipboard."
 msgstr ""
 
-#: src/gedcom_strings.py:425
+#: src/gedcom_strings.py:444
+#, python-brace-format
+msgid ""
+"Image gallery ({display})\n"
+"Show thumbnails for additional images associated with this person."
+msgstr ""
+
+#: src/gedcom_strings.py:450
+msgid ""
+"Previous image\n"
+"Show the previous image in this gallery."
+msgstr ""
+
+#: src/gedcom_strings.py:454
+msgid ""
+"Next image\n"
+"Show the next image in this gallery."
+msgstr ""
+
+#: src/gedcom_strings.py:457
 #, python-brace-format
 msgid "Family Tree: {name}"
 msgstr ""
 
-#: src/gedcom_strings.py:426
+#: src/gedcom_strings.py:458
 #, python-brace-format
 msgid "Pedigree Tree: {name}"
 msgstr ""
 
-#: src/gedcom_strings.py:427
+#: src/gedcom_strings.py:459
 #, python-brace-format
 msgid "Descendant Tree: {name}"
 msgstr ""
 
-#: src/gedcom_strings.py:428
+#: src/gedcom_strings.py:460
 msgid "Save family tree"
 msgstr ""
 
-#: src/gedcom_strings.py:429
+#: src/gedcom_strings.py:461
 msgid "Save pedigree tree"
 msgstr ""
 
-#: src/gedcom_strings.py:430
+#: src/gedcom_strings.py:462
 msgid "Save descendant tree"
 msgstr ""
 
-#: src/gedcom_strings.py:431
+#: src/gedcom_strings.py:463
 msgid "Center"
 msgstr ""
 
-#: src/gedcom_strings.py:433
+#: src/gedcom_strings.py:465
 msgid "Expand All"
 msgstr ""
 
-#: src/gedcom_strings.py:434
+#: src/gedcom_strings.py:466
 msgid "Highlight"
 msgstr ""
 
-#: src/gedcom_strings.py:443
+#: src/gedcom_strings.py:475
 msgid "biological"
 msgstr ""
 
-#: src/gedcom_strings.py:444
+#: src/gedcom_strings.py:476
 msgid "step"
 msgstr ""
 
-#: src/gedcom_strings.py:445
+#: src/gedcom_strings.py:477
 msgid "adopted/foster"
 msgstr ""
 
-#: src/gedcom_strings.py:446
+#: src/gedcom_strings.py:478
 msgid "half sibling"
 msgstr ""
 
-#: src/gedcom_strings.py:451
-msgid "Closest Tagged Matches"
-msgstr ""
-
-#: src/gedcom_strings.py:452
+#: src/gedcom_strings.py:483
 msgid "  Note: this person has a matching tag."
 msgstr ""
 
-#: src/gedcom_strings.py:453
+#: src/gedcom_strings.py:484
 msgid "No tagged relatives found within the search depth."
 msgstr ""
 
-#: src/gedcom_strings.py:454
+#: src/gedcom_strings.py:485
 #, python-brace-format
 msgid "#{rank}: "
 msgstr ""
 
-#: src/gedcom_strings.py:455
+#: src/gedcom_strings.py:486
 msgid "   Tags:"
 msgstr ""
 
-#: src/gedcom_strings.py:456
+#: src/gedcom_strings.py:487
 #, python-brace-format
 msgid "Relationship: {rel}"
 msgstr ""
 
-#: src/gedcom_strings.py:457
+#: src/gedcom_strings.py:488
 msgid "Show relationship graphically"
 msgstr ""
 
-#: src/gedcom_strings.py:458
+#: src/gedcom_strings.py:489
 msgid "Common ancestor: "
 msgstr ""
 
-#: src/gedcom_strings.py:459
+#: src/gedcom_strings.py:490
 msgid "Common ancestors:"
 msgstr ""
 
-#: src/gedcom_strings.py:460
+#: src/gedcom_strings.py:491
 msgid "None found."
 msgstr ""
 
-#: src/gedcom_strings.py:461
+#: src/gedcom_strings.py:492
 msgid "Path:"
 msgstr ""
 
-#: src/gedcom_strings.py:462
+#: src/gedcom_strings.py:493
 msgid "Path to Home Person"
 msgstr ""
 
-#: src/gedcom_strings.py:463
+#: src/gedcom_strings.py:494
 msgid "Home: "
 msgstr ""
 
-#: src/gedcom_strings.py:464
+#: src/gedcom_strings.py:495
 msgid "Calculating path…"
 msgstr ""
 
-#: src/gedcom_strings.py:465
+#: src/gedcom_strings.py:496
 msgid "None found within the current max depth."
 msgstr ""
 
-#: src/gedcom_strings.py:468
+#: src/gedcom_strings.py:499
 msgid "father"
 msgstr ""
 
-#: src/gedcom_strings.py:469
+#: src/gedcom_strings.py:500
 msgid "mother"
 msgstr ""
 
-#: src/gedcom_strings.py:470
+#: src/gedcom_strings.py:501
 msgid "sibling"
 msgstr ""
 
-#: src/gedcom_strings.py:471
+#: src/gedcom_strings.py:502
 msgid "spouse"
 msgstr ""
 
-#: src/gedcom_strings.py:472
+#: src/gedcom_strings.py:503
 msgid "child"
 msgstr ""
 
-#: src/gedcom_strings.py:474
+#: src/gedcom_strings.py:505
 msgid "Relationship Graph"
 msgstr ""
 
-#: src/gedcom_strings.py:475
+#: src/gedcom_strings.py:506
 msgid "Save results"
 msgstr ""
 
-#: src/gedcom_strings.py:476
+#: src/gedcom_strings.py:507
 msgid "Save relationship graph"
 msgstr ""
 
-#: src/gedcom_strings.py:477
+#: src/gedcom_strings.py:508
 msgid "Save graph layout debug data"
 msgstr ""
 
-#: src/gedcom_strings.py:478 src/gedcom_strings.py:482
+#: src/gedcom_strings.py:509 src/gedcom_strings.py:513
 msgid "Show Tree"
 msgstr ""
 
-#: src/gedcom_strings.py:479
+#: src/gedcom_strings.py:510
 msgid "Find Path"
 msgstr ""
 
-#: src/gedcom_strings.py:480
+#: src/gedcom_strings.py:511
 msgid "Copy Name"
 msgstr ""
 
-#: src/gedcom_strings.py:481
+#: src/gedcom_strings.py:512
 msgid "Show Profile"
 msgstr ""
 
-#: src/gedcom_strings.py:485
+#: src/gedcom_strings.py:516
 msgid "Search"
 msgstr ""
 
-#: src/gedcom_strings.py:486
+#: src/gedcom_strings.py:517
 msgid "Jump"
 msgstr ""
 
-#: src/gedcom_strings.py:487
+#: src/gedcom_strings.py:518
 msgid "Debug JSON"
 msgstr ""
 
-#: src/gedcom_strings.py:493
+#: src/gedcom_strings.py:524
 #, python-brace-format
 msgid ""
 "Save graphic ({mod}S)\n"
 "Save this graphical representation to a file."
 msgstr ""
 
-#: src/gedcom_strings.py:500
+#: src/gedcom_strings.py:531
 #, python-brace-format
 msgid ""
 "Copy graphic ({mod}C)\n"
 "Copy this graphical representation to clipboard."
 msgstr ""
 
-#: src/gedcom_strings.py:507
+#: src/gedcom_strings.py:538
 #, python-brace-format
 msgid ""
 "Search ({mod}F)\n"
 "Select a person and make them the center of this graphical view."
 msgstr ""
 
-#: src/gedcom_strings.py:514
+#: src/gedcom_strings.py:545
 #, python-brace-format
 msgid ""
 "Jump ({mod}J)\n"
 "Pan to a person who is already visible in this graph view."
 msgstr ""
 
-#: src/gedcom_strings.py:519
+#: src/gedcom_strings.py:550
 msgid ""
 "Save layout debug JSON (Ctrl+Shift+D)\n"
 "Export graph layout data without person names."
 msgstr ""
 
-#: src/gedcom_strings.py:521
+#: src/gedcom_strings.py:552
 msgid "Show parents"
 msgstr ""
 
-#: src/gedcom_strings.py:522
+#: src/gedcom_strings.py:553
 msgid "Hide parents"
 msgstr ""
 
-#: src/gedcom_strings.py:523
+#: src/gedcom_strings.py:554
 msgid "Show siblings"
 msgstr ""
 
-#: src/gedcom_strings.py:524
+#: src/gedcom_strings.py:555
 msgid "Hide siblings"
 msgstr ""
 
-#: src/gedcom_strings.py:525
+#: src/gedcom_strings.py:556
 msgid "Show spouses"
 msgstr ""
 
-#: src/gedcom_strings.py:526
+#: src/gedcom_strings.py:557
 msgid "Hide spouses"
 msgstr ""
 
-#: src/gedcom_strings.py:527
+#: src/gedcom_strings.py:558
 msgid "Show children"
 msgstr ""
 
-#: src/gedcom_strings.py:528
+#: src/gedcom_strings.py:559
 msgid "Hide children"
 msgstr ""
 
-#: src/gedcom_strings.py:529
+#: src/gedcom_strings.py:560
 msgid "START"
 msgstr ""
 
-#: src/gedcom_strings.py:530
+#: src/gedcom_strings.py:561
 msgid "END"
 msgstr ""
 
-#: src/gedcom_strings.py:535
+#: src/gedcom_strings.py:566
 msgid "Relationship path:"
 msgstr ""
 
-#: src/gedcom_strings.py:536
+#: src/gedcom_strings.py:567
 msgid "  From: "
 msgstr ""
 
-#: src/gedcom_strings.py:537
+#: src/gedcom_strings.py:568
 msgid "  To:   "
 msgstr ""
 
-#: src/gedcom_strings.py:538
+#: src/gedcom_strings.py:569
 msgid "(Same person selected for both.)"
 msgstr ""
 
-#: src/gedcom_strings.py:539
+#: src/gedcom_strings.py:570
 #, python-brace-format
 msgid "No relationship path found within max depth {depth}."
 msgstr ""
 
-#: src/gedcom_strings.py:540
+#: src/gedcom_strings.py:571
 #, python-brace-format
 msgid "Path #{rank}:"
 msgstr ""
 
-#: src/gedcom_strings.py:542
+#: src/gedcom_strings.py:573
 msgid ""
 "(Search cap reached — there may be additional paths. Reduce Max depth to "
 "search a smaller area.)"
 msgstr ""
 
-#: src/gedcom_strings.py:549
+#: src/gedcom_strings.py:580
 msgid "Tag definitions"
 msgstr ""
 
-#: src/gedcom_strings.py:551
+#: src/gedcom_strings.py:582
 msgid ""
 "No _MTTAG records found in the loaded file.\n"
 "\n"
 "(If you haven't loaded a file yet, click Load first.)"
 msgstr ""
 
-#: src/gedcom_strings.py:554
+#: src/gedcom_strings.py:585
 msgid "ID"
 msgstr ""
 
-#: src/gedcom_strings.py:555
+#: src/gedcom_strings.py:586
 msgid "Tag Name"
 msgstr ""
 
-#: src/gedcom_strings.py:556
+#: src/gedcom_strings.py:587
 msgid "OK"
 msgstr ""
 
-#: src/gedcom_strings.py:557
+#: src/gedcom_strings.py:588
 msgid "Cancel"
 msgstr ""
 
-#: src/gedcom_strings.py:562
+#: src/gedcom_strings.py:593
 msgid "Select a Person"
 msgstr ""
 
-#: src/gedcom_strings.py:563
+#: src/gedcom_strings.py:594
 msgid "Select Relationship Target"
 msgstr ""
 
-#: src/gedcom_strings.py:564
+#: src/gedcom_strings.py:595
 msgid "Select"
 msgstr ""
 
-#: src/gedcom_strings.py:569
+#: src/gedcom_strings.py:600
 msgid "Settings"
 msgstr ""
 
-#: src/gedcom_strings.py:569
+#: src/gedcom_strings.py:600
 msgid "Preferences"
 msgstr ""
 
-#: src/gedcom_strings.py:570
+#: src/gedcom_strings.py:601
 msgid "Appearance"
 msgstr ""
 
-#: src/gedcom_strings.py:571
+#: src/gedcom_strings.py:602
 msgid "Font size"
 msgstr ""
 
-#: src/gedcom_strings.py:572
+#: src/gedcom_strings.py:603
 msgid "Small"
 msgstr ""
 
-#: src/gedcom_strings.py:573
+#: src/gedcom_strings.py:604
 msgid "Medium"
 msgstr ""
 
-#: src/gedcom_strings.py:574
+#: src/gedcom_strings.py:605
 msgid "Large"
 msgstr ""
 
-#: src/gedcom_strings.py:575
+#: src/gedcom_strings.py:606
 msgid "Jumbo"
 msgstr ""
 
-#: src/gedcom_strings.py:576
+#: src/gedcom_strings.py:607
 msgid "Theme"
 msgstr ""
 
-#: src/gedcom_strings.py:577
+#: src/gedcom_strings.py:608
 msgid "Hide Tooltips"
 msgstr ""
 
-#: src/gedcom_strings.py:578
+#: src/gedcom_strings.py:609
 msgid "Hide popup explanations like this one."
 msgstr ""
 
-#: src/gedcom_strings.py:579
+#: src/gedcom_strings.py:610
 msgid "Search defaults"
 msgstr ""
 
-#: src/gedcom_strings.py:582
+#: src/gedcom_strings.py:613
 msgid "Fuzzy threshold:"
 msgstr ""
 
-#: src/gedcom_strings.py:583
+#: src/gedcom_strings.py:614
 msgid "Max search results:"
 msgstr ""
 
-#: src/gedcom_strings.py:584
+#: src/gedcom_strings.py:615
 msgid "Display"
 msgstr ""
 
-#: src/gedcom_strings.py:585
+#: src/gedcom_strings.py:616
 msgid "Show GEDCOM IDs"
 msgstr ""
 
-#: src/gedcom_strings.py:587
+#: src/gedcom_strings.py:618
 msgid ""
 "When enabled, the GEDCOM ID for each person is shown in parentheses after"
 " their name. This can help disambiguate people with the same name and "
 "allows you to access the raw IDs for GEDCOM research with other tools."
 msgstr ""
 
-#: src/gedcom_strings.py:591
+#: src/gedcom_strings.py:622
 msgid "Show Full GEDCOM"
 msgstr ""
 
-#: src/gedcom_strings.py:593
+#: src/gedcom_strings.py:624
 msgid ""
 "When enabled, the Full GEDCOM Record section is included at the bottom of"
 " the Profile window, showing the raw GEDCOM data for the person."
 msgstr ""
 
-#: src/gedcom_strings.py:596
+#: src/gedcom_strings.py:627
+msgid "Show Profile Image"
+msgstr ""
+
+#: src/gedcom_strings.py:629
+msgid ""
+"When enabled, profile thumbnails are shown for people with local GEDCOM "
+"media, with generic placeholders used when no local image is available."
+msgstr ""
+
+#: src/gedcom_strings.py:632
 msgid "Name format:"
 msgstr ""
 
-#: src/gedcom_strings.py:597
+#: src/gedcom_strings.py:633
 msgid "First Last"
 msgstr ""
 
-#: src/gedcom_strings.py:598
+#: src/gedcom_strings.py:634
 msgid "Last, First"
 msgstr ""
 
-#: src/gedcom_strings.py:599
+#: src/gedcom_strings.py:635
 msgid "Default display:"
 msgstr ""
 
-#: src/gedcom_strings.py:600
+#: src/gedcom_strings.py:636
 msgid "Default tree:"
 msgstr ""
 
-#: src/gedcom_strings.py:602
+#: src/gedcom_strings.py:638
 msgid "Pedigree"
 msgstr ""
 
-#: src/gedcom_strings.py:603
+#: src/gedcom_strings.py:639
 msgid "Descendants"
 msgstr ""
 
-#: src/gedcom_strings.py:604 src/gedcom_strings.py:683
+#: src/gedcom_strings.py:640 src/gedcom_strings.py:723
 msgid "Cache"
 msgstr ""
 
-#: src/gedcom_strings.py:605
+#: src/gedcom_strings.py:641
 msgid "Clear Cache…"
 msgstr ""
 
-#: src/gedcom_strings.py:606
+#: src/gedcom_strings.py:642
 msgid "Remove all cached GEDCOM data"
 msgstr ""
 
-#: src/gedcom_strings.py:607
+#: src/gedcom_strings.py:643
+msgid "Remove All Data…"
+msgstr ""
+
+#: src/gedcom_strings.py:644
+msgid "Delete all settings and cached data"
+msgstr ""
+
+#: src/gedcom_strings.py:645
 msgid "Language:"
 msgstr ""
 
-#: src/gedcom_strings.py:608
+#: src/gedcom_strings.py:646
 msgid "System Default"
 msgstr ""
 
-#: src/gedcom_strings.py:609
+#: src/gedcom_strings.py:647
 msgid "Language Changed"
 msgstr ""
 
-#: src/gedcom_strings.py:611
+#: src/gedcom_strings.py:649
 #, python-brace-format
 msgid ""
 "Language changed from {old} to {new}. Please restart the application for "
 "the change to take effect."
 msgstr ""
 
-#: src/gedcom_strings.py:617
+#: src/gedcom_strings.py:655
 msgid "Searching"
 msgstr ""
 
-#: src/gedcom_strings.py:619
+#: src/gedcom_strings.py:657
 msgid ""
 "Searching for tagged matches…\n"
 "(reduce 'max depth' setting for faster search)"
 msgstr ""
 
-#: src/gedcom_strings.py:622
+#: src/gedcom_strings.py:660
 msgid ""
 "Finding relationship paths…\n"
 "(reduce 'max depth' setting for faster search)"
 msgstr ""
 
-#: src/gedcom_strings.py:624
+#: src/gedcom_strings.py:662
 msgid "Expanding descendant branches…"
 msgstr ""
 
-#: src/gedcom_strings.py:629
+#: src/gedcom_strings.py:667
 msgid "Loading…"
 msgstr ""
 
-#: src/gedcom_strings.py:630
+#: src/gedcom_strings.py:668
 msgid "Load failed."
 msgstr ""
 
-#: src/gedcom_strings.py:631
+#: src/gedcom_strings.py:669
 #, python-brace-format
 msgid "Loaded {count:,} individuals (from cache)."
 msgstr ""
 
-#: src/gedcom_strings.py:632
+#: src/gedcom_strings.py:670
 #, python-brace-format
 msgid "Loaded {count:,} individuals."
 msgstr ""
 
-#: src/gedcom_strings.py:634
+#: src/gedcom_strings.py:672
 #, python-brace-format
 msgid ""
 "Showing first {max_display:,} of {total_matches:,} matches. Refine your "
 "search.  ({total:,} total, {flagged} tagged)"
 msgstr ""
 
-#: src/gedcom_strings.py:638
+#: src/gedcom_strings.py:676
 #, python-brace-format
 msgid "{shown:,} match{plural} shown.  ({total:,} total, {flagged} tagged)"
 msgstr ""
 
-#: src/gedcom_strings.py:641
+#: src/gedcom_strings.py:679
 #, python-brace-format
 msgid ""
 "{total:,} individuals, {families:,} families, {flagged} tagged.  Type to "
 "search."
 msgstr ""
 
-#: src/gedcom_strings.py:644
+#: src/gedcom_strings.py:682
 #, python-brace-format
 msgid "Home person set: {name}"
 msgstr ""
 
-#: src/gedcom_strings.py:645
+#: src/gedcom_strings.py:683
 msgid "Home person unset"
 msgstr ""
 
-#: src/gedcom_strings.py:650
+#: src/gedcom_strings.py:688
 msgid "No file"
 msgstr ""
 
-#: src/gedcom_strings.py:651
+#: src/gedcom_strings.py:689
 msgid "Please choose a GEDCOM file first."
 msgstr ""
 
-#: src/gedcom_strings.py:652
+#: src/gedcom_strings.py:690
 msgid "Not found"
 msgstr ""
 
-#: src/gedcom_strings.py:653
+#: src/gedcom_strings.py:691
 #, python-brace-format
 msgid ""
 "File not found:\n"
 "{path}"
 msgstr ""
 
-#: src/gedcom_strings.py:654
+#: src/gedcom_strings.py:692
 msgid "ZIP error"
 msgstr ""
 
-#: src/gedcom_strings.py:655
+#: src/gedcom_strings.py:693
 #, python-brace-format
 msgid ""
 "Could not extract GEDCOM from ZIP:\n"
@@ -1339,11 +1420,11 @@ msgid ""
 "{error}"
 msgstr ""
 
-#: src/gedcom_strings.py:656
+#: src/gedcom_strings.py:694
 msgid "Parse error"
 msgstr ""
 
-#: src/gedcom_strings.py:657
+#: src/gedcom_strings.py:695
 #, python-brace-format
 msgid ""
 "Error reading GEDCOM:\n"
@@ -1351,47 +1432,47 @@ msgid ""
 "{error}"
 msgstr ""
 
-#: src/gedcom_strings.py:658
+#: src/gedcom_strings.py:696
 msgid "Encoding warning"
 msgstr ""
 
-#: src/gedcom_strings.py:659
+#: src/gedcom_strings.py:697
 msgid "No data"
 msgstr ""
 
-#: src/gedcom_strings.py:660
+#: src/gedcom_strings.py:698
 msgid "Load a GEDCOM file first."
 msgstr ""
 
-#: src/gedcom_strings.py:661
+#: src/gedcom_strings.py:699
 msgid "No selection"
 msgstr ""
 
-#: src/gedcom_strings.py:662
+#: src/gedcom_strings.py:700
 msgid "Select a person from the list first."
 msgstr ""
 
-#: src/gedcom_strings.py:663
+#: src/gedcom_strings.py:701
 msgid "Bad value"
 msgstr ""
 
-#: src/gedcom_strings.py:664
+#: src/gedcom_strings.py:702
 msgid "Results and Max Depth must be integers."
 msgstr ""
 
-#: src/gedcom_strings.py:665
+#: src/gedcom_strings.py:703
 msgid "Max Depth must be an integer."
 msgstr ""
 
-#: src/gedcom_strings.py:666
+#: src/gedcom_strings.py:704
 msgid "Select a starting person from the main list first."
 msgstr ""
 
-#: src/gedcom_strings.py:667
+#: src/gedcom_strings.py:705
 msgid "File not found"
 msgstr ""
 
-#: src/gedcom_strings.py:668
+#: src/gedcom_strings.py:706
 #, python-brace-format
 msgid ""
 "Could not open:\n"
@@ -1400,11 +1481,11 @@ msgid ""
 "{error}"
 msgstr ""
 
-#: src/gedcom_strings.py:669
+#: src/gedcom_strings.py:707
 msgid "Save error"
 msgstr ""
 
-#: src/gedcom_strings.py:670
+#: src/gedcom_strings.py:708
 #, python-brace-format
 msgid ""
 "Could not save relationship graph:\n"
@@ -1412,11 +1493,11 @@ msgid ""
 "{error}"
 msgstr ""
 
-#: src/gedcom_strings.py:671
+#: src/gedcom_strings.py:709
 msgid "Copy error"
 msgstr ""
 
-#: src/gedcom_strings.py:672
+#: src/gedcom_strings.py:710
 #, python-brace-format
 msgid ""
 "Could not copy relationship graph:\n"
@@ -1424,7 +1505,23 @@ msgid ""
 "{error}"
 msgstr ""
 
-#: src/gedcom_strings.py:673
+#: src/gedcom_strings.py:711
+#, python-brace-format
+msgid ""
+"Could not save profile image:\n"
+"\n"
+"{error}"
+msgstr ""
+
+#: src/gedcom_strings.py:712
+#, python-brace-format
+msgid ""
+"Could not copy profile image:\n"
+"\n"
+"{error}"
+msgstr ""
+
+#: src/gedcom_strings.py:713
 #, python-brace-format
 msgid ""
 "Could not save graph layout debug data:\n"
@@ -1432,7 +1529,7 @@ msgid ""
 "{error}"
 msgstr ""
 
-#: src/gedcom_strings.py:674
+#: src/gedcom_strings.py:714
 #, python-brace-format
 msgid ""
 "Could not save results:\n"
@@ -1440,7 +1537,7 @@ msgid ""
 "{error}"
 msgstr ""
 
-#: src/gedcom_strings.py:675
+#: src/gedcom_strings.py:715
 #, python-brace-format
 msgid ""
 "Could not save profile:\n"
@@ -1448,7 +1545,7 @@ msgid ""
 "{error}"
 msgstr ""
 
-#: src/gedcom_strings.py:677
+#: src/gedcom_strings.py:717
 #, python-brace-format
 msgid ""
 "GEDCOM file not found:\n"
@@ -1457,15 +1554,15 @@ msgid ""
 "Use Browse… to choose a different file."
 msgstr ""
 
-#: src/gedcom_strings.py:684
+#: src/gedcom_strings.py:724
 msgid "No cache files found."
 msgstr ""
 
-#: src/gedcom_strings.py:685
+#: src/gedcom_strings.py:725
 msgid "Clear cache"
 msgstr ""
 
-#: src/gedcom_strings.py:687
+#: src/gedcom_strings.py:727
 #, python-brace-format
 msgid ""
 "Delete {count} cached file(s)?\n"
@@ -1474,161 +1571,203 @@ msgid ""
 "your GEDCOM files."
 msgstr ""
 
-#: src/gedcom_strings.py:691
+#: src/gedcom_strings.py:731
 msgid "Cache cleared"
 msgstr ""
 
-#: src/gedcom_strings.py:692
+#: src/gedcom_strings.py:732
 #, python-brace-format
 msgid "{deleted} file(s) deleted."
 msgstr ""
 
-#: src/gedcom_strings.py:697
+#: src/gedcom_strings.py:734
+msgid "Remove all data"
+msgstr ""
+
+#: src/gedcom_strings.py:736
+#, python-brace-format
+msgid ""
+"This will permanently delete all GEDCOM Navigator data, including your "
+"settings, preferences, recent file list, and cached records, from:\n"
+"\n"
+"{path}\n"
+"\n"
+"Your GEDCOM files themselves are not affected. The application will close"
+" afterward.\n"
+"\n"
+"Continue?"
+msgstr ""
+
+#: src/gedcom_strings.py:742
+msgid "No application data was found to remove."
+msgstr ""
+
+#: src/gedcom_strings.py:743
+msgid "Data removed"
+msgstr ""
+
+#: src/gedcom_strings.py:745
+msgid "All application data has been removed. GEDCOM Navigator will now close."
+msgstr ""
+
+#: src/gedcom_strings.py:747
+msgid "Could not remove data"
+msgstr ""
+
+#: src/gedcom_strings.py:748
+#, python-brace-format
+msgid ""
+"Some data could not be removed:\n"
+"\n"
+"{error}"
+msgstr ""
+
+#: src/gedcom_strings.py:753
 msgid "How to Use"
 msgstr ""
 
-#: src/gedcom_strings.py:698 src/gedcom_strings.py:792
+#: src/gedcom_strings.py:754 src/gedcom_strings.py:848
 msgid "Keyboard Shortcuts"
 msgstr ""
 
-#: src/gedcom_strings.py:701
+#: src/gedcom_strings.py:757
 msgid "Checking for Updates"
 msgstr ""
 
-#: src/gedcom_strings.py:702
+#: src/gedcom_strings.py:758
 msgid "Update Available"
 msgstr ""
 
-#: src/gedcom_strings.py:707
+#: src/gedcom_strings.py:763
 msgid "Welcome to GEDCOM Navigator"
 msgstr ""
 
-#: src/gedcom_strings.py:708
+#: src/gedcom_strings.py:764
 msgid "Show this window next time"
 msgstr ""
 
-#: src/gedcom_strings.py:710
+#: src/gedcom_strings.py:766
 msgid "Next"
 msgstr ""
 
-#: src/gedcom_strings.py:711
+#: src/gedcom_strings.py:767
 msgid "Back"
 msgstr ""
 
-#: src/gedcom_strings.py:712
+#: src/gedcom_strings.py:768
 msgid "Skip"
 msgstr ""
 
-#: src/gedcom_strings.py:713
+#: src/gedcom_strings.py:769
 msgid "Finish"
 msgstr ""
 
-#: src/gedcom_strings.py:717
+#: src/gedcom_strings.py:773
 msgid "People list"
 msgstr ""
 
-#: src/gedcom_strings.py:719
+#: src/gedcom_strings.py:775
 msgid ""
 "Everyone in your GEDCOM file appears here. Select a person to view their "
 "profile, find tag matches (such as DNA), or trace relationship paths."
 msgstr ""
 
-#: src/gedcom_strings.py:722
+#: src/gedcom_strings.py:778
 msgid "Results pane"
 msgstr ""
 
-#: src/gedcom_strings.py:724
+#: src/gedcom_strings.py:780
 msgid ""
 "Profiles, tag matches (such as DNA), and relationship paths are shown "
 "here. Names and relationship descriptions in this pane are clickable."
 msgstr ""
 
-#: src/gedcom_strings.py:727
+#: src/gedcom_strings.py:783
 msgid "Status bar"
 msgstr ""
 
-#: src/gedcom_strings.py:729
+#: src/gedcom_strings.py:785
 msgid ""
 "Shows the loaded file and progress, and holds the Save and Copy buttons "
 "for the current results."
 msgstr ""
 
-#: src/gedcom_strings.py:732
+#: src/gedcom_strings.py:788
 msgid "Clickable names"
 msgstr ""
 
-#: src/gedcom_strings.py:734
+#: src/gedcom_strings.py:790
 msgid ""
 "Click any person's name in the results to jump to their profile. Use the "
 "Back and Forward keyboard shortcuts (Alt-Left and Alt-Right) to retrace "
 "your steps."
 msgstr ""
 
-#: src/gedcom_strings.py:737
+#: src/gedcom_strings.py:793
 msgid "Clickable relationships"
 msgstr ""
 
-#: src/gedcom_strings.py:739
+#: src/gedcom_strings.py:795
 msgid ""
 "Click an underlined relationship description to open it as a relationship"
 " graph showing how the two people are connected."
 msgstr ""
 
-#: src/gedcom_strings.py:742
+#: src/gedcom_strings.py:798
 msgid "Display modes"
 msgstr ""
 
-#: src/gedcom_strings.py:744
+#: src/gedcom_strings.py:800
 msgid ""
 "Switch the right pane between Profile, Tag Matches (e.g. DNA Tags), and "
 "Relationship Paths for the selected person. Selecting 'Paths' will prompt"
 " you to choose another person to find paths to."
 msgstr ""
 
-#: src/gedcom_strings.py:748
+#: src/gedcom_strings.py:804
 msgid "Match tag settings"
 msgstr ""
 
-#: src/gedcom_strings.py:750
+#: src/gedcom_strings.py:806
 msgid ""
 "In Matches mode, set the tag keyword and page marker that identify tagged"
 " people (e.g. 'DNA'), or pick an existing tag from your file."
 msgstr ""
 
-#: src/gedcom_strings.py:753
+#: src/gedcom_strings.py:809
 msgid "Tree View menu"
 msgstr ""
 
-#: src/gedcom_strings.py:755
+#: src/gedcom_strings.py:811
 #, python-brace-format
 msgid ""
 "Right-click (or click) any person in the tree view for quick actions: "
 "{items}."
 msgstr ""
 
-#: src/gedcom_strings.py:758
+#: src/gedcom_strings.py:814
 msgid ""
 "A sample family tree has been loaded so you can try these features. It "
 "will be unloaded when the walkthrough ends."
 msgstr ""
 
-#: src/gedcom_strings.py:762
+#: src/gedcom_strings.py:818
 msgid "Shortcut"
 msgstr ""
 
-#: src/gedcom_strings.py:763
+#: src/gedcom_strings.py:819
 msgid "Action"
 msgstr ""
 
-#: src/gedcom_strings.py:765
+#: src/gedcom_strings.py:821
 msgid "Checking GitHub for the latest release…"
 msgstr ""
 
-#: src/gedcom_strings.py:766
+#: src/gedcom_strings.py:822
 msgid "Update check failed"
 msgstr ""
 
-#: src/gedcom_strings.py:767
+#: src/gedcom_strings.py:823
 #, python-brace-format
 msgid ""
 "Could not check for updates right now.\n"
@@ -1636,126 +1775,130 @@ msgid ""
 "{error}"
 msgstr ""
 
-#: src/gedcom_strings.py:768
+#: src/gedcom_strings.py:824
 msgid "No update available"
 msgstr ""
 
-#: src/gedcom_strings.py:769
+#: src/gedcom_strings.py:825
 #, python-brace-format
 msgid "You are running the latest version ({current})."
 msgstr ""
 
-#: src/gedcom_strings.py:770
+#: src/gedcom_strings.py:826
 msgid "A newer version is available."
 msgstr ""
 
-#: src/gedcom_strings.py:771
+#: src/gedcom_strings.py:827
 #, python-brace-format
 msgid "Installed version: {current}"
 msgstr ""
 
-#: src/gedcom_strings.py:772
+#: src/gedcom_strings.py:828
 #, python-brace-format
 msgid "Latest version: {latest}"
 msgstr ""
 
-#: src/gedcom_strings.py:773
+#: src/gedcom_strings.py:829
 msgid "Download the latest release from GitHub:"
 msgstr ""
 
-#: src/gedcom_strings.py:774
+#: src/gedcom_strings.py:830
 msgid "Open GitHub Releases"
 msgstr ""
 
-#: src/gedcom_strings.py:779
+#: src/gedcom_strings.py:835
 msgid "Set as Default"
 msgstr ""
 
-#: src/gedcom_strings.py:781
+#: src/gedcom_strings.py:837
 msgid "Would you like GEDCOM Navigator to open .ged files by default?"
 msgstr ""
 
-#: src/gedcom_strings.py:783
+#: src/gedcom_strings.py:839
 msgid "Could Not Set Default"
 msgstr ""
 
-#: src/gedcom_strings.py:785
+#: src/gedcom_strings.py:841
 msgid "GEDCOM Navigator could not register as the default .ged handler."
 msgstr ""
 
-#: src/gedcom_strings.py:793
+#: src/gedcom_strings.py:849
 msgid "Open Preferences"
 msgstr ""
 
-#: src/gedcom_strings.py:794
+#: src/gedcom_strings.py:850
 msgid "Find Person"
 msgstr ""
 
-#: src/gedcom_strings.py:795
+#: src/gedcom_strings.py:851
 msgid "Filter Results"
 msgstr ""
 
-#: src/gedcom_strings.py:796
+#: src/gedcom_strings.py:852
 msgid "Toggle the tagged filter"
 msgstr ""
 
-#: src/gedcom_strings.py:797
+#: src/gedcom_strings.py:853
 msgid "Toggle fuzzy search mode"
 msgstr ""
 
-#: src/gedcom_strings.py:798
+#: src/gedcom_strings.py:854
 msgid "Toggle married-name search mode"
 msgstr ""
 
-#: src/gedcom_strings.py:799
+#: src/gedcom_strings.py:855
 msgid "Open a new GEDCOM file"
 msgstr ""
 
-#: src/gedcom_strings.py:800
+#: src/gedcom_strings.py:856
 msgid "Switch the Display Pane to Matches"
 msgstr ""
 
-#: src/gedcom_strings.py:801
+#: src/gedcom_strings.py:857
 msgid "Open Tree View for selected person"
 msgstr ""
 
-#: src/gedcom_strings.py:802
+#: src/gedcom_strings.py:858
+msgid "Open the selected person's image gallery"
+msgstr ""
+
+#: src/gedcom_strings.py:859
 msgid "Set or unset the selected person as Home person"
 msgstr ""
 
-#: src/gedcom_strings.py:803
+#: src/gedcom_strings.py:860
 msgid "Switch the Display Pane to Paths"
 msgstr ""
 
-#: src/gedcom_strings.py:804
+#: src/gedcom_strings.py:861
 msgid "Select new tag for finding relationship paths"
 msgstr ""
 
-#: src/gedcom_strings.py:805
+#: src/gedcom_strings.py:862
 msgid "Reverse/restore the direction of all relationship paths"
 msgstr ""
 
-#: src/gedcom_strings.py:806
+#: src/gedcom_strings.py:863
 msgid "Save results to a text file"
 msgstr ""
 
-#: src/gedcom_strings.py:807
+#: src/gedcom_strings.py:864
 msgid "Copy result to clipboard"
 msgstr ""
 
-#: src/gedcom_strings.py:808
+#: src/gedcom_strings.py:865
 msgid "Go back to the previous view"
 msgstr ""
 
-#: src/gedcom_strings.py:809
+#: src/gedcom_strings.py:866
 msgid "Go forward to the next view"
 msgstr ""
 
-#: src/gedcom_strings.py:810
+#: src/gedcom_strings.py:867
 msgid "Zoom the focused text or graph view"
 msgstr ""
 
-#: src/gedcom_strings.py:811
+#: src/gedcom_strings.py:868
 msgid "Reset zoom in the focused text or graph view"
 msgstr ""
 
