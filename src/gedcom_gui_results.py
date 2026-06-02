@@ -365,7 +365,6 @@ class ResultsMixin(GraphRenderMixin, GraphLayoutMixin):
         if not results:
             nl(gs.RESULT_NO_DNA_FOUND)
         else:
-            hr()
             if self._results_reversed:
                 for rank, (_, path) in enumerate(results, 1):
                     match_id = path[-1][0]
