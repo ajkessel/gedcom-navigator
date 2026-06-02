@@ -4,6 +4,18 @@
 
 The file contains 1000 people, multiple remarriages, multi-child families, two cross-branch marriages, and 50 DNA-flagged people split between `_MTTAG` records and Ancestry-style `PAGE` markers. All names, places, and relationships are synthetic.
 
+Every person is given a profile photo via a person-level `OBJE`/`FILE` record pointing into `media/`. The portraits are a fixed pool of 36 illustrated faces assigned round-robin by person number, so the Profile and Graph views show images out of the box. Open `fictional_genealogy.ged` directly (with `media/` alongside it) to see the photos.
+
+## Image credit
+
+The faces in `media/` are **Open Peeps** by Pablo Stanley, generated with [DiceBear](https://www.dicebear.com/styles/open-peeps/). They depict no real people and are dedicated to the public domain under **CC0 1.0** — no attribution required. Regenerate or expand the pool with:
+
+```bash
+for i in $(seq 1 36); do n=$(printf "%02d" $i); \
+  curl -s "https://api.dicebear.com/9.x/open-peeps/png?seed=navigator-peep-${n}&size=256" \
+  -o "samples/media/peep_${n}.png"; done
+```
+
 Stable anchor records:
 
 - `@I1@` - Maya Lynn Hart, the home-person example.

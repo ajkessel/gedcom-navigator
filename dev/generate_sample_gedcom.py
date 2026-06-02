@@ -19,6 +19,16 @@ DNA_TARGET = 50
 DNA_TAG_ID = "@T1@"
 SOURCE_ID = "@S1@"
 
+# Bundled CC0 profile faces (Open Peeps by Pablo Stanley, generated via DiceBear,
+# https://www.dicebear.com/styles/open-peeps/). The pool lives next to the sample
+# in a "media/" folder; every individual is assigned one round-robin by person
+# number so sequential siblings and spouses get visually distinct portraits.
+FACE_DIR = "media"
+FACE_COUNT = 36
+
+def face_file_for(person_number: int) -> str:
+    return f"{FACE_DIR}/peep_{(person_number - 1) % FACE_COUNT + 1:02d}.png"
+
 MONTHS = [
     "JAN",
     "FEB",
@@ -981,6 +991,14 @@ def write_gedcom(tree: SampleTree, output: Path) -> None:
                     f"2 PLAC {PLACES[(num + 3) % len(PLACES)]}",
                 ]
             )
+        lines.extend(
+            [
+                "1 OBJE",
+                f"2 FILE {face_file_for(num)}",
+                "2 FORM png",
+                "2 _PRIM Y",
+            ]
+        )
         for note in person.notes:
             lines.append(f"1 NOTE {note}")
         for famc in person.famc:
@@ -1025,8 +1043,11 @@ def write_gedcom(tree: SampleTree, output: Path) -> None:
 
 def zip_gedcom(output: Path) -> None:
     zip_path = Path(str(output).replace(".ged", ".zip"))
+    media_dir = output.parent / FACE_DIR
     with ZipFile(zip_path, mode="w", compression=ZIP_DEFLATED) as zf:
         zf.write(output, arcname=output.name)
+        for face in sorted(media_dir.glob("peep_*.png")):
+            zf.write(face, arcname=f"{FACE_DIR}/{face.name}")
 
 
 def generate(output: Path) -> None:
