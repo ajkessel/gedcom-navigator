@@ -51,9 +51,15 @@ Many genealogists working with autosomal DNA add unfamiliar people to their fami
 
 Ancestry, Family Tree Maker, and other standard GEDCOM viewers show you a flat list of everyone you've tagged as a DNA match, but none of them will, given an arbitrary person in the tree, walk outward through the relationship graph and tell you the nearest tagged relative. That is the main purpose of this tool.
 
+![Tag Matches](https://raw.githubusercontent.com/ajkessel/gedcom-navigator/main/docs/screenshots/appstore/screenshot_02_matches.png)
+
 You can also use this tool to find multiple paths between any two people in your tree and also view individual records from your tree. For example, if your grandfather's maternal cousin married your grandfather's paternal cousin, you will have multiple paths to their descendants. Most applications only show one path; this tool can find as many paths as you like. If you set the application to cast a wide net by setting the "max depth" to a high value, you can discover unexpected links between your relatives. This will take longer to process in a large tree but can yield interesting information.
 
+![Relationship Paths](https://raw.githubusercontent.com/ajkessel/gedcom-navigator/main/docs/screenshots/appstore/screenshot_03_paths.png)
+
 Any relationship description can be clicked to see a graphical representation of that relationship, which you can then copy and use as you like.
+
+![Graphical Relationship Path](https://raw.githubusercontent.com/ajkessel/gedcom-navigator/main/docs/screenshots/appstore/screenshot_04_graph_only.png)
 
 When GEDCOM parentage metadata identifies step, adopted, foster, or half-sibling relationships, the Profile view labels those relatives and graph views distinguish them with alternate line styles. Ordinary biological/default relatives are shown without a "biological" qualifier.
 
