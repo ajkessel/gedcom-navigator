@@ -23,6 +23,7 @@ gedcom_navigator/icons/
 dev/old/
 dev/gedcom-navigator.provisionprofile
 *.ged
+*.iss
 !samples/
 !samples/*.ged
 ?.json
