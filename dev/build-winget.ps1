@@ -43,6 +43,16 @@ if ( Test-Path -Path "..\winget-pkgs" ) {
    git switch $fourDigitVersion 
    $null = New-Item -ItemType Directory -Path "$fourDigitVersion" -Force
    $null = Copy-Item -Path "$PSScriptRoot/../dist/*.yaml" -Destination "$fourDigitVersion" -Force
+   if ( -not ( winget validate --manifest "$fourDigitVersion" ) ) {
+     Write-Error "Validation failed, exiting."
+     exit 1
+   }
+   Write-Output "Validation successful."
+   if ( -not ( winget install --manifest "$fourDigitVersion" ) ) {
+     Write-Error "Installation failed, exiting."
+     exit 1
+   }
+   Write-Output "Install successful."
    git add $fourDigitVersion/*.yaml
    git commit -m "Update Winget manifests for version $fourDigitVersion"
    git push --set-upstream origin $fourDigitVersion
