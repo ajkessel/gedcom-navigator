@@ -1101,6 +1101,21 @@ class PersonDialogMixin:
         except tk.TclError:
             return False
 
+    @staticmethod
+    def _raise_profile_thumbnail(text):
+        """Keep the placed profile thumbnail above the text contents."""
+        label = getattr(text, '_profile_image_label', None)
+        if label is None:
+            return
+        try:
+            label.lift()
+        except tk.TclError:
+            return
+        try:
+            label.after_idle(label.lift)
+        except tk.TclError:
+            pass
+
     def _place_profile_thumbnail(self, text, indi_id):
         """Place a top-right thumbnail over a profile textbox."""
         self._clear_profile_thumbnail(text)
@@ -1138,6 +1153,15 @@ class PersonDialogMixin:
             label.place(relx=1.0, x=-pad, y=pad, anchor='ne')
         except tk.TclError:
             return None
+        self._raise_profile_thumbnail(text)
+        try:
+            text._textbox.bind(
+                '<Configure>',
+                lambda _event: self._raise_profile_thumbnail(text),
+                add='+',
+            )
+        except tk.TclError:
+            pass
         return {
             'width': payload['image'].width(),
             'height': payload['image'].height(),
@@ -1160,6 +1184,7 @@ class PersonDialogMixin:
             'profile_image_wrap', rmargin=reserved_w)
         text._textbox.tag_add(
             'profile_image_wrap', '1.0', f'{line_count + 1}.0')
+        self._raise_profile_thumbnail(text)
 
     def _default_tree_view_mode(self):
         """Return the configured initial tree view for person detail windows."""
