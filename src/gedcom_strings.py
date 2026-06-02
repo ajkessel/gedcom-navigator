@@ -480,7 +480,6 @@ GRAPH_LEGEND_HALF = _("half sibling")
 # ---------------------------------------------------------------------------
 # DNA match results display
 # ---------------------------------------------------------------------------
-RESULT_CLOSEST_MATCHES = _("Closest Tagged Matches")
 RESULT_DNA_FLAGGED_NOTE = _("  Note: this person has a matching tag.")
 RESULT_NO_DNA_FOUND = _("No tagged relatives found within the search depth.")
 RESULT_RANK_PREFIX = _("#{rank}: ")
