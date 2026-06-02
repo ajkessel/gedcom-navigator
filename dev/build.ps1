@@ -14,8 +14,10 @@ try {
     if ( Test-Path -Path '.env' ) {
         Get-Content .env | ForEach-Object {
             if ($_ -and $_ -notmatch '^\s*#') {
-                $name, $value = $_.split('=')
-                Set-Content env:\$name $value
+                $name, $value = $_ -split '=', 2          # split on first '=' only
+                $name = $name.Trim()
+                $value = $value.Trim().Trim('"').Trim("'")  # drop whitespace and surrounding quotes
+                Set-Item -Path env:\$name -Value $value
             }
         }
     }
@@ -176,14 +178,7 @@ try {
         # TODO convert to AzureSignTool [dotnet tool install --global AzureSignTool]
         $dlibSearch = Get-ChildItem -Path "$env:LOCALAPPDATA\Microsoft.ArtifactSigning.Client" -Filter "Azure.CodeSigning.Dlib.dll" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
         if ( (Test-Path $trustedSigningMetadata) -and $dlibSearch -and (Test-Path $SignTool) ) {
-            Write-Output "Signing with Azure Trusted Signing..."
-            $acct = az account show --query id -o tsv 2>$null
-            if ($acct) {
-                Write-Output "Already logged in to Azure CLI with account $acct."
-            }
-            else {
-                az login --only-show-errors 
-            }
+            Write-Output "Signing with Azure Trusted Signing (service principal via AZURE_* env vars)..."
             foreach ($f in $filesToSign) {
                 if (Test-Path $f) {
                     Write-Output "Signing $f ..."
