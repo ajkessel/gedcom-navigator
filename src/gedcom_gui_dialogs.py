@@ -885,10 +885,16 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
                      font=ctk.CTkFont(weight='bold')).pack(
             anchor='nw', padx=12, pady=(8, 4))
         cache_frame = ctk.CTkFrame(cache_section, fg_color='transparent')
-        cache_frame.pack(fill='x', padx=12, pady=(0, 10))
-        ctk.CTkButton(cache_frame, text=BTN_CLEAR_CACHE,
+        cache_frame.pack(fill='x', padx=12, pady=(0, 6))
+        ctk.CTkButton(cache_frame, text=BTN_CLEAR_CACHE, width=150,
                       command=self._clear_cache).pack(side='left')
         ctk.CTkLabel(cache_frame, text=LBL_CACHE_NOTE).pack(
+            side='left', padx=(10, 0))
+        data_frame = ctk.CTkFrame(cache_section, fg_color='transparent')
+        data_frame.pack(fill='x', padx=12, pady=(0, 10))
+        ctk.CTkButton(data_frame, text=BTN_REMOVE_ALL_DATA, width=150,
+                      command=self._remove_all_data).pack(side='left')
+        ctk.CTkLabel(data_frame, text=LBL_REMOVE_ALL_DATA_NOTE).pack(
             side='left', padx=(10, 0))
 
         # Buttons

@@ -1,5 +1,28 @@
 # Changelog
 
+## [1.9.13] - 2026-06-02
+
+### Added
+
+- **Remove all data** — new option to remove all locally stored data, including settings and cached images
+
+### Changed
+
+- **Streamlined results pane heading** — removed the redundant "Closest Tagged Matches" header (and the rule beneath it) from the search results so the closest-match list begins directly under the starting person's details.
+
+### Fixed
+
+- **Family-tree column placement no longer fails on edge cases** — `_nearest_unblocked_column` could raise on a `min()` over an empty sequence when accumulated floating-point error in the column math tipped every candidate's boundary distance a hair under `MIN_COLUMN_SPACING`. The layout now falls back to placing the box clear of the whole cluster instead.
+- **Profile thumbnail stays in front** — the top-right profile photo thumbnail in the Profile View is now kept lifted above the text contents (on placement, on textbox `<Configure>`, and after redraws) so it no longer slips behind the profile text.
+- **Gallery and image-preview windows reliably come to the front on Windows** — the Image Gallery and the full-size image preview used a bare `lift()` (gallery) or `lift()` + `focus_force()` (preview) to raise themselves, neither of which reliably foregrounds a window on Windows, where the OS blocks background windows from stealing focus. Both now use the shared `_raise_window` helper (already used by the path-graph and Profile View windows), which briefly toggles `-topmost` and retries after the window has rendered, so they consistently appear in front with keyboard focus.
+- **Large full-size images no longer run off the bottom of the screen** — opening a tall image from the gallery centered the preview on its parent without accounting for the window manager's title bar and borders, so a near-full-height window's bottom (and its button row) could extend past the bottom of the screen. The preview is now clamped to the screen and, once realized, nudged up by any remaining decorated-bottom overflow so the whole window — including the Copy/Save controls — stays visible.
+
+### Packaging
+
+- **Improved Uninstall** — uninstalling from Windows offers to delete application data.
+- **Sample tree now ships with images** — the bundled `samples/fictional_genealogy.ged` includes person images, and `samples/media` is now packaged into the executable so the sample profile photos and galleries render in distributed builds.
+- **Sample tree now includes life events** — the synthetic sample generator adds a handful of timeline facts (education, occupation, residence, and a mid-life career change or relocation) to each person at life-stage-appropriate ages, so the Profile View's Facts & Events section is illustrated out of the box. Events are skipped for anyone too young or no longer living for them, and existing relationships are unchanged.
+
 ## [1.9.12] - 2026-06-01
 
 ### Added

@@ -446,7 +446,7 @@ class PersonDialogMixin:
             label = ctk.CTkLabel(outer, text=PROFILE_IMAGE_GALLERY_EMPTY)
             label.pack(fill='both', expand=True, padx=24, pady=24)
             win.geometry(self._clamped_toplevel_geometry(parent, 360, 160))
-            win.lift()
+            self._raise_window(win)
             return
 
         scroll = ctk.CTkScrollableFrame(outer, fg_color='transparent')
@@ -491,7 +491,7 @@ class PersonDialogMixin:
         win_h = min(int(screen_h * 0.78), max(260, rows * (size[1] + 70) + 48))
         win.geometry(self._clamped_toplevel_geometry(parent, win_w, win_h))
         win.minsize(min(win_w, 360), min(win_h, 220))
-        win.lift()
+        self._raise_window(win)
 
     @staticmethod
     def _clamped_toplevel_geometry(parent, width, height, margin=24):
@@ -518,6 +518,36 @@ class PersonDialogMixin:
         x = max(margin if max_x else 0, min(x, max_x))
         y = max(margin if max_y else 0, min(y, max_y))
         return f'{width}x{height}+{int(x)}+{int(y)}'
+
+    @staticmethod
+    def _nudge_toplevel_onscreen(win, margin=24):
+        """Shift an already-mapped toplevel up so its bottom stays on-screen.
+
+        Geometry coordinates address the window frame's origin, but the window
+        manager's title bar and borders extend below the content area and are
+        not accounted for by size-based placement math. This measures the real
+        decorated bottom edge (``winfo_rooty() + winfo_height()``) and, if it
+        runs past the screen, shifts the frame up by the overflow. Called after
+        the window is realized so the decoration sizes are known.
+        """
+        try:
+            if not win.winfo_exists():
+                return
+            win.update_idletasks()
+            screen_h = win.winfo_screenheight()
+            frame_y = win.winfo_y()
+            client_bottom = win.winfo_rooty() + win.winfo_height()
+        except tk.TclError:
+            return
+        overflow = client_bottom - (screen_h - margin)
+        if overflow <= 0:
+            return
+        new_y = max(margin, frame_y - overflow)
+        if new_y != frame_y:
+            try:
+                win.geometry(f'+{win.winfo_x()}+{int(new_y)}')
+            except tk.TclError:
+                pass
 
     @staticmethod
     def _profile_image_navigation_state(image_path, gallery_paths):
@@ -1020,9 +1050,9 @@ class PersonDialogMixin:
 
         def _focus_preview():
             try:
-                win.lift()
-                win.focus_force()
-                canvas.focus_set()
+                if win.winfo_exists():
+                    self._raise_window(win)
+                    canvas.focus_set()
             except tk.TclError:
                 pass
 
@@ -1055,23 +1085,15 @@ class PersonDialogMixin:
             win_w, win_h, min_w, min_h = self._profile_preview_window_dimensions(
                 base_size[0], base_size[1], max_w, max_h, button_w,
                 button_h)
-            win.geometry(f'{win_w}x{win_h}')
             win.minsize(min_w, min_h)
-            try:
-                parent.update_idletasks()
-                px = parent.winfo_rootx()
-                py = parent.winfo_rooty()
-                pw = parent.winfo_width()
-                ph = parent.winfo_height()
-                x = px + max(0, (pw - win_w) // 2)
-                y = py + max(0, (ph - win_h) // 2)
-            except tk.TclError:
-                x = max(0, (screen_w - win_w) // 2)
-                y = max(0, (screen_h - win_h) // 2)
-            win.geometry(f'{win_w}x{win_h}+{x}+{y}')
-            win.deiconify()
+            # Center on the parent but clamp to the screen so a large image
+            # window's bottom (or right) edge never runs past the screen edge.
+            win.geometry(self._clamped_toplevel_geometry(parent, win_w, win_h))
             _focus_preview()
-            win.after(80, _focus_preview)
+            # The clamp above works on content size; correct for the window
+            # manager's title bar/borders once the window is realized so the
+            # decorated bottom edge stays on-screen.
+            win.after_idle(lambda: self._nudge_toplevel_onscreen(win))
 
         win.after_idle(_render)
 

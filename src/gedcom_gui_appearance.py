@@ -130,6 +130,34 @@ class AppearanceMixin:
             messagebox.showinfo(
                 CACHE_DONE_TITLE, CACHE_DONE_MSG.format(deleted=deleted))
 
+    def _remove_all_data(self):
+        """Confirm and delete all settings and cached data, then close the app.
+
+        Removes the entire per-user config directory (settings.json plus the
+        cache/ subfolder).  The app is closed afterward so in-memory settings
+        are not re-persisted on quit.
+        """
+        import shutil
+        data_dir = self._config._path.parent
+        if not data_dir.exists():
+            messagebox.showinfo(DATA_REMOVE_TITLE, DATA_REMOVE_NONE_MSG)
+            return
+        if not messagebox.askyesno(
+            DATA_REMOVE_TITLE,
+            DATA_REMOVE_MSG.format(path=data_dir),
+        ):
+            return
+        try:
+            shutil.rmtree(data_dir)
+        except OSError as exc:
+            log_exception(f"removing all data from {data_dir!r}")
+            messagebox.showerror(
+                DATA_REMOVE_FAIL_TITLE,
+                DATA_REMOVE_FAIL_MSG.format(error=exc))
+            return
+        messagebox.showinfo(DATA_REMOVE_DONE_TITLE, DATA_REMOVE_DONE_MSG)
+        self.root.quit()
+
     def _load_home_person(self, gedcom_path):
         """Load the saved home person ID for gedcom_path."""
         return self._config.get_home_person(gedcom_path)
