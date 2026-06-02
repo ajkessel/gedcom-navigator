@@ -12,9 +12,13 @@ try {
     Write-Output("Starting build process for Windows...")
     Get-Date
     if ( Test-Path -Path '.env' ) {
-        Get-Content .env | ForEach-Object { 
-            $name, $value = $_.split('=')
-            Set-Content env:\$name $value
+        Get-Content .env | ForEach-Object {
+            if ($_ -and $_ -notmatch '^\s*#') {
+                $name, $value = $_ -split '=', 2          # split on first '=' only
+                $name = $name.Trim()
+                $value = $value.Trim().Trim('"').Trim("'")  # drop whitespace and surrounding quotes
+                Set-Item -Path env:\$name -Value $value
+            }
         }
     }
     $searchPaths = ($env:ProgramData + "\miniforge3\scripts\"), ($env:localappdata + "\miniconda3\scripts\"), ($env:appdata + "\miniconda3\scripts\")
@@ -172,15 +176,23 @@ try {
         # Azure.CodeSigning.Dlib.dll can be installed via this PowerShell command:
         # nuget.exe install Microsoft.ArtifactSigning.Client -x -OutputDirectory "$env:LOCALAPPDATA\Microsoft.ArtifactSigning.Client"
         # TODO convert to AzureSignTool [dotnet tool install --global AzureSignTool]
+        #
+        # Trusted Signing auth: the Dlib authenticates via DefaultAzureCredential, which picks up
+        # the service principal from AZURE_CLIENT_ID / AZURE_CLIENT_SECRET / AZURE_TENANT_ID
+        # (set in .env). No interactive `az login` is needed or wanted.
+        #
+        # The service principal must hold the "Artifact Signing Certificate Profile Signer" data-plane
+        # role on the signing account, or signing fails with HTTP 403 Forbidden. Grant it once with:
+        #
+        #   $scope = az resource list --resource-type Microsoft.CodeSigning/codeSigningAccounts `
+        #     --query "[?name=='GEDCOM-Navigator'].id | [0]" -o tsv
+        #   az role assignment create --assignee <AZURE_CLIENT_ID> `
+        #     --role "Artifact Signing Certificate Profile Signer" --scope $scope
+        #
+        # Role assignments can take up to ~30 min to propagate before signing succeeds.
         $dlibSearch = Get-ChildItem -Path "$env:LOCALAPPDATA\Microsoft.ArtifactSigning.Client" -Filter "Azure.CodeSigning.Dlib.dll" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
         if ( (Test-Path $trustedSigningMetadata) -and $dlibSearch -and (Test-Path $SignTool) ) {
-            Write-Output "Signing with Azure Trusted Signing..."
-            $acct = az account show --query id -o tsv 2>$null
-            if ($acct) {
-                write-output "Already logged in to Azure CLI with account $acct."
-            } else {
-                az login --only-show-errors 
-            }
+            Write-Output "Signing with Azure Trusted Signing (service principal via AZURE_* env vars)..."
             foreach ($f in $filesToSign) {
                 if (Test-Path $f) {
                     Write-Output "Signing $f ..."
