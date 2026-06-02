@@ -210,6 +210,7 @@ class GedcomNavigatorApp(
         self._expand_open_descendant_tree = None
         self._set_open_tree_zoom = None
         self._frame_open_descendant_top = None
+        self._fit_open_tree = None
         # Automation hooks set while a relationship-graph window is open (see
         # PathGraphMixin._show_path_graph); used by the App Store screenshot
         # generator to fit the whole graph into the captured window.
