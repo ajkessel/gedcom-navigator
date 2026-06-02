@@ -12,9 +12,11 @@ try {
     Write-Output("Starting build process for Windows...")
     Get-Date
     if ( Test-Path -Path '.env' ) {
-        Get-Content .env | ForEach-Object { 
-            $name, $value = $_.split('=')
-            Set-Content env:\$name $value
+        Get-Content .env | ForEach-Object {
+            if ($_ -and $_ -notmatch '^\s*#') {
+                $name, $value = $_.split('=')
+                Set-Content env:\$name $value
+            }
         }
     }
     $searchPaths = ($env:ProgramData + "\miniforge3\scripts\"), ($env:localappdata + "\miniconda3\scripts\"), ($env:appdata + "\miniconda3\scripts\")
@@ -177,8 +179,9 @@ try {
             Write-Output "Signing with Azure Trusted Signing..."
             $acct = az account show --query id -o tsv 2>$null
             if ($acct) {
-                write-output "Already logged in to Azure CLI with account $acct."
-            } else {
+                Write-Output "Already logged in to Azure CLI with account $acct."
+            }
+            else {
                 az login --only-show-errors 
             }
             foreach ($f in $filesToSign) {
