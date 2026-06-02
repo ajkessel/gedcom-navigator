@@ -56,3 +56,24 @@ Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: de
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall
+
+[Code]
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+var
+  DataDir: string;
+begin
+  if CurUninstallStep = usPostUninstall then
+  begin
+    { Settings (settings.json) and parse caches live under %APPDATA%\gedcom-navigator. }
+    DataDir := ExpandConstant('{userappdata}\gedcom-navigator');
+    { Don't prompt during a silent uninstall; preserve user data in that case. }
+    if DirExists(DataDir) and (not UninstallSilent) then
+    begin
+      if MsgBox(
+          'Do you also want to remove ' + DataDir + '?' #13#10 #13#10
+          + 'This deletes your saved settings and cached genealogy data.',
+          mbConfirmation, MB_YESNO or MB_DEFBUTTON2) = IDYES then
+        DelTree(DataDir, True, True, True);
+    end;
+  end;
+end;

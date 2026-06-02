@@ -87,6 +87,7 @@ d = [('../docs/HELP.md', './docs'), ('../docs/LICENSE.md', './docs'),
      ('../icons/gedcom_navigator.ico', './icons'), ('../icons/gedcom_navigator.png', './icons'),
      ('../gedcom_navigator/__init__.py', 'gedcom_navigator'),
      ('../samples/fictional_genealogy.ged', './samples'),
+     ('../samples/media', './samples/media'),
      ('../locales', './locales')]
 
 # package certificates for MacOS since python.org does not include them by default

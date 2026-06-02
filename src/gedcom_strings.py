@@ -640,6 +640,8 @@ TREE_MODE_DESCENDANTS = _("Descendants")
 FRAME_CACHE = _("Cache")
 BTN_CLEAR_CACHE = _("Clear Cache…")
 LBL_CACHE_NOTE = _("Remove all cached GEDCOM data")
+BTN_REMOVE_ALL_DATA = _("Remove All Data…")
+LBL_REMOVE_ALL_DATA_NOTE = _("Delete all settings and cached data")
 LBL_LANGUAGE = _("Language:")
 LANG_SYSTEM = _("System Default")
 LBL_LANGUAGE_CHANGED = _("Language Changed")
@@ -728,6 +730,22 @@ CACHE_CLEAR_MSG = _(
 )
 CACHE_DONE_TITLE = _("Cache cleared")
 CACHE_DONE_MSG = _("{deleted} file(s) deleted.")
+
+DATA_REMOVE_TITLE = _("Remove all data")
+DATA_REMOVE_MSG = _(
+    "This will permanently delete all GEDCOM Navigator data, including your "
+    "settings, preferences, recent file list, and cached records, from:\n\n"
+    "{path}\n\n"
+    "Your GEDCOM files themselves are not affected. The application will "
+    "close afterward.\n\nContinue?"
+)
+DATA_REMOVE_NONE_MSG = _("No application data was found to remove.")
+DATA_REMOVE_DONE_TITLE = _("Data removed")
+DATA_REMOVE_DONE_MSG = _(
+    "All application data has been removed. GEDCOM Navigator will now close."
+)
+DATA_REMOVE_FAIL_TITLE = _("Could not remove data")
+DATA_REMOVE_FAIL_MSG = _("Some data could not be removed:\n\n{error}")
 
 # ---------------------------------------------------------------------------
 # Info windows

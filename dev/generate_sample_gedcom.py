@@ -516,6 +516,51 @@ PLACES = [
     "Willowmere, South Province",
 ]
 
+# Schools roughly mirror the towns in PLACES so a person's education reads as
+# happening near where they grew up.
+SCHOOLS = [
+    "Cedarford Academy",
+    "Hawthorne Normal School",
+    "Riverton College",
+    "Briar Glen Institute",
+    "Larkspur Seminary",
+    "Maple Junction College",
+    "Juniper Falls Academy",
+    "Willowmere College",
+]
+
+# Period-appropriate trades for OCCU events.
+OCCUPATIONS = [
+    "Carpenter",
+    "Schoolteacher",
+    "Physician",
+    "Blacksmith",
+    "Seamstress",
+    "Bookkeeper",
+    "Farmer",
+    "Shopkeeper",
+    "Railway clerk",
+    "Nurse",
+    "Stonemason",
+    "Cartographer",
+    "Librarian",
+    "Watchmaker",
+    "Surveyor",
+    "Telegraph operator",
+    "Dressmaker",
+    "Cabinetmaker",
+    "Pharmacist",
+    "Millwright",
+    "Typesetter",
+    "Postmaster",
+    "Cooper",
+    "Wheelwright",
+    "Apothecary",
+    "Draughtsman",
+    "Tailor",
+    "Cordwainer",
+]
+
 
 @dataclass
 class Person:
@@ -532,10 +577,21 @@ class Person:
     mttags: list[str] = field(default_factory=list)
     page_markers: list[str] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
+    events: list["Event"] = field(default_factory=list)
 
     @property
     def full_name(self) -> str:
         return f"{self.given} {self.middle} {self.surname}".strip()
+
+
+@dataclass
+class Event:
+    """A timeline fact such as a graduation, occupation, or residence."""
+
+    tag: str
+    year: int
+    value: str = ""
+    place: str = ""
 
 
 @dataclass
@@ -935,6 +991,71 @@ def assign_dna_markers(tree: SampleTree) -> None:
             person.mttags.append("@T3@")
 
 
+def _alive_in_year(person: Person, year: int) -> bool:
+    """Whether an event in ``year`` falls within the person's lifetime."""
+    if year < person.birth_year:
+        return False
+    if year > CURRENT_YEAR:
+        return False
+    if person.death_year is not None and year > person.death_year:
+        return False
+    return True
+
+
+def assign_life_events(tree: SampleTree) -> None:
+    """Attach a handful of life-stage events to each person.
+
+    Events are placed at logical ages (schooling around 18, a first trade in
+    the early twenties, an established household around 30, and a mid-life
+    change for some) and are skipped when the person was not alive for them, so
+    nobody holds a job at age 10 or graduates after death.
+    """
+    for xref, person in tree.people.items():
+        num = _person_number(xref)
+        events: list[Event] = []
+
+        grad_year = person.birth_year + 18
+        if _alive_in_year(person, grad_year):
+            school = SCHOOLS[num % len(SCHOOLS)]
+            events.append(
+                Event("EDUC", grad_year, value=f"Graduated from {school}",
+                      place=person.birth_place)
+            )
+
+        occ_year = person.birth_year + 23 + num % 3
+        if _alive_in_year(person, occ_year):
+            occupation = OCCUPATIONS[num % len(OCCUPATIONS)]
+            events.append(
+                Event("OCCU", occ_year, value=occupation,
+                      place=PLACES[(num + 2) % len(PLACES)])
+            )
+
+        resi_year = person.birth_year + 28 + num % 5
+        if _alive_in_year(person, resi_year):
+            events.append(
+                Event("RESI", resi_year, place=PLACES[(num + 4) % len(PLACES)])
+            )
+
+        # A mid-life milestone for variety: a career change for some people,
+        # a relocation for the rest.
+        if num % 2 == 0:
+            late_year = person.birth_year + 45
+            if _alive_in_year(person, late_year):
+                occupation = OCCUPATIONS[(num + 9) % len(OCCUPATIONS)]
+                events.append(
+                    Event("OCCU", late_year, value=occupation,
+                          place=PLACES[(num + 6) % len(PLACES)])
+                )
+        else:
+            late_year = person.birth_year + 50
+            if _alive_in_year(person, late_year):
+                events.append(
+                    Event("RESI", late_year, place=PLACES[(num + 5) % len(PLACES)])
+                )
+
+        person.events = events
+
+
 def gedcom_date(year: int, salt: int) -> str:
     day = 1 + salt % 28
     month = (salt + year) % len(MONTHS)
@@ -991,6 +1112,11 @@ def write_gedcom(tree: SampleTree, output: Path) -> None:
                     f"2 PLAC {PLACES[(num + 3) % len(PLACES)]}",
                 ]
             )
+        for event in sorted(person.events, key=lambda e: e.year):
+            lines.append(f"1 {event.tag} {event.value}".rstrip())
+            lines.append(f"2 DATE {gedcom_date(event.year, num + event.year)}")
+            if event.place:
+                lines.append(f"2 PLAC {event.place}")
         lines.extend(
             [
                 "1 OBJE",
@@ -1055,6 +1181,7 @@ def generate(output: Path) -> None:
     seeds = build_core_tree(tree)
     expand_tree(tree, seeds)
     assign_dna_markers(tree)
+    assign_life_events(tree)
     write_gedcom(tree, output)
     zip_gedcom(output)
 
