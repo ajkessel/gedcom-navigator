@@ -175,7 +175,12 @@ try {
         $dlibSearch = Get-ChildItem -Path "$env:LOCALAPPDATA\Microsoft.ArtifactSigning.Client" -Filter "Azure.CodeSigning.Dlib.dll" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
         if ( (Test-Path $trustedSigningMetadata) -and $dlibSearch -and (Test-Path $SignTool) ) {
             Write-Output "Signing with Azure Trusted Signing..."
-            az login --only-show-errors
+            $acct = az account show --query id -o tsv 2>$null
+            if ($acct) {
+                write-output "Already logged in to Azure CLI with account $acct."
+            } else {
+                az login --only-show-errors 
+            }
             foreach ($f in $filesToSign) {
                 if (Test-Path $f) {
                     Write-Output "Signing $f ..."
