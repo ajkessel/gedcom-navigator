@@ -7,10 +7,10 @@ cd "${SCRIPT_DIR}/.." || exit 1
 	exit 1
 }
 if [[ "$STDBUF_ACTIVE" != "1" ]]; then
-        export STDBUF_ACTIVE=1
-        exec stdbuf -oL "$0" "$@"
+	export STDBUF_ACTIVE=1
+	exec stdbuf -oL "$0" "$@"
 fi
-git_branch="main"
+git_branch=$(git branch --show-current)
 while getopts "hnco:b:" opt; do
 	case $opt in
 	h)
@@ -25,38 +25,59 @@ while getopts "hnco:b:" opt; do
 	n) DRY=true ;;
 	c) CLEAN=true ;;
 	o) output_file=$OPTARG ;;
-	b) git_branch=$OPTARG ;;
+	b) new_git_branch=$OPTARG ;;
 	*)
 		echo "Invalid option"
 		exit 1
 		;;
 	esac
 done
+if [ "${git_branch}" != "main" ] && [ -z "${new_git_branch}" ]; then
+	printf "Current git branch is ${git_branch}.\nDo you want to build from this branch? (Y/n/b/m)\n[b = show git branches, m = switch to main and pull latest changes, or enter name of branch]\n"
+	read -r answer
+	if [[ "${answer,,}" == "b" ]]; then
+		git branch -a
+		exec $(readlink -f "$0")
+	elif [[ "${answer,,}" == "m" ]]; then
+		new_git_branch="main"
+	elif git branch | grep -q "\b${answer}\b"; then
+		new_git_branch="$answer"
+	elif [[ "${answer,,}" == "n" ]]; then
+		printf "Exiting.\n"
+		exit 0
+	elif [[ "${answer,,}" == "y" ]]; then
+		:
+	elif [[ -n "${answer}" ]]; then
+		printf "Invalid input. Exiting.\n"
+		exit 1
+	fi
+fi
+[ -n "${new_git_branch}" ] && git_branch="${new_git_branch}"
 git switch "$git_branch" || {
-	echo "Failed to switch to git branch $git_branch. Exiting."
+	printf "Failed to switch to git branch %s. Exiting.\n" "${git_branch}"
 	exit 1
 }
 git pull || {
-	echo "Failed to pull latest changes from git branch $git_branch. Exiting."
+	printf "Failed to pull latest changes from git branch %s. Exiting.\n" "${git_branch}"
 	exit 1
 }
 if command -v msgfmt &>/dev/null; then
-	echo 'Compiling translations...'
+	printf 'Compiling translations...\n'
 	find locales -iname "*.po" | while read -r po_file; do
 		printf 'Compiling %s...\n' "$po_file"
 		mo_file="${po_file%.po}.mo"
 		msgfmt -v --use-fuzzy --output-file="${mo_file}" "${po_file}"
 	done
 else
-	echo 'msgfmt not found, skipping translation compilation.'
+	printf 'msgfmt not found, skipping translation compilation.\n'
 fi
 if [[ $(uname) == "Linux" ]]; then
-	echo 'Building for Linux...'
+	printf 'Building for Linux...\n'
 	dev/build-linux.sh "$@"
 elif [[ $(uname) == "Darwin" ]]; then
-	echo 'Building for macOS...'
+	printf 'Building for macOS...\n'
 	dev/build-mac.sh "$@"
 else
-	echo 'Platform not recognized. Use build.ps1 for building natively on Windows. Exiting.'
+	printf 'Platform not recognized. Use build.ps1 for building natively on Windows. Exiting.\n'
 	exit 1
 fi

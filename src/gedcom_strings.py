@@ -288,6 +288,16 @@ def get_tip_married_names():
 # Profile window
 # ---------------------------------------------------------------------------
 WIN_GEDCOM_RECORD = _("GEDCOM Record: {name}")
+PROFILE_IMAGE_MISSING_TITLE = _("Profile Image Not Found")
+PROFILE_IMAGE_MISSING_MSG = _(
+    "This GEDCOM file includes a profile image path, but the image file could "
+    "not be found on this computer.\n\n"
+    "Missing path:\n{path}\n\n"
+    "Would you like to choose the folder where this GEDCOM file's media files "
+    "are stored? The app will remember that folder for this GEDCOM file and "
+    "search it for other profile images."
+)
+PROFILE_IMAGE_DIR_TITLE = _("Select Media Folder")
 BIO_SECTION = _("Biography")
 BIO_BORN = _("  Born:    {event}")
 BIO_MARRIED = _("  Married: {spouses}")
@@ -406,6 +416,12 @@ def get_tip_person_view_btn():
 
 
 DLG_SAVE_PROFILE = _("Save profile")
+BTN_PROFILE_GALLERY = _("Gallery")
+BTN_PROFILE_IMAGE_PREV = _("←")
+BTN_PROFILE_IMAGE_NEXT = _("→")
+WIN_PROFILE_IMAGE_GALLERY = _("Image Gallery: {name}")
+PROFILE_IMAGE_GALLERY_EMPTY = _("No additional images found.")
+PROFILE_IMAGE_NAV_STATUS = _("{current} of {total}")
 
 
 def get_tip_save_profile():
@@ -420,6 +436,22 @@ def get_tip_copy_profile():
     return _(
         "Copy profile ({mod}C)\nCopy this biographical profile to clipboard."
     ).format(mod=mod)
+
+
+def get_tip_profile_gallery():
+    display = _shortcut_by_action("show_gallery").display
+    return _(
+        "Image gallery ({display})\n"
+        "Show thumbnails for additional images associated with this person."
+    ).format(display=display)
+
+
+def get_tip_profile_image_previous():
+    return _("Previous image\nShow the previous image in this gallery.")
+
+
+def get_tip_profile_image_next():
+    return _("Next image\nShow the next image in this gallery.")
 
 
 WIN_FAMILY_TREE = _("Family Tree: {name}")
@@ -593,6 +625,11 @@ TIP_SHOW_FULL_GEDCOM = _(
     "When enabled, the Full GEDCOM Record section is included at the bottom of "
     "the Profile window, showing the raw GEDCOM data for the person."
 )
+CHK_SHOW_PROFILE_IMAGE = _("Show Profile Image")
+TIP_SHOW_PROFILE_IMAGE = _(
+    "When enabled, profile thumbnails are shown for people with local GEDCOM "
+    "media, with generic placeholders used when no local image is available."
+)
 LBL_NAME_FORMAT = _("Name format:")
 NAME_FIRST_LAST = _("First Last")
 NAME_LAST_FIRST = _("Last, First")
@@ -670,6 +707,8 @@ ERR_SAVE_GRAPH_TITLE = _("Save error")
 ERR_SAVE_GRAPH_MSG = _("Could not save relationship graph:\n\n{error}")
 ERR_COPY_GRAPH_TITLE = _("Copy error")
 ERR_COPY_GRAPH_MSG = _("Could not copy relationship graph:\n\n{error}")
+ERR_SAVE_PROFILE_IMAGE_MSG = _("Could not save profile image:\n\n{error}")
+ERR_COPY_PROFILE_IMAGE_MSG = _("Could not copy profile image:\n\n{error}")
 ERR_SAVE_GRAPH_DEBUG_MSG = _("Could not save graph layout debug data:\n\n{error}")
 ERR_SAVE_RESULTS_MSG = _("Could not save results:\n\n{error}")
 ERR_SAVE_PROFILE_MSG = _("Could not save profile:\n\n{error}")
@@ -799,6 +838,7 @@ def get_keyboard_shortcut_rows():
         "open_gedcom": _("Open a new GEDCOM file"),
         "display_matches": _("Switch the Display Pane to Matches"),
         "display_tree": _("Open Tree View for selected person"),
+        "show_gallery": _("Open the selected person's image gallery"),
         "set_home": _("Set or unset the selected person as Home person"),
         "display_paths": _("Switch the Display Pane to Paths"),
         "select_tag": _("Select new tag for finding relationship paths"),

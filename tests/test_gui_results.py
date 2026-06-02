@@ -153,6 +153,47 @@ class _HomePathApp(ResultsMixin):
         return f'{indent}{edge}: '
 
 
+class _Var:
+    def __init__(self, value):
+        self.value = value
+
+    def get(self):
+        return self.value
+
+    def set(self, value):
+        self.value = value
+
+
+def test_profile_gallery_button_visible_only_for_profile_with_extra_images():
+    class Button:
+        def __init__(self):
+            self.visible = None
+
+        def grid(self):
+            self.visible = True
+
+        def grid_remove(self):
+            self.visible = False
+
+    class App(ResultsMixin):
+        def _profile_gallery_candidates(self, indi_id):
+            return ['image'] if indi_id == '@A@' else []
+
+    app = App()
+    app.display_mode = _Var('profile')
+    app._profile_gallery_btn = Button()
+
+    app._set_profile_gallery_button_visible('@A@')
+    assert app._profile_gallery_btn.visible is True
+
+    app._set_profile_gallery_button_visible('@B@')
+    assert app._profile_gallery_btn.visible is False
+
+    app.display_mode.set('matches')
+    app._set_profile_gallery_button_visible('@A@')
+    assert app._profile_gallery_btn.visible is False
+
+
 def test_pedigree_font_extra_shrink_only_applies_below_normal_zoom():
     assert FamilyTreeRenderMixin._horizontal_tree_font_shrink(1.0) == 0
     assert FamilyTreeRenderMixin._horizontal_tree_font_shrink(1.5) == 0
@@ -6419,3 +6460,49 @@ def test_navigate_to_resets_stale_person_id():
     app._navigate_to('@OLD@')
 
     assert resets == [True]
+
+
+def test_render_profile_result_exits_if_results_widget_is_destroyed_mid_render():
+    """A modal media-folder prompt can replace the results widget during refresh."""
+
+    class Widget:
+        def __init__(self):
+            self.exists = True
+            self.calls = []
+
+        def configure(self, **kwargs):
+            if not self.exists:
+                raise RuntimeError("should not configure destroyed widget")
+            self.calls.append(("configure", kwargs))
+
+        def delete(self, *args):
+            if not self.exists:
+                raise RuntimeError("should not delete destroyed widget")
+            self.calls.append(("delete", args))
+
+        def winfo_exists(self):
+            return self.exists
+
+    class Button:
+        def __init__(self):
+            self.calls = []
+
+        def configure(self, **kwargs):
+            self.calls.append(kwargs)
+
+    class App(ResultsMixin):
+        def _set_results_header_for_person(self, _indi_id):
+            pass
+
+        def _insert_person_profile(self, widget, *_args, **_kwargs):
+            widget.exists = False
+
+    app = App()
+    app.individuals = {"@A@": {"name": "Alex", "_raw": []}}
+    app.results = Widget()
+    app._reverse_btn = Button()
+    app._last_result = {"type": "profile"}
+
+    app._render_profile_result("@A@", home_paths={})
+
+    assert app._reverse_btn.calls == []

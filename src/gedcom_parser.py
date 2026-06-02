@@ -156,6 +156,123 @@ def extract_year(date_str):
     return int(m.group(1)) if m else None
 
 
+def _record_text(rec, parent_index):
+    """Return GEDCOM text continued/concatenated under rec[parent_index]."""
+    text = rec[parent_index][3] or ''
+    parent_level = rec[parent_index][0]
+    for level, _xref, tag, value in rec[parent_index + 1:]:
+        if level <= parent_level:
+            break
+        if level == parent_level + 1 and tag == 'CONC':
+            text += value or ''
+        elif level == parent_level + 1 and tag == 'CONT':
+            text += '\n' + (value or '')
+    return text.strip()
+
+
+def _media_details_from_block(block):
+    """Extract FILE/FORM/TITL/_PRIM details from a GEDCOM OBJE-like block."""
+    details = {
+        'file': '',
+        'format': '',
+        'title': '',
+        'primary': False,
+    }
+    for i, (_level, _xref, tag, value) in enumerate(block):
+        text = (value or '').strip()
+        if tag == 'FILE' and not details['file']:
+            details['file'] = _record_text(block, i)
+        elif tag == 'FORM' and not details['format']:
+            details['format'] = text
+        elif tag in ('TITL', 'TITLE') and not details['title']:
+            details['title'] = _record_text(block, i)
+        elif tag == '_PRIM' and text.upper().startswith('Y'):
+            details['primary'] = True
+    return details
+
+
+def _top_level_media_record(rec):
+    """Return a normalized top-level OBJE media record."""
+    media = {'id': rec[0][1], '_raw': rec}
+    media.update(_media_details_from_block(rec[1:]))
+    return media
+
+
+def _person_media_candidate(tag, value, block):
+    """Return a normalized person-level media candidate."""
+    value = (value or '').strip()
+    candidate = {
+        'kind': tag,
+        'ref': '',
+        'file': '',
+        'format': '',
+        'title': '',
+        'primary': False,
+    }
+    if value.startswith('@') and value.endswith('@'):
+        candidate['ref'] = value
+    elif value:
+        candidate['file'] = value
+    candidate.update({
+        key: val for key, val in _media_details_from_block(block).items()
+        if val not in ('', False)
+    })
+    return candidate
+
+
+def _candidate_name_matches(candidate, person_name):
+    """Return whether candidate title or filename appears to name the person."""
+    person_name = (person_name or '').replace('/', ' ').strip().lower()
+    if not person_name:
+        return False
+    haystacks = [
+        (candidate.get('title') or '').lower(),
+        os.path.splitext(os.path.basename(candidate.get('file') or ''))[0].lower(),
+    ]
+    compact_person = re.sub(r'\s+', ' ', person_name)
+    compact_tokens = set(compact_person.split())
+    for hay in haystacks:
+        hay = re.sub(r'[_\-\s]+', ' ', hay)
+        if compact_person and compact_person in hay:
+            return True
+        if compact_tokens and compact_tokens.issubset(set(hay.split())):
+            return True
+    return False
+
+
+def _merge_media_candidate(candidate, media_records):
+    """Merge a candidate with its referenced top-level OBJE record, if any."""
+    ref = candidate.get('ref')
+    if ref and ref in media_records:
+        media = media_records[ref]
+        merged = dict(candidate)
+        for key in ('file', 'format', 'title', 'primary'):
+            if not merged.get(key):
+                merged[key] = media.get(key, '' if key != 'primary' else False)
+        return merged
+    return candidate
+
+
+def _rank_media_candidates(candidates, person_name, media_records):
+    """Return person-level media candidates in profile-photo preference order."""
+    ranked = []
+    for order, candidate in enumerate(candidates):
+        merged = _merge_media_candidate(candidate, media_records)
+        name_match = _candidate_name_matches(merged, person_name)
+        if merged.get('kind') == '_PHOTO':
+            rank = 0
+        elif merged.get('primary'):
+            rank = 1
+        elif name_match:
+            rank = 2
+        else:
+            rank = 3
+        merged['name_match'] = name_match
+        ranked.append((rank, order, merged))
+    ranked.sort(key=lambda item: (item[0], item[1]))
+    return [candidate for _rank, _order, candidate in ranked]
+
+
 def build_model(gedcom_path, dna_keyword, page_marker):
     """Parse the GEDCOM and return model data plus warnings/errors.
 
@@ -173,8 +290,10 @@ def build_model(gedcom_path, dna_keyword, page_marker):
     individuals = {}
     families = {}
     tag_records = {}
+    media_records = {}
 
-    # Pass 1: collect _MTTAG definitions so we can later resolve references.
+    # Pass 1: collect _MTTAG definitions and top-level OBJE records so we can
+    # later resolve references.
     for rec in records:
         head_level, head_xref, head_tag, _ = rec[0]
         if head_level != 0 or head_xref is None:
@@ -185,6 +304,8 @@ def build_model(gedcom_path, dna_keyword, page_marker):
                 if level == 1 and tag == 'NAME' and not tag_name:
                     tag_name = value.strip()
             tag_records[head_xref] = tag_name
+        elif head_tag == 'OBJE':
+            media_records[head_xref] = _top_level_media_record(rec)
 
     page_marker_l = page_marker.lower()
 
@@ -212,6 +333,7 @@ def build_model(gedcom_path, dna_keyword, page_marker):
                 'birth_year': None,
                 'death_year': None,
                 '_mttag_refs': [],
+                'media_candidates': [],
                 '_raw': rec,
             }
 
@@ -303,7 +425,22 @@ def build_model(gedcom_path, dna_keyword, page_marker):
                     indi['dna_markers'].append(
                         f'Source citation: "{value.strip()}"'
                     )
+                elif level == 1 and tag in ('OBJE', '_PHOTO'):
+                    block = []
+                    for j in range(i + 1, n):
+                        l2, x2, t2, v2 = rec[j]
+                        if l2 <= 1:
+                            break
+                        block.append((l2, x2, t2, v2))
+                    candidate = _person_media_candidate(tag, value, block)
+                    if any(
+                        candidate.get(key)
+                        for key in ('ref', 'file', 'format', 'title', 'primary')
+                    ):
+                        indi['media_candidates'].append(candidate)
 
+            indi['media_candidates'] = _rank_media_candidates(
+                indi['media_candidates'], indi.get('name', ''), media_records)
             individuals[head_xref] = indi
 
         elif head_tag == 'FAM':
@@ -394,7 +531,7 @@ def build_model(gedcom_path, dna_keyword, page_marker):
             "The app needs at least one INDI record to build the family model."
         )
 
-    return individuals, families, tag_records, encoding_warning, model_error
+    return individuals, families, tag_records, media_records, encoding_warning, model_error
 
 def apply_dna_flags(individuals, tag_records, dna_keyword, page_marker):
     """Re-populate dna_markers and tags for all individuals from their _raw records.

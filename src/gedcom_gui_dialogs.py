@@ -803,6 +803,14 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
         _show_full_gedcom_chk.pack(anchor='w', pady=(4, 0))
         Tooltip(_show_full_gedcom_chk, TIP_SHOW_FULL_GEDCOM)
 
+        show_profile_image_var = tk.BooleanVar(
+            value=self.show_profile_image.get())
+        _show_profile_image_chk = ctk.CTkCheckBox(
+            display_frame, text=CHK_SHOW_PROFILE_IMAGE,
+            variable=show_profile_image_var)
+        _show_profile_image_chk.pack(anchor='w', pady=(4, 0))
+        Tooltip(_show_profile_image_chk, TIP_SHOW_PROFILE_IMAGE)
+
         name_order_row = ctk.CTkFrame(display_frame, fg_color='transparent')
         name_order_row.pack(anchor='w', pady=(6, 0))
         ctk.CTkLabel(name_order_row, text=LBL_NAME_FORMAT).pack(
@@ -926,6 +934,8 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
             self._config.set_show_ids(show_ids_var.get())
             self.show_full_gedcom.set(show_full_gedcom_var.get())
             self._config.set_show_full_gedcom(show_full_gedcom_var.get())
+            self.show_profile_image.set(show_profile_image_var.get())
+            self._config.set_show_profile_image(show_profile_image_var.get())
             self._name_order = name_order_var.get()
             self._config.set_name_order(self._name_order)
             self._config.set_default_display(default_display_var.get())

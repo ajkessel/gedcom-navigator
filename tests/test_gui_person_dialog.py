@@ -7,6 +7,7 @@ from gedcom_strings import (
     FAM_SECTION,
     FACTS_EVENTS_SECTION,
     GEDCOM_SECTION,
+    PROFILE_IMAGE_NAV_STATUS,
     RESULT_PATH_SECTION,
     TAGS_SECTION,
 )
@@ -132,6 +133,26 @@ def test_button_bar_needed_width_includes_window_padding():
     assert frame.updated is True
 
 
+def test_profile_preview_window_dimensions_include_button_width():
+    """Small images still produce a preview wide enough for all buttons."""
+
+    win_w, win_h, min_w, min_h = (
+        PersonDialogMixin._profile_preview_window_dimensions(
+            image_w=72,
+            image_h=48,
+            max_w=800,
+            max_h=600,
+            button_w=330,
+            button_h=54,
+        )
+    )
+
+    assert win_w == 330
+    assert win_h == 104
+    assert min_w == 330
+    assert min_h == 104
+
+
 def test_tree_search_recenters_only_when_person_selected():
     """Tree search leaves the current center unchanged when the picker is cancelled."""
 
@@ -170,6 +191,334 @@ def test_add_canvas_highlighted_node_redraws_only_when_added():
     assert unchanged is False
     assert canvas._highlighted_nodes == {'@A@', '@B@'}
     assert canvas.redraws == 1
+
+
+def test_profile_thumbnail_size_is_larger_than_graph_thumbnail_and_clamped():
+    class Root:
+        def winfo_screenheight(self):
+            return 1440
+
+    class App(PersonDialogMixin):
+        pass
+
+    app = App()
+    app.root = Root()
+    app._mono_size = 14
+
+    assert app._profile_thumbnail_size() == (173, 173)
+    assert app._graph_thumbnail_size(lambda value, minimum=1: value) == (84, 84)
+
+    app.root = type("SmallRoot", (), {"winfo_screenheight": lambda self: 720})()
+    assert app._profile_thumbnail_size() == (112, 112)
+
+    app.root = type("LargeRoot", (), {"winfo_screenheight": lambda self: 3000})()
+    assert app._profile_thumbnail_size() == (176, 176)
+
+
+def test_missing_profile_image_notice_shows_once_for_missing_file(monkeypatch):
+    class App(PersonDialogMixin):
+        pass
+
+    class Media:
+        @staticmethod
+        def selected_media_file(_indi):
+            return "missing/photo.jpg"
+
+        @staticmethod
+        def is_supported_path(_path):
+            return True
+
+        @staticmethod
+        def resolve_media_path(_path, _gedcom_path, _media_dirs=None):
+            return None
+
+    class GedcomPath:
+        @staticmethod
+        def get():
+            return "/tmp/tree.ged"
+
+    class Config:
+        def __init__(self):
+            self.saved = []
+
+        def get_media_parent_dir(self, _gedcom_path):
+            return None
+
+        def set_media_parent_dir(self, gedcom_path, directory):
+            self.saved.append((gedcom_path, directory))
+
+    app = App()
+    app.gedcom_path = GedcomPath()
+    app._config = Config()
+    app.root = object()
+    prompts = []
+    monkeypatch.setattr(
+        "gedcom_gui_person_dialog.messagebox.askyesno",
+        lambda title, message, parent=None: prompts.append((title, message, parent)) or True,
+    )
+    monkeypatch.setattr(
+        "gedcom_gui_person_dialog.filedialog.askdirectory",
+        lambda **_kwargs: "/new/media",
+    )
+
+    app._maybe_show_missing_profile_image_notice({"name": "Alex"}, Media())
+    app._maybe_show_missing_profile_image_notice({"name": "Alex"}, Media())
+
+    assert len(prompts) == 1
+    assert "missing/photo.jpg" in prompts[0][1]
+    assert app._config.saved == [("/tmp/tree.ged", "/new/media")]
+    assert app._profile_image_missing_notice_shown is True
+
+
+def test_missing_profile_image_notice_skips_absent_or_resolved_file(monkeypatch):
+    class App(PersonDialogMixin):
+        pass
+
+    class GedcomPath:
+        @staticmethod
+        def get():
+            return "/tmp/tree.ged"
+
+    class Media:
+        def __init__(self, media_path, resolved):
+            self.media_path = media_path
+            self.resolved = resolved
+
+        def selected_media_file(self, _indi):
+            return self.media_path
+
+        @staticmethod
+        def is_supported_path(_path):
+            return True
+
+        def resolve_media_path(self, _path, _gedcom_path, _media_dirs=None):
+            return self.resolved
+
+    app = App()
+    app.gedcom_path = GedcomPath()
+    app._config = None
+    notices = []
+    monkeypatch.setattr(
+        "gedcom_gui_person_dialog.messagebox.askyesno",
+        lambda *_args, **_kwargs: notices.append(_args),
+    )
+
+    app._maybe_show_missing_profile_image_notice({}, Media("", None))
+    app._maybe_show_missing_profile_image_notice({}, Media("found.jpg", "/tmp/found.jpg"))
+
+    assert notices == []
+    assert not getattr(app, "_profile_image_missing_notice_shown", False)
+
+
+def test_initial_media_directory_prefers_saved_directory(tmp_path):
+    class App(PersonDialogMixin):
+        pass
+
+    class GedcomPath:
+        @staticmethod
+        def get():
+            return str(tmp_path / "tree.ged")
+
+    saved = tmp_path / "saved"
+    saved.mkdir()
+    app = App()
+    app.gedcom_path = GedcomPath()
+    app._profile_media_dirs = lambda: [str(saved)]
+
+    assert app._initial_media_directory() == str(saved)
+
+
+def test_initial_media_directory_prefers_nearby_media_folder(tmp_path):
+    class App(PersonDialogMixin):
+        pass
+
+    class GedcomPath:
+        @staticmethod
+        def get():
+            return str(tmp_path / "tree.ged")
+
+    media = tmp_path / "Photos"
+    media.mkdir()
+    app = App()
+    app.gedcom_path = GedcomPath()
+    app._profile_media_dirs = lambda: []
+
+    assert app._initial_media_directory() == str(media)
+
+
+def test_initial_media_directory_falls_back_to_gedcom_directory(tmp_path):
+    class App(PersonDialogMixin):
+        pass
+
+    class GedcomPath:
+        @staticmethod
+        def get():
+            return str(tmp_path / "tree.ged")
+
+    app = App()
+    app.gedcom_path = GedcomPath()
+    app._profile_media_dirs = lambda: []
+
+    assert app._initial_media_directory() == str(tmp_path)
+
+
+def test_profile_gallery_candidates_exclude_profile_and_unsupported():
+    class App(PersonDialogMixin):
+        pass
+
+    class Media:
+        @staticmethod
+        def is_supported_path(path):
+            return path.endswith(".jpg")
+
+    app = App()
+    app.show_profile_image = Var(True)
+    app._media_service = Media()
+    app.individuals = {
+        "@A@": {
+            "media_candidates": [
+                {"file": "profile.jpg", "title": "Profile"},
+                {"file": "album.jpg", "title": "Album"},
+                {"file": "notes.pdf", "title": "Document"},
+                {"file": "album.jpg", "title": "Album"},
+                {"file": "", "title": "Missing"},
+            ],
+        },
+    }
+
+    assert app._profile_gallery_candidates("@A@") == [
+        {"file": "album.jpg", "title": "Album"},
+    ]
+
+    app.show_profile_image = Var(False)
+    assert app._profile_gallery_candidates("@A@") == []
+
+
+def test_profile_gallery_items_prompt_for_missing_media_dir(monkeypatch):
+    class App(PersonDialogMixin):
+        pass
+
+    class GedcomPath:
+        @staticmethod
+        def get():
+            return "/tmp/tree.ged"
+
+    class Config:
+        def __init__(self):
+            self.directory = None
+
+        def get_media_parent_dir(self, _gedcom_path):
+            return self.directory
+
+        def set_media_parent_dir(self, _gedcom_path, directory):
+            self.directory = directory
+
+    class Media:
+        @staticmethod
+        def is_supported_path(path):
+            return path.endswith(".jpg")
+
+        @staticmethod
+        def resolve_media_path(path, _gedcom_path, media_dirs=None):
+            if media_dirs:
+                return f"{media_dirs[0]}/{path}"
+            return None
+
+        @staticmethod
+        def tk_thumbnail(_path, _size):
+            return "thumbnail"
+
+    app = App()
+    app.show_profile_image = Var(True)
+    app.gedcom_path = GedcomPath()
+    app._config = Config()
+    app._media_service = Media()
+    app._initial_media_directory = lambda: "/tmp"
+    app.root = object()
+    app.individuals = {
+        "@A@": {
+            "media_candidates": [
+                {"file": "profile.jpg", "title": "Profile"},
+                {"file": "album.jpg", "title": "Album"},
+            ],
+        },
+    }
+    monkeypatch.setattr(
+        "gedcom_gui_person_dialog.messagebox.askyesno",
+        lambda *_args, **_kwargs: True,
+    )
+    monkeypatch.setattr(
+        "gedcom_gui_person_dialog.filedialog.askdirectory",
+        lambda **_kwargs: "/new/media",
+    )
+
+    items = app._profile_gallery_items("@A@", (120, 120), prompt_missing=True)
+
+    assert items == [{
+        "path": "/new/media/album.jpg",
+        "image": "thumbnail",
+        "title": "Album",
+        "file": "album.jpg",
+    }]
+    assert app._config.directory == "/new/media"
+
+
+def test_profile_image_navigation_state_requires_current_gallery_path():
+    paths = ["/media/one.jpg", "/media/two.jpg", "/media/three.jpg"]
+
+    assert PersonDialogMixin._profile_image_navigation_state(
+        "/media/two.jpg", paths) == (paths, 1)
+    assert PersonDialogMixin._profile_image_navigation_state(
+        "/media/missing.jpg", paths) == ([], 0)
+    assert PersonDialogMixin._profile_image_navigation_state(
+        "/media/two.jpg", None) == ([], 0)
+
+
+def test_profile_image_navigation_status_text_is_one_based():
+    assert PROFILE_IMAGE_NAV_STATUS.format(current=2, total=5) == "2 of 5"
+
+
+def test_profile_full_image_title_uses_filename_without_extension():
+    assert PersonDialogMixin._profile_full_image_title(
+        "/media/family/Adam J. Kessel.jpg") == "Adam J. Kessel"
+    assert PersonDialogMixin._profile_full_image_title(
+        r"C:\media\Family Photo.PNG") == "Family Photo"
+
+
+def test_clamped_toplevel_geometry_keeps_gallery_on_screen():
+    class Parent:
+        @staticmethod
+        def update_idletasks():
+            return None
+
+        @staticmethod
+        def winfo_screenwidth():
+            return 800
+
+        @staticmethod
+        def winfo_screenheight():
+            return 600
+
+        @staticmethod
+        def winfo_rootx():
+            return 300
+
+        @staticmethod
+        def winfo_rooty():
+            return 500
+
+        @staticmethod
+        def winfo_width():
+            return 300
+
+        @staticmethod
+        def winfo_height():
+            return 200
+
+    geometry = PersonDialogMixin._clamped_toplevel_geometry(
+        Parent(), 500, 260)
+
+    assert geometry == "500x260+200+316"
 
 
 def test_profile_sections_render_in_requested_order():

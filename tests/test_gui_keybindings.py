@@ -119,6 +119,9 @@ class _App(AppearanceMixin):
     def _set_home_person(self):
         pass
 
+    def _show_current_profile_gallery(self):
+        pass
+
     def _save_results(self):
         pass
 

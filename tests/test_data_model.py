@@ -67,6 +67,7 @@ class TestInit:
         assert mdl.individuals == {}
         assert mdl.families == {}
         assert mdl.tag_records == {}
+        assert mdl.media_records == {}
         assert mdl.married_name_index == {}
 
 
@@ -162,6 +163,31 @@ class TestCacheHit:
         mdl = GedcomDataModel()
         mdl.load(p, "DNA", "AncestryDNA", cache_dir)
         assert "@I1@" in mdl.individuals
+
+    def test_cache_hit_preserves_media_records(self, tmp_path):
+        cache_dir = str(tmp_path / "cache")
+        ged = """\
+0 HEAD
+1 GEDC
+2 VERS 5.5.1
+0 @I1@ INDI
+1 NAME Alice /Smith/
+1 OBJE @M1@
+0 @M1@ OBJE
+1 FILE portraits/alice.jpg
+1 FORM jpg
+1 TITL Alice Smith
+0 TRLR
+"""
+        p = _write_ged(tmp_path, ged)
+        GedcomDataModel().load(p, "DNA", "AncestryDNA", cache_dir)
+
+        mdl = GedcomDataModel()
+        from_cache, _, _ = mdl.load(p, "DNA", "AncestryDNA", cache_dir)
+
+        assert from_cache is True
+        assert mdl.media_records["@M1@"]["file"] == "portraits/alice.jpg"
+        assert mdl.individuals["@I1@"]["media_candidates"][0]["ref"] == "@M1@"
 
     def test_cache_hit_rebuilds_married_name_index(self, tmp_path):
         cache_dir = str(tmp_path / "cache")

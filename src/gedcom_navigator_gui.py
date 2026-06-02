@@ -31,6 +31,7 @@ _config = ConfigManager(ConfigManager.default_path())
 setup_i18n(_config.get_language())
 
 from gedcom_data_model import GedcomDataModel
+from gedcom_media import ProfileMediaService
 # gedcom_strings imports will happen after setup_i18n
 from gedcom_strings import *  # pylint: disable=unused-wildcard-import
 from gedcom_gui_background import BackgroundTaskMixin
@@ -111,6 +112,7 @@ class GedcomNavigatorApp(
         configure_process_identity()
         self._config = ConfigManager(ConfigManager.default_path())
         self._model = GedcomDataModel()
+        self._media_service = ProfileMediaService(self._cache_dir())
 
         self.root = root
         self.root.title(APP_TITLE)
@@ -135,6 +137,7 @@ class GedcomNavigatorApp(
         self.individuals = {}
         self.families = {}
         self.tag_records = {}
+        self.media_records = {}
         self.sorted_ids = []
         self._home_person_id = None
         self._home_path_cache = {}
@@ -161,6 +164,8 @@ class GedcomNavigatorApp(
         self.married_name_search = tk.BooleanVar(value=False)
         self.show_ids = tk.BooleanVar(value=self._config.get_show_ids())
         self.show_full_gedcom = tk.BooleanVar(value=self._config.get_show_full_gedcom())
+        self.show_profile_image = tk.BooleanVar(
+            value=self._config.get_show_profile_image())
         self._name_order = self._config.get_name_order()
         self.display_mode = tk.StringVar(value=self._config.get_default_display())
 
@@ -676,12 +681,18 @@ class GedcomNavigatorApp(
                                        command=self._copy_results)
         self._copy_btn.grid(row=0, column=4, padx=(4, 4), pady=4)
         Tooltip(self._copy_btn, get_tip_copy())
+        self._profile_gallery_btn = ctk.CTkButton(
+            status_bar, text=BTN_PROFILE_GALLERY, width=90,
+            command=self._show_current_profile_gallery)
+        self._profile_gallery_btn.grid(row=0, column=5, padx=(4, 8), pady=4)
+        self._profile_gallery_btn.grid_remove()
+        Tooltip(self._profile_gallery_btn, get_tip_profile_gallery())
         if debug_enabled():
             self._copy_json_btn = ctk.CTkButton(
                 status_bar, text='Copy JSON', width=90,
                 command=self._copy_paths_json)
             Tooltip(self._copy_json_btn, get_tip_copy_json())
-            self._copy_json_btn.grid(row=0, column=5, padx=(0, 8), pady=4)
+            self._copy_json_btn.grid(row=0, column=6, padx=(0, 8), pady=4)
         self._progress_bar = ctk.CTkProgressBar(status_bar, width=130)
         self._progress_bar.set(0)
         self._progress_bar.grid(row=0, column=3, columnspan=2, padx=(4, 8), pady=4)

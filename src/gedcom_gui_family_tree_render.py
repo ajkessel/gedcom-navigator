@@ -392,6 +392,8 @@ class FamilyTreeRenderMixin:
                 *(label_font.measure(line)
                   for line in detail_label.splitlines()),
             )
+        show_images = bool(
+            getattr(getattr(self, 'show_profile_image', None), 'get', lambda: False)())
         if orientation == 'horizontal':
             # The canvas text wrapper only breaks lines at spaces, so a single
             # name token wider than label_width gets split character-by-character
@@ -409,9 +411,13 @@ class FamilyTreeRenderMixin:
             node_w = min(
                 max(longest + scale(18), min_token_fit, scale(78)),
                 max(scale(150), min_token_fit))
+            if show_images:
+                node_w = max(node_w, scale(116))
         else:
             node_w = min(max(longest + scale(24), scale(112)), scale(190))
-        label_width = node_w - scale(24)
+            if show_images:
+                node_w = max(node_w, scale(126))
+        label_width = node_w - (scale(12) if show_images else scale(24))
         wrapped_label_blocks = []
         for node, label in zip(layout, labels):
             if node['is_center']:
@@ -441,13 +447,33 @@ class FamilyTreeRenderMixin:
             in zip(layout, wrapped_label_blocks)
         ]
         max_label_h = max(block_heights, default=line_space)
+        thumb_w, thumb_h = (
+            self._graph_thumbnail_size(scale) if show_images else (0, 0))
+        if show_images:
+            thumb_w = max(scale(48), node_w - scale(4))
+            thumb_h = min(thumb_h, thumb_w)
+        image_gap = scale(5) if show_images else 0
+        image_inset = scale(2) if show_images else 0
+        text_bottom_margin = scale(5) if show_images else 0
         if orientation == 'horizontal':
-            node_h = max(scale(34), max_label_h + scale(12))
+            if show_images:
+                node_h = max(
+                    scale(34),
+                    image_inset + thumb_h + image_gap
+                    + max_label_h + text_bottom_margin)
+            else:
+                node_h = max(scale(34), max_label_h + scale(12))
             h_gap = node_w + scale(50)
             v_gap = max(node_h + scale(4), scale(30))
             margin = scale(36)
         else:
-            node_h = max(scale(84), max_label_h + scale(26))
+            if show_images:
+                node_h = max(
+                    scale(84),
+                    image_inset + thumb_h + image_gap
+                    + max_label_h + text_bottom_margin)
+            else:
+                node_h = max(scale(84), max_label_h + scale(26))
             h_gap = node_w + scale(64)
             v_gap = max(node_h + scale(88), scale(150))
             margin = scale(56)
@@ -637,6 +663,7 @@ class FamilyTreeRenderMixin:
             canvas, colors, scale, label_font, relationship_kinds)
 
         highlighted_nodes = getattr(canvas, '_highlighted_nodes', set())
+        canvas._profile_image_refs = []
 
         def _toggle_highlight(indi_id):
             nodes = getattr(canvas, '_highlighted_nodes', set())
@@ -680,6 +707,35 @@ class FamilyTreeRenderMixin:
                 name_h = name_lines * center_line_space
                 detail_h = detail_lines * line_space
                 text_top = y - (name_h + detail_h) / 2
+                if show_images:
+                    payload = self._profile_media_payload(node_id, (thumb_w, thumb_h))
+                    if payload and payload.get('image') is not None:
+                        image_tag = f'{node_tag}_photo'
+                        image_tags = (
+                            ('family_tree_node_photo', image_tag)
+                            if payload.get('kind') == 'real'
+                            else ('family_tree_node', node_tag, image_tag)
+                        )
+                        canvas.create_image(
+                            x, y1 + image_inset + thumb_h / 2,
+                            image=payload['image'], anchor='center',
+                            tags=image_tags)
+                        canvas._profile_image_refs.append(payload['image'])
+                        if payload.get('kind') == 'real':
+                            canvas.tag_bind(
+                                image_tag, '<Enter>',
+                                lambda *_: canvas.configure(cursor='hand2'))
+                            canvas.tag_bind(
+                                image_tag, '<Leave>',
+                                lambda *_: canvas.configure(cursor=''))
+                            canvas.tag_bind(
+                                image_tag, '<Button-1>',
+                                lambda event, path=payload.get('path'): (
+                                    self._show_full_profile_image(
+                                        path, parent=canvas.winfo_toplevel()),
+                                    'break',
+                                )[-1])
+                    text_top = y1 + image_inset + thumb_h + image_gap
                 if name_label:
                     canvas.create_text(
                         x, text_top + name_h / 2,
@@ -694,8 +750,40 @@ class FamilyTreeRenderMixin:
                         font=label_font, width=label_width, justify='center',
                         tags=('family_tree_node', node_tag))
             else:
+                text_y = y
+                if show_images:
+                    payload = self._profile_media_payload(node_id, (thumb_w, thumb_h))
+                    if payload and payload.get('image') is not None:
+                        image_tag = f'{node_tag}_photo'
+                        image_tags = (
+                            ('family_tree_node_photo', image_tag)
+                            if payload.get('kind') == 'real'
+                            else ('family_tree_node', node_tag, image_tag)
+                        )
+                        canvas.create_image(
+                            x, y1 + image_inset + thumb_h / 2,
+                            image=payload['image'], anchor='center',
+                            tags=image_tags)
+                        canvas._profile_image_refs.append(payload['image'])
+                        if payload.get('kind') == 'real':
+                            canvas.tag_bind(
+                                image_tag, '<Enter>',
+                                lambda *_: canvas.configure(cursor='hand2'))
+                            canvas.tag_bind(
+                                image_tag, '<Leave>',
+                                lambda *_: canvas.configure(cursor=''))
+                            canvas.tag_bind(
+                                image_tag, '<Button-1>',
+                                lambda event, path=payload.get('path'): (
+                                    self._show_full_profile_image(
+                                        path, parent=canvas.winfo_toplevel()),
+                                    'break',
+                                )[-1])
+                        text_y = (
+                            y1 + image_inset + thumb_h + image_gap
+                            + block_heights[index] / 2)
                 canvas.create_text(
-                    x, y, text=name_label, fill=self.PERSON_BOX_TEXT,
+                    x, text_y, text=name_label, fill=self.PERSON_BOX_TEXT,
                     font=label_font,
                     width=label_width, justify='center',
                     tags=('family_tree_node', node_tag))

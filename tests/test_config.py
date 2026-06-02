@@ -267,6 +267,40 @@ class TestShowIds:
 
 
 # ===========================================================================
+# show_profile_image
+# ===========================================================================
+
+class TestShowProfileImage:
+    def test_default_is_true(self, tmp_path):
+        mgr = _mgr(tmp_path)
+        assert mgr.get_show_profile_image() is True
+
+    def test_roundtrip(self, tmp_path):
+        mgr = _mgr(tmp_path)
+        mgr.set_show_profile_image(True)
+        assert mgr.get_show_profile_image() is True
+        mgr.set_show_profile_image(False)
+        assert mgr.get_show_profile_image() is False
+
+
+# ===========================================================================
+# media_parent_dirs
+# ===========================================================================
+
+class TestMediaParentDirs:
+    def test_default_is_none(self, tmp_path):
+        mgr = _mgr(tmp_path)
+        assert mgr.get_media_parent_dir("/tmp/tree.ged") is None
+
+    def test_roundtrip_and_clear(self, tmp_path):
+        mgr = _mgr(tmp_path)
+        mgr.set_media_parent_dir("/tmp/tree.ged", "/media/tree")
+        assert mgr.get_media_parent_dir("/tmp/tree.ged") == "/media/tree"
+        mgr.set_media_parent_dir("/tmp/tree.ged", None)
+        assert mgr.get_media_parent_dir("/tmp/tree.ged") is None
+
+
+# ===========================================================================
 # name_order
 # ===========================================================================
 

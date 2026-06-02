@@ -2,4 +2,4 @@
 * Option to export portions of GEDCOM file
 * Render more of the GEDCOM records
 * Investigate GEDCOM tags from platforms other than Ancestry
-* Tweak half/step/adopted sibling lines--not quite right yet
+* Option to edit GEDCOM file (will require strict policing of GEDCOM standards)
