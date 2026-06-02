@@ -445,7 +445,7 @@ class PersonDialogMixin:
         if not items:
             label = ctk.CTkLabel(outer, text=PROFILE_IMAGE_GALLERY_EMPTY)
             label.pack(fill='both', expand=True, padx=24, pady=24)
-            win.geometry('360x160')
+            win.geometry(self._clamped_toplevel_geometry(parent, 360, 160))
             win.lift()
             return
 
@@ -489,9 +489,35 @@ class PersonDialogMixin:
         rows = (len(items) + columns - 1) // columns
         win_w = min(int(screen_w * 0.82), max(360, columns * item_w + 54))
         win_h = min(int(screen_h * 0.78), max(260, rows * (size[1] + 70) + 48))
-        win.geometry(f'{win_w}x{win_h}')
+        win.geometry(self._clamped_toplevel_geometry(parent, win_w, win_h))
         win.minsize(min(win_w, 360), min(win_h, 220))
         win.lift()
+
+    @staticmethod
+    def _clamped_toplevel_geometry(parent, width, height, margin=24):
+        """Return geometry centered on parent and clamped to the screen."""
+        width, height = int(width), int(height)
+        try:
+            parent.update_idletasks()
+            screen_w = max(parent.winfo_screenwidth(), width)
+            screen_h = max(parent.winfo_screenheight(), height)
+            parent_x = parent.winfo_rootx()
+            parent_y = parent.winfo_rooty()
+            parent_w = max(parent.winfo_width(), 1)
+            parent_h = max(parent.winfo_height(), 1)
+            x = parent_x + (parent_w - width) // 2
+            y = parent_y + (parent_h - height) // 2
+        except tk.TclError:
+            screen_w = max(1024, width)
+            screen_h = max(768, height)
+            x = (screen_w - width) // 2
+            y = (screen_h - height) // 2
+
+        max_x = max(0, screen_w - width - margin)
+        max_y = max(0, screen_h - height - margin)
+        x = max(margin if max_x else 0, min(x, max_x))
+        y = max(margin if max_y else 0, min(y, max_y))
+        return f'{width}x{height}+{int(x)}+{int(y)}'
 
     @staticmethod
     def _profile_image_navigation_state(image_path, gallery_paths):
@@ -769,6 +795,26 @@ class PersonDialogMixin:
             if memory:
                 kernel32.GlobalFree(memory)
 
+    @staticmethod
+    def _copy_macos_png_bytes_to_clipboard(png_bytes):
+        """Copy PNG image bytes to the macOS pasteboard."""
+        try:
+            from AppKit import (  # pylint: disable=import-outside-toplevel
+                NSPasteboard,
+                NSPasteboardTypePNG,
+            )
+            from Foundation import NSData  # pylint: disable=import-outside-toplevel
+        except ImportError as exc:
+            raise tk.TclError(
+                "PyObjC is required for macOS image clipboard copy."
+            ) from exc
+
+        png_data = NSData.dataWithBytes_length_(png_bytes, len(png_bytes))
+        pasteboard = NSPasteboard.generalPasteboard()
+        pasteboard.clearContents()
+        if not pasteboard.setData_forType_(png_data, NSPasteboardTypePNG):
+            raise tk.TclError("Could not set macOS clipboard image data.")
+
     def _show_full_profile_image(self, image_path, parent=None, gallery_paths=None):
         """Open or reuse a scrollable preview window for a resolved local image."""
         if not image_path:
@@ -828,10 +874,15 @@ class PersonDialogMixin:
                 if not graph_state:
                     return 'break'
                 try:
+                    source_path = getattr(
+                        win, '_profile_full_image_source_path', '')
+                    png_size = (
+                        graph_state.get('image_w', graph_state['canvas_w']),
+                        graph_state.get('image_h', graph_state['canvas_h']),
+                    )
                     if sys.platform == 'win32':
-                        png_bytes = media.full_size_png_bytes(
-                            getattr(win, '_profile_full_image_source_path', ''),
-                            (graph_state['canvas_w'], graph_state['canvas_h']))
+                        png_bytes = media.png_bytes_at_size(
+                            source_path, png_size)
                         if png_bytes is None:
                             raise tk.TclError("Could not read profile image.")
                         if not hasattr(self, '_windows_dib_from_png_bytes'):
@@ -840,11 +891,12 @@ class PersonDialogMixin:
                         dib_bytes = self._windows_dib_from_png_bytes(png_bytes)
                         self._copy_windows_dib_bytes_to_clipboard(
                             win, dib_bytes)
-                    elif sys.platform == 'darwin' and hasattr(
-                            self, '_copy_macos_canvas_png'):
-                        self._copy_macos_canvas_png(
-                            canvas, graph_state['canvas_w'],
-                            graph_state['canvas_h'])
+                    elif sys.platform == 'darwin':
+                        png_bytes = media.png_bytes_at_size(
+                            source_path, png_size)
+                        if png_bytes is None:
+                            raise tk.TclError("Could not read profile image.")
+                        self._copy_macos_png_bytes_to_clipboard(png_bytes)
                     else:
                         postscript = canvas.postscript(
                             colormode='color', x=0, y=0,

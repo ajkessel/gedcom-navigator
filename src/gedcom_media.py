@@ -291,6 +291,22 @@ class ProfileMediaService:
         except Exception:  # pylint: disable=broad-exception-caught
             return None
 
+    def png_bytes_at_size(self, source_path, size):
+        """Return PNG bytes for source_path resized to exact display size."""
+        if Image is None:
+            return None
+        width, height = max(1, int(size[0])), max(1, int(size[1]))
+        try:
+            with Image.open(source_path) as img:
+                img = ImageOps.exif_transpose(img).convert('RGBA')
+                if img.size != (width, height):
+                    img = img.resize((width, height), Image.Resampling.LANCZOS)
+                out = io.BytesIO()
+                img.save(out, format='PNG')
+                return out.getvalue()
+        except Exception:  # pylint: disable=broad-exception-caught
+            return None
+
     @staticmethod
     def display_size_for_photo(source_path, max_size):
         """Return original-or-fitted image dimensions without upscaling."""

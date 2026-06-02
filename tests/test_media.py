@@ -167,3 +167,17 @@ def test_full_size_png_bytes_match_display_size(tmp_path):
     from io import BytesIO
     with Image.open(BytesIO(png_bytes)) as copied:
         assert copied.size == (800, 400)
+
+
+@pytest.mark.skipif(Image is None, reason="Pillow not installed")
+def test_png_bytes_at_size_uses_exact_size(tmp_path):
+    photo = tmp_path / "photo.png"
+    Image.new("RGB", (80, 40), "blue").save(photo)
+    service = ProfileMediaService(tmp_path / "cache")
+
+    png_bytes = service.png_bytes_at_size(str(photo), (160, 80))
+
+    assert png_bytes is not None
+    from io import BytesIO
+    with Image.open(BytesIO(png_bytes)) as copied:
+        assert copied.size == (160, 80)

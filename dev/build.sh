@@ -33,18 +33,23 @@ while getopts "hnco:b:" opt; do
 	esac
 done
 if [ "${git_branch}" != "main" ] && [ -z "${new_git_branch}" ]; then
-	printf "Current git branch is ${git_branch}.\nDo you want to build from this branch? (y/n/b/m)\n[b = show git branches, m = switch to main and pull latest changes, or enter name of branch]\n"
+	printf "Current git branch is ${git_branch}.\nDo you want to build from this branch? (Y/n/b/m)\n[b = show git branches, m = switch to main and pull latest changes, or enter name of branch]\n"
 	read -r answer
-	if [[ "$answer" == "b" ]]; then
+	if [[ "${answer,,}" == "b" ]]; then
 		git branch -a
 		exec $(readlink -f "$0")
-	elif [[ "$answer" == "m" ]]; then
+	elif [[ "${answer,,}" == "m" ]]; then
 		new_git_branch="main"
 	elif git branch | grep -q "\b${answer}\b"; then
 		new_git_branch="$answer"
-	elif [[ "$answer" != "y" ]]; then
+	elif [[ "${answer,,}" == "n" ]]; then
 		printf "Exiting.\n"
 		exit 0
+	elif [[ "${answer,,}" == "y" ]]; then
+		:
+	elif [[ -n "${answer}" ]]; then
+		printf "Invalid input. Exiting.\n"
+		exit 1
 	fi
 fi
 [ -n "${new_git_branch}" ] && git_branch="${new_git_branch}"

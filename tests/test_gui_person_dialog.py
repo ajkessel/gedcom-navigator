@@ -485,6 +485,42 @@ def test_profile_full_image_title_uses_filename_without_extension():
         r"C:\media\Family Photo.PNG") == "Family Photo"
 
 
+def test_clamped_toplevel_geometry_keeps_gallery_on_screen():
+    class Parent:
+        @staticmethod
+        def update_idletasks():
+            return None
+
+        @staticmethod
+        def winfo_screenwidth():
+            return 800
+
+        @staticmethod
+        def winfo_screenheight():
+            return 600
+
+        @staticmethod
+        def winfo_rootx():
+            return 300
+
+        @staticmethod
+        def winfo_rooty():
+            return 500
+
+        @staticmethod
+        def winfo_width():
+            return 300
+
+        @staticmethod
+        def winfo_height():
+            return 200
+
+    geometry = PersonDialogMixin._clamped_toplevel_geometry(
+        Parent(), 500, 260)
+
+    assert geometry == "500x260+200+316"
+
+
 def test_profile_sections_render_in_requested_order():
     """Profile sections render Biography, Family, Home Path, Facts, then Tags."""
 
