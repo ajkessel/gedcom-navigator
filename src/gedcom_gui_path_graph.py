@@ -769,6 +769,8 @@ class PathGraphMixin:
             if getattr(self, '_path_graph_win', None) is win:
                 self._path_graph_win = None
                 self._path_graph_replace_fn = None
+            self._set_open_graph_zoom = None
+            self._fit_open_graph = None
             win.destroy()
 
         def _on_graph_configure(event):
@@ -943,7 +945,29 @@ class PathGraphMixin:
         def _zoom_graph_reset():
             _set_graph_zoom(1.0)
 
+        def _fit_graph_to_view():
+            """Zoom so the entire graph fits within the current viewport.
+
+            Automation hook used by the App Store screenshot generator: with
+            images enabled the nodes are tall enough that a multi-row path no
+            longer fits at zoom 1.0, so the bottom rows get clipped.  Shrink to
+            fit (never enlarging past native size), then center the content.
+            """
+            canvas.update_idletasks()
+            view_w = max(canvas.winfo_width(), 1)
+            view_h = max(canvas.winfo_height(), 1)
+            content_w = max(graph_state['canvas_w'], 1)
+            content_h = max(graph_state['canvas_h'], 1)
+            fit = graph_state['zoom'] * min(
+                view_w / content_w, view_h / content_h)
+            _set_graph_zoom(min(1.0, fit))
+            canvas.update_idletasks()
+            self._center_graph_canvas(
+                canvas, graph_state['canvas_w'], graph_state['canvas_h'])
+
         _redraw_graph()
+        self._set_open_graph_zoom = _set_graph_zoom
+        self._fit_open_graph = _fit_graph_to_view
         self._bind_graph_mouse_navigation(canvas)
         canvas.bind(
             '<Configure>',

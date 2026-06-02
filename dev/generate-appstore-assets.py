@@ -584,6 +584,17 @@ def automation(app, done_event: threading.Event):
                         )
                     )
                     time.sleep(0.6)
+                    # With images enabled the nodes are tall enough that a
+                    # multi-row path overflows the fixed 1280×772 window and the
+                    # bottom rows clip.  Shrink the graph to fit the (now final)
+                    # viewport so the whole relationship path is visible while
+                    # the captured asset stays exactly 2560×1600.
+                    fit_graph = getattr(app, "_fit_open_graph", None)
+                    if fit_graph is not None:
+                        _ui(fit_graph)
+                        time.sleep(0.5)
+                    else:
+                        print("  WARNING: graph fit hook unavailable.")
             except Exception:  # pylint: disable=broad-exception-caught
                 pass
         _screenshot(
