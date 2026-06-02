@@ -355,7 +355,6 @@ class ResultsMixin(GraphRenderMixin, GraphLayoutMixin):
         start = self.individuals[start_id]
         self._set_results_header_for_person(start_id)
 
-        nl(gs.RESULT_CLOSEST_MATCHES, bold=True)
         if start['dna_markers']:
             nl(gs.RESULT_DNA_FLAGGED_NOTE)
             for m in start['dna_markers']:
