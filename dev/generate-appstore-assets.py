@@ -373,13 +373,18 @@ def _open_tree_view(app, indi_id, mode) -> bool:
 
 
 def _capture_tree_view(
-    app, indi_id, mode, out_name, expand_all=False, zoom=None
+    app, indi_id, mode, out_name, expand_all=False, zoom=None, fit=False
 ) -> None:
     """Open a tree *mode* for *indi_id*, size it for Retina, and screenshot.
 
     expand_all – fully expand a descendant tree (every generation) first.
     zoom       – zoom factor applied after expansion (clamped 0.5–2.5 by the
                  app); use a small value to frame a large, sprawling tree.
+    fit        – after the final resize, zoom so the whole tree fits the
+                 viewport and center it.  The default family tree already
+                 carries a full ring of relatives (parents, siblings, spouses,
+                 children), so fitting shows them all at once rather than the
+                 zoomed-in default framing that clipped the outer nodes.
     """
     title_key = TREE_TITLES[mode]
     _open_tree_view(app, indi_id, mode)
@@ -412,6 +417,16 @@ def _capture_tree_view(
                 time.sleep(0.8)
         except Exception:  # pylint: disable=broad-exception-caught
             pass
+
+    # Fit the (now larger) family tree into the final viewport and center it.
+    # Must run after the resize so it measures the real capture size.
+    if fit:
+        fit_tree = getattr(app, "_fit_open_tree", None)
+        if fit_tree is not None:
+            _ui(fit_tree)
+            time.sleep(0.6)
+        else:
+            print("  WARNING: family-tree fit hook unavailable.")
 
     # For a fully expanded (large) descendant tree, frame the root at the top
     # so the generations cascade downward in view.  Must run after the final
@@ -584,6 +599,17 @@ def automation(app, done_event: threading.Event):
                         )
                     )
                     time.sleep(0.6)
+                    # With images enabled the nodes are tall enough that a
+                    # multi-row path overflows the fixed 1280×772 window and the
+                    # bottom rows clip.  Shrink the graph to fit the (now final)
+                    # viewport so the whole relationship path is visible while
+                    # the captured asset stays exactly 2560×1600.
+                    fit_graph = getattr(app, "_fit_open_graph", None)
+                    if fit_graph is not None:
+                        _ui(fit_graph)
+                        time.sleep(0.5)
+                    else:
+                        print("  WARNING: graph fit hook unavailable.")
             except Exception:  # pylint: disable=broad-exception-caught
                 pass
         _screenshot(
@@ -595,7 +621,7 @@ def automation(app, done_event: threading.Event):
         # ---------------------------------------------------------------
         print("\n[7/9] Opening family tree view (Daniel Hart, 19 relatives) …")
         _capture_tree_view(
-            app, TREE_PERSON_ID, "tree", "screenshot_05_tree.png"
+            app, TREE_PERSON_ID, "tree", "screenshot_05_tree.png", fit=True
         )
 
         # ---------------------------------------------------------------

@@ -1556,6 +1556,7 @@ class PersonDialogMixin:
             self._expand_open_descendant_tree = None
             self._set_open_tree_zoom = None
             self._frame_open_descendant_top = None
+            self._fit_open_tree = None
             win.destroy()
 
         win.bind("<Escape>", _on_destroy_person_win)
@@ -1834,6 +1835,7 @@ class PersonDialogMixin:
             self._expand_open_descendant_tree = None
             self._set_open_tree_zoom = None
             self._frame_open_descendant_top = None
+            self._fit_open_tree = None
             if iid is not None:
                 state["history"].append(state["person_id"])
                 state["forward"].clear()
@@ -2420,9 +2422,37 @@ class PersonDialogMixin:
                 )
                 canvas.yview_moveto(0.0)
 
+            def _fit_open_tree_to_view():
+                # Zoom the open tree so the whole thing fits the current
+                # viewport (never enlarging past native size), then center it.
+                # Automation hook for the App Store screenshot generator: the
+                # default family tree already includes a full ring of relatives
+                # (parents, siblings, spouses, children); fitting reveals them
+                # all at once instead of the zoomed-in default framing.
+                canvas.update_idletasks()
+                # Leave a margin so neither node borders nor the expansion "+"
+                # buttons that overhang each node sit flush against (and clip
+                # at) the viewport edges once fitted.
+                margin = 0.88
+                view_w = max(canvas.winfo_width(), 1) * margin
+                view_h = max(canvas.winfo_height(), 1) * margin
+                content_w = max(graph_state["canvas_w"], 1)
+                content_h = max(graph_state["canvas_h"], 1)
+                fit = graph_state["zoom"] * min(
+                    view_w / content_w, view_h / content_h
+                )
+                _set_tree_zoom(min(1.0, fit))
+                canvas.update_idletasks()
+                # Center the whole tree (not just the focus person) so the
+                # margin slack is shared evenly and no edge node clips.
+                self._center_graph_canvas(
+                    canvas, graph_state["canvas_w"], graph_state["canvas_h"]
+                )
+
             self._expand_open_descendant_tree = _expand_all_descendants_now
             self._set_open_tree_zoom = _set_tree_zoom
             self._frame_open_descendant_top = _frame_descendants_from_top
+            self._fit_open_tree = _fit_open_tree_to_view
 
             _bind_canvas_navigation(canvas)
             _bind_tree_mouse_navigation(canvas)

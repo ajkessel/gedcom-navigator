@@ -965,13 +965,22 @@ def _nearest_unblocked_column(column, blocked_columns):
             blocked - MIN_COLUMN_SPACING,
             blocked + MIN_COLUMN_SPACING,
         ))
+    free = [
+        candidate for candidate in candidates
+        if not any(
+            abs(candidate - blocked) < MIN_COLUMN_SPACING
+            for blocked in blocked_columns)
+    ]
+    if not free:
+        # Every blocked±spacing candidate measured inside another band.  In
+        # exact arithmetic the outermost edges (min/max ± spacing) are always
+        # clear, but accumulated floating-point error in the column math can
+        # tip their boundary distance a hair under MIN_COLUMN_SPACING, so the
+        # filter rejects every candidate.  Place the box clear of the whole
+        # cluster rather than min() over an empty sequence.
+        return max(blocked_columns) + MIN_COLUMN_SPACING
     return min(
-        (
-            candidate for candidate in candidates
-            if not any(
-                abs(candidate - blocked) < MIN_COLUMN_SPACING
-                for blocked in blocked_columns)
-        ),
+        free,
         key=lambda candidate: (abs(candidate - column), candidate),
     )
 
