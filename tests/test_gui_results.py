@@ -6225,6 +6225,39 @@ def test_nearest_unblocked_column_does_not_oscillate_between_spouses():
     assert all(abs(column - blocked) >= 1.0 for blocked in (0.0, 1.5))
 
 
+def test_nearest_unblocked_column_survives_float_packed_band():
+    """A dense, float-spaced band must not min() over an empty candidate set.
+
+    Column coordinates accumulate rounding error from the layout's 1.4/1.0 step
+    arithmetic, so even the outermost blocked±spacing candidates can measure a
+    hair under MIN_COLUMN_SPACING (e.g. 0.99999999999999) and get filtered out.
+    This is the exact blocked set captured when expanding parents+children
+    across a large family tree crashed the renderer with "min() iterable
+    argument is empty"; the result must be a finite, clear column.
+    """
+    # Exact float values captured from the crashing layout; their binary
+    # representations are what produce the sub-1.0 boundary distances, so they
+    # must be kept verbatim (rounded versions do not reproduce the bug).
+    blocked = [
+        -3.4499999999999997, -2.05, -0.6499999999999999, 0.7499999999999996,
+        2.15, 3.7500000000000004, 5.15, 6.550000000000001, 7.949999999999999,
+        9.35, 10.65, 12.05, 13.45, 14.85, 16.55, 17.95, 19.35, 20.45, 21.85,
+        23.549999999999997, 24.949999999999996, 26.349999999999998,
+        27.749999999999996, 29.15, 30.549999999999997, 31.85, 33.25, 34.65,
+        36.05, 37.800000000000004, 39.2, 40.6, 42.0, 43.4, 44.99999999999999,
+        46.39999999999999, 47.8, 49.199999999999996, 50.599999999999994,
+        51.99999999999999, 53.39999999999999, 54.8, 56.199999999999996, 57.4,
+        58.8, 60.199999999999996, 61.199999999999996, 62.199999999999996,
+        63.199999999999996,
+    ]
+
+    column = _nearest_unblocked_column(57.699999999999996, blocked)
+
+    assert column == max(blocked) + 1.0
+    # Clear of every blocked column (tolerating accumulated float error).
+    assert all(abs(column - b) > 1.0 - 1e-6 for b in blocked)
+
+
 def test_family_tree_expansion_options_only_include_hidden_relatives():
     """Expansion controls are omitted when all relatives are already visible."""
     families = {
