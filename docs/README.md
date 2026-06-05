@@ -72,6 +72,13 @@ I've also sought to make all actions accessible from the keyboard. See [the keyb
 
 For more details including the command-line tool, see [technical details](TECHNICAL.md)
 
+## Images
+
+GEDCOM Navigator displays profile images if they exist in your GEDCOM file. You will also see a "Gallery" button if your records have other images associated with people. A few tips for images:
+* Images can be enable or disabled in Preferences.
+* The path to images in your GEDCOM files may not be correct if you've moved the GEDCOM file from its original environment. The first time you view a person with an associated image record, if the path to the image is not valid, the application will ask you to find the folder where images related to the GEDCOM file are stored. This mapping will then be remembered and work for all other images in your GEDCOM file.
+* Ancestry provides no built-in mechanism to export media. If you have images in your Ancestry tree and want to see them in GEDCOM Navigator, the easiest option is first to sync your tree with Family Tree DNA. A GEDCOM file exported from Family Tree DNA will include the paths to all the images, which should then appear when you open the Family Tree DNA exported GEDCOM file in GEDCOM Navigator.
+
 ## License
 
 This application is released under the [BSD 2-Clause License](LICENSE.md).

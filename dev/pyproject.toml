@@ -36,6 +36,7 @@ gui = [
     "cyrtranslit>=1.2.0",
     "hebrew>=0.8.1",
     "pillow",
+    "reportlab>=4.0",
     "certifi; sys_platform == 'darwin'",
     "pyobjc-framework-Cocoa; sys_platform == 'darwin'",
     "pyobjc-framework-CoreServices; sys_platform == 'darwin'",

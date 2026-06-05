@@ -1,5 +1,17 @@
 # Changelog
 
+## [Unreleased] - 2026-06-XX
+
+### Added
+
+- **PDF export for text views** — Preferences now lets users save Results and Profile views as either text or searchable, paginated PDF files. PDF output preserves headings, bold text, link styling, Unicode text, and the visible profile/results content.
+
+### Changed
+
+- **More readable Profile Facts & Events** — Residence, Education/Graduation, and Occupation are grouped into date-first timelines, with remaining GEDCOM facts collected under Other Facts & Events. Entries are ordered chronologically, undated records are clearly labeled, long notes and source details use indented continuation lines, and `https://` links remain clickable.
+- **Cleaner Preferences layout** — Preferences now uses a wider, aligned label-and-control grid so appearance, search, display, language, cache, and data-management options are easier to scan and less likely to clip.
+- **Full-size images can be dragged to pan** — zoomed profile and gallery images can now be repositioned by dragging with either mouse button.
+
 ## [1.9.13] - 2026-06-02
 
 ### Added

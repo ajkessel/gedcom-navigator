@@ -29,7 +29,9 @@ from gedcom_family_tree import (
     layout_family_tree,
     layout_pedigree_tree,
 )
+from gedcom_parser import extract_year
 from gedcom_platform import filedialog_parent
+from gedcom_pdf import render_text_widget_pdf
 from gedcom_relationship import _extract_event
 from gedcom_strings import *  # pylint: disable=unused-wildcard-import
 from gedcom_tooltip import Tooltip
@@ -94,12 +96,25 @@ class PersonDialogMixin:
         "TITL": FACT_EVENT_TITL,
         "WILL": FACT_EVENT_WILL,
     }
+    _FACT_EVENT_GROUPS = (
+        ("residence", FACT_EVENT_GROUP_RESIDENCE),
+        ("education", FACT_EVENT_GROUP_EDUCATION),
+        ("occupation", FACT_EVENT_GROUP_OCCUPATION),
+        ("other", FACT_EVENT_GROUP_OTHER),
+    )
+    _FACT_EVENT_GROUP_BY_TAG = {
+        "RESI": "residence",
+        "EDUC": "education",
+        "GRAD": "education",
+        "OCCU": "occupation",
+    }
 
     @classmethod
-    def _profile_fact_event_lines(cls, raw):
-        """Return formatted Facts & Events lines from an individual raw record."""
-        lines = []
+    def _profile_fact_event_groups(cls, raw):
+        """Return grouped, chronologically ordered Profile fact/event records."""
+        groups = {key: [] for key, _label in cls._FACT_EVENT_GROUPS}
         i = 0
+        source_order = 0
         while i < len(raw):
             level, _xref, tag, value = raw[i]
             if level != 1 or tag not in cls._FACT_EVENT_TAGS:
@@ -114,8 +129,25 @@ class PersonDialogMixin:
 
             event = cls._format_profile_fact_event(tag, value, subrecords)
             if event:
-                lines.append(event)
-        return lines
+                event["source_order"] = source_order
+                group = cls._FACT_EVENT_GROUP_BY_TAG.get(tag, "other")
+                groups[group].append(event)
+                source_order += 1
+
+        def sort_key(event):
+            date_value = event["date"]
+            year = extract_year(date_value)
+            if year is not None:
+                return 0, year, event["source_order"]
+            if date_value:
+                return 1, 0, event["source_order"]
+            return 2, 0, event["source_order"]
+
+        return [
+            (label, sorted(groups[key], key=sort_key))
+            for key, label in cls._FACT_EVENT_GROUPS
+            if groups[key]
+        ]
 
     @classmethod
     def _format_profile_fact_event(cls, tag, value, subrecords):
@@ -172,26 +204,46 @@ class PersonDialogMixin:
             label = event_type
 
         value_text = (value or "").strip()
-        details = []
+        primary_details = []
         if value_text:
-            details.append(value_text)
+            primary_details.append(value_text)
         if event_type and tag not in ("EVEN", "FACT"):
-            details.append(event_type)
-        for detail in (date_value, place_value):
-            if detail:
-                details.append(detail)
-        if age_value:
-            details.append(FACT_EVENT_AGE.format(value=age_value))
-        if cause_value:
-            details.append(FACT_EVENT_CAUSE.format(value=cause_value))
-        if note_parts:
-            details.append(FACT_EVENT_NOTE.format(value=" ".join(note_parts)))
-        for page in source_pages:
-            details.append(FACT_EVENT_SOURCE.format(value=page))
+            primary_details.append(event_type)
+        if place_value:
+            primary_details.append(place_value)
 
-        if not details:
-            return ""
-        return FACTS_EVENTS_LINE.format(label=label, details=", ".join(details))
+        if tag == "GRAD":
+            graduation_detail = ", ".join(primary_details)
+            primary_details = [
+                FACT_EVENT_GRADUATION_DETAIL.format(value=graduation_detail)
+                if graduation_detail else FACT_EVENT_GRAD
+            ]
+        elif tag not in cls._FACT_EVENT_GROUP_BY_TAG:
+            other_detail = ", ".join(primary_details)
+            primary_details = [
+                FACT_EVENT_OTHER_DETAIL.format(label=label, value=other_detail)
+                if other_detail else label
+            ]
+
+        supplemental = []
+        if age_value:
+            supplemental.append(FACT_EVENT_AGE.format(value=age_value))
+        if cause_value:
+            supplemental.append(FACT_EVENT_CAUSE.format(value=cause_value))
+        if note_parts:
+            supplemental.append(
+                FACT_EVENT_NOTE.format(value=" ".join(note_parts))
+            )
+        for page in source_pages:
+            supplemental.append(FACT_EVENT_SOURCE.format(value=page))
+
+        if not date_value and not primary_details and not supplemental:
+            return None
+        return {
+            "date": date_value,
+            "primary": ", ".join(primary_details),
+            "supplemental": supplemental,
+        }
 
     def _show_profile_from_tree_context(self, indi_id, show_person_view):
         """Show indi_id's profile in the current person detail window."""
@@ -564,6 +616,27 @@ class PersonDialogMixin:
         title = path.stem
         return title or path.name or image_path
 
+    @staticmethod
+    def _bind_full_profile_image_panning(canvas):
+        """Allow either mouse button to drag the full-size image viewport."""
+        def _start_pan(event):
+            canvas.scan_mark(event.x, event.y)
+            canvas.configure(cursor='fleur')
+            return 'break'
+
+        def _drag_pan(event):
+            canvas.scan_dragto(event.x, event.y, gain=1)
+            return 'break'
+
+        def _stop_pan(_event):
+            canvas.configure(cursor='')
+            return 'break'
+
+        for button in (1, 3):
+            canvas.bind(f'<ButtonPress-{button}>', _start_pan)
+            canvas.bind(f'<B{button}-Motion>', _drag_pan)
+            canvas.bind(f'<ButtonRelease-{button}>', _stop_pan)
+
     def _configure_full_profile_gallery_navigation(
             self, win, image_path, parent, gallery_paths):
         """Update gallery navigation metadata and controls for a preview."""
@@ -877,6 +950,7 @@ class PersonDialogMixin:
             xbar.grid(row=1, column=0, sticky='ew')
             frame.rowconfigure(0, weight=1)
             frame.columnconfigure(0, weight=1)
+            self._bind_full_profile_image_panning(canvas)
             win._profile_full_image_canvas = canvas
             btn_frame = ctk.CTkFrame(outer, fg_color='transparent')
             btn_frame.pack(fill='x', padx=10, pady=(6, 8))
@@ -1503,11 +1577,28 @@ class PersonDialogMixin:
             common_ancestor_line=common_ancestor_line,
         )
 
-        fact_event_lines = self._profile_fact_event_lines(indi.get("_raw", []))
-        if fact_event_lines:
+        fact_event_groups = self._profile_fact_event_groups(
+            indi.get("_raw", [])
+        )
+        if fact_event_groups:
             add(FACTS_EVENTS_SECTION, bold=True)
-            for line in fact_event_lines:
-                add_with_https_links(line)
+            for group_index, (group_label, events) in enumerate(fact_event_groups):
+                if group_index:
+                    add("")
+                add(FACT_EVENT_GROUP_HEADING.format(label=group_label), bold=True)
+                for event in events:
+                    date_label = event["date"] or FACT_EVENT_UNDATED
+                    primary = event["primary"] or FACT_EVENT_NO_DETAILS
+                    add_with_https_links(
+                        FACT_EVENT_PRIMARY_LINE.format(
+                            date=date_label,
+                            details=primary,
+                        )
+                    )
+                    for detail in event["supplemental"]:
+                        add_with_https_links(
+                            FACT_EVENT_SUPPLEMENTAL_LINE.format(details=detail)
+                        )
             add("")
 
         indi_tags = indi.get("tags", [])
@@ -1947,22 +2038,32 @@ class PersonDialogMixin:
                 content = _profile_content()
                 if not content:
                     return "break"
+                save_format = self._config.get_save_format()
+                is_pdf = save_format == "pdf"
                 path = filedialog.asksaveasfilename(
                     parent=filedialog_parent(win),
                     title=DLG_SAVE_PROFILE,
-                    defaultextension=".txt",
-                    filetypes=[
-                        ("Text files", "*.txt"),
-                        ("All files", "*.*"),
-                    ],
+                    defaultextension=".pdf" if is_pdf else ".txt",
+                    filetypes=[(
+                        FILETYPE_PDF if is_pdf else FILETYPE_TEXT,
+                        "*.pdf" if is_pdf else "*.txt",
+                    ), ("All files", "*.*")],
                 )
                 if not path:
                     return "break"
                 try:
-                    with open(path, "w", encoding="utf-8") as f:
-                        f.write(content)
-                        f.write("\n")
-                except OSError as exc:
+                    if is_pdf:
+                        render_text_widget_pdf(
+                            path,
+                            text._textbox,
+                            header=win.title().strip(),
+                            font_size=self._mono_size,
+                        )
+                    else:
+                        with open(path, "w", encoding="utf-8") as f:
+                            f.write(content)
+                            f.write("\n")
+                except (OSError, ValueError) as exc:
                     messagebox.showerror(
                         ERR_SAVE_GRAPH_TITLE,
                         ERR_SAVE_PROFILE_MSG.format(error=exc),

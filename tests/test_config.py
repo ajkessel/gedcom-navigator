@@ -284,6 +284,27 @@ class TestShowProfileImage:
 
 
 # ===========================================================================
+# save_format
+# ===========================================================================
+
+class TestSaveFormat:
+    def test_default_is_text(self, tmp_path):
+        mgr = _mgr(tmp_path)
+        assert mgr.get_save_format() == "text"
+
+    def test_roundtrip(self, tmp_path):
+        mgr = _mgr(tmp_path)
+        mgr.set_save_format("pdf")
+        assert mgr.get_save_format() == "pdf"
+
+    def test_invalid_falls_back_to_text(self, tmp_path):
+        p = tmp_path / "settings.json"
+        p.write_text(json.dumps({"save_format": "html"}), encoding="utf-8")
+        mgr = ConfigManager(p)
+        assert mgr.get_save_format() == "text"
+
+
+# ===========================================================================
 # media_parent_dirs
 # ===========================================================================
 
