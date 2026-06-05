@@ -146,7 +146,8 @@ def get_tip_copy_json():
 
 def get_tip_save():
     mod = get_mod_key()
-    return _("Save ({mod}S)\nSave the results to a text file.").format(mod=mod)
+    return _("Save ({mod}S)\nSave the results using the format selected in Preferences.").format(
+        mod=mod)
 
 
 def get_tip_find():
@@ -308,7 +309,17 @@ BIO_AGE_AT_DEATH = _("  Age:     {age} (at death)")
 BIO_NO_INFO = _("  (no biographical information found)")
 FACTS_EVENTS_SECTION = _("Facts & Events")
 FACTS_EVENTS_NO_INFO = _("  (no facts or events found)")
-FACTS_EVENTS_LINE = _("  {label}: {details}")
+FACT_EVENT_GROUP_RESIDENCE = _("Residence")
+FACT_EVENT_GROUP_EDUCATION = _("Education")
+FACT_EVENT_GROUP_OCCUPATION = _("Occupation")
+FACT_EVENT_GROUP_OTHER = _("Other Facts & Events")
+FACT_EVENT_GROUP_HEADING = _("  {label}")
+FACT_EVENT_PRIMARY_LINE = _("    {date}: {details}")
+FACT_EVENT_SUPPLEMENTAL_LINE = _("      {details}")
+FACT_EVENT_UNDATED = _("Undated")
+FACT_EVENT_NO_DETAILS = _("Details unavailable")
+FACT_EVENT_OTHER_DETAIL = _("{label}: {value}")
+FACT_EVENT_GRADUATION_DETAIL = _("Graduation: {value}")
 FACT_EVENT_ADOP = _("Adoption")
 FACT_EVENT_BAPM = _("Baptism")
 FACT_EVENT_CAST = _("Caste")
@@ -427,7 +438,8 @@ PROFILE_IMAGE_NAV_STATUS = _("{current} of {total}")
 def get_tip_save_profile():
     mod = get_mod_key()
     return _(
-        "Save profile ({mod}S)\nSave this biographical profile to a text file."
+        "Save profile ({mod}S)\nSave this biographical profile using the format "
+        "selected in Preferences."
     ).format(mod=mod)
 
 
@@ -504,6 +516,8 @@ EDGE_LABELS = {
 }
 WIN_PATH_GRAPH = _("Relationship Graph")
 DLG_SAVE_RESULTS = _("Save results")
+FILETYPE_TEXT = _("Text files")
+FILETYPE_PDF = _("PDF files")
 DLG_SAVE_GRAPH = _("Save relationship graph")
 DLG_SAVE_GRAPH_DEBUG = _("Save graph layout debug data")
 PATH_GRAPH_MENU_SHOW_TREE = _("Show Tree")
@@ -613,6 +627,7 @@ LBL_MAX_DEPTH_PREF = _("Max Depth:")
 LBL_FUZZY_THRESHOLD = _("Fuzzy threshold:")
 LBL_MAX_DISPLAY = _("Max search results:")
 FRAME_DISPLAY = _("Display")
+FRAME_OPTIONS = _("Options")
 CHK_SHOW_IDS = _("Show GEDCOM IDs")
 TIP_SHOW_IDS = _(
     "When enabled, the GEDCOM ID for each person is shown in parentheses after their name. "
@@ -630,6 +645,9 @@ TIP_SHOW_PROFILE_IMAGE = _(
     "media, with generic placeholders used when no local image is available."
 )
 LBL_NAME_FORMAT = _("Name format:")
+LBL_SAVE_FORMAT = _("Save format:")
+SAVE_FORMAT_TEXT = _("Text")
+SAVE_FORMAT_PDF = _("PDF")
 NAME_FIRST_LAST = _("First Last")
 NAME_LAST_FIRST = _("Last, First")
 LBL_DEFAULT_DISPLAY = _("Default display:")
@@ -860,7 +878,7 @@ def get_keyboard_shortcut_rows():
         "display_paths": _("Switch the Display Pane to Paths"),
         "select_tag": _("Select new tag for finding relationship paths"),
         "reverse_results": _("Reverse/restore the direction of all relationship paths"),
-        "save_results": _("Save results to a text file"),
+        "save_results": _("Save results using the selected format"),
         "copy_results": _("Copy result to clipboard"),
         "back": _("Go back to the previous view"),
         "forward": _("Go forward to the next view"),

@@ -42,10 +42,15 @@ def test_preferences_dialog_target_height_clamps_to_screen():
 def test_preferences_dialog_width_falls_back_to_geometry_during_early_layout():
     assert DialogsMixin._preferences_dialog_width(
         _WindowWidth(1, "640x420+10+20")
-    ) == 640
+    ) == DialogsMixin._PREFS_MIN_WIDTH
 
 
 def test_preferences_dialog_width_keeps_minimum_for_invalid_early_geometry():
     assert DialogsMixin._preferences_dialog_width(
         _WindowWidth(1, "bad-geometry")
     ) == DialogsMixin._PREFS_MIN_WIDTH
+
+
+def test_preferences_dialog_uses_wider_professional_layout():
+    assert DialogsMixin._PREFS_MIN_WIDTH == 650
+    assert DialogsMixin._PREFS_LABEL_WIDTH == 145

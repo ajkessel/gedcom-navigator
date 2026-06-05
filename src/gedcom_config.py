@@ -167,6 +167,15 @@ class ConfigManager:
         """Save whether profile thumbnails should be shown in profiles and graphs."""
         self.save_value('show_profile_image', bool(value))
 
+    def get_save_format(self):
+        """Return the preferred format for saving text views."""
+        value = self.load_value('save_format', 'text')
+        return value if value in ('text', 'pdf') else 'text'
+
+    def set_save_format(self, value):
+        """Save the preferred format for saving text views."""
+        self.save_value('save_format', value)
+
     def get_media_parent_dir(self, gedcom_path):
         """Return the saved replacement media directory for a GEDCOM path."""
         dirs = self.load_value('media_parent_dirs', {})

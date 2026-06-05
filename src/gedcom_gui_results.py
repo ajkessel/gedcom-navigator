@@ -32,6 +32,7 @@ from gedcom_relationship import (
 )
 import gedcom_strings as gs
 from gedcom_platform import filedialog_parent
+from gedcom_pdf import render_text_widget_pdf
 from gedcom_tooltip import TextTagTooltip
 
 
@@ -518,29 +519,39 @@ class ResultsMixin(GraphRenderMixin, GraphLayoutMixin):
         self.root.clipboard_clear()
         self.root.clipboard_append(text)
     def _save_results(self):
-        """Save the current results text to a user-selected text file."""
+        """Save the current results in the configured text-view format."""
         text = self.results.get('1.0', 'end').rstrip()
         if not text:
             return
         header = self._results_header_var.get().strip()
-        if header:
-            text = header + '\n\n' + text
+        save_format = self._config.get_save_format()
+        is_pdf = save_format == 'pdf'
         path = filedialog.asksaveasfilename(
             parent=filedialog_parent(self.root),
             title=gs.DLG_SAVE_RESULTS,
-            defaultextension='.txt',
-            filetypes=[
-                ("Text files", "*.txt"),
-                ("All files", "*.*"),
-            ],
+            defaultextension='.pdf' if is_pdf else '.txt',
+            filetypes=[(
+                gs.FILETYPE_PDF if is_pdf else gs.FILETYPE_TEXT,
+                "*.pdf" if is_pdf else "*.txt",
+            ), ("All files", "*.*")],
         )
         if not path:
             return
         try:
-            with open(path, 'w', encoding='utf-8') as results_file:
-                results_file.write(text)
-                results_file.write('\n')
-        except OSError as exc:
+            if is_pdf:
+                render_text_widget_pdf(
+                    path,
+                    self.results._textbox,
+                    header=header,
+                    font_size=self._mono_size,
+                )
+            else:
+                if header:
+                    text = header + '\n\n' + text
+                with open(path, 'w', encoding='utf-8') as results_file:
+                    results_file.write(text)
+                    results_file.write('\n')
+        except (OSError, ValueError) as exc:
             messagebox.showerror(
                 gs.ERR_SAVE_GRAPH_TITLE,
                 gs.ERR_SAVE_RESULTS_MSG.format(error=exc),

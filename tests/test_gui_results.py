@@ -164,6 +164,58 @@ class _Var:
         self.value = value
 
 
+def test_save_results_as_pdf_uses_configured_format(monkeypatch, tmp_path):
+    class Textbox:
+        pass
+
+    class Results:
+        _textbox = Textbox()
+
+        def get(self, *_args):
+            return "Body text\n"
+
+    class Config:
+        def get_save_format(self):
+            return "pdf"
+
+    class App(ResultsMixin):
+        def __init__(self):
+            self.results = Results()
+            self._results_header_var = _Var("Person")
+            self._config = Config()
+            self._mono_size = 12
+            self.root = object()
+
+    path = tmp_path / "results.pdf"
+    dialog_options = {}
+    rendered = {}
+
+    def ask_save(**kwargs):
+        dialog_options.update(kwargs)
+        return str(path)
+
+    def render(pdf_path, widget, **kwargs):
+        rendered.update(path=pdf_path, widget=widget, **kwargs)
+
+    monkeypatch.setattr(
+        "gedcom_gui_results.filedialog.asksaveasfilename", ask_save)
+    monkeypatch.setattr(
+        "gedcom_gui_results.filedialog_parent", lambda _root: None)
+    monkeypatch.setattr("gedcom_gui_results.render_text_widget_pdf", render)
+
+    app = App()
+    app._save_results()
+
+    assert dialog_options["defaultextension"] == ".pdf"
+    assert dialog_options["filetypes"][0][1] == "*.pdf"
+    assert rendered == {
+        "path": str(path),
+        "widget": app.results._textbox,
+        "header": "Person",
+        "font_size": 12,
+    }
+
+
 def test_profile_gallery_button_visible_only_for_profile_with_extra_images():
     class Button:
         def __init__(self):

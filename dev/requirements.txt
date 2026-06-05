@@ -4,6 +4,7 @@ CTkToolTip>=0.1.0
 cyrtranslit>=1.2.0
 hebrew>=0.8.1
 pillow
+reportlab>=4.0
 pyobjc-framework-Cocoa; sys_platform == 'darwin'
 pyobjc-framework-CoreServices; sys_platform == 'darwin'
 certifi; sys_platform == 'darwin'
