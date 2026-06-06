@@ -394,6 +394,61 @@ def test_profile_gallery_candidates_exclude_profile_and_unsupported():
     assert app._profile_gallery_candidates("@A@") == []
 
 
+def test_pdf_profile_photo_bytes_uses_only_resolved_real_media():
+    class App(PersonDialogMixin):
+        pass
+
+    class GedcomPath:
+        @staticmethod
+        def get():
+            return "/tmp/tree.ged"
+
+    class Media:
+        @staticmethod
+        def resolve_person_media(indi, gedcom_path, media_dirs=None):
+            assert indi["name"] == "Alex"
+            assert gedcom_path == "/tmp/tree.ged"
+            assert media_dirs == ["/replacement"]
+            return "/tmp/alex.jpg"
+
+        @staticmethod
+        def full_size_png_bytes(path, size):
+            assert path == "/tmp/alex.jpg"
+            assert size == (240, 240)
+            return b"png-data"
+
+    app = App()
+    app.individuals = {"@A@": {"name": "Alex"}}
+    app.gedcom_path = GedcomPath()
+    app._media_service = Media()
+    app._profile_media_dirs = lambda: ["/replacement"]
+
+    assert app._pdf_profile_photo_bytes("@A@") == b"png-data"
+
+
+def test_pdf_profile_photo_bytes_omits_missing_photo():
+    class App(PersonDialogMixin):
+        pass
+
+    class GedcomPath:
+        @staticmethod
+        def get():
+            return "/tmp/tree.ged"
+
+    class Media:
+        @staticmethod
+        def resolve_person_media(*_args, **_kwargs):
+            return None
+
+    app = App()
+    app.individuals = {"@A@": {"name": "Alex"}}
+    app.gedcom_path = GedcomPath()
+    app._media_service = Media()
+    app._profile_media_dirs = lambda: []
+
+    assert app._pdf_profile_photo_bytes("@A@") is None
+
+
 def test_profile_gallery_items_prompt_for_missing_media_dir(monkeypatch):
     class App(PersonDialogMixin):
         pass
@@ -776,7 +831,17 @@ def test_profile_facts_events_render_sources_and_clickable_urls(monkeypatch):
                 (2, None, 'PLAC', 'Chicago, Illinois'),
                 (2, None, 'NOTE', 'See https://example.test/residence)'),
                 (2, None, 'SOUR', '@S1@'),
-                (3, None, 'PAGE', 'https://source.test/page.'),
+                (
+                    3,
+                    None,
+                    'PAGE',
+                    'The Burlington Free Press; Publication Date: 17 Aug 1996; '
+                    'Publication Place: Burlington, Vermont, USA; URL: '
+                    'https://www.newspapers.com/image/202577571/?article=abc'
+                    '&xid=4717 &terms=Adam_Kessel',
+                ),
+                (2, None, 'SOUR', '@S2@'),
+                (3, None, 'PAGE', 'Ordinary source without a URL'),
             ],
         },
     }
@@ -800,24 +865,38 @@ def test_profile_facts_events_render_sources_and_clickable_urls(monkeypatch):
         '  Residence\n'
         '    1930: Chicago, Illinois\n'
         '      Note: See https://example.test/residence)\n'
-        '      Source: https://source.test/page.\n'
+        '      Source: The Burlington Free Press; Publication Date: 17 Aug 1996; '
+        'Publication Place: Burlington, Vermont, USA\n'
+        '      Source: Ordinary source without a URL\n'
         in rendered
     )
+    assert 'URL:' not in rendered
+    assert 'https://www.newspapers.com/image/202577571/' not in rendered
     assert ('gedcom_url_link', 'gedcom_url_0') in [
         tags for part, tags in text.inserted
         if part == 'https://example.test/residence'
     ]
     assert ('gedcom_url_link', 'gedcom_url_1') in [
         tags for part, tags in text.inserted
-        if part == 'https://source.test/page'
+        if part == (
+            'Source: The Burlington Free Press; Publication Date: '
+            '17 Aug 1996; Publication Place: Burlington, Vermont, USA'
+        )
     ]
+    assert ('      ', None) in text.inserted
+    assert not any(
+        part.startswith(' ')
+        for part, tags in text.inserted
+        if tags and 'gedcom_url_link' in tags
+    )
 
     text.bindings[('gedcom_url_0', '<Button-1>')](None)
     text.bindings[('gedcom_url_1', '<Button-1>')](None)
 
     assert opened == [
         'https://example.test/residence',
-        'https://source.test/page',
+        'https://www.newspapers.com/image/202577571/?article=abc'
+        '&xid=4717&terms=Adam_Kessel',
     ]
 
 

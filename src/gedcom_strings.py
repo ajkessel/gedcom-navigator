@@ -111,6 +111,32 @@ BTN_REVERSE = _("Reverse")
 BTN_REVERSE_RESTORE = _("Normal Path")
 BTN_SAVE = _("Save")
 
+# Profile sub-mode selector
+PROFILE_SUBMODE_BIO = _("Bio")
+PROFILE_SUBMODE_PEDIGREE = _("Pedigree")
+PROFILE_SUBMODE_DESCENDANTS = _("Descendants")
+
+# Pedigree (Ahnentafel) text report
+PEDIGREE_REPORT_TITLE = _("Pedigree of {name}")
+PEDIGREE_GENERATION_1 = _("Generation 1")
+PEDIGREE_GENERATION_N = _("Generation {n}")
+PEDIGREE_UNKNOWN = _("[unknown]")
+PEDIGREE_REL_FATHER = _("father")
+PEDIGREE_REL_MOTHER = _("mother")
+PEDIGREE_REL_PAT_GRANDFATHER = _("paternal grandfather")
+PEDIGREE_REL_PAT_GRANDMOTHER = _("paternal grandmother")
+PEDIGREE_REL_MAT_GRANDFATHER = _("maternal grandfather")
+PEDIGREE_REL_MAT_GRANDMOTHER = _("maternal grandmother")
+PEDIGREE_REL_GREAT_PREFIX = _("great-")
+PEDIGREE_REL_GRANDFATHER = _("grandfather")
+PEDIGREE_REL_GRANDMOTHER = _("grandmother")
+PEDIGREE_REL_PATERNAL_PREFIX = _("paternal ")
+PEDIGREE_REL_MATERNAL_PREFIX = _("maternal ")
+
+# Descendants (Henry numbering) text report
+DESCENDANTS_REPORT_TITLE = _("Descendants of {name}")
+DESCENDANTS_MARRIAGE_PREFIX = _("m. ")
+
 
 def get_tip_reverse():
     mod = get_mod_key()
@@ -162,6 +188,32 @@ def get_tip_find():
     ).format(mod=mod)
 
 
+def get_tip_profile_bio():
+    mod = get_mod_key()
+    return _(
+        "Bio ({mod}B)\n"
+        "Show the biographical profile for the selected person."
+    ).format(mod=mod)
+
+
+def get_tip_profile_pedigree():
+    display = "⌘⇧P" if sys.platform == "darwin" else "Ctrl+Shift+P"
+    return _(
+        "Pedigree ({display})\n"
+        "Show an Ahnentafel ancestor report for the selected person, "
+        "listing ancestors by generation with numbered entries."
+    ).format(display=display)
+
+
+def get_tip_profile_descendants():
+    display = "⌘⇧D" if sys.platform == "darwin" else "Ctrl+Shift+D"
+    return _(
+        "Descendants ({display})\n"
+        "Show a Henry-numbered descendant report for the selected person, "
+        "listing all descendants with their spouses."
+    ).format(display=display)
+
+
 def get_tip_find_matches():
     mod = get_mod_key()
     return _(
@@ -202,9 +254,10 @@ def get_tip_set_home():
 
 
 def get_tip_show_person():
+    mod = get_mod_key()
     return _(
-        "Profile\nShow the selected person's biographical, family, tag, and optional full GEDCOM record details in the Display Pane."
-    )
+        "Profile ({mod}B)\nShow the selected person's biographical, family, tag, and optional full GEDCOM record details in the Display Pane."
+    ).format(mod=mod)
 
 
 def get_tip_show_person_tree():
@@ -501,6 +554,7 @@ TIP_RELATIONSHIP = _("Show relationship graphically")
 RESULT_COMMON_ANCESTOR = _("Common ancestor: ")
 RESULT_COMMON_ANCESTORS = _("Common ancestors:")
 RESULT_COMMON_ANCESTOR_NONE = _("None found.")
+RESULT_COMMON_ANCESTOR_SAME_PERSON = _("Same person")
 RESULT_PATH = _("Path:")
 RESULT_PATH_SECTION = _("Path to Home Person")
 RESULT_HOME = _("Home: ")
@@ -628,6 +682,12 @@ LBL_FUZZY_THRESHOLD = _("Fuzzy threshold:")
 LBL_MAX_DISPLAY = _("Max search results:")
 FRAME_DISPLAY = _("Display")
 FRAME_OPTIONS = _("Options")
+FRAME_EXPORT = _("Export")
+CHK_PDF_INCLUDE_PHOTOS = _("Include photos")
+TIP_PDF_INCLUDE_PHOTOS = _(
+    "Include the person's real profile photo on the first page of PDF exports. "
+    "Generic placeholder images are never included."
+)
 CHK_SHOW_IDS = _("Show GEDCOM IDs")
 TIP_SHOW_IDS = _(
     "When enabled, the GEDCOM ID for each person is shown in parentheses after their name. "
@@ -819,6 +879,19 @@ WT_MODES_BODY = _(
     "and Relationship Paths for the selected person. Selecting 'Paths' "
     "will prompt you to choose another person to find paths to."
 )
+WT_PROFILE_SUBMODES_TITLE = _("Profile sub-modes")
+WT_PROFILE_SUBMODES_BODY = _(
+    "When Profile mode is active, switch between three views:\n\n"
+    "• Bio — biographical details, family members, and facts.\n\n"
+    "• Pedigree — an Ahnentafel ancestor report. Each ancestor has a unique "
+    "number: 1 is the selected person, 2 their father, 3 their mother. For "
+    "any slot n, the father is at 2n and the mother at 2n+1, so to trace any "
+    "ancestor back to the subject, keep halving until you reach 1. "
+    "Example: slot 13 → 6 → 3 → 1, so slot 13 is the mother's maternal grandfather.\n\n"
+    "• Descendants — a Henry-numbered report. The subject is 1, children are "
+    "1.1, 1.2 …, grandchildren 1.1.1, 1.1.2 …, and so on.\n\n"
+    "Names in both reports are clickable links to that person's Bio."
+)
 WT_MATCHES_SETTINGS_TITLE = _("Match tag settings")
 WT_MATCHES_SETTINGS_BODY = _(
     "In Matches mode, set the tag keyword and page marker that identify "
@@ -871,7 +944,10 @@ def get_keyboard_shortcut_rows():
         "toggle_fuzzy_search": _("Toggle fuzzy search mode"),
         "toggle_married_name_search": _("Toggle married-name search mode"),
         "open_gedcom": _("Open a new GEDCOM file"),
+        "display_profile": _("Switch the Display Pane to Profile (Bio)"),
         "display_matches": _("Switch the Display Pane to Matches"),
+        "profile_pedigree": _("Switch to Pedigree ancestor report"),
+        "profile_descendants": _("Switch to Descendants report"),
         "display_tree": _("Open Tree View for selected person"),
         "show_gallery": _("Open the selected person's image gallery"),
         "set_home": _("Set or unset the selected person as Home person"),

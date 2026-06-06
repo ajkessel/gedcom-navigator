@@ -4,6 +4,7 @@ This application provides useful ways to rapidly explore a GEDCOM file exported 
 
 * Find the closest tagged people (e.g. DNA match) to any other person in a family tree
 * Show multiple relationship paths between any two people in your tree
+* Browse a person's ancestors in a numbered **Pedigree** (Ahnentafel) report, or their full line of **Descendants** with Henry numbering
 * Search your tree for variations on names (maiden/married name, alternate names, fuzzy matching, Hebrew/Cyrillic transliteration) and filter on other information like geographical locations or occupation
 * Rapidly explore names and connections, even in a very large tree with very distant connections
 * Generate custom images of parts of your tree, expanding or collapsing the connections you want to see and saving them to your clipboard or an image file
@@ -60,3 +61,41 @@ Two flag formats are recognized by default:
 Both substrings are configurable, so you can adapt the tool to other genealogy software's conventions.
 
 Although this software was developed for this DNA use case, you could use it to find the closest path to any tag or page marker by entering that string into "tag keyword" or "page marker" rather than a DNA-specific term. For example, if your paternal relatives are tagged with a "paternal" tag, you could use this tool to find the path between anyone in your tree and anyone tagged as a paternal relative.
+
+## Profile View: Bio, Pedigree, and Descendants
+
+When a person is selected, the **Profile** pane offers three sub-views via the **Bio / Pedigree / Descendants** selector (or keyboard shortcuts **Ctrl+B**, **Ctrl+Shift+P**, **Ctrl+Shift+D** — use **⌘** in place of **Ctrl** on macOS):
+
+### Bio
+
+The biographical profile for the selected person: vital dates, family members, facts and events, path to the Home Person, and the optional full GEDCOM record.
+
+### Pedigree
+
+An **Ahnentafel** ("ancestor table") report. Every ancestor is assigned a unique number that encodes exactly where they sit in the family tree:
+
+| Slot | Relationship |
+| --- | --- |
+| 1 | The selected person |
+| 2 | Father |
+| 3 | Mother |
+| 4 | Paternal grandfather |
+| 5 | Paternal grandmother |
+| 6 | Maternal grandfather |
+| 7 | Maternal grandmother |
+| 8–15 | Great-grandparents |
+| 16–31 | 2nd great-grandparents |
+
+**The rule:** for any person at slot *n*, their father is at slot **2n** and their mother is at slot **2n + 1**. To trace any ancestor back to the selected person, halve the slot number (discarding any remainder) and repeat until you reach 1.
+
+**Example:** slot 13 → 6 (maternal grandfather) → 3 (mother) → 1 (you). So slot 13 is the mother's maternal grandfather.
+
+Ancestors appear grouped by generation. Great-grandparents and beyond use compact ordinal labels ("2nd great-grandfather", "3rd great-grandfather") rather than repeating "great-". Each entry also carries a paternal or maternal prefix showing which side of the family the ancestor belongs to. Only ancestors actually present in the GEDCOM file are listed — unknown ancestors are skipped rather than shown as placeholders.
+
+### Descendants
+
+A **Henry-numbered** descendant report. The selected person is **1**; their children are **1.1**, **1.2**, …; grandchildren are **1.1.1**, **1.1.2**, …, and so on. Each person's spouse is listed just below them.
+
+### Navigating and saving
+
+Person names in Pedigree and Descendants are clickable links that navigate to that person's Bio. Both reports are plain text, so **Copy** (Ctrl+C / ⌘C) and **Save** (Ctrl+S / ⌘S) work the same way as for any other result view.

@@ -289,6 +289,26 @@ def test_windows_linux_use_standard_ctrl_for_h_and_m():
         )
 
 
+def test_ctrl_shift_shortcuts_use_uppercase_keysym():
+    """Ctrl+Shift shortcuts must use an uppercase keysym in their Tkinter sequence.
+
+    When Shift is held, Tkinter reports the keysym as uppercase ('P', not 'p'),
+    so <Control-Shift-p> never fires.  The correct sequence is
+    <Control-Shift-P> on Linux/Windows and <Command-Shift-P> on macOS.
+    """
+    for action, key in (("profile_pedigree", "P"), ("profile_descendants", "D")):
+        linux_s = shortcut_by_action(action, "linux")
+        assert linux_s.sequence == f"<Control-Shift-{key}>", (
+            f"{action} on linux: expected <Control-Shift-{key}>, "
+            f"got {linux_s.sequence!r}"
+        )
+        mac_s = shortcut_by_action(action, "darwin")
+        assert mac_s.sequence == f"<Command-Shift-{key}>", (
+            f"{action} on darwin: expected <Command-Shift-{key}>, "
+            f"got {mac_s.sequence!r}"
+        )
+
+
 # ---------------------------------------------------------------------------
 # Coverage tests: tooltip text, KEYBOARD_SHORTCUTS.md, in-app help dialog
 # ---------------------------------------------------------------------------

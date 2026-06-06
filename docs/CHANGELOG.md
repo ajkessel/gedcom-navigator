@@ -1,15 +1,28 @@
 # Changelog
 
-## [Unreleased] - 2026-06-XX
+## [1.9.14] - 2026-06-05
 
 ### Added
 
-- **PDF export for text views** — Preferences now lets users save Results and Profile views as either text or searchable, paginated PDF files. PDF output preserves headings, bold text, link styling, Unicode text, and the visible profile/results content.
+- **PDF export for text views** — Results and Profile views can now be saved as searchable, paginated PDF reports. Each page includes a centered report type and person/lifespan heading plus a GEDCOM-Navigator page-number footer. PDF output preserves headings, bold text, link styling, Unicode text, and visible relationship connectors; logical lines move to the next page instead of being split when space is insufficient.
+- **Optional photos in PDF reports** — the new Export Preferences section includes a default-off "Include photos" option. When enabled, a person's real local profile photo appears on the first PDF page only; missing images and generic placeholders are omitted.
+- **Text-based Pedigree and Descendants views** — the Profile pane gains a Bio / Pedigree / Descendants sub-mode selector. Pedigree renders an Ahnentafel ancestor report (numbered by generation, e.g. "2. Robert Brown (father)", "4. William Brown (paternal grandfather)", "8. James Brown (paternal great-grandfather)") and Descendants renders a Henry-numbered descendant report (1, 1.1, 1.1.1 …) with each person's spouse listed below them. Both views are plain text, so copy-to-clipboard and save-as-PDF/TXT work for free. Person names are clickable links that navigate to that person's Bio. Keyboard shortcuts: **Ctrl+B** (Profile/Bio), **Ctrl+Shift+P** / **⌘⇧P** (Pedigree), **Ctrl+Shift+D** / **⌘⇧D** (Descendants).
+- **Ordinal "great-" notation in Pedigree** — great-grandparents and beyond use compact ordinal labels ("2nd great-grandfather", "3rd great-grandfather") instead of repeating "great-". All gen-4+ ancestors also carry a paternal/maternal prefix so each entry states which side of the family it belongs to.
+- **Walkthrough covers Pedigree and Descendants** — the guided tour includes a new step that highlights the Bio/Pedigree/Descendants selector and explains Ahnentafel numbering (including how to decode any slot number back to the subject) and Henry numbering.
+- **In-app help updated** — HELP.md includes a new "Profile View" section describing the three sub-modes with a full Ahnentafel decoding table and worked example.
+
+### Fixed
+
+- **Pedigree unknown ancestors skipped rather than shown as placeholders** — in list-format Ahnentafel reports, unknown ancestors are conventionally omitted entirely; the slot numbers of known ancestors remain correct because the BFS walk still assigns all slots internally.
+- **Ctrl+Shift+P and Ctrl+Shift+D shortcuts now work on Windows and Linux** — the Tkinter binding sequences used a lowercase keysym (`<Control-Shift-p>`) which Tkinter never fires because Shift converts the keysym to uppercase; corrected to `<Control-Shift-P>` and `<Control-Shift-D>`.
+- **Common ancestor correctly identifies direct ancestors** — when one person is a direct ancestor of the other (parent, grandparent, etc.), the "Common ancestor" field now names that person rather than climbing another generation to their own parents.
+- **Common ancestor shows "Same person" for self-paths** — when the source and target of a path are the same person, the "Common ancestor" field now reads "Same person" instead of being absent.
 
 ### Changed
 
 - **More readable Profile Facts & Events** — Residence, Education/Graduation, and Occupation are grouped into date-first timelines, with remaining GEDCOM facts collected under Other Facts & Events. Entries are ordered chronologically, undated records are clearly labeled, long notes and source details use indented continuation lines, and `https://` links remain clickable.
-- **Cleaner Preferences layout** — Preferences now uses a wider, aligned label-and-control grid so appearance, search, display, language, cache, and data-management options are easier to scan and less likely to clip.
+- **Cleaner source links in Facts & Events** — source citations ending in a labeled `URL: https://...` now hide the raw URL and make the readable `Source:` description the hyperlink instead. Link styling excludes indentation and recognizes exporter-added whitespace within URL query parameters.
+- **Cleaner Preferences layout** — Preferences now uses a wider, aligned label-and-control grid so appearance, search, display, export, language, cache, and data-management options are easier to scan and less likely to clip. PDF/Text selection moved into its own Export section, PDF is now the default save format, and PDF appears before Text in the selector.
 - **Full-size images can be dragged to pan** — zoomed profile and gallery images can now be repositioned by dragging with either mouse button.
 
 ## [1.9.13] - 2026-06-02

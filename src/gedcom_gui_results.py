@@ -6,15 +6,17 @@ Result rendering, path reversal, person navigation, and family-summary helpers.
 """
 
 import json
+import math
 import re
 import sys
 import tkinter as tk
 import tkinter.font as tkfont
+from collections import deque
 from tkinter import filedialog, messagebox
 
 import customtkinter as ctk
 
-from gedcom_display import describe, format_year
+from gedcom_display import describe, format_year, lifespan
 from gedcom_gui_graph_layout import GraphLayoutMixin
 from gedcom_gui_graph_render import GraphRenderMixin
 from gedcom_relationship import (
@@ -141,13 +143,237 @@ class ResultsMixin(GraphRenderMixin, GraphLayoutMixin):
         except tk.TclError:
             return
 
+    def _setup_text_link_tags(self, w, tag_to_id, navigate_fn=None):
+        """Configure person-link tags on a CTkTextbox for the text report views."""
+        if navigate_fn is None:
+            navigate_fn = self._navigate_to
+        tw = w._textbox
+        tw.tag_configure('person_link', foreground=self._link_color)
+        tw.tag_bind('person_link', '<Enter>',
+                    lambda *_: tw.config(cursor='hand2'))
+        tw.tag_bind('person_link', '<Leave>',
+                    lambda *_: tw.config(cursor=''))
+
+        def _on_person_click(event):
+            idx = tw.index(f'@{event.x},{event.y}')
+            for t in tw.tag_names(idx):
+                if t.startswith('pers_'):
+                    iid = tag_to_id.get(t)
+                    if iid:
+                        navigate_fn(iid)
+                    break
+        tw.tag_bind('person_link', '<Button-1>', _on_person_click)
+
+    def _insert_person_link(self, w, indi_id, tag_to_id, prefix='', suffix=''):
+        """Insert a person's name as a clickable link with optional pre/suffix text."""
+        if prefix:
+            w.insert('end', prefix)
+        tag = f'pers_{indi_id.strip("@")}'
+        tag_to_id[tag] = indi_id
+        indi = self.individuals[indi_id]
+        name = self._display_name(indi)
+        span = lifespan(indi)
+        display = f'{name} ({span})' if span else name
+        if self.show_ids.get():
+            display += f' [{indi_id.strip("@")}]'
+        w.insert('end', display, ('person_link', tag))
+        if suffix:
+            w.insert('end', suffix)
+
+    @staticmethod
+    def _ordinal(n):
+        """Return English ordinal string for n (e.g. 2 → '2nd', 11 → '11th')."""
+        if 11 <= n % 100 <= 13:
+            suf = "th"
+        else:
+            suf = {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th")
+        return f"{n}{suf}"
+
+    @staticmethod
+    def _ahnentafel_label(slot):
+        """Return a brief relationship label for an Ahnentafel slot, or None for slot 1."""
+        if slot == 1:
+            return None
+        gen = slot.bit_length()
+        is_female = slot & 1  # even = male, odd = female
+        if gen == 2:
+            return gs.PEDIGREE_REL_MOTHER if is_female else gs.PEDIGREE_REL_FATHER
+        if gen == 3:
+            # highest path bit after leading 1: 0 = paternal, 1 = maternal
+            paternal = not ((slot >> 1) & 1)
+            if paternal:
+                return (gs.PEDIGREE_REL_PAT_GRANDMOTHER if is_female
+                        else gs.PEDIGREE_REL_PAT_GRANDFATHER)
+            return (gs.PEDIGREE_REL_MAT_GRANDMOTHER if is_female
+                    else gs.PEDIGREE_REL_MAT_GRANDFATHER)
+        # gen >= 4: paternal/maternal side + ordinal "great-" notation
+        num_greats = gen - 3  # 1 for gen 4, 2 for gen 5, etc.
+        # highest path bit after leading 1: 0 = paternal, 1 = maternal
+        side_bit = (slot >> (gen - 2)) & 1
+        side = gs.PEDIGREE_REL_MATERNAL_PREFIX if side_bit else gs.PEDIGREE_REL_PATERNAL_PREFIX
+        base = gs.PEDIGREE_REL_GRANDMOTHER if is_female else gs.PEDIGREE_REL_GRANDFATHER
+        if num_greats == 1:
+            great = gs.PEDIGREE_REL_GREAT_PREFIX
+        else:
+            great = ResultsMixin._ordinal(num_greats) + " " + gs.PEDIGREE_REL_GREAT_PREFIX
+        return side + great + base
+
+    def _navigate_to_bio(self, indi_id):
+        """Navigate to a person and show their Bio profile regardless of current sub-mode."""
+        self.profile_sub_mode.set('bio')
+        self._sync_profile_sub_mode_selector()
+        self._navigate_to(indi_id)
+
+    def _render_pedigree_text_result(self, start_id):
+        """Render an Ahnentafel ancestor report in the Display Pane."""
+        if start_id not in self.individuals:
+            self._reset_results_pane()
+            return
+        w = self.results
+        self._set_profile_gallery_button_visible(None)
+        try:
+            w.configure(state='normal')
+            w.delete('1.0', 'end')
+        except tk.TclError:
+            return
+        self._clear_person_tags(w)
+        self._set_results_header_for_person(start_id)
+
+        tag_to_id = {}
+        self._setup_text_link_tags(w, tag_to_id, navigate_fn=self._navigate_to_bio)
+
+        def nl(text='', bold=False):
+            w.insert('end', text + '\n', ('bold',) if bold else ())
+
+        # Build Ahnentafel slot -> person_id mapping via BFS
+        slot_to_id = {1: start_id}
+        visited = {start_id}
+        queue = deque([1])
+        while queue:
+            slot = queue.popleft()
+            person_id = slot_to_id[slot]
+            indi = self.individuals.get(person_id, {})
+            for fam_id in indi.get('famc', ()):
+                fam = self.families.get(fam_id)
+                if not fam:
+                    continue
+                father_id = fam.get('husb')
+                mother_id = fam.get('wife')
+                if father_id and father_id in self.individuals and father_id not in visited:
+                    slot_to_id[2 * slot] = father_id
+                    visited.add(father_id)
+                    queue.append(2 * slot)
+                if mother_id and mother_id in self.individuals and mother_id not in visited:
+                    slot_to_id[2 * slot + 1] = mother_id
+                    visited.add(mother_id)
+                    queue.append(2 * slot + 1)
+
+        # Render by generation — skip slots with no known ancestor entirely
+        max_slot = max(slot_to_id)
+        max_gen = max_slot.bit_length()
+        for gen in range(1, max_gen + 1):
+            first_slot = 2 ** (gen - 1)
+            last_slot = 2 ** gen - 1
+            gen_slots = [s for s in range(first_slot, last_slot + 1)
+                         if s in slot_to_id]
+            if not gen_slots:
+                continue
+            if gen == 1:
+                nl(gs.PEDIGREE_GENERATION_1, bold=True)
+            else:
+                nl(gs.PEDIGREE_GENERATION_N.format(n=gen), bold=True)
+            for slot in gen_slots:
+                label = self._ahnentafel_label(slot)
+                indi_id = slot_to_id[slot]
+                prefix = f'  {slot}. '
+                suffix = f' ({label})' if label else ''
+                self._insert_person_link(
+                    w, indi_id, tag_to_id, prefix=prefix, suffix=suffix)
+                w.insert('end', '\n')
+            nl()
+
+        self._reverse_btn.configure(state='disabled', text=gs.BTN_REVERSE)
+        try:
+            w.configure(state='disabled')
+        except tk.TclError:
+            pass
+
+    def _render_descendants_text_result(self, start_id):
+        """Render a Henry-numbered descendant report in the Display Pane."""
+        if start_id not in self.individuals:
+            self._reset_results_pane()
+            return
+        w = self.results
+        self._set_profile_gallery_button_visible(None)
+        try:
+            w.configure(state='normal')
+            w.delete('1.0', 'end')
+        except tk.TclError:
+            return
+        self._clear_person_tags(w)
+        self._set_results_header_for_person(start_id)
+
+        tag_to_id = {}
+        self._setup_text_link_tags(w, tag_to_id, navigate_fn=self._navigate_to_bio)
+
+        def nl(text='', bold=False):
+            w.insert('end', text + '\n', ('bold',) if bold else ())
+
+        visited_ids = set()
+
+        def walk(indi_id, henry_num, depth):
+            if indi_id in visited_ids:
+                return
+            visited_ids.add(indi_id)
+            indent = '   ' * (depth - 1)
+            self._insert_person_link(
+                w, indi_id, tag_to_id,
+                prefix=f'{indent}{henry_num}. ')
+            w.insert('end', '\n')
+
+            indi = self.individuals.get(indi_id, {})
+            spouses_written = set()
+            child_counter = [0]
+
+            for fam_id in indi.get('fams', ()):
+                fam = self.families.get(fam_id)
+                if not fam:
+                    continue
+                spouse_id = (fam.get('wife') if fam.get('husb') == indi_id
+                             else fam.get('husb'))
+                if (spouse_id and spouse_id in self.individuals
+                        and spouse_id not in spouses_written):
+                    self._insert_person_link(
+                        w, spouse_id, tag_to_id,
+                        prefix=f'{indent}   {gs.DESCENDANTS_MARRIAGE_PREFIX}')
+                    w.insert('end', '\n')
+                    spouses_written.add(spouse_id)
+                for child_id in fam.get('chil', ()):
+                    if child_id in self.individuals:
+                        child_counter[0] += 1
+                        child_henry = f'{henry_num}.{child_counter[0]}'
+                        walk(child_id, child_henry, depth + 1)
+
+            if child_counter[0] > 0:
+                w.insert('end', '\n')
+
+        walk(start_id, '1', 1)
+
+        self._reverse_btn.configure(state='disabled', text=gs.BTN_REVERSE)
+        try:
+            w.configure(state='disabled')
+        except tk.TclError:
+            pass
+
     def _set_profile_gallery_button_visible(self, indi_id=None):
         """Show the Display Pane Gallery button for profile records with images."""
         button = getattr(self, '_profile_gallery_btn', None)
         if button is None:
             return
         visible = False
-        if (self.display_mode.get() == 'profile' and indi_id
+        if (self.display_mode.get() == 'profile'
+                and self.profile_sub_mode.get() == 'bio'
+                and indi_id
                 and hasattr(self, '_profile_gallery_candidates')):
             visible = bool(self._profile_gallery_candidates(indi_id))
         try:
@@ -211,6 +437,7 @@ class ResultsMixin(GraphRenderMixin, GraphLayoutMixin):
         raw_path = paths[0]
         if len(raw_path) <= 1:
             nl(gs.PATH_SAME_PERSON)
+            common_ancestor_line(None)
             nl()
             return True
 
@@ -336,6 +563,11 @@ class ResultsMixin(GraphRenderMixin, GraphLayoutMixin):
         def common_ancestor_line(ancestor_ids, prefix='', item_prefix='    '):
             if prefix:
                 w.insert('end', prefix)
+            if ancestor_ids is None:
+                w.insert('end', gs.RESULT_COMMON_ANCESTOR)
+                w.insert('end', gs.RESULT_COMMON_ANCESTOR_SAME_PERSON)
+                w.insert('end', '\n')
+                return
             if not ancestor_ids:
                 w.insert('end', gs.RESULT_COMMON_ANCESTOR)
                 w.insert('end', gs.RESULT_COMMON_ANCESTOR_NONE)
@@ -539,11 +771,32 @@ class ResultsMixin(GraphRenderMixin, GraphLayoutMixin):
             return
         try:
             if is_pdf:
+                _mode = self.display_mode.get()
+                if _mode == 'profile':
+                    report_title = {
+                        'pedigree': gs.PROFILE_SUBMODE_PEDIGREE,
+                        'descendants': gs.PROFILE_SUBMODE_DESCENDANTS,
+                    }.get(self.profile_sub_mode.get(), gs.DISPLAY_MODE_PROFILE)
+                else:
+                    report_title = {
+                        'matches': gs.DISPLAY_MODE_MATCHES,
+                        'paths': gs.DISPLAY_MODE_PATHS,
+                    }.get(_mode, gs.APP_TITLE)
+                photo_bytes = None
+                header_id = getattr(self, '_results_header_id', None)
+                if (self._config.get_pdf_include_photos()
+                        and header_id in self.individuals):
+                    photo_bytes = self._pdf_profile_photo_bytes(header_id)
                 render_text_widget_pdf(
                     path,
                     self.results._textbox,
-                    header=header,
-                    font_size=self._mono_size,
+                    report_title=report_title,
+                    subject=header,
+                    photo_bytes=photo_bytes,
+                    keep_bold_with_next=(
+                        _mode == 'profile'
+                        and self.profile_sub_mode.get() == 'pedigree'
+                    ),
                 )
             else:
                 if header:
@@ -655,6 +908,7 @@ class ResultsMixin(GraphRenderMixin, GraphLayoutMixin):
             'active_id': self._active_id,
             'results_reversed': self._results_reversed,
             'display_mode': self.display_mode.get(),
+            'profile_sub_mode': self.profile_sub_mode.get(),
             'display_path_target_id': getattr(self, '_display_path_target_id', None),
         }
     def _nav_restore(self, snapshot):
@@ -663,6 +917,9 @@ class ResultsMixin(GraphRenderMixin, GraphLayoutMixin):
         self._active_id = snapshot['active_id']
         self._results_reversed = snapshot['results_reversed']
         self._display_path_target_id = snapshot.get('display_path_target_id')
+        sub_mode = snapshot.get('profile_sub_mode', 'bio')
+        self.profile_sub_mode.set(sub_mode)
+        self._sync_profile_sub_mode_selector()
         self._set_display_mode(
             snapshot.get('display_mode', 'profile'),
             refresh=False,
@@ -688,10 +945,15 @@ class ResultsMixin(GraphRenderMixin, GraphLayoutMixin):
                 self._last_result.get('home_paths'),
             )
         elif kind == 'profile':
-            self._render_profile_result(
-                self._last_result['start_id'],
-                self._last_result.get('home_paths'),
-            )
+            if sub_mode == 'pedigree':
+                self._render_pedigree_text_result(self._last_result['start_id'])
+            elif sub_mode == 'descendants':
+                self._render_descendants_text_result(self._last_result['start_id'])
+            else:
+                self._render_profile_result(
+                    self._last_result['start_id'],
+                    self._last_result.get('home_paths'),
+                )
     def _navigate_back(self):
         """Restore the previous navigation state, saving current state for forward."""
         if self._busy or not self._nav_history:

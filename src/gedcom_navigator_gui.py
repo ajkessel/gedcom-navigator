@@ -168,6 +168,7 @@ class GedcomNavigatorApp(
             value=self._config.get_show_profile_image())
         self._name_order = self._config.get_name_order()
         self.display_mode = tk.StringVar(value=self._config.get_default_display())
+        self.profile_sub_mode = tk.StringVar(value='bio')
 
         self.search_text.trace_add('write', self._on_search_change)
         self.filter_text.trace_add('write', self._on_search_change)
@@ -610,6 +611,58 @@ class GedcomNavigatorApp(
             '<Button-3>', self._show_results_header_menu)
         self._results_header_label.bind(
             '<Control-Button-1>', self._show_results_header_menu)
+
+        # Profile sub-mode selector (Bio / Pedigree / Descendants)
+        _profile_sub_mode_labels = {
+            'bio': PROFILE_SUBMODE_BIO,
+            'pedigree': PROFILE_SUBMODE_PEDIGREE,
+            'descendants': PROFILE_SUBMODE_DESCENDANTS,
+        }
+        _profile_sub_mode_tooltips = {
+            'bio': get_tip_profile_bio(),
+            'pedigree': get_tip_profile_pedigree(),
+            'descendants': get_tip_profile_descendants(),
+        }
+        self._profile_sub_mode_labels = _profile_sub_mode_labels
+        self._profile_sub_mode_by_label = {
+            label: mode for mode, label in _profile_sub_mode_labels.items()
+        }
+        self._profile_sub_mode_frame = ctk.CTkFrame(right, fg_color='transparent')
+        self._profile_sub_mode_frame.pack(fill='x', padx=8, pady=(2, 0))
+        if hasattr(ctk, 'CTkSegmentedButton'):
+            self._profile_sub_mode_selector = ctk.CTkSegmentedButton(
+                self._profile_sub_mode_frame,
+                values=[
+                    _profile_sub_mode_labels['bio'],
+                    _profile_sub_mode_labels['pedigree'],
+                    _profile_sub_mode_labels['descendants'],
+                ],
+                command=self._on_profile_sub_mode_selected,
+            )
+            self._profile_sub_mode_selector.pack(side='right')
+            self._profile_sub_mode_selector.set(_profile_sub_mode_labels['bio'])
+            for _sub, _label in _profile_sub_mode_labels.items():
+                _btn = self._profile_sub_mode_selector._buttons_dict.get(_label)
+                if _btn is not None:
+                    Tooltip(_btn, _profile_sub_mode_tooltips[_sub])
+        else:
+            self._profile_sub_mode_selector = ctk.CTkFrame(
+                self._profile_sub_mode_frame, fg_color='transparent')
+            self._profile_sub_mode_selector.pack(side='right')
+            _profile_radio_var = tk.StringVar(value=_profile_sub_mode_labels['bio'])
+            self._profile_sub_mode_radio_var = _profile_radio_var
+            for _mode, _label in _profile_sub_mode_labels.items():
+                _radio = ctk.CTkRadioButton(
+                    self._profile_sub_mode_selector,
+                    text=_label,
+                    variable=_profile_radio_var,
+                    value=_label,
+                    command=lambda v=_label: self._on_profile_sub_mode_selected(v),
+                )
+                _radio.pack(side='left', padx=(0, 6))
+                Tooltip(_radio, _profile_sub_mode_tooltips[_mode])
+        if self.display_mode.get() != 'profile':
+            self._profile_sub_mode_frame.pack_forget()
 
         self.results = ctk.CTkTextbox(
             right,

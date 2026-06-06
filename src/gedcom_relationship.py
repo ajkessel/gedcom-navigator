@@ -1011,11 +1011,17 @@ def find_common_ancestors(start_id, end_id, individuals, families):
     Multiple ancestors can tie for nearest, commonly the two parents of a pair
     of siblings or the two grandparents shared by first cousins.
     """
-    if not families or start_id not in individuals or end_id not in individuals:
+    if start_id not in individuals or end_id not in individuals:
+        return []
+    if start_id == end_id:
+        return [start_id]
+    if not families:
         return []
 
     start_ancestors = get_ancestor_depths(start_id, individuals, families)
+    start_ancestors[start_id] = 0
     end_ancestors = get_ancestor_depths(end_id, individuals, families)
+    end_ancestors[end_id] = 0
     common = {
         ancestor_id
         for ancestor_id in set(start_ancestors).intersection(end_ancestors)
