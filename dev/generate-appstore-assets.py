@@ -680,8 +680,13 @@ def automation(app, done_event: threading.Event):
 def main():
     global _root_ref
 
+    import customtkinter as ctk  # noqa: PLC0415
     import tkinter as tk
     from gedcom_navigator_gui import GedcomNavigatorApp  # noqa: PLC0415
+
+    # Force light mode so screenshots are never rendered in dark mode,
+    # regardless of the user's system preference or saved settings.
+    ctk.set_appearance_mode("light")
 
     _init_capturer()
 
@@ -690,6 +695,9 @@ def main():
     root.geometry(f"{WIN_W}x{WIN_CONTENT_H}+{WIN_X}+{WIN_Y}")
 
     app = GedcomNavigatorApp(root)
+    # Prevent the app from overriding the forced light mode with a saved dark theme.
+    app._theme_pref = "Light"
+    app._apply_theme("Light")
 
     # Redirect the auto-load to use our fictional sample.
     # Must happen before root.mainloop() fires the queued callback.
