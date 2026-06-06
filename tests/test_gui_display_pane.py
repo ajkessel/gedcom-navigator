@@ -49,14 +49,25 @@ class Model:
         return self.paths, False
 
 
+class Frame:
+    def pack(self, **kwargs):
+        pass
+
+    def pack_forget(self):
+        pass
+
+
 class App(SearchMixin):
-    def __init__(self, mode='profile', selection=('@A@',), pick_results=None):
+    def __init__(self, mode='profile', sub_mode='bio', selection=('@A@',),
+                 pick_results=None):
         self._busy = False
         self.individuals = {'@A@': {}, '@B@': {}, '@C@': {}}
         self.display_mode = Var(mode)
+        self.profile_sub_mode = Var(sub_mode)
         self.tree = Tree(selection)
         self._reverse_btn = Button()
         self._matches_settings_frame = Button()
+        self._profile_sub_mode_frame = Frame()
         self._active_id = None
         self._display_path_target_id = None
         self._home_person_id = None
@@ -66,12 +77,23 @@ class App(SearchMixin):
             'matches': 'Matches',
             'paths': 'Paths',
         }
+        self._profile_sub_mode_labels = {
+            'bio': 'Bio',
+            'pedigree': 'Pedigree',
+            'descendants': 'Descendants',
+        }
         self.calls = []
         self.pick_results = (
             list(pick_results) if pick_results is not None else ['@B@'])
 
     def _render_profile_result(self, start_id, home_paths=None):
         self.calls.append(('profile', start_id, home_paths))
+
+    def _render_pedigree_text_result(self, start_id):
+        self.calls.append(('pedigree', start_id))
+
+    def _render_descendants_text_result(self, start_id):
+        self.calls.append(('descendants', start_id))
 
     def _find_matches(self):
         self.calls.append(('matches', self._selected_or_active_id()))
@@ -82,6 +104,9 @@ class App(SearchMixin):
 
     def _run_path_search(self, start_id, target_id):
         self.calls.append(('paths', start_id, target_id))
+
+    def _sync_profile_sub_mode_selector(self):
+        pass
 
 
 def test_profile_mode_renders_selected_person():
@@ -146,6 +171,23 @@ def test_set_display_mode_toggles_footer_control_visibility():
     app._set_display_mode('profile', refresh=False)
     assert app._reverse_btn.visible is False
     assert app._matches_settings_frame.visible is False
+
+
+def test_profile_pedigree_sub_mode_dispatches_pedigree_renderer():
+    app = App(mode='profile', sub_mode='pedigree')
+
+    app._refresh_display_pane()
+
+    assert app.calls == [('pedigree', '@A@')]
+    assert app._reverse_btn.config.get('state') == 'disabled'
+
+
+def test_profile_descendants_sub_mode_dispatches_descendants_renderer():
+    app = App(mode='profile', sub_mode='descendants')
+
+    app._refresh_display_pane()
+
+    assert app.calls == [('descendants', '@A@')]
 
 
 def test_home_path_data_returns_none_without_home():

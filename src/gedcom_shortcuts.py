@@ -54,6 +54,30 @@ def _mod_shortcut(key, action_key, platform=None, scope="main"):
     )
 
 
+def _ctrl_shift_shortcut(key, action_key, platform=None, scope="main"):
+    """Ctrl+Shift+key on all platforms (Cmd+Shift+key on macOS).
+
+    Tkinter reports the keysym as uppercase when Shift is held, so the sequence
+    must use key.upper() — <Control-Shift-p> never fires, <Control-Shift-P> does.
+    """
+    platform = _platform(platform)
+    if platform == "darwin":
+        return ShortcutSpec(
+            key=key,
+            sequence=f"<Command-Shift-{key.upper()}>",
+            display=f"⌘⇧{key.upper()}",
+            action_key=action_key,
+            scope=scope,
+        )
+    return ShortcutSpec(
+        key=key,
+        sequence=f"<Control-Shift-{key.upper()}>",
+        display=f"Ctrl+Shift+{key.upper()}",
+        action_key=action_key,
+        scope=scope,
+    )
+
+
 def _mod_shift_shortcut(key, action_key, platform=None, scope="main"):
     """Like _mod_shortcut but adds Shift on macOS to avoid system-reserved shortcuts.
 
@@ -98,7 +122,10 @@ def main_window_shortcuts(platform=None):
         _mod_shortcut("d", "toggle_tagged_filter", platform),
         _mod_shortcut("u", "toggle_fuzzy_search", platform),
         _mod_shift_shortcut("m", "toggle_married_name_search", platform),
+        _mod_shortcut("b", "display_profile", platform),
         _mod_shortcut("p", "display_paths", platform),
+        _ctrl_shift_shortcut("p", "profile_pedigree", platform),
+        _ctrl_shift_shortcut("d", "profile_descendants", platform),
         _mod_shortcut("t", "select_tag", platform),
         _mod_shortcut("o", "open_gedcom", platform),
         _mod_shift_shortcut("h", "set_home", platform),

@@ -164,6 +164,76 @@ class _Var:
         self.value = value
 
 
+@pytest.mark.parametrize(
+    ("display_mode", "profile_sub_mode", "report_title", "keep_bold_with_next"),
+    [
+        ("profile", "bio", gs.DISPLAY_MODE_PROFILE, False),
+        ("profile", "pedigree", gs.PROFILE_SUBMODE_PEDIGREE, True),
+        ("matches", "bio", gs.DISPLAY_MODE_MATCHES, False),
+        ("paths", "bio", gs.DISPLAY_MODE_PATHS, False),
+    ],
+)
+def test_save_results_as_pdf_uses_configured_format(
+        monkeypatch, tmp_path, display_mode, profile_sub_mode, report_title,
+        keep_bold_with_next):
+    class Textbox:
+        pass
+
+    class Results:
+        _textbox = Textbox()
+
+        def get(self, *_args):
+            return "Body text\n"
+
+    class Config:
+        def get_save_format(self):
+            return "pdf"
+
+        def get_pdf_include_photos(self):
+            return False
+
+    class App(ResultsMixin):
+        def __init__(self):
+            self.results = Results()
+            self._results_header_var = _Var("Person")
+            self._config = Config()
+            self._mono_size = 12
+            self.root = object()
+            self.display_mode = _Var(display_mode)
+            self.profile_sub_mode = _Var(profile_sub_mode)
+
+    path = tmp_path / "results.pdf"
+    dialog_options = {}
+    rendered = {}
+
+    def ask_save(**kwargs):
+        dialog_options.update(kwargs)
+        return str(path)
+
+    def render(pdf_path, widget, **kwargs):
+        rendered.update(path=pdf_path, widget=widget, **kwargs)
+
+    monkeypatch.setattr(
+        "gedcom_gui_results.filedialog.asksaveasfilename", ask_save)
+    monkeypatch.setattr(
+        "gedcom_gui_results.filedialog_parent", lambda _root: None)
+    monkeypatch.setattr("gedcom_gui_results.render_text_widget_pdf", render)
+
+    app = App()
+    app._save_results()
+
+    assert dialog_options["defaultextension"] == ".pdf"
+    assert dialog_options["filetypes"][0][1] == "*.pdf"
+    assert rendered == {
+        "path": str(path),
+        "widget": app.results._textbox,
+        "report_title": report_title,
+        "subject": "Person",
+        "photo_bytes": None,
+        "keep_bold_with_next": keep_bold_with_next,
+    }
+
+
 def test_profile_gallery_button_visible_only_for_profile_with_extra_images():
     class Button:
         def __init__(self):
@@ -181,6 +251,7 @@ def test_profile_gallery_button_visible_only_for_profile_with_extra_images():
 
     app = App()
     app.display_mode = _Var('profile')
+    app.profile_sub_mode = _Var('bio')
     app._profile_gallery_btn = Button()
 
     app._set_profile_gallery_button_visible('@A@')
@@ -192,6 +263,269 @@ def test_profile_gallery_button_visible_only_for_profile_with_extra_images():
     app.display_mode.set('matches')
     app._set_profile_gallery_button_visible('@A@')
     assert app._profile_gallery_btn.visible is False
+
+    app.display_mode.set('profile')
+    app.profile_sub_mode.set('pedigree')
+    app._set_profile_gallery_button_visible('@A@')
+    assert app._profile_gallery_btn.visible is False
+
+
+class _FakeTextbox:
+    """Minimal stand-in for CTkTextbox used by pedigree/descendants renderers."""
+
+    def __init__(self):
+        self._textbox = self
+        self._parts = []
+        self._bindings = {}
+        self._tags = {}
+        self._state = 'normal'
+
+    def configure(self, **kwargs):
+        if 'state' in kwargs:
+            self._state = kwargs['state']
+
+    def delete(self, *_args):
+        self._parts.clear()
+
+    def insert(self, _index, text, _tags=None):
+        self._parts.append(text)
+
+    def get(self, *_args):
+        return ''.join(self._parts)
+
+    def tag_configure(self, tag, **_kwargs):
+        self._tags[tag] = _kwargs
+
+    def tag_bind(self, tag, sequence, callback=None, **_kwargs):
+        self._bindings[(tag, sequence)] = callback
+
+    def tag_names(self, *_args):
+        return list(self._tags)
+
+    def tag_delete(self, tag):
+        self._tags.pop(tag, None)
+
+    def winfo_width(self):
+        return 500
+
+
+class _FakeButton:
+    def configure(self, **_kwargs):
+        pass
+
+
+class _FakeResultsApp(ResultsMixin):
+    """Minimal ResultsMixin instance for exercising text-report renderers."""
+
+    def __init__(self, individuals, families):
+        self.individuals = individuals
+        self.families = families
+        self.results = _FakeTextbox()
+        self.show_ids = _Var(False)
+        self._link_color = 'blue'
+        self._reverse_btn = _FakeButton()
+        self._results_header_var = _Var('')
+        self._results_header_id = None
+
+    def _display_name(self, indi):
+        return indi.get('name') or '(unknown)'
+
+    def _navigate_to(self, _indi_id):
+        pass
+
+    def _set_profile_gallery_button_visible(self, _indi_id=None):
+        pass
+
+    def _set_results_header_for_person(self, _indi_id):
+        pass
+
+    def _update_header_label_style(self):
+        pass
+
+    def _reset_results_pane(self):
+        pass
+
+
+def _make_family(fam_id, husb=None, wife=None, children=None):
+    return {
+        'id': fam_id, 'husb': husb, 'wife': wife,
+        'chil': children or [],
+        'marr_date': '', 'marr_place': '',
+    }
+
+
+def _make_person(pid, name, sex='', famc=None, fams=None,
+                 birth_year=None, death_year=None):
+    return {
+        'id': pid, 'name': name, 'sex': sex,
+        'famc': famc or [], 'fams': fams or [],
+        'birth_year': birth_year, 'death_year': death_year,
+        'given_name': name.split()[0] if name else '',
+        'surname': name.split()[-1] if name else '',
+    }
+
+
+def test_pedigree_ahnentafel_renders_title_and_slots():
+    indis = {
+        '@I1@': _make_person('@I1@', 'Alice Smith', sex='F',
+                             famc=['@F1@'], birth_year=1950, death_year=2020),
+        '@I2@': _make_person('@I2@', 'Bob Smith', sex='M',
+                             fams=['@F1@'], birth_year=1920, death_year=1990),
+        '@I3@': _make_person('@I3@', 'Carol Jones', sex='F',
+                             fams=['@F1@'], birth_year=1925, death_year=2000),
+    }
+    fams = {
+        '@F1@': _make_family('@F1@', husb='@I2@', wife='@I3@',
+                             children=['@I1@']),
+    }
+    app = _FakeResultsApp(indis, fams)
+    app._render_pedigree_text_result('@I1@')
+    text = app.results.get()
+
+    assert 'Alice Smith' in text
+    assert '1.' in text
+    assert '2.' in text   # father slot
+    assert '3.' in text   # mother slot
+    assert 'Bob Smith' in text
+    assert 'Carol Jones' in text
+    assert 'Generation 1' in text
+    assert 'Generation 2' in text
+    assert '(father)' in text
+    assert '(mother)' in text
+
+
+def test_pedigree_skips_unknown_ancestors():
+    # Unknown ancestors are omitted entirely (list-format Ahnentafel convention).
+    indis = {
+        '@I1@': _make_person('@I1@', 'Alice Smith', sex='F',
+                             famc=['@F1@']),
+        '@I2@': _make_person('@I2@', 'Bob Smith', sex='M', fams=['@F1@']),
+        # No mother in family — slot 3 should be completely absent
+    }
+    fams = {
+        '@F1@': _make_family('@F1@', husb='@I2@', wife=None, children=['@I1@']),
+    }
+    app = _FakeResultsApp(indis, fams)
+    app._render_pedigree_text_result('@I1@')
+    text = app.results.get()
+
+    assert '2.' in text
+    assert 'Bob Smith' in text
+    assert '[unknown]' not in text
+    assert '3.' not in text  # missing mother slot silently skipped
+
+
+def test_pedigree_children_of_unknown_ancestor_also_skipped():
+    # When a person's parent is unknown, the grandparent slots that descend
+    # from that unknown parent also don't appear (BFS never visits them).
+    indis = {
+        '@I1@': _make_person('@I1@', 'Alice', famc=['@F1@']),
+        '@I2@': _make_person('@I2@', 'Bob', sex='M', fams=['@F1@'], famc=['@F2@']),
+        # No mother for Alice — slot 3 and its descendants (6, 7) all absent
+        '@I4@': _make_person('@I4@', 'Dave', sex='M', fams=['@F2@']),
+        # No paternal grandmother — slot 5 absent
+    }
+    fams = {
+        '@F1@': _make_family('@F1@', husb='@I2@', wife=None, children=['@I1@']),
+        '@F2@': _make_family('@F2@', husb='@I4@', wife=None, children=['@I2@']),
+    }
+    app = _FakeResultsApp(indis, fams)
+    app._render_pedigree_text_result('@I1@')
+    text = app.results.get()
+
+    assert 'Bob' in text        # slot 2 — known
+    assert 'Dave' in text       # slot 4 — known
+    assert '[unknown]' not in text
+    assert '3.' not in text     # Alice's mother — unknown, skipped
+    assert '5.' not in text     # Bob's mother — unknown, skipped
+    assert '6.' not in text     # maternal grandfather — unreachable, skipped
+    assert '7.' not in text     # maternal grandmother — unreachable, skipped
+
+
+def test_pedigree_ahnentafel_grandparent_labels():
+    indis = {
+        '@I1@': _make_person('@I1@', 'Alice', famc=['@F1@']),
+        '@I2@': _make_person('@I2@', 'Bob', sex='M', fams=['@F1@'], famc=['@F2@']),
+        '@I3@': _make_person('@I3@', 'Carol', sex='F', fams=['@F1@']),
+        '@I4@': _make_person('@I4@', 'Dave', sex='M', fams=['@F2@']),
+        '@I5@': _make_person('@I5@', 'Eve', sex='F', fams=['@F2@']),
+    }
+    fams = {
+        '@F1@': _make_family('@F1@', husb='@I2@', wife='@I3@', children=['@I1@']),
+        '@F2@': _make_family('@F2@', husb='@I4@', wife='@I5@', children=['@I2@']),
+    }
+    app = _FakeResultsApp(indis, fams)
+    app._render_pedigree_text_result('@I1@')
+    text = app.results.get()
+
+    assert 'Generation 3' in text
+    assert 'paternal grandfather' in text
+    assert 'paternal grandmother' in text
+    assert 'Dave' in text
+    assert 'Eve' in text
+
+
+def test_descendants_henry_numbering():
+    indis = {
+        '@I1@': _make_person('@I1@', 'Alice', sex='F', fams=['@F1@']),
+        '@I2@': _make_person('@I2@', 'Bob', sex='M', fams=['@F1@']),
+        '@I3@': _make_person('@I3@', 'Charlie', famc=['@F1@'], fams=['@F2@']),
+        '@I4@': _make_person('@I4@', 'Diana', famc=['@F1@']),
+        '@I5@': _make_person('@I5@', 'Eve', sex='F', fams=['@F2@']),
+        '@I6@': _make_person('@I6@', 'Frank', famc=['@F2@']),
+    }
+    fams = {
+        '@F1@': _make_family('@F1@', husb='@I2@', wife='@I1@',
+                             children=['@I3@', '@I4@']),
+        '@F2@': _make_family('@F2@', husb='@I3@', wife='@I5@',
+                             children=['@I6@']),
+    }
+    app = _FakeResultsApp(indis, fams)
+    app._render_descendants_text_result('@I1@')
+    text = app.results.get()
+
+    assert '1.' in text
+    assert '1.1.' in text
+    assert '1.2.' in text
+    assert '1.1.1.' in text
+    assert 'Charlie' in text
+    assert 'Diana' in text
+    assert 'Frank' in text
+    assert 'm. ' in text  # marriage prefix
+
+
+def test_descendants_spouse_shown_under_parent():
+    indis = {
+        '@I1@': _make_person('@I1@', 'Alice', sex='F', fams=['@F1@']),
+        '@I2@': _make_person('@I2@', 'Bob', sex='M', fams=['@F1@']),
+        '@I3@': _make_person('@I3@', 'Charlie', famc=['@F1@']),
+    }
+    fams = {
+        '@F1@': _make_family('@F1@', husb='@I2@', wife='@I1@',
+                             children=['@I3@']),
+    }
+    app = _FakeResultsApp(indis, fams)
+    app._render_descendants_text_result('@I1@')
+    text = app.results.get()
+
+    assert 'Bob' in text
+    assert 'm. Bob' in text
+
+
+def test_pedigree_ahnentafel_label_static():
+    from gedcom_gui_results import ResultsMixin
+    assert ResultsMixin._ahnentafel_label(1) is None
+    assert ResultsMixin._ahnentafel_label(2) == 'father'
+    assert ResultsMixin._ahnentafel_label(3) == 'mother'
+    assert ResultsMixin._ahnentafel_label(4) == 'paternal grandfather'
+    assert ResultsMixin._ahnentafel_label(5) == 'paternal grandmother'
+    assert ResultsMixin._ahnentafel_label(6) == 'maternal grandfather'
+    assert ResultsMixin._ahnentafel_label(7) == 'maternal grandmother'
+    assert ResultsMixin._ahnentafel_label(8) == 'paternal great-grandfather'
+    assert ResultsMixin._ahnentafel_label(9) == 'paternal great-grandmother'
+    assert ResultsMixin._ahnentafel_label(12) == 'maternal great-grandfather'
+    assert ResultsMixin._ahnentafel_label(16) == 'paternal 2nd great-grandfather'
+    assert ResultsMixin._ahnentafel_label(32) == 'paternal 3rd great-grandfather'
 
 
 def test_pedigree_font_extra_shrink_only_applies_below_normal_zoom():

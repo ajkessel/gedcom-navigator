@@ -747,6 +747,43 @@ class TestFindCommonAncestors:
         assert find_common_ancestors(
             "@ME@", "@WIFES_BRO@", indiv, fams) == []
 
+    def test_parent_is_own_common_ancestor(self):
+        indiv = {
+            "@PARENT@": _make_indi_full("@PARENT@", "M", fams=["@F1@"]),
+            "@CHILD@": _make_indi_full("@CHILD@", "F", famc=["@F1@"]),
+        }
+        fams = {
+            "@F1@": _make_fam("@F1@", husb="@PARENT@", chil=["@CHILD@"]),
+        }
+
+        assert find_common_ancestors("@PARENT@", "@CHILD@", indiv, fams) == [
+            "@PARENT@"]
+        assert find_common_ancestors("@CHILD@", "@PARENT@", indiv, fams) == [
+            "@PARENT@"]
+
+    def test_grandparent_is_own_common_ancestor(self):
+        indiv = {
+            "@GP@": _make_indi_full("@GP@", "M", fams=["@F1@"]),
+            "@PAR@": _make_indi_full("@PAR@", "M",
+                                     famc=["@F1@"], fams=["@F2@"]),
+            "@GC@": _make_indi_full("@GC@", "F", famc=["@F2@"]),
+        }
+        fams = {
+            "@F1@": _make_fam("@F1@", husb="@GP@", chil=["@PAR@"]),
+            "@F2@": _make_fam("@F2@", husb="@PAR@", chil=["@GC@"]),
+        }
+
+        assert find_common_ancestors("@GP@", "@GC@", indiv, fams) == ["@GP@"]
+        assert find_common_ancestors("@GC@", "@GP@", indiv, fams) == ["@GP@"]
+
+    def test_same_person_is_own_common_ancestor(self):
+        indiv = {
+            "@A@": _make_indi_full("@A@", "M"),
+        }
+        fams = {}
+
+        assert find_common_ancestors("@A@", "@A@", indiv, fams) == ["@A@"]
+
 
 # ===========================================================================
 # get_ancestor_depths / get_descendant_depths

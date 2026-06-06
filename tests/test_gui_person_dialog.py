@@ -394,6 +394,61 @@ def test_profile_gallery_candidates_exclude_profile_and_unsupported():
     assert app._profile_gallery_candidates("@A@") == []
 
 
+def test_pdf_profile_photo_bytes_uses_only_resolved_real_media():
+    class App(PersonDialogMixin):
+        pass
+
+    class GedcomPath:
+        @staticmethod
+        def get():
+            return "/tmp/tree.ged"
+
+    class Media:
+        @staticmethod
+        def resolve_person_media(indi, gedcom_path, media_dirs=None):
+            assert indi["name"] == "Alex"
+            assert gedcom_path == "/tmp/tree.ged"
+            assert media_dirs == ["/replacement"]
+            return "/tmp/alex.jpg"
+
+        @staticmethod
+        def full_size_png_bytes(path, size):
+            assert path == "/tmp/alex.jpg"
+            assert size == (240, 240)
+            return b"png-data"
+
+    app = App()
+    app.individuals = {"@A@": {"name": "Alex"}}
+    app.gedcom_path = GedcomPath()
+    app._media_service = Media()
+    app._profile_media_dirs = lambda: ["/replacement"]
+
+    assert app._pdf_profile_photo_bytes("@A@") == b"png-data"
+
+
+def test_pdf_profile_photo_bytes_omits_missing_photo():
+    class App(PersonDialogMixin):
+        pass
+
+    class GedcomPath:
+        @staticmethod
+        def get():
+            return "/tmp/tree.ged"
+
+    class Media:
+        @staticmethod
+        def resolve_person_media(*_args, **_kwargs):
+            return None
+
+    app = App()
+    app.individuals = {"@A@": {"name": "Alex"}}
+    app.gedcom_path = GedcomPath()
+    app._media_service = Media()
+    app._profile_media_dirs = lambda: []
+
+    assert app._pdf_profile_photo_bytes("@A@") is None
+
+
 def test_profile_gallery_items_prompt_for_missing_media_dir(monkeypatch):
     class App(PersonDialogMixin):
         pass
@@ -483,6 +538,44 @@ def test_profile_full_image_title_uses_filename_without_extension():
         "/media/family/Adam J. Kessel.jpg") == "Adam J. Kessel"
     assert PersonDialogMixin._profile_full_image_title(
         r"C:\media\Family Photo.PNG") == "Family Photo"
+
+
+def test_full_profile_image_panning_binds_both_mouse_buttons():
+    class Canvas:
+        def __init__(self):
+            self.bindings = {}
+            self.calls = []
+
+        def bind(self, sequence, callback):
+            self.bindings[sequence] = callback
+
+        def scan_mark(self, x, y):
+            self.calls.append(('mark', x, y))
+
+        def scan_dragto(self, x, y, gain):
+            self.calls.append(('drag', x, y, gain))
+
+        def configure(self, **kwargs):
+            self.calls.append(('configure', kwargs))
+
+    class Event:
+        x = 12
+        y = 34
+
+    canvas = Canvas()
+    PersonDialogMixin._bind_full_profile_image_panning(canvas)
+
+    for button in (1, 3):
+        assert canvas.bindings[f'<ButtonPress-{button}>'](Event()) == 'break'
+        assert canvas.bindings[f'<B{button}-Motion>'](Event()) == 'break'
+        assert canvas.bindings[f'<ButtonRelease-{button}>'](Event()) == 'break'
+
+    assert canvas.calls == [
+        ('mark', 12, 34),
+        ('configure', {'cursor': 'fleur'}),
+        ('drag', 12, 34, 1),
+        ('configure', {'cursor': ''}),
+    ] * 2
 
 
 def test_clamped_toplevel_geometry_keeps_gallery_on_screen():
@@ -584,8 +677,8 @@ def test_profile_sections_render_in_requested_order():
     assert rendered.index(TAGS_SECTION) < rendered.index(GEDCOM_SECTION)
 
 
-def test_profile_facts_events_render_raw_gedcom_facts_in_order():
-    """Profile mode renders non-biographical GEDCOM facts after Biography."""
+def test_profile_facts_events_render_grouped_and_chronological():
+    """Profile facts use fixed groups and chronological date-first entries."""
 
     class App(PersonDialogMixin, ResultsMixin):
         def _display_name(self, indi):
@@ -612,6 +705,16 @@ def test_profile_facts_events_render_raw_gedcom_facts_in_order():
                 (1, None, 'OCCU', 'Blacksmith'),
                 (2, None, 'DATE', '1910'),
                 (2, None, 'PLAC', 'Boston, Massachusetts'),
+                (1, None, 'RESI', ''),
+                (2, None, 'DATE', '1930'),
+                (2, None, 'PLAC', 'Chicago, Illinois'),
+                (1, None, 'RESI', ''),
+                (2, None, 'DATE', '1920'),
+                (2, None, 'PLAC', 'New York, New York'),
+                (1, None, 'EDUC', 'Princeton University'),
+                (2, None, 'DATE', 'ABT 1905'),
+                (1, None, 'GRAD', 'Engineering'),
+                (2, None, 'DATE', '1908'),
                 (1, None, 'EVEN', 'Eagle Scout'),
                 (2, None, 'TYPE', 'Award'),
                 (2, None, 'DATE', '1920'),
@@ -637,16 +740,67 @@ def test_profile_facts_events_render_raw_gedcom_facts_in_order():
     rendered = ''.join(text.parts)
     assert rendered.index(BIO_SECTION) < rendered.index(FAM_SECTION)
     assert rendered.index(FAM_SECTION) < rendered.index(FACTS_EVENTS_SECTION)
-    assert (
-        '  Occupation: Blacksmith, 1910, Boston, Massachusetts\n'
-        in rendered
+    residence = rendered.index('  Residence\n')
+    education = rendered.index('  Education\n')
+    occupation = rendered.index('  Occupation\n')
+    other = rendered.index('  Other Facts & Events\n')
+    assert residence < education < occupation < other
+    assert rendered.index('    1920: New York, New York\n') < rendered.index(
+        '    1930: Chicago, Illinois\n'
     )
-    assert (
-        '  Award: Eagle Scout, 1920, Note: earned merit badges over two lines\n'
-        in rendered
-    )
+    assert '    ABT 1905: Princeton University\n' in rendered
+    assert '    1908: Graduation: Engineering\n' in rendered
+    assert '    1910: Blacksmith, Boston, Massachusetts\n' in rendered
+    assert '    1920: Award: Eagle Scout\n' in rendered
+    assert '      Note: earned merit badges over two lines\n' in rendered
     assert 'Birth:' not in rendered
     assert 'Burial:' not in rendered
+
+
+def test_profile_facts_events_put_unparseable_and_undated_entries_last():
+    raw = [
+        (1, None, 'OCCU', 'Undated role'),
+        (1, None, 'OCCU', 'Dated role'),
+        (2, None, 'DATE', '2000'),
+        (1, None, 'OCCU', 'Text date role'),
+        (2, None, 'DATE', 'UNKNOWN'),
+        (1, None, 'OCCU', 'Same-year first'),
+        (2, None, 'DATE', '2000'),
+    ]
+
+    groups = PersonDialogMixin._profile_fact_event_groups(raw)
+
+    assert groups == [
+        (
+            'Occupation',
+            [
+                {
+                    'date': '2000',
+                    'primary': 'Dated role',
+                    'supplemental': [],
+                    'source_order': 1,
+                },
+                {
+                    'date': '2000',
+                    'primary': 'Same-year first',
+                    'supplemental': [],
+                    'source_order': 3,
+                },
+                {
+                    'date': 'UNKNOWN',
+                    'primary': 'Text date role',
+                    'supplemental': [],
+                    'source_order': 2,
+                },
+                {
+                    'date': '',
+                    'primary': 'Undated role',
+                    'supplemental': [],
+                    'source_order': 0,
+                },
+            ],
+        )
+    ]
 
 
 def test_profile_facts_events_render_sources_and_clickable_urls(monkeypatch):
@@ -677,7 +831,17 @@ def test_profile_facts_events_render_sources_and_clickable_urls(monkeypatch):
                 (2, None, 'PLAC', 'Chicago, Illinois'),
                 (2, None, 'NOTE', 'See https://example.test/residence)'),
                 (2, None, 'SOUR', '@S1@'),
-                (3, None, 'PAGE', 'https://source.test/page.'),
+                (
+                    3,
+                    None,
+                    'PAGE',
+                    'The Burlington Free Press; Publication Date: 17 Aug 1996; '
+                    'Publication Place: Burlington, Vermont, USA; URL: '
+                    'https://www.newspapers.com/image/202577571/?article=abc'
+                    '&xid=4717 &terms=Adam_Kessel',
+                ),
+                (2, None, 'SOUR', '@S2@'),
+                (3, None, 'PAGE', 'Ordinary source without a URL'),
             ],
         },
     }
@@ -698,26 +862,41 @@ def test_profile_facts_events_render_sources_and_clickable_urls(monkeypatch):
 
     rendered = ''.join(text.parts)
     assert (
-        '  Residence: 1930, Chicago, Illinois, '
-        'Note: See https://example.test/residence), '
-        'Source: https://source.test/page.\n'
+        '  Residence\n'
+        '    1930: Chicago, Illinois\n'
+        '      Note: See https://example.test/residence)\n'
+        '      Source: The Burlington Free Press; Publication Date: 17 Aug 1996; '
+        'Publication Place: Burlington, Vermont, USA\n'
+        '      Source: Ordinary source without a URL\n'
         in rendered
     )
+    assert 'URL:' not in rendered
+    assert 'https://www.newspapers.com/image/202577571/' not in rendered
     assert ('gedcom_url_link', 'gedcom_url_0') in [
         tags for part, tags in text.inserted
         if part == 'https://example.test/residence'
     ]
     assert ('gedcom_url_link', 'gedcom_url_1') in [
         tags for part, tags in text.inserted
-        if part == 'https://source.test/page'
+        if part == (
+            'Source: The Burlington Free Press; Publication Date: '
+            '17 Aug 1996; Publication Place: Burlington, Vermont, USA'
+        )
     ]
+    assert ('      ', None) in text.inserted
+    assert not any(
+        part.startswith(' ')
+        for part, tags in text.inserted
+        if tags and 'gedcom_url_link' in tags
+    )
 
     text.bindings[('gedcom_url_0', '<Button-1>')](None)
     text.bindings[('gedcom_url_1', '<Button-1>')](None)
 
     assert opened == [
         'https://example.test/residence',
-        'https://source.test/page',
+        'https://www.newspapers.com/image/202577571/?article=abc'
+        '&xid=4717&terms=Adam_Kessel',
     ]
 
 

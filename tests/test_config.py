@@ -284,6 +284,44 @@ class TestShowProfileImage:
 
 
 # ===========================================================================
+# save_format
+# ===========================================================================
+
+class TestSaveFormat:
+    def test_default_is_pdf(self, tmp_path):
+        mgr = _mgr(tmp_path)
+        assert mgr.get_save_format() == "pdf"
+
+    def test_roundtrip(self, tmp_path):
+        mgr = _mgr(tmp_path)
+        mgr.set_save_format("text")
+        assert mgr.get_save_format() == "text"
+
+    def test_invalid_falls_back_to_pdf(self, tmp_path):
+        p = tmp_path / "settings.json"
+        p.write_text(json.dumps({"save_format": "html"}), encoding="utf-8")
+        mgr = ConfigManager(p)
+        assert mgr.get_save_format() == "pdf"
+
+
+# ===========================================================================
+# pdf_include_photos
+# ===========================================================================
+
+class TestPdfIncludePhotos:
+    def test_default_is_false(self, tmp_path):
+        mgr = _mgr(tmp_path)
+        assert mgr.get_pdf_include_photos() is False
+
+    def test_roundtrip(self, tmp_path):
+        mgr = _mgr(tmp_path)
+        mgr.set_pdf_include_photos(True)
+        assert mgr.get_pdf_include_photos() is True
+        mgr.set_pdf_include_photos(False)
+        assert mgr.get_pdf_include_photos() is False
+
+
+# ===========================================================================
 # media_parent_dirs
 # ===========================================================================
 

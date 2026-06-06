@@ -31,8 +31,9 @@ from gedcom_tooltip import Tooltip
 class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
     """Mixin providing picker, path finder, and preferences dialogs."""
 
-    _PREFS_MIN_WIDTH = 500
+    _PREFS_MIN_WIDTH = 650
     _PREFS_MIN_HEIGHT = 420
+    _PREFS_LABEL_WIDTH = 145
     _PREFS_PRE_SHOW_SETTLE_PASSES = 3
     _PREFS_WIN_REVEAL_DELAY_MS = 75
     _PREFS_HEIGHT_SETTLE_DELAYS_MS = (100, 250, 500)
@@ -550,6 +551,11 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
         def common_ancestor_line(ancestor_ids, prefix='', item_prefix='    '):
             if prefix:
                 w.insert('end', prefix)
+            if ancestor_ids is None:
+                w.insert('end', RESULT_COMMON_ANCESTOR)
+                w.insert('end', RESULT_COMMON_ANCESTOR_SAME_PERSON)
+                w.insert('end', '\n')
+                return
             if not ancestor_ids:
                 w.insert('end', RESULT_COMMON_ANCESTOR)
                 w.insert('end', RESULT_COMMON_ANCESTOR_NONE)
@@ -582,6 +588,7 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
 
         if start_id == end_id:
             nl(PATH_SAME_PERSON)
+            common_ancestor_line(None, prefix="  ")
         elif not disp_paths:
             nl(PATH_NOT_FOUND.format(depth=self.max_depth.get()))
         else:
@@ -672,38 +679,64 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
                                       value=value, background=bg,
                                       activebackground=bg, highlightthickness=0)
             return ctk.CTkRadioButton(parent, text=text, variable=variable,
-                                      value=value)
+                                      value=value, width=0)
+
+        def _option_label(parent, row, text, *, bold=False, pady=(0, 6)):
+            label = ctk.CTkLabel(
+                parent,
+                text=text,
+                width=self._PREFS_LABEL_WIDTH,
+                anchor='w',
+                font=ctk.CTkFont(weight='bold') if bold else None,
+            )
+            label.grid(
+                row=row, column=0, sticky='nw', padx=(0, 12), pady=pady)
+            return label
+
+        def _option_buttons(parent, row, variable, options, *, pady=(0, 6)):
+            buttons = []
+            for column, (label, value) in enumerate(options, start=1):
+                button = _radiobutton(
+                    parent, text=label, variable=variable, value=value)
+                button.grid(
+                    row=row, column=column, sticky='w',
+                    padx=(0, 16), pady=pady)
+                buttons.append(button)
+            return buttons
+
+        appearance_frame = ctk.CTkFrame(
+            appearance_section, fg_color='transparent')
+        appearance_frame.pack(fill='x', padx=12, pady=(0, 10))
+        appearance_frame.columnconfigure(0, minsize=self._PREFS_LABEL_WIDTH)
 
         # Font size row
-        font_row = ctk.CTkFrame(appearance_section, fg_color='transparent')
-        font_row.pack(fill='x', padx=12, pady=(0, 4))
-        ctk.CTkLabel(font_row, text=FRAME_FONT_SIZE +
-                     ':').pack(side='left', padx=(0, 8))
+        _option_label(appearance_frame, 0, FRAME_FONT_SIZE + ':')
         size_var = tk.StringVar(value=self._font_size_pref)
-        for label, key in ((FONT_SMALL, "small"), (FONT_MEDIUM, "medium"),
-                           (FONT_LARGE, "large"), (FONT_JUMBO, "jumbo")):
-            _radiobutton(
-                font_row, text=label, variable=size_var, value=key,
-            ).pack(side='left', padx=8)
+        _option_buttons(
+            appearance_frame,
+            0,
+            size_var,
+            ((FONT_SMALL, "small"), (FONT_MEDIUM, "medium"),
+             (FONT_LARGE, "large"), (FONT_JUMBO, "jumbo")),
+        )
 
         # Theme row
-        theme_row = ctk.CTkFrame(appearance_section, fg_color='transparent')
-        theme_row.pack(fill='x', padx=12, pady=(0, 4))
-        ctk.CTkLabel(theme_row, text=FRAME_THEME +
-                     ':').pack(side='left', padx=(0, 8))
+        _option_label(appearance_frame, 1, FRAME_THEME + ':')
         theme_var = tk.StringVar(value=self._theme_pref)
-        for name in self._THEME_NAMES:
-            _radiobutton(
-                theme_row, text=name, variable=theme_var, value=name,
-            ).pack(side='left', padx=6)
+        _option_buttons(
+            appearance_frame,
+            1,
+            theme_var,
+            tuple((name, name) for name in self._THEME_NAMES),
+        )
 
         # Hide Tooltips checkbox
-        tooltip_row = ctk.CTkFrame(appearance_section, fg_color='transparent')
-        tooltip_row.pack(fill='x', padx=12, pady=(0, 10))
         hide_tooltips_var = tk.BooleanVar(value=self._hide_tooltips_pref)
         hide_tooltips_chk = ctk.CTkCheckBox(
-            tooltip_row, text=CHK_HIDE_TOOLTIPS, variable=hide_tooltips_var)
-        hide_tooltips_chk.pack(anchor='w')
+            appearance_frame, text=CHK_HIDE_TOOLTIPS,
+            variable=hide_tooltips_var)
+        hide_tooltips_chk.grid(
+            row=2, column=1, columnspan=5, sticky='w')
         Tooltip(hide_tooltips_chk, TIP_HIDE_TOOLTIPS)
 
         # Search defaults section
@@ -714,6 +747,10 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
             anchor='nw', padx=12, pady=(8, 4))
         search_frame = ctk.CTkFrame(search_section, fg_color='transparent')
         search_frame.pack(fill='x', padx=12, pady=(0, 10))
+        search_frame.columnconfigure(0, minsize=self._PREFS_LABEL_WIDTH)
+        search_frame.columnconfigure(1, weight=1)
+        search_frame.columnconfigure(2, minsize=self._PREFS_LABEL_WIDTH)
+        search_frame.columnconfigure(3, weight=1)
 
         _pref_top_n_label = ctk.CTkLabel(search_frame, text=LBL_TOP_N_RESULTS)
         _pref_top_n_label.grid(row=0, column=0, sticky='w', padx=(0, 8))
@@ -781,6 +818,31 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
         Tooltip(_pref_page_marker_label, TIP_PAGE_MARKER)
         Tooltip(_pref_page_marker_entry, TIP_PAGE_MARKER)
 
+        # Export section
+        export_section = ctk.CTkFrame(outer, border_width=1)
+        export_section.pack(fill='x', pady=(0, 8))
+        ctk.CTkLabel(export_section, text=FRAME_EXPORT, anchor='w',
+                     font=ctk.CTkFont(weight='bold')).pack(
+            anchor='nw', padx=12, pady=(8, 4))
+        export_frame = ctk.CTkFrame(export_section, fg_color='transparent')
+        export_frame.pack(fill='x', padx=12, pady=(0, 10))
+        export_frame.columnconfigure(0, minsize=self._PREFS_LABEL_WIDTH)
+
+        save_format_var = tk.StringVar(value=self._config.get_save_format())
+        _option_label(export_frame, 0, LBL_SAVE_FORMAT)
+        _option_buttons(
+            export_frame, 0, save_format_var,
+            ((SAVE_FORMAT_PDF, 'pdf'), (SAVE_FORMAT_TEXT, 'text')))
+        include_photos_var = tk.BooleanVar(
+            value=self._config.get_pdf_include_photos())
+        include_photos_chk = ctk.CTkCheckBox(
+            export_frame,
+            text=CHK_PDF_INCLUDE_PHOTOS,
+            variable=include_photos_var,
+        )
+        include_photos_chk.grid(row=0, column=3, sticky='w', padx=(12, 0))
+        Tooltip(include_photos_chk, TIP_PDF_INCLUDE_PHOTOS)
+
         # Display section
         display_section = ctk.CTkFrame(outer, border_width=1)
         display_section.pack(fill='x', pady=(0, 8))
@@ -789,71 +851,65 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
             anchor='nw', padx=12, pady=(8, 4))
         display_frame = ctk.CTkFrame(display_section, fg_color='transparent')
         display_frame.pack(fill='x', padx=12, pady=(0, 10))
+        display_frame.columnconfigure(0, minsize=self._PREFS_LABEL_WIDTH)
+        for column in range(1, 5):
+            display_frame.columnconfigure(column, weight=1)
 
         show_ids_var = tk.BooleanVar(value=self.show_ids.get())
-        _show_ids_chk = ctk.CTkCheckBox(display_frame, text=CHK_SHOW_IDS,
-                                        variable=show_ids_var)
-        _show_ids_chk.pack(anchor='w')
-        Tooltip(_show_ids_chk, TIP_SHOW_IDS)
-
         show_full_gedcom_var = tk.BooleanVar(value=self.show_full_gedcom.get())
-        _show_full_gedcom_chk = ctk.CTkCheckBox(
-            display_frame, text=CHK_SHOW_FULL_GEDCOM,
-            variable=show_full_gedcom_var)
-        _show_full_gedcom_chk.pack(anchor='w', pady=(4, 0))
-        Tooltip(_show_full_gedcom_chk, TIP_SHOW_FULL_GEDCOM)
-
         show_profile_image_var = tk.BooleanVar(
             value=self.show_profile_image.get())
-        _show_profile_image_chk = ctk.CTkCheckBox(
-            display_frame, text=CHK_SHOW_PROFILE_IMAGE,
-            variable=show_profile_image_var)
-        _show_profile_image_chk.pack(anchor='w', pady=(4, 0))
-        Tooltip(_show_profile_image_chk, TIP_SHOW_PROFILE_IMAGE)
 
-        name_order_row = ctk.CTkFrame(display_frame, fg_color='transparent')
-        name_order_row.pack(anchor='w', pady=(6, 0))
-        ctk.CTkLabel(name_order_row, text=LBL_NAME_FORMAT).pack(
-            side='left', padx=(0, 8))
         name_order_var = tk.StringVar(value=self._name_order)
-        _radiobutton(name_order_row, text=NAME_FIRST_LAST,
-                     variable=name_order_var, value='first_last').pack(side='left', padx=(0, 8))
-        _radiobutton(name_order_row, text=NAME_LAST_FIRST,
-                     variable=name_order_var, value='last_first').pack(side='left')
+        _option_label(display_frame, 0, LBL_NAME_FORMAT)
+        _option_buttons(
+            display_frame, 0, name_order_var,
+            ((NAME_FIRST_LAST, 'first_last'), (NAME_LAST_FIRST, 'last_first')))
 
-        default_display_row = ctk.CTkFrame(display_frame, fg_color='transparent')
-        default_display_row.pack(anchor='w', pady=(6, 0))
-        ctk.CTkLabel(default_display_row, text=LBL_DEFAULT_DISPLAY).pack(
-            side='left', padx=(0, 8))
         default_display_var = tk.StringVar(value=self._config.get_default_display())
-        _radiobutton(default_display_row, text=DISPLAY_MODE_PROFILE,
-                     variable=default_display_var, value='profile').pack(side='left', padx=(0, 8))
-        _radiobutton(default_display_row, text=DISPLAY_MODE_MATCHES,
-                     variable=default_display_var, value='matches').pack(side='left', padx=(0, 8))
-        _radiobutton(default_display_row, text=DISPLAY_MODE_PATHS,
-                     variable=default_display_var, value='paths').pack(side='left')
+        _option_label(display_frame, 1, LBL_DEFAULT_DISPLAY)
+        _option_buttons(
+            display_frame, 1, default_display_var,
+            ((DISPLAY_MODE_PROFILE, 'profile'),
+             (DISPLAY_MODE_MATCHES, 'matches'),
+             (DISPLAY_MODE_PATHS, 'paths')))
 
-        default_tree_row = ctk.CTkFrame(display_frame, fg_color='transparent')
-        default_tree_row.pack(anchor='w', pady=(6, 0))
-        ctk.CTkLabel(default_tree_row, text=LBL_DEFAULT_TREE).pack(
-            side='left', padx=(0, 8))
         default_tree_var = tk.StringVar(value=self._config.get_default_tree())
-        _radiobutton(default_tree_row, text=TREE_MODE_TREE,
-                     variable=default_tree_var, value='tree').pack(side='left', padx=(0, 8))
-        _radiobutton(default_tree_row, text=TREE_MODE_PEDIGREE,
-                     variable=default_tree_var, value='pedigree').pack(side='left', padx=(0, 8))
-        _radiobutton(default_tree_row, text=TREE_MODE_DESCENDANTS,
-                     variable=default_tree_var, value='descendant').pack(side='left')
+        _option_label(display_frame, 2, LBL_DEFAULT_TREE)
+        _option_buttons(
+            display_frame, 2, default_tree_var,
+            ((TREE_MODE_TREE, 'tree'), (TREE_MODE_PEDIGREE, 'pedigree'),
+             (TREE_MODE_DESCENDANTS, 'descendant')))
+
+        _option_label(
+            display_frame, 3, FRAME_OPTIONS + ':', bold=True, pady=(6, 4))
+        options_frame = ctk.CTkFrame(display_frame, fg_color='transparent')
+        options_frame.grid(
+            row=3, column=1, columnspan=4, sticky='w', pady=(6, 4))
+        _show_ids_chk = ctk.CTkCheckBox(
+            options_frame, text=CHK_SHOW_IDS, variable=show_ids_var)
+        Tooltip(_show_ids_chk, TIP_SHOW_IDS)
+        _show_full_gedcom_chk = ctk.CTkCheckBox(
+            options_frame, text=CHK_SHOW_FULL_GEDCOM,
+            variable=show_full_gedcom_var)
+        Tooltip(_show_full_gedcom_chk, TIP_SHOW_FULL_GEDCOM)
+        _show_profile_image_chk = ctk.CTkCheckBox(
+            options_frame, text=CHK_SHOW_PROFILE_IMAGE,
+            variable=show_profile_image_var)
+        Tooltip(_show_profile_image_chk, TIP_SHOW_PROFILE_IMAGE)
+        _show_ids_chk.pack(side='left', padx=(0, 18))
+        _show_full_gedcom_chk.pack(side='left', padx=(0, 18))
+        _show_profile_image_chk.pack(side='left')
 
         # Language row (wraps to multiple rows on narrow windows)
-        lang_row = ctk.CTkFrame(display_section, fg_color='transparent')
-        lang_row.pack(fill='x', padx=12, pady=(0, 10))
-        ctk.CTkLabel(lang_row, text=LBL_LANGUAGE).pack(anchor='w', pady=(0, 2))
+        _option_label(display_frame, 4, LBL_LANGUAGE, pady=(6, 0))
         lang_var = tk.StringVar(value=self._config.get_language())
         lang_options = get_available_languages()
 
-        lang_btns_frame = ctk.CTkFrame(lang_row, fg_color='transparent')
-        lang_btns_frame.pack(fill='x')
+        lang_btns_frame = ctk.CTkFrame(
+            display_frame, fg_color='transparent')
+        lang_btns_frame.grid(
+            row=4, column=1, columnspan=4, sticky='ew', pady=(6, 0))
         _lang_btns = [
             _radiobutton(lang_btns_frame, text=label, variable=lang_var, value=code)
             for label, code in lang_options
@@ -886,16 +942,20 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
             anchor='nw', padx=12, pady=(8, 4))
         cache_frame = ctk.CTkFrame(cache_section, fg_color='transparent')
         cache_frame.pack(fill='x', padx=12, pady=(0, 6))
-        ctk.CTkButton(cache_frame, text=BTN_CLEAR_CACHE, width=150,
-                      command=self._clear_cache).pack(side='left')
-        ctk.CTkLabel(cache_frame, text=LBL_CACHE_NOTE).pack(
-            side='left', padx=(10, 0))
-        data_frame = ctk.CTkFrame(cache_section, fg_color='transparent')
-        data_frame.pack(fill='x', padx=12, pady=(0, 10))
-        ctk.CTkButton(data_frame, text=BTN_REMOVE_ALL_DATA, width=150,
-                      command=self._remove_all_data).pack(side='left')
-        ctk.CTkLabel(data_frame, text=LBL_REMOVE_ALL_DATA_NOTE).pack(
-            side='left', padx=(10, 0))
+        cache_frame.columnconfigure(0, minsize=self._PREFS_LABEL_WIDTH)
+        ctk.CTkButton(
+            cache_frame, text=BTN_CLEAR_CACHE, width=self._PREFS_LABEL_WIDTH,
+            command=self._clear_cache,
+        ).grid(row=0, column=0, sticky='w', padx=(0, 12), pady=(0, 6))
+        ctk.CTkLabel(cache_frame, text=LBL_CACHE_NOTE).grid(
+            row=0, column=1, sticky='w', pady=(0, 6))
+        ctk.CTkButton(
+            cache_frame, text=BTN_REMOVE_ALL_DATA,
+            width=self._PREFS_LABEL_WIDTH,
+            command=self._remove_all_data,
+        ).grid(row=1, column=0, sticky='w', padx=(0, 12), pady=(0, 4))
+        ctk.CTkLabel(cache_frame, text=LBL_REMOVE_ALL_DATA_NOTE).grid(
+            row=1, column=1, sticky='w', pady=(0, 4))
 
         # Buttons
         btn_frame = ctk.CTkFrame(win, fg_color='transparent')
@@ -942,6 +1002,8 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
             self._config.set_show_full_gedcom(show_full_gedcom_var.get())
             self.show_profile_image.set(show_profile_image_var.get())
             self._config.set_show_profile_image(show_profile_image_var.get())
+            self._config.set_save_format(save_format_var.get())
+            self._config.set_pdf_include_photos(include_photos_var.get())
             self._name_order = name_order_var.get()
             self._config.set_name_order(self._name_order)
             self._config.set_default_display(default_display_var.get())
@@ -977,11 +1039,12 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
         ctk.CTkButton(btn_frame, text=BTN_CANCEL, width=80,
                       command=on_cancel).pack(side='right')
 
-        # Pre-layout language buttons at the expected inner width so we can measure
-        # the accurate content height before the window is shown.  ~440 px accounts
-        # for window min_w=500 minus the CTkScrollableFrame scrollbar, outer padx=16,
-        # and the display-section padx=12 on each side.
-        _layout_lang_buttons(_force_width=440)
+        # Pre-layout language buttons at the expected options-column width so
+        # content height is accurate before the window is shown.
+        _layout_lang_buttons(
+            _force_width=self._PREFS_MIN_WIDTH
+            - self._PREFS_LANG_WIDTH_OVERHEAD
+            - self._PREFS_LABEL_WIDTH)
         win.update_idletasks()
 
         _pre_target_h = self._preferences_dialog_target_height(
@@ -1010,6 +1073,7 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
                 lang_width = (
                     self._preferences_dialog_width(win)
                     - self._PREFS_LANG_WIDTH_OVERHEAD
+                    - self._PREFS_LABEL_WIDTH
                 )
             _layout_lang_buttons(_force_width=max(1, lang_width))
             win.update_idletasks()
