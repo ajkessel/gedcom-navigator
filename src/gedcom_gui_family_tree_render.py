@@ -310,6 +310,52 @@ class FamilyTreeRenderMixin:
         xs = [parent_x] + list(child_xs)
         return min(xs), max(xs)
 
+    def _sibling_stub_groups(self, edges, positions, child_edge_groups, v_gap):
+        """Return sibling groups needing a ghost stub (no visible parent)."""
+        children_with_visible_parent = set()
+        for group in child_edge_groups:
+            children_with_visible_parent.update(group['children'])
+        sibling_adj = {}
+        for source_id, target_id, category in edges:
+            if category != 'siblings':
+                continue
+            if source_id not in positions or target_id not in positions:
+                continue
+            sibling_adj.setdefault(source_id, set()).add(target_id)
+            sibling_adj.setdefault(target_id, set()).add(source_id)
+        visited = set()
+        stubs = []
+        for start_id in list(sibling_adj):
+            if start_id in visited:
+                continue
+            component = []
+            queue = [start_id]
+            while queue:
+                nid = queue.pop(0)
+                if nid in visited:
+                    continue
+                visited.add(nid)
+                component.append(nid)
+                for neighbor in sibling_adj.get(nid, set()):
+                    if neighbor not in visited:
+                        queue.append(neighbor)
+            if any(cid in children_with_visible_parent for cid in component):
+                continue
+            kind = 'birth'
+            for cid in component:
+                for neighbor in sibling_adj.get(cid, set()):
+                    edge_kind = self._edge_relationship_kind(cid, neighbor, 'siblings')
+                    if edge_kind == 'step':
+                        kind = 'step'
+                        break
+                    if edge_kind == 'half' and kind != 'step':
+                        kind = 'half'
+            child_ids = sorted(component, key=lambda cid: positions[cid][0])
+            sibling_y = positions[child_ids[0]][1]
+            stub_y = sibling_y - v_gap / 2
+            stubs.append({'kind': kind, 'child_ids': child_ids, 'stub_y': stub_y})
+        return stubs
+
     def _render_family_tree_canvas(self, canvas, center_id, expanded, colors,
                                    win, zoom, on_expand, on_recenter,
                                    on_profile=None, on_find_matches=None,
@@ -491,6 +537,19 @@ class FamilyTreeRenderMixin:
         max_generation = max(node['generation'] for node in layout)
         min_column = min(node['column'] for node in layout)
         max_column = max(node['column'] for node in layout)
+        if orientation != 'horizontal':
+            sibling_node_ids = {
+                nid
+                for s, t, cat in edges
+                if cat == 'siblings'
+                for nid in (s, t)
+            }
+            if any(
+                node['id'] in sibling_node_ids
+                and node['generation'] == min_generation
+                for node in layout
+            ):
+                top_margin += scale(50)
         positions = {}
         for node in layout:
             if orientation == 'horizontal':
@@ -601,22 +660,15 @@ class FamilyTreeRenderMixin:
                     self._draw_spouse_line(
                         canvas, start_x, sy, end_x, ty, colors['spouse'], scale)
                     continue
-            for left_id, right_id in self._family_tree_visible_sibling_segments(
-                    edges, positions):
+            for group in self._sibling_stub_groups(
+                    edges, positions, child_edge_groups, v_gap):
                 pulse_progress()
-                lx, ly = positions[left_id]
-                rx, ry = positions[right_id]
-                kind = self._edge_relationship_kind(
-                    left_id, right_id, 'siblings')
-                start_x = lx + (node_w / 2 if rx >= lx else -node_w / 2)
-                end_x = rx - node_w / 2 if rx >= lx else rx + node_w / 2
-                start_y = end_y = ly
-                if kind == 'half' and abs(ly - ry) < 0.001:
-                    start_y = end_y = ly - scale(12)
-                self._draw_graph_sibling_line(
-                    canvas, start_x, start_y, end_x, end_y,
-                    kind,
-                    colors, scale)
+                child_ids = group['child_ids']
+                child_xs = [positions[cid][0] for cid in child_ids]
+                child_tops = [positions[cid][1] - node_h / 2 for cid in child_ids]
+                self._draw_sibling_stub(
+                    canvas, min(child_xs), max(child_xs), group['stub_y'],
+                    child_xs, child_tops, group['kind'], colors, scale)
             for group in child_edge_groups:
                 pulse_progress()
                 parent_x = group['parent_x']

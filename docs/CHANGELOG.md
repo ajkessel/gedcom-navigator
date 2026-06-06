@@ -1,6 +1,10 @@
 # Changelog
 
-## [Unreleased]
+## [1.9.15 - Prerelease]
+
+### Changed
+
+- **Sibling connectors replaced by ghost-stub bars in family-tree graphs** — when parents are not visible, siblings were connected by horizontal lines indistinguishable from spouse double-rail lines. Siblings are now grouped by a short horizontal bar drawn above the node row with vertical drop lines to each sibling — the same visual language as the parents-visible bus, just without boxes. The stub lives in a distinct vertical zone so it cannot be confused with a spouse connection. Half-sibling groups use the split dashed-rail style; step-sibling groups use the dotted style.
 
 ### Fixed
 
