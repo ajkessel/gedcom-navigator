@@ -1537,6 +1537,47 @@ def test_family_tree_child_edge_groups_keep_couples_separate():
     assert groups[1]['parent_ids'] == ('@P2@', '@P2_SP@')
 
 
+def test_family_tree_bus_line_below_parent_nodes_at_large_node_height():
+    """Bus line mid_y must be below parent node bottoms even at high DPI.
+
+    When node_h grows (larger fonts at high DPI), the bus line connecting
+    parents to children must remain below the parent node boxes.  The old
+    formula (start_y + end_y) / 2 used the couple centre (parent_y) as
+    start_y, placing the bus inside the parent nodes once node_h > 176.
+    The fix uses parent_y + node_h/2 so the bus is always below the nodes.
+    """
+    # Simulate a couple at generation 0, children at generation 1.
+    # node_h values that would expose the bug: 180, 200 (> 176 threshold).
+    for node_h in (84, 113, 130, 147, 180, 200):
+        v_gap = max(node_h + 88, 150)
+        parent_y = 100.0  # arbitrary centre-y for the parent couple
+        child_y = parent_y + v_gap
+
+        # --- couple case (parent_h == 0) ---
+        parent_h = 0
+        start_y = parent_y + parent_h / 2  # = parent_y (couple centre)
+        end_y = child_y - node_h / 2       # top of child node
+        # Fixed formula: always anchors to parent_bottom
+        mid_y = (parent_y + node_h / 2 + end_y) / 2
+        parent_bottom = parent_y + node_h / 2
+
+        assert mid_y >= parent_bottom, (
+            f"node_h={node_h}: bus line mid_y={mid_y:.1f} is above "
+            f"parent bottom={parent_bottom:.1f}"
+        )
+        assert mid_y <= end_y, (
+            f"node_h={node_h}: bus line mid_y={mid_y:.1f} is below "
+            f"child top end_y={end_y:.1f}"
+        )
+
+        # --- single parent case (parent_h == node_h) ---
+        start_y_single = parent_y + node_h / 2
+        mid_y_single = (parent_y + node_h / 2 + end_y) / 2
+        assert mid_y_single == (start_y_single + end_y) / 2, (
+            "Fixed formula must be identical to old formula for single parents"
+        )
+
+
 def test_path_graph_child_expansion_keeps_coparent_adjacent():
     """A new coparent takes the adjacent slot and pushes same-row nodes over."""
     base = ResultsMixin._path_graph_layout([

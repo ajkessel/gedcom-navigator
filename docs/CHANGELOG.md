@@ -4,6 +4,7 @@
 
 ### Fixed
 
+- **Family-tree connector bus line no longer overlaps parent nodes at high display scaling** — at high DPI (e.g. Windows 300 % scaling), enlarged fonts make node heights grow, causing the horizontal bus line that connects parents to children to be placed inside the parent node boxes rather than below them. The bus-line midpoint now anchors to the actual parent node bottom rather than the couple's centre, keeping 44 design-unit clearance between the parent boxes and the bus regardless of DPI.
 - **Find, filter, profile pane, and profile photo clear when loading a new file** — opening a different GEDCOM file now resets the Find and Filter fields, clears the results/profile pane text, and destroys any floating profile thumbnail so no stale content from the previous file is left visible.
 - **Profile photo updates when switching persons in Pedigree and Descendants views** — selecting a new person while in Pedigree or Descendants sub-mode now replaces the profile thumbnail with the new person's photo rather than leaving the previous person's photo in place. Both text-report renderers now call `_place_profile_thumbnail` the same way the Bio renderer does.
 - **Full-size image window no longer opens automatically on profile navigation** — a Windows Tkinter quirk caused the photo thumbnail's click handler to be invoked with no event argument during navigation, which (after a prior defensive fix) inadvertently opened the full-size image viewer. The handler now only opens the image when called with a real click event.

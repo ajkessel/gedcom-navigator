@@ -629,7 +629,7 @@ class FamilyTreeRenderMixin:
                     for child_id in group['children']
                 ]
                 end_y = min(child_tops)
-                mid_y = (start_y + end_y) / 2
+                mid_y = (parent_y + node_h / 2 + end_y) / 2
                 child_xs = [positions[child_id][0]
                             for child_id in group['children']]
                 bus_start_x, bus_end_x = self._family_tree_child_bus_span(
