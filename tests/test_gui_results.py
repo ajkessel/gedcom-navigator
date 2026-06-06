@@ -345,6 +345,9 @@ class _FakeResultsApp(ResultsMixin):
     def _reset_results_pane(self):
         pass
 
+    def _place_profile_thumbnail(self, _text, _indi_id):
+        pass
+
 
 def _make_family(fam_id, husb=None, wife=None, children=None):
     return {

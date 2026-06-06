@@ -1,5 +1,14 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+
+- **Find, filter, profile pane, and profile photo clear when loading a new file** — opening a different GEDCOM file now resets the Find and Filter fields, clears the results/profile pane text, and destroys any floating profile thumbnail so no stale content from the previous file is left visible.
+- **Profile photo updates when switching persons in Pedigree and Descendants views** — selecting a new person while in Pedigree or Descendants sub-mode now replaces the profile thumbnail with the new person's photo rather than leaving the previous person's photo in place. Both text-report renderers now call `_place_profile_thumbnail` the same way the Bio renderer does.
+- **Full-size image window no longer opens automatically on profile navigation** — a Windows Tkinter quirk caused the photo thumbnail's click handler to be invoked with no event argument during navigation, which (after a prior defensive fix) inadvertently opened the full-size image viewer. The handler now only opens the image when called with a real click event.
+- **Profile photos remain above text on macOS** — the profile thumbnail is now layered over the outer textbox instead of inside Aqua's native text widget, preventing Matches-view text redraws from painting over the image. The thumbnail is repositioned and raised whenever either textbox layer is resized.
+
 ## [1.9.14] - 2026-06-05
 
 ### Added

@@ -210,6 +210,9 @@ class SearchMixin:
             self._display_path_target_id = None
             self._last_result = None
             self._clear_home_path_cache()
+            self.search_text.set('')
+            self.filter_text.set('')
+            self._reset_results_pane()
             if encoding_warning:
                 messagebox.showwarning(gs.ERR_ENCODING_TITLE, encoding_warning)
             self.sorted_ids = sorted(

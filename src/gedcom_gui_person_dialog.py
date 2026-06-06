@@ -1235,14 +1235,34 @@ class PersonDialogMixin:
         label = getattr(text, '_profile_image_label', None)
         if label is None:
             return
+
+        def _lift():
+            try:
+                label.lift()
+            except tk.TclError:
+                pass
+
+        _lift()
         try:
+            label.after_idle(_lift)
+        except tk.TclError:
+            pass
+
+    @staticmethod
+    def _position_profile_thumbnail(text, pad=8):
+        """Position the thumbnail over the inner text area's top-right corner."""
+        label = getattr(text, '_profile_image_label', None)
+        if label is None:
+            return
+        try:
+            inner = text._textbox
+            inner.update_idletasks()
+            x = inner.winfo_x() + inner.winfo_width() - pad
+            y = inner.winfo_y() + pad
+            label.place(x=x, y=y, anchor='ne')
             label.lift()
         except tk.TclError:
             return
-        try:
-            label.after_idle(label.lift)
-        except tk.TclError:
-            pass
 
     def _place_profile_thumbnail(self, text, indi_id):
         """Place a top-right thumbnail over a profile textbox."""
@@ -1257,7 +1277,7 @@ class PersonDialogMixin:
         pad = 8
         try:
             label = tk.Label(
-                text._textbox,
+                text,
                 image=payload['image'],
                 borderwidth=0,
                 highlightthickness=1,
@@ -1270,24 +1290,30 @@ class PersonDialogMixin:
         if payload.get('kind') == 'real':
             label.bind(
                 '<Button-1>',
-                lambda _event, path=payload.get('path'): self._show_full_profile_image(
-                    path, parent=text.winfo_toplevel()),
+                lambda _event=None, path=payload.get('path'): (
+                    self._show_full_profile_image(path, parent=text.winfo_toplevel())
+                    if _event is not None else None
+                ),
             )
         refs = getattr(text, '_profile_image_refs', [])
         refs.extend([payload['image'], label])
         text._profile_image_refs = refs
         text._profile_image_label = label
-        try:
-            label.place(relx=1.0, x=-pad, y=pad, anchor='ne')
-        except tk.TclError:
-            return None
+        self._position_profile_thumbnail(text, pad)
         self._raise_profile_thumbnail(text)
         try:
             text._textbox.bind(
                 '<Configure>',
-                lambda _event: self._raise_profile_thumbnail(text),
+                lambda _event: self._position_profile_thumbnail(text, pad),
                 add='+',
             )
+            text.bind(
+                '<Configure>',
+                lambda _event: self._position_profile_thumbnail(text, pad),
+                add='+',
+            )
+            label.after_idle(
+                lambda: self._position_profile_thumbnail(text, pad))
         except tk.TclError:
             pass
         return {
