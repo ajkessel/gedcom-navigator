@@ -883,13 +883,9 @@ WT_PROFILE_SUBMODES_TITLE = _("Profile sub-modes")
 WT_PROFILE_SUBMODES_BODY = _(
     "When Profile mode is active, switch between three views:\n\n"
     "• Bio — biographical details, family members, and facts.\n\n"
-    "• Pedigree — an Ahnentafel ancestor report. Each ancestor has a unique "
-    "number: 1 is the selected person, 2 their father, 3 their mother. For "
-    "any slot n, the father is at 2n and the mother at 2n+1, so to trace any "
-    "ancestor back to the subject, keep halving until you reach 1. "
-    "Example: slot 13 → 6 → 3 → 1, so slot 13 is the mother's maternal grandfather.\n\n"
-    "• Descendants — a Henry-numbered report. The subject is 1, children are "
-    "1.1, 1.2 …, grandchildren 1.1.1, 1.1.2 …, and so on.\n\n"
+    "• Pedigree — an Ahnentafel ancestor report. Each person has a unique "
+    "number which tells you how they are related to the selected person.\n\n"
+    "• Descendants — shows all descendants in a Henry-numbered report.\n\n"
     "Names in both reports are clickable links to that person's Bio."
 )
 WT_MATCHES_SETTINGS_TITLE = _("Match tag settings")
