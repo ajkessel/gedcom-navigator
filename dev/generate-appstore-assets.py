@@ -36,6 +36,19 @@ import time
 import queue
 from pathlib import Path
 
+if sys.platform != 'darwin':
+    print("Error: this script requires a MacOS environment", file=sys.stderr)
+    sys.exit(1)
+
+# Detect if the script is running inside a virtual environment
+if sys.prefix == sys.base_prefix:
+    venv_python = Path(__file__).parent.parent / ".venv" / "bin" / "python"
+    if venv_python.exists():
+        os.execl(str(venv_python), str(venv_python), *sys.argv)
+    else:
+        print("Error: Virtual environment ('venv') not found.", file=sys.stderr)
+        sys.exit(1)
+
 # ---------------------------------------------------------------------------
 # Project paths
 # ---------------------------------------------------------------------------
