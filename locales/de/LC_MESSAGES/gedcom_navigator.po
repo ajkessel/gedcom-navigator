@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-06-02 16:56-0400\n"
+"POT-Creation-Date: 2026-06-05 21:17-0400\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -48,7 +48,7 @@ msgstr "Öffnen Aktuell"
 msgid "No Recent Files"
 msgstr "Keine zuletzt verwendeten Dateien"
 
-#: src/gedcom_strings.py:34 src/gedcom_strings.py:847
+#: src/gedcom_strings.py:34 src/gedcom_strings.py:934
 #, fuzzy
 msgid "Help"
 msgstr "Hilfe"
@@ -83,7 +83,7 @@ msgstr "Tastaturkürzel ({mod}K)"
 msgid "Keyboard Shortcuts (F2)"
 msgstr "Tastaturkürzel (F2)"
 
-#: src/gedcom_strings.py:59 src/gedcom_strings.py:765
+#: src/gedcom_strings.py:59 src/gedcom_strings.py:843
 #, fuzzy
 msgid "Walkthrough"
 msgstr "Anleitung"
@@ -93,12 +93,12 @@ msgstr "Anleitung"
 msgid "Check for updates…"
 msgstr "Nach Updates suchen…"
 
-#: src/gedcom_strings.py:63 src/gedcom_strings.py:756
+#: src/gedcom_strings.py:63 src/gedcom_strings.py:834
 #, fuzzy
 msgid "Privacy Policy"
 msgstr "Datenschutzerklärung"
 
-#: src/gedcom_strings.py:64 src/gedcom_strings.py:755
+#: src/gedcom_strings.py:64 src/gedcom_strings.py:833
 #, fuzzy
 msgid "About"
 msgstr "Über"
@@ -111,7 +111,7 @@ msgstr "Beenden"
 #: src/gedcom_strings.py:70
 #, fuzzy
 msgid "Select GEDCOM file"
-msgstr "Wähle die Datei „0000“ aus"
+msgstr "Wähle die Datei GEDCOM aus"
 
 #: src/gedcom_strings.py:75
 #, fuzzy
@@ -168,12 +168,12 @@ msgstr "Geburt"
 msgid "Death"
 msgstr "Tod"
 
-#: src/gedcom_strings.py:95 src/gedcom_strings.py:611
+#: src/gedcom_strings.py:95 src/gedcom_strings.py:679
 #, fuzzy
 msgid "Results:"
 msgstr "Ergebnisse:"
 
-#: src/gedcom_strings.py:96 src/gedcom_strings.py:612
+#: src/gedcom_strings.py:96 src/gedcom_strings.py:680
 #, fuzzy
 msgid "Max Depth:"
 msgstr "Max. Tiefe:"
@@ -183,7 +183,7 @@ msgstr "Max. Tiefe:"
 msgid "Profile"
 msgstr "Profil"
 
-#: src/gedcom_strings.py:98 src/gedcom_strings.py:637
+#: src/gedcom_strings.py:98 src/gedcom_strings.py:715
 #, fuzzy
 msgid "Tree"
 msgstr "Stammbaum"
@@ -203,12 +203,12 @@ msgstr "Startseite"
 msgid "Matches"
 msgstr "Spiele"
 
-#: src/gedcom_strings.py:107 src/gedcom_strings.py:464
+#: src/gedcom_strings.py:107 src/gedcom_strings.py:529
 #, fuzzy
 msgid "Paths"
 msgstr "Pfade"
 
-#: src/gedcom_strings.py:109 src/gedcom_strings.py:515
+#: src/gedcom_strings.py:109 src/gedcom_strings.py:583
 #, fuzzy
 msgid "Copy"
 msgstr "Kopieren"
@@ -223,12 +223,112 @@ msgstr "Rückseite"
 msgid "Normal Path"
 msgstr "Normaler Pfad"
 
-#: src/gedcom_strings.py:112 src/gedcom_strings.py:514
+#: src/gedcom_strings.py:112 src/gedcom_strings.py:582
 #, fuzzy
 msgid "Save"
 msgstr "Speichern"
 
-#: src/gedcom_strings.py:118
+#: src/gedcom_strings.py:115
+#, fuzzy
+msgid "Bio"
+msgstr "Biografie"
+
+#: src/gedcom_strings.py:116 src/gedcom_strings.py:716
+#, fuzzy
+msgid "Pedigree"
+msgstr "Stammbaum"
+
+#: src/gedcom_strings.py:117 src/gedcom_strings.py:717
+#, fuzzy
+msgid "Descendants"
+msgstr "Nachkommen"
+
+#: src/gedcom_strings.py:120
+#, python-brace-format, fuzzy
+msgid "Pedigree of {name}"
+msgstr "Stammbaum von {name}"
+
+#: src/gedcom_strings.py:121
+#, fuzzy
+msgid "Generation 1"
+msgstr "Generation 1"
+
+#: src/gedcom_strings.py:122
+#, python-brace-format, fuzzy
+msgid "Generation {n}"
+msgstr "Generation {n}"
+
+#: src/gedcom_strings.py:123
+#, fuzzy
+msgid "[unknown]"
+msgstr "[unbekannt]"
+
+#: src/gedcom_strings.py:124 src/gedcom_strings.py:565
+#, fuzzy
+msgid "father"
+msgstr "Vater"
+
+#: src/gedcom_strings.py:125 src/gedcom_strings.py:566
+#, fuzzy
+msgid "mother"
+msgstr "Mutter"
+
+#: src/gedcom_strings.py:126
+#, fuzzy
+msgid "paternal grandfather"
+msgstr "Großvater väterlicherseits"
+
+#: src/gedcom_strings.py:127
+#, fuzzy
+msgid "paternal grandmother"
+msgstr "Großmutter väterlicherseits"
+
+#: src/gedcom_strings.py:128
+#, fuzzy
+msgid "maternal grandfather"
+msgstr "Großvater mütterlicherseits"
+
+#: src/gedcom_strings.py:129
+#, fuzzy
+msgid "maternal grandmother"
+msgstr "Großmutter mütterlicherseits"
+
+#: src/gedcom_strings.py:130
+#, fuzzy
+msgid "great-"
+msgstr "toll-"
+
+#: src/gedcom_strings.py:131
+#, fuzzy
+msgid "grandfather"
+msgstr "Großvater"
+
+#: src/gedcom_strings.py:132
+#, fuzzy
+msgid "grandmother"
+msgstr "Großmutter"
+
+#: src/gedcom_strings.py:133
+#, fuzzy
+msgid "paternal "
+msgstr "väterlich "
+
+#: src/gedcom_strings.py:134
+#, fuzzy
+msgid "maternal "
+msgstr "mütterlich "
+
+#: src/gedcom_strings.py:137
+#, python-brace-format, fuzzy
+msgid "Descendants of {name}"
+msgstr "Nachkommen von {name}"
+
+#: src/gedcom_strings.py:138
+#, fuzzy
+msgid "m. "
+msgstr "Ich vermisse dich "
+
+#: src/gedcom_strings.py:144
 #, python-brace-format, fuzzy
 msgid ""
 "Reverse ({mod}R)\n"
@@ -237,61 +337,88 @@ msgstr ""
 "Umkehren ({mod}R)\n"
 "Kehrt die Richtung aller angezeigten Beziehungspfade um und berechnet die Beziehung aus der Perspektive der anderen Person. Klicken Sie erneut, um den ursprünglichen Pfad wiederherzustellen."
 
-#: src/gedcom_strings.py:131
+#: src/gedcom_strings.py:157
 #, python-brace-format, fuzzy
 msgid ""
 "Copy results ({mod}C)\n"
 "Copy the entire contents of the results pane to the clipboard. When the results text area has keyboard focus, {mod}C copies only the selected text as usual."
 msgstr ""
 "Kopieren Ergebnisse ({mod}C)\n"
-"Kopieren den gesamten Inhalt des Ergebnisfensters in die Zwischenablage. Wenn der Textbereich „Ergebnisse“ den Tastaturfokus hat, kopiert {mod}C wie gewohnt nur den ausgewählten Text."
+"Kopieren den gesamten Inhalt des Ergebnisfensters in die Zwischenablage. Wenn der Textbereich der Ergebnisse den Tastaturfokus hat, kopiert {mod}C wie gewohnt nur den ausgewählten Text."
 
-#: src/gedcom_strings.py:141
+#: src/gedcom_strings.py:167
 #, python-brace-format, fuzzy
 msgid ""
 "Copy JSON ({mod}J)\n"
 "Copy the entire contents of the results pane as JSON to the clipboard. Used only for debugging."
 msgstr ""
 "Kopieren JSON ({mod}J)\n"
-"Kopieren den gesamten Inhalt des Ergebnisfensters als JSON in die Zwischenablage. Wird nur zur Fehlersuche verwendet."
+"Kopieren den gesamten Inhalt des Ergebnisfensters als JSON in die Zwischenablage. Wird nur zur Fehlerbehebung verwendet."
 
-#: src/gedcom_strings.py:149
+#: src/gedcom_strings.py:175
 #, python-brace-format, fuzzy
 msgid ""
 "Save ({mod}S)\n"
-"Save the results to a text file."
+"Save the results using the format selected in Preferences."
 msgstr ""
 "Speichern ({mod}S)\n"
-"Speichern die Ergebnisse in eine Textdatei."
+"Speichern die Ergebnisse im unter „Einstellungen“ gewählten Format."
 
-#: src/gedcom_strings.py:155
+#: src/gedcom_strings.py:182
 #, python-brace-format, fuzzy
 msgid ""
 "Find ({mod}F)\n"
 "Type to filter the list of people. Search by any name variation. Use the filter box to search by other information in a person's GEDCOM record, such as geographic location or occupation. Press Enter to jump directly to the first match. Use the checkboxes to show only people matching tags, allow fuzzy name matching (including Cyrillic and Hebrew characters), or include married names."
 msgstr ""
 "Suchen ({mod}F)\n"
-"Geben Sie einen Suchbegriff ein, um die Liste der Personen zu filtern. Suchen Sie nach beliebigen Namensvarianten. Verwenden Sie das Suchfeld, um nach anderen Informationen im Datensatz GEDCOM einer Person zu suchen, wie z. B. nach dem geografischen Standort oder dem Beruf. Drücken Sie die Eingabetaste, um direkt zum ersten Treffer zu springen. Verwenden Sie die Kontrollkästchen, um nur Personen anzuzeigen, die bestimmten Tags entsprechen, um eine ungenaue Namenssuche (einschließlich kyrillischer und hebräischer Zeichen) zuzulassen oder um verheiratete Namen einzubeziehen."
+"Geben Sie einen Suchbegriff ein, um die Personenliste zu filtern. Die Suche funktioniert auch bei Namensvarianten. Verwenden Sie das Filterfeld, um nach weiteren Informationen im Datensatz GEDCOM einer Person zu suchen, wie z. B. nach dem Wohnort oder dem Beruf. Drücken Sie die Eingabetaste, um direkt zum ersten Treffer zu springen. Verwenden Sie die Kontrollkästchen, um nur Personen anzuzeigen, die bestimmten Tags entsprechen, eine ungenaue Namenssuche (einschließlich kyrillischer und hebräischer Zeichen) zuzulassen oder verheiratete Namen einzubeziehen."
 
-#: src/gedcom_strings.py:167
+#: src/gedcom_strings.py:194
+#, python-brace-format, fuzzy
+msgid ""
+"Bio ({mod}B)\n"
+"Show the biographical profile for the selected person."
+msgstr ""
+"Biografie ({mod}B)\n"
+"Zeige das biografische Profil der ausgewählten Person an."
+
+#: src/gedcom_strings.py:202
+#, python-brace-format, fuzzy
+msgid ""
+"Pedigree ({display})\n"
+"Show an Ahnentafel ancestor report for the selected person, listing ancestors by generation with numbered entries."
+msgstr ""
+"Stammbaum ({display})\n"
+"Zeige einen Ahnentafel-Bericht für die ausgewählte Person an, in dem die Vorfahren nach Generationen mit nummerierten Einträgen aufgelistet sind."
+
+#: src/gedcom_strings.py:211
+#, python-brace-format, fuzzy
+msgid ""
+"Descendants ({display})\n"
+"Show a Henry-numbered descendant report for the selected person, listing all descendants with their spouses."
+msgstr ""
+"Nachkommen ({display})\n"
+"Zeige einen nach Henry-Nummern geordneten Nachkommenbericht für die ausgewählte Person an, in dem alle Nachkommen mit ihren Ehepartnern aufgeführt sind."
+
+#: src/gedcom_strings.py:220
 #, python-brace-format, fuzzy
 msgid ""
 "Matches ({mod}N)\n"
 "Show the closest tagged matches to the selected person. The results are ranked by proximity to the selected person, with ties broken by the number of tags (if any) associated with the match. Use the 'Results' and 'Max Depth' settings to adjust how many results are returned and how far to search within the tree."
 msgstr ""
 "Treffer ({mod}N)\n"
-"Zeigt die Treffer mit Tags an, die der ausgewählten Person am nächsten stehen. Die Ergebnisse werden nach ihrer Nähe zur ausgewählten Person sortiert; bei Gleichstand entscheidet die Anzahl der Tags (sofern vorhanden), die dem Treffer zugeordnet sind. Verwenden Sie die Einstellungen „Ergebnisse“ und „Max. Tiefe“, um festzulegen, wie viele Ergebnisse angezeigt werden sollen und wie weit im Stammbaum gesucht werden soll."
+"Zeige die Treffer mit Tags an, die der ausgewählten Person am nächsten stehen. Die Ergebnisse werden nach ihrer Nähe zur ausgewählten Person sortiert, wobei bei Gleichstand die Anzahl der mit dem Treffer verbundenen Tags (falls vorhanden) ausschlaggebend ist. Verwenden Sie die Einstellungen „Ergebnisse“ und „Max. Tiefe“, um festzulegen, wie viele Ergebnisse angezeigt werden sollen und wie weit im Stammbaum gesucht werden soll."
 
-#: src/gedcom_strings.py:179
+#: src/gedcom_strings.py:232
 #, python-brace-format, fuzzy
 msgid ""
 "Filter ({mod}I)\n"
 "Type to filter the list of people by any information in their GEDCOM record, such as geographic location or occupation. This filter is applied in addition to the Find box above."
 msgstr ""
 "Filtern ({mod}I)\n"
-"Geben Sie hier einen Suchbegriff ein, um die Liste der Personen nach beliebigen Angaben in ihrem GEDCOM-Datensatz zu filtern, beispielsweise nach geografischem Standort oder Beruf. Dieser Filter wird zusätzlich zu dem obenstehenden Feld Suchen angewendet."
+"Geben Sie hier einen Suchbegriff ein, um die Liste der Personen nach beliebigen Informationen in ihrem GEDCOM-Datensatz zu filtern, z. B. nach geografischem Standort oder Beruf. Dieser Filter wird zusätzlich zum obigen Feld Suchen angewendet."
 
-#: src/gedcom_strings.py:187
+#: src/gedcom_strings.py:240
 #, fuzzy
 msgid ""
 "Enter a keyword to filter the list of tags used for finding relationship "
@@ -300,10 +427,10 @@ msgid ""
 msgstr ""
 "Geben Sie ein Stichwort ein, um die Liste der Tags zu filtern, die zum "
 "Auffinden von Beziehungspfaden verwendet werden. Lassen Sie dieses Feld "
-"leer, um zum Auffinden von Beziehungspfaden ausschließlich das Stichwort "
-"„Seitenmarkierung“ zu verwenden."
+"leer, wenn Sie zum Auffinden von Beziehungspfaden ausschließlich das "
+"Stichwort „Seitenmarkierung“ verwenden möchten."
 
-#: src/gedcom_strings.py:191
+#: src/gedcom_strings.py:244
 #, fuzzy
 msgid ""
 "Enter a unique keyword to use as a page marker when finding relationship "
@@ -315,7 +442,7 @@ msgstr ""
 "dieses Feld leer, wenn Sie beim Suchen von Beziehungspfaden ausschließlich "
 "das Tag-Schlüsselwort verwenden möchten."
 
-#: src/gedcom_strings.py:199
+#: src/gedcom_strings.py:252
 #, python-brace-format, fuzzy
 msgid ""
 "Set Home Person ({display})\n"
@@ -324,16 +451,16 @@ msgstr ""
 "Startperson ({display}) festlegen\n"
 "Die ausgewählte Person als Ausgangsperson für die Ermittlung von Verwandtschaftsbeziehungen festlegen. Wählen Sie die aktuelle Ausgangsperson aus, um die Festlegung aufzuheben."
 
-#: src/gedcom_strings.py:205
-#, fuzzy
+#: src/gedcom_strings.py:259
+#, python-brace-format, fuzzy
 msgid ""
-"Profile\n"
+"Profile ({mod}B)\n"
 "Show the selected person's biographical, family, tag, and optional full GEDCOM record details in the Display Pane."
 msgstr ""
-"Profil\n"
-"Zeige die biografischen Daten, Angaben zur Familie, Tags und optional die vollständigen GEDCOM Datensatzdetails der ausgewählten Person im Anzeigebereich an."
+"Profil ({mod}B)\n"
+"Zeige die biografischen Daten, Angaben zur Familie, Tags und optional den vollständigen Datensatz GEDCOM der ausgewählten Person im Anzeigebereich an."
 
-#: src/gedcom_strings.py:212
+#: src/gedcom_strings.py:266
 #, python-brace-format, fuzzy
 msgid ""
 "Tree View ({mod}E)\n"
@@ -342,16 +469,16 @@ msgstr ""
 "Stammbaumansicht ({mod}E)\n"
 "Öffnen die konfigurierte Standard-Baumansicht für die ausgewählte Person."
 
-#: src/gedcom_strings.py:219
+#: src/gedcom_strings.py:273
 #, python-brace-format, fuzzy
 msgid ""
 "Select tag for Finding Matches ({mod}T)\n"
 "Select a tag (e.g. 'DNA') to use when finding closest matches for the selected person."
 msgstr ""
-"Wähle ein Tag für Suchen Übereinstimmungen ({mod}T)\n"
+"Wähle ein Tag für Suchen-Treffer ({mod}T)\n"
 "Wähle ein Tag (z. B. „DNA“) aus, das bei der Suche nach den besten Übereinstimmungen für die ausgewählte Person verwendet werden soll."
 
-#: src/gedcom_strings.py:227
+#: src/gedcom_strings.py:281
 #, python-brace-format, fuzzy
 msgid ""
 "Paths ({mod}P)\n"
@@ -360,7 +487,7 @@ msgstr ""
 "Beziehungswege ({mod}P)\n"
 "Zeigt die Beziehungswege zwischen der ausgewählten Person und einer Zielperson an. Wenn Sie den Modus „Beziehungswege“ zum ersten Mal aufrufen, wählen Sie die Zielperson aus."
 
-#: src/gedcom_strings.py:233
+#: src/gedcom_strings.py:287
 #, fuzzy
 msgid ""
 "Number of Results\n"
@@ -369,7 +496,7 @@ msgstr ""
 "Anzahl Ergebnisse\n"
 "Geben Sie an, wie viele Ergebnisse bei der Suche nach den nächstgelegenen Personen, die mit einem Tag versehen sind, zurückgegeben werden sollen, sowie die Anzahl der Wege zwischen der ausgewählten Person und der Startperson."
 
-#: src/gedcom_strings.py:239
+#: src/gedcom_strings.py:293
 #, fuzzy
 msgid ""
 "Maximum Depth For Finding Relationships\n"
@@ -378,7 +505,7 @@ msgstr ""
 "Maximale Tiefe für die Suche nach Suchen und Verwandtschaft\n"
 "Geben Sie an, wie weit im Stammbaum nach markierten Übereinstimmungen und Verwandtschaftspfaden zwischen zwei Personen gesucht werden soll. Höhere Werte finden weiter entfernte Verbindungen, benötigen jedoch in großen Stammbäumen mehr Zeit für die Suche. Sinnvolle Werte sind 10 für eine schnelle Suche oder 50, um extrem entfernte, aber oft interessante Pfade zwischen Personen in Ihrem Stammbaum zu finden. Um diese Einstellung dauerhaft zu ändern, passen Sie sie im Einstellungsfenster an."
 
-#: src/gedcom_strings.py:249
+#: src/gedcom_strings.py:303
 #, fuzzy
 msgid ""
 "Fuzzy Threshold\n"
@@ -387,7 +514,7 @@ msgstr ""
 "Ungefähre Suche Schwellenwert\n"
 "Grenzwert für die Ähnlichkeit bei der unscharfen Namenssuche, von 0,00 bis 1,00 (Standardwert 0,72). Niedrigere Werte lassen mehr Übereinstimmungen zu; höhere Werte sind strenger."
 
-#: src/gedcom_strings.py:254
+#: src/gedcom_strings.py:308
 #, fuzzy
 msgid ""
 "Maximum Search Results\n"
@@ -396,25 +523,25 @@ msgstr ""
 "Maximale Suche Ergebnisse\n"
 "Maximale Anzahl der Personen, die in der Suchergebnisliste angezeigt werden. Höhere Werte können die Filterung in sehr großen Stammbäumen verlangsamen."
 
-#: src/gedcom_strings.py:263
+#: src/gedcom_strings.py:317
 #, python-brace-format, fuzzy
 msgid ""
 "Toggle Tagged Only ({mod}D)\n"
 "When checked, only people flagged as tagged will be shown in search results. Default Tags are DNA-related, but you can set other tag terms. Default is unchecked to show all people, but checking this focuses on tagged matches in large trees."
 msgstr ""
 "Umschalten Markiert Nur ({mod}D)\n"
-"Wenn diese Option aktiviert ist, werden in den Suchergebnissen nur Personen angezeigt, die als markiert gekennzeichnet sind. Standardmäßig Tags sind DNA-verwandte Personen, Sie können jedoch auch andere Markierungsbegriffe festlegen. Standardmäßig ist diese Option deaktiviert, sodass alle Personen angezeigt werden; wenn Sie sie jedoch aktivieren, werden in großen Stammbäumen vorrangig markierte Übereinstimmungen angezeigt."
+"Wenn diese Option aktiviert ist, werden in den Suchergebnissen nur Personen angezeigt, die als markiert gekennzeichnet sind. Standardmäßig Tags sind DNA-verwandte Personen, aber Sie können auch andere Markierungsbegriffe festlegen. Standardmäßig ist diese Option deaktiviert, um alle Personen anzuzeigen, aber wenn Sie sie aktivieren, werden in großen Stammbäumen vorrangig markierte Übereinstimmungen angezeigt."
 
-#: src/gedcom_strings.py:272
+#: src/gedcom_strings.py:326
 #, python-brace-format, fuzzy
 msgid ""
 "Toggle Fuzzy Search ({mod}U)\n"
 "Allow fuzzy name matching in search results. Fuzzy matching uses a similarity ratio to find names similar to the search term, which can help find matches when names are misspelled, have minor variations, or use cached Hebrew/Cyrillic transliterated aliases."
 msgstr ""
 "Umschalten Ungefähre Suche Suche ({mod}U)\n"
-"Unscharfe Namensübereinstimmungen in Suchergebnissen zulassen. Ungefähre Suche Bei der Suche nach Übereinstimmungen wird ein Ähnlichkeitsgrad verwendet, um Namen zu finden, die dem Suchbegriff ähneln. Dies kann dabei helfen, Übereinstimmungen zu finden, wenn Namen falsch geschrieben sind, geringfügige Abweichungen aufweisen oder zwischengespeicherte Aliasnamen in hebräischer oder kyrillischer Transkription verwenden."
+"Fuzzy-Namensabgleich in Suchergebnissen zulassen. Der Ungefähre Suche-Abgleich verwendet einen Ähnlichkeitsgrad, um Namen zu finden, die dem Suchbegriff ähneln. Dies kann dabei helfen, Übereinstimmungen zu finden, wenn Namen falsch geschrieben sind, geringfügige Abweichungen aufweisen oder zwischengespeicherte hebräische/kyrillische Transliterationsaliasnamen verwenden."
 
-#: src/gedcom_strings.py:282
+#: src/gedcom_strings.py:336
 #, python-brace-format, fuzzy
 msgid ""
 "Toggle Married Names ({display})\n"
@@ -423,17 +550,17 @@ msgstr ""
 "Umschalten Ehenamen Namen ({display})\n"
 "Beziehen Sie die Ehenamen von Frauen in die Suche unter Suchen ein, indem Sie den Vornamen jeder Frau mit den Nachnamen ihrer Ehemänner kombinieren."
 
-#: src/gedcom_strings.py:290
+#: src/gedcom_strings.py:344
 #, python-brace-format, fuzzy
 msgid "GEDCOM Record: {name}"
 msgstr "GEDCOM Datensatz: {name}"
 
-#: src/gedcom_strings.py:291
+#: src/gedcom_strings.py:345
 #, fuzzy
 msgid "Profile Image Not Found"
 msgstr "Profil Bild nicht gefunden"
 
-#: src/gedcom_strings.py:293
+#: src/gedcom_strings.py:347
 #, python-brace-format, fuzzy
 msgid ""
 "This GEDCOM file includes a profile image path, but the image file could not be found on this computer.\n"
@@ -450,456 +577,491 @@ msgstr ""
 "\n"
 "Möchten Sie den Ordner auswählen, in dem die Mediendateien dieser GEDCOM-Datei gespeichert sind? Die App merkt sich diesen Ordner für diese GEDCOM-Datei und durchsucht ihn nach weiteren Profilbildern."
 
-#: src/gedcom_strings.py:300
+#: src/gedcom_strings.py:354
 #, fuzzy
 msgid "Select Media Folder"
 msgstr "Medienordner auswählen"
 
-#: src/gedcom_strings.py:301
+#: src/gedcom_strings.py:355
 #, fuzzy
 msgid "Biography"
 msgstr "Biografie"
 
-#: src/gedcom_strings.py:302
+#: src/gedcom_strings.py:356
 #, python-brace-format, fuzzy
 msgid "  Born:    {event}"
 msgstr "  Geboren:    {event}"
 
-#: src/gedcom_strings.py:303
+#: src/gedcom_strings.py:357
 #, python-brace-format, fuzzy
 msgid "  Married: {spouses}"
 msgstr "  Ehenamen: {spouses}"
 
-#: src/gedcom_strings.py:304
+#: src/gedcom_strings.py:358
 #, python-brace-format, fuzzy
 msgid "  Died:    {event}"
 msgstr "  Gestorben:    {event}"
 
-#: src/gedcom_strings.py:305
+#: src/gedcom_strings.py:359
 #, python-brace-format, fuzzy
 msgid "  Buried:  {event}"
 msgstr "  Vergraben:  {event}"
 
-#: src/gedcom_strings.py:306
+#: src/gedcom_strings.py:360
 #, python-brace-format, fuzzy
 msgid "  Age:     {age}"
 msgstr "  Alter:     {age}"
 
-#: src/gedcom_strings.py:307
+#: src/gedcom_strings.py:361
 #, python-brace-format, fuzzy
 msgid "  Age:     {age} (at death)"
 msgstr "  Alter:     {age} (zum Zeitpunkt des Todes)"
 
-#: src/gedcom_strings.py:308
+#: src/gedcom_strings.py:362
 #, fuzzy
 msgid "  (no biographical information found)"
 msgstr "  (Es wurden keine biografischen Informationen gefunden.)"
 
-#: src/gedcom_strings.py:309
+#: src/gedcom_strings.py:363
 #, fuzzy
 msgid "Facts & Events"
 msgstr "Fakten & Ereignisse"
 
-#: src/gedcom_strings.py:310
+#: src/gedcom_strings.py:364
 #, fuzzy
 msgid "  (no facts or events found)"
 msgstr "  (Es wurden keine Fakten oder Ereignisse gefunden.)"
 
-#: src/gedcom_strings.py:311
-#, python-brace-format, fuzzy
-msgid "  {label}: {details}"
-msgstr "  {label}: {details}"
-
-#: src/gedcom_strings.py:312
-#, fuzzy
-msgid "Adoption"
-msgstr "Adoption"
-
-#: src/gedcom_strings.py:313
-#, fuzzy
-msgid "Baptism"
-msgstr "Taufe"
-
-#: src/gedcom_strings.py:314
-#, fuzzy
-msgid "Caste"
-msgstr "Kasten"
-
-#: src/gedcom_strings.py:315
-#, fuzzy
-msgid "Census"
-msgstr "Volkszählung"
-
-#: src/gedcom_strings.py:316
-#, fuzzy
-msgid "Christening"
-msgstr "Taufe"
-
-#: src/gedcom_strings.py:317
-#, fuzzy
-msgid "Cremation"
-msgstr "Einäscherung"
-
-#: src/gedcom_strings.py:318
-#, fuzzy
-msgid "Description"
-msgstr "Beschreibung"
-
-#: src/gedcom_strings.py:319
-#, fuzzy
-msgid "Education"
-msgstr "Bildung"
-
-#: src/gedcom_strings.py:320
-#, fuzzy
-msgid "Emigration"
-msgstr "Auswanderung"
-
-#: src/gedcom_strings.py:321
-#, fuzzy
-msgid "Event"
-msgstr "Veranstaltung"
-
-#: src/gedcom_strings.py:322
-#, fuzzy
-msgid "Fact"
-msgstr "Fakt"
-
-#: src/gedcom_strings.py:323
-#, fuzzy
-msgid "Graduation"
-msgstr "Abschlussfeier"
-
-#: src/gedcom_strings.py:324
-#, fuzzy
-msgid "Immigration"
-msgstr "Einwanderung"
-
-#: src/gedcom_strings.py:325
-#, fuzzy
-msgid "Military"
-msgstr "Militär"
-
-#: src/gedcom_strings.py:326
-#, fuzzy
-msgid "Nationality"
-msgstr "Nationalität"
-
-#: src/gedcom_strings.py:327
-#, fuzzy
-msgid "Naturalization"
-msgstr "Einbürgerung"
-
-#: src/gedcom_strings.py:328
-#, fuzzy
-msgid "Occupation"
-msgstr "Beruf"
-
-#: src/gedcom_strings.py:329
-#, fuzzy
-msgid "Probate"
-msgstr "Nachweis"
-
-#: src/gedcom_strings.py:330
-#, fuzzy
-msgid "Religion"
-msgstr "Religion"
-
-#: src/gedcom_strings.py:331
+#: src/gedcom_strings.py:365 src/gedcom_strings.py:395
 #, fuzzy
 msgid "Residence"
 msgstr "Wohnort"
 
-#: src/gedcom_strings.py:332
+#: src/gedcom_strings.py:366 src/gedcom_strings.py:383
+#, fuzzy
+msgid "Education"
+msgstr "Bildung"
+
+#: src/gedcom_strings.py:367 src/gedcom_strings.py:392
+#, fuzzy
+msgid "Occupation"
+msgstr "Beruf"
+
+#: src/gedcom_strings.py:368
+#, fuzzy
+msgid "Other Facts & Events"
+msgstr "Weitere Fakten und Ereignisse"
+
+#: src/gedcom_strings.py:369
+#, python-brace-format, fuzzy
+msgid "  {label}"
+msgstr "  {label}"
+
+#: src/gedcom_strings.py:370
+#, python-brace-format, fuzzy
+msgid "    {date}: {details}"
+msgstr "    {date}: {details}"
+
+#: src/gedcom_strings.py:371
+#, python-brace-format, fuzzy
+msgid "      {details}"
+msgstr "      {details}"
+
+#: src/gedcom_strings.py:372
+#, fuzzy
+msgid "Undated"
+msgstr "Ohne Datum"
+
+#: src/gedcom_strings.py:373
+#, fuzzy
+msgid "Details unavailable"
+msgstr "Keine Details verfügbar"
+
+#: src/gedcom_strings.py:374
+#, python-brace-format, fuzzy
+msgid "{label}: {value}"
+msgstr "{label}: {value}"
+
+#: src/gedcom_strings.py:375
+#, python-brace-format, fuzzy
+msgid "Graduation: {value}"
+msgstr "Abschluss: {value}"
+
+#: src/gedcom_strings.py:376
+#, fuzzy
+msgid "Adoption"
+msgstr "Adoption"
+
+#: src/gedcom_strings.py:377
+#, fuzzy
+msgid "Baptism"
+msgstr "Taufe"
+
+#: src/gedcom_strings.py:378
+#, fuzzy
+msgid "Caste"
+msgstr "Kasten"
+
+#: src/gedcom_strings.py:379
+#, fuzzy
+msgid "Census"
+msgstr "Volkszählung"
+
+#: src/gedcom_strings.py:380
+#, fuzzy
+msgid "Christening"
+msgstr "Taufe"
+
+#: src/gedcom_strings.py:381
+#, fuzzy
+msgid "Cremation"
+msgstr "Einäscherung"
+
+#: src/gedcom_strings.py:382
+#, fuzzy
+msgid "Description"
+msgstr "Beschreibung"
+
+#: src/gedcom_strings.py:384
+#, fuzzy
+msgid "Emigration"
+msgstr "Auswanderung"
+
+#: src/gedcom_strings.py:385
+#, fuzzy
+msgid "Event"
+msgstr "Veranstaltung"
+
+#: src/gedcom_strings.py:386
+#, fuzzy
+msgid "Fact"
+msgstr "Fakt"
+
+#: src/gedcom_strings.py:387
+#, fuzzy
+msgid "Graduation"
+msgstr "Abschlussfeier"
+
+#: src/gedcom_strings.py:388
+#, fuzzy
+msgid "Immigration"
+msgstr "Einwanderung"
+
+#: src/gedcom_strings.py:389
+#, fuzzy
+msgid "Military"
+msgstr "Militär"
+
+#: src/gedcom_strings.py:390
+#, fuzzy
+msgid "Nationality"
+msgstr "Nationalität"
+
+#: src/gedcom_strings.py:391
+#, fuzzy
+msgid "Naturalization"
+msgstr "Einbürgerung"
+
+#: src/gedcom_strings.py:393
+#, fuzzy
+msgid "Probate"
+msgstr "Nachweis"
+
+#: src/gedcom_strings.py:394
+#, fuzzy
+msgid "Religion"
+msgstr "Religion"
+
+#: src/gedcom_strings.py:396
 #, fuzzy
 msgid "Title"
 msgstr "Titel"
 
-#: src/gedcom_strings.py:333
+#: src/gedcom_strings.py:397
 #, fuzzy
 msgid "Will"
 msgstr "Will"
 
-#: src/gedcom_strings.py:334
+#: src/gedcom_strings.py:398
 #, python-brace-format, fuzzy
 msgid "Age: {value}"
 msgstr "Alter: {value}"
 
-#: src/gedcom_strings.py:335
+#: src/gedcom_strings.py:399
 #, python-brace-format, fuzzy
 msgid "Cause: {value}"
 msgstr "Ursache: {value}"
 
-#: src/gedcom_strings.py:336
+#: src/gedcom_strings.py:400
 #, python-brace-format, fuzzy
 msgid "Note: {value}"
 msgstr "Hinweis: {value}"
 
-#: src/gedcom_strings.py:337
+#: src/gedcom_strings.py:401
 #, python-brace-format, fuzzy
 msgid "Source: {value}"
 msgstr "Quelle: {value}"
 
-#: src/gedcom_strings.py:338
+#: src/gedcom_strings.py:402
 #, fuzzy
 msgid "Family"
 msgstr "Familie"
 
-#: src/gedcom_strings.py:339
+#: src/gedcom_strings.py:403
 #, fuzzy
 msgid "  Parents:"
 msgstr "  Liebe Eltern,"
 
-#: src/gedcom_strings.py:340
+#: src/gedcom_strings.py:404
 #, fuzzy
 msgid "  Siblings:"
 msgstr "  Geschwister:"
 
-#: src/gedcom_strings.py:341
+#: src/gedcom_strings.py:405
 #, fuzzy
 msgid "  Spouse:"
 msgstr "  Ehepartner:"
 
-#: src/gedcom_strings.py:342
+#: src/gedcom_strings.py:406
 #, fuzzy
 msgid "  Spouses:"
 msgstr "  Ehepartner:"
 
-#: src/gedcom_strings.py:343
+#: src/gedcom_strings.py:407
 #, fuzzy
 msgid "  Children:"
 msgstr "  Kinder:"
 
-#: src/gedcom_strings.py:344
+#: src/gedcom_strings.py:408
 #, fuzzy
 msgid "  (no family information found)"
 msgstr "  (Es wurden keine Angaben zur Familie gefunden)"
 
-#: src/gedcom_strings.py:345
+#: src/gedcom_strings.py:409
 #, fuzzy
 msgid "Father"
 msgstr "Vater"
 
-#: src/gedcom_strings.py:346
+#: src/gedcom_strings.py:410
 #, fuzzy
 msgid "Mother"
 msgstr "Mutter"
 
-#: src/gedcom_strings.py:347
+#: src/gedcom_strings.py:411
 #, fuzzy
 msgid "Parent"
 msgstr "Elternteil"
 
-#: src/gedcom_strings.py:348
+#: src/gedcom_strings.py:412
 #, fuzzy
 msgid "Step-father"
 msgstr "Stiefvater"
 
-#: src/gedcom_strings.py:349
+#: src/gedcom_strings.py:413
 #, fuzzy
 msgid "Step-mother"
 msgstr "Stiefmutter"
 
-#: src/gedcom_strings.py:350
+#: src/gedcom_strings.py:414
 #, fuzzy
 msgid "Step-parent"
 msgstr "Stiefelternteil"
 
-#: src/gedcom_strings.py:351
+#: src/gedcom_strings.py:415
 #, fuzzy
 msgid "Adoptive father"
 msgstr "Adoptivvater"
 
-#: src/gedcom_strings.py:352
+#: src/gedcom_strings.py:416
 #, fuzzy
 msgid "Adoptive mother"
 msgstr "Adoptivmutter"
 
-#: src/gedcom_strings.py:353
+#: src/gedcom_strings.py:417
 #, fuzzy
 msgid "Adoptive parent"
 msgstr "Adoptiveltern"
 
-#: src/gedcom_strings.py:354
+#: src/gedcom_strings.py:418
 #, fuzzy
 msgid "Foster father"
 msgstr "Pflegevater"
 
-#: src/gedcom_strings.py:355
+#: src/gedcom_strings.py:419
 #, fuzzy
 msgid "Foster mother"
 msgstr "Pflegemutter"
 
-#: src/gedcom_strings.py:356
+#: src/gedcom_strings.py:420
 #, fuzzy
 msgid "Foster parent"
 msgstr "Pflegeeltern"
 
-#: src/gedcom_strings.py:357
+#: src/gedcom_strings.py:421
 #, fuzzy
 msgid "Son"
 msgstr "Ton"
 
-#: src/gedcom_strings.py:358
+#: src/gedcom_strings.py:422
 #, fuzzy
 msgid "Daughter"
 msgstr "Tochter"
 
-#: src/gedcom_strings.py:359
+#: src/gedcom_strings.py:423
 #, fuzzy
 msgid "Child"
 msgstr "Kind"
 
-#: src/gedcom_strings.py:360
+#: src/gedcom_strings.py:424
 #, fuzzy
 msgid "Step-son"
 msgstr "Stiefsohn"
 
-#: src/gedcom_strings.py:361
+#: src/gedcom_strings.py:425
 #, fuzzy
 msgid "Step-daughter"
 msgstr "Stieftochter"
 
-#: src/gedcom_strings.py:362
+#: src/gedcom_strings.py:426
 #, fuzzy
 msgid "Step-child"
 msgstr "Stiefkind"
 
-#: src/gedcom_strings.py:363
+#: src/gedcom_strings.py:427
 #, fuzzy
 msgid "Adopted son"
 msgstr "Adoptivsohn"
 
-#: src/gedcom_strings.py:364
+#: src/gedcom_strings.py:428
 #, fuzzy
 msgid "Adopted daughter"
 msgstr "Adoptivtochter"
 
-#: src/gedcom_strings.py:365
+#: src/gedcom_strings.py:429
 #, fuzzy
 msgid "Adopted child"
 msgstr "Adoptivkind"
 
-#: src/gedcom_strings.py:366
+#: src/gedcom_strings.py:430
 #, fuzzy
 msgid "Foster son"
-msgstr "Pflegekind"
+msgstr "Pflegesohn"
 
-#: src/gedcom_strings.py:367
+#: src/gedcom_strings.py:431
 #, fuzzy
 msgid "Foster daughter"
 msgstr "Pflegekind"
 
-#: src/gedcom_strings.py:368
+#: src/gedcom_strings.py:432
 #, fuzzy
 msgid "Foster child"
 msgstr "Pflegekind"
 
-#: src/gedcom_strings.py:369
+#: src/gedcom_strings.py:433
 #, fuzzy
 msgid "Brother"
 msgstr "Bruder"
 
-#: src/gedcom_strings.py:370
+#: src/gedcom_strings.py:434
 #, fuzzy
 msgid "Sister"
 msgstr "Schwester"
 
-#: src/gedcom_strings.py:371
+#: src/gedcom_strings.py:435
 #, fuzzy
 msgid "Sibling"
 msgstr "Geschwister"
 
-#: src/gedcom_strings.py:372
+#: src/gedcom_strings.py:436
 #, fuzzy
 msgid "Half-brother"
 msgstr "Halbbruder"
 
-#: src/gedcom_strings.py:373
+#: src/gedcom_strings.py:437
 #, fuzzy
 msgid "Half-sister"
 msgstr "Halbschwester"
 
-#: src/gedcom_strings.py:374
+#: src/gedcom_strings.py:438
 #, fuzzy
 msgid "Half-sibling"
 msgstr "Halbgeschwister"
 
-#: src/gedcom_strings.py:375
+#: src/gedcom_strings.py:439
 #, fuzzy
 msgid "Step-brother"
 msgstr "Stiefbruder"
 
-#: src/gedcom_strings.py:376
+#: src/gedcom_strings.py:440
 #, fuzzy
 msgid "Step-sister"
 msgstr "Stiefschwester"
 
-#: src/gedcom_strings.py:377
+#: src/gedcom_strings.py:441
 #, fuzzy
 msgid "Step-sibling"
 msgstr "Stiefgeschwister"
 
-#: src/gedcom_strings.py:378
+#: src/gedcom_strings.py:442
 #, fuzzy
 msgid "Adoptive sibling"
 msgstr "Adoptivgeschwister"
 
-#: src/gedcom_strings.py:379
+#: src/gedcom_strings.py:443
 #, fuzzy
 msgid "Foster sibling"
 msgstr "Pflegegeschwister"
 
-#: src/gedcom_strings.py:380
+#: src/gedcom_strings.py:444
 #, python-brace-format, fuzzy
 msgid "    {role}: "
 msgstr "    {role}: "
 
-#: src/gedcom_strings.py:381
+#: src/gedcom_strings.py:445
 #, fuzzy
 msgid "Tags"
 msgstr "Tags"
 
-#: src/gedcom_strings.py:382
+#: src/gedcom_strings.py:446
 #, fuzzy
 msgid "Full GEDCOM Record"
 msgstr "Vollständiger Datensatz GEDCOM"
 
-#: src/gedcom_strings.py:383
+#: src/gedcom_strings.py:447
 #, fuzzy
 msgid "Close"
 msgstr "Schließen"
 
-#: src/gedcom_strings.py:384
+#: src/gedcom_strings.py:448
 #, fuzzy
 msgid "Tree View"
 msgstr "Stammbaumansicht"
 
-#: src/gedcom_strings.py:385
+#: src/gedcom_strings.py:449
 #, fuzzy
 msgid "Pedigree View"
 msgstr "Stammbaum anzeigen"
 
-#: src/gedcom_strings.py:386
+#: src/gedcom_strings.py:450
 #, fuzzy
 msgid "Descendant View"
-msgstr "Nachfolgende Ansicht"
+msgstr "Nachkommenansicht"
 
-#: src/gedcom_strings.py:387
+#: src/gedcom_strings.py:451
 #, fuzzy
 msgid "Profile View"
 msgstr "Profilansicht"
 
-#: src/gedcom_strings.py:393
+#: src/gedcom_strings.py:457
 #, python-brace-format, fuzzy
 msgid ""
 "Tree View ({mod}T cycles views)\n"
 "Show the interactive family tree for this person."
 msgstr ""
-"Stammbaumansicht ({mod}T Aufrufe)\n"
+"Stammbaumansicht ({mod} Aufrufe)\n"
 "Zeige den interaktiven Stammbaum dieser Person an."
 
-#: src/gedcom_strings.py:400
+#: src/gedcom_strings.py:464
 #, python-brace-format, fuzzy
 msgid ""
 "Pedigree View ({mod}T cycles views)\n"
@@ -908,7 +1070,7 @@ msgstr ""
 "Stammbaumansicht ({mod}T Aufrufe)\n"
 "Zeige die Vorfahren dieser Person in einem kompakten Stammbaum an."
 
-#: src/gedcom_strings.py:407
+#: src/gedcom_strings.py:471
 #, python-brace-format, fuzzy
 msgid ""
 "Descendant View ({mod}T cycles views)\n"
@@ -917,7 +1079,7 @@ msgstr ""
 "Nachkommenansicht ({mod}T Zyklenansichten)\n"
 "Zeige die Nachkommen dieser Person mit ausklappbaren Unterzweigen an."
 
-#: src/gedcom_strings.py:414
+#: src/gedcom_strings.py:478
 #, python-brace-format, fuzzy
 msgid ""
 "Profile View ({mod}T cycles views)\n"
@@ -926,51 +1088,51 @@ msgstr ""
 "Profilansicht ({mod} Aufrufe)\n"
 "Das biografische Profil dieser Person anzeigen."
 
-#: src/gedcom_strings.py:418
+#: src/gedcom_strings.py:482
 #, fuzzy
 msgid "Save profile"
 msgstr "Speichern Profil"
 
-#: src/gedcom_strings.py:419
+#: src/gedcom_strings.py:483
 #, fuzzy
 msgid "Gallery"
 msgstr "Galerie"
 
-#: src/gedcom_strings.py:420
+#: src/gedcom_strings.py:484
 #, fuzzy
 msgid "←"
 msgstr "←"
 
-#: src/gedcom_strings.py:421
+#: src/gedcom_strings.py:485
 #, fuzzy
 msgid "→"
 msgstr "→"
 
-#: src/gedcom_strings.py:422
+#: src/gedcom_strings.py:486
 #, python-brace-format, fuzzy
 msgid "Image Gallery: {name}"
 msgstr "Bildergalerie: {name}"
 
-#: src/gedcom_strings.py:423
+#: src/gedcom_strings.py:487
 #, fuzzy
 msgid "No additional images found."
 msgstr "Es wurden keine weiteren Bilder gefunden."
 
-#: src/gedcom_strings.py:424
+#: src/gedcom_strings.py:488
 #, python-brace-format, fuzzy
 msgid "{current} of {total}"
 msgstr "{current} von {total}"
 
-#: src/gedcom_strings.py:430
+#: src/gedcom_strings.py:494
 #, python-brace-format, fuzzy
 msgid ""
 "Save profile ({mod}S)\n"
-"Save this biographical profile to a text file."
+"Save this biographical profile using the format selected in Preferences."
 msgstr ""
 "Speichern Profil ({mod}S)\n"
-"Speichern dieses biografische Profil in eine Textdatei."
+"Speichern dieses biografische Profil unter Verwendung des in den Einstellungen gewählten Formats."
 
-#: src/gedcom_strings.py:437
+#: src/gedcom_strings.py:502
 #, python-brace-format, fuzzy
 msgid ""
 "Copy profile ({mod}C)\n"
@@ -979,7 +1141,7 @@ msgstr ""
 "Kopieren Profil ({mod}C)\n"
 "Kopieren Dieses biografische Profil in die Zwischenablage kopieren."
 
-#: src/gedcom_strings.py:444
+#: src/gedcom_strings.py:509
 #, python-brace-format, fuzzy
 msgid ""
 "Image gallery ({display})\n"
@@ -988,7 +1150,7 @@ msgstr ""
 "Bildergalerie ({display})\n"
 "Miniaturansichten weiterer Bilder zu dieser Person anzeigen."
 
-#: src/gedcom_strings.py:450
+#: src/gedcom_strings.py:515
 #, fuzzy
 msgid ""
 "Previous image\n"
@@ -997,7 +1159,7 @@ msgstr ""
 "Vorheriges Bild\n"
 "Das vorherige Bild in dieser Galerie anzeigen."
 
-#: src/gedcom_strings.py:454
+#: src/gedcom_strings.py:519
 #, fuzzy
 msgid ""
 "Next image\n"
@@ -1006,222 +1168,227 @@ msgstr ""
 "Nächstes Bild\n"
 "Das nächste Bild in dieser Galerie anzeigen."
 
-#: src/gedcom_strings.py:457
+#: src/gedcom_strings.py:522
 #, python-brace-format, fuzzy
 msgid "Family Tree: {name}"
 msgstr "Stammbaum: {name}"
 
-#: src/gedcom_strings.py:458
+#: src/gedcom_strings.py:523
 #, python-brace-format, fuzzy
 msgid "Pedigree Tree: {name}"
 msgstr "Stammbaum Stammbaum: {name}"
 
-#: src/gedcom_strings.py:459
+#: src/gedcom_strings.py:524
 #, python-brace-format, fuzzy
 msgid "Descendant Tree: {name}"
 msgstr "Nachkomme Stammbaum: {name}"
 
-#: src/gedcom_strings.py:460
+#: src/gedcom_strings.py:525
 #, fuzzy
 msgid "Save family tree"
 msgstr "Speichern Stammbaum"
 
-#: src/gedcom_strings.py:461
+#: src/gedcom_strings.py:526
 #, fuzzy
 msgid "Save pedigree tree"
 msgstr "Speichern Stammbaum"
 
-#: src/gedcom_strings.py:462
+#: src/gedcom_strings.py:527
 #, fuzzy
 msgid "Save descendant tree"
 msgstr "Speichern Nachkommenbaum"
 
-#: src/gedcom_strings.py:463
+#: src/gedcom_strings.py:528
 #, fuzzy
 msgid "Center"
 msgstr "Mitte"
 
-#: src/gedcom_strings.py:465
+#: src/gedcom_strings.py:530
 #, fuzzy
 msgid "Expand All"
 msgstr "Alle anzeigen"
 
-#: src/gedcom_strings.py:466
+#: src/gedcom_strings.py:531
 #, fuzzy
 msgid "Highlight"
 msgstr "Hervorhebung"
 
-#: src/gedcom_strings.py:475
+#: src/gedcom_strings.py:540
 #, fuzzy
 msgid "biological"
 msgstr "biologisch"
 
-#: src/gedcom_strings.py:476
+#: src/gedcom_strings.py:541
 #, fuzzy
 msgid "step"
 msgstr "Schritt"
 
-#: src/gedcom_strings.py:477
+#: src/gedcom_strings.py:542
 #, fuzzy
 msgid "adopted/foster"
 msgstr "adoptiert/in Pflege"
 
-#: src/gedcom_strings.py:478
+#: src/gedcom_strings.py:543
 #, fuzzy
 msgid "half sibling"
 msgstr "Halbgeschwister"
 
-#: src/gedcom_strings.py:483
+#: src/gedcom_strings.py:548
 #, fuzzy
 msgid "  Note: this person has a matching tag."
 msgstr "  Hinweis: Diese Person hat ein entsprechendes Tag."
 
-#: src/gedcom_strings.py:484
+#: src/gedcom_strings.py:549
 #, fuzzy
 msgid "No tagged relatives found within the search depth."
 msgstr "Innerhalb der Suchtiefe wurden keine markierten Verwandten gefunden."
 
-#: src/gedcom_strings.py:485
+#: src/gedcom_strings.py:550
 #, python-brace-format, fuzzy
 msgid "#{rank}: "
 msgstr "#{rank}: "
 
-#: src/gedcom_strings.py:486
+#: src/gedcom_strings.py:551
 #, fuzzy
 msgid "   Tags:"
 msgstr "   Tags:"
 
-#: src/gedcom_strings.py:487
+#: src/gedcom_strings.py:552
 #, python-brace-format, fuzzy
 msgid "Relationship: {rel}"
 msgstr "Verwandtschaft: {rel}"
 
-#: src/gedcom_strings.py:488
+#: src/gedcom_strings.py:553
 #, fuzzy
 msgid "Show relationship graphically"
 msgstr "Beziehung grafisch darstellen"
 
-#: src/gedcom_strings.py:489
+#: src/gedcom_strings.py:554
 #, fuzzy
 msgid "Common ancestor: "
 msgstr "Gemeinsamer Vorfahr: "
 
-#: src/gedcom_strings.py:490
+#: src/gedcom_strings.py:555
 #, fuzzy
 msgid "Common ancestors:"
 msgstr "Gemeinsame Vorfahren:"
 
-#: src/gedcom_strings.py:491
+#: src/gedcom_strings.py:556
 #, fuzzy
 msgid "None found."
 msgstr "Keine gefunden."
 
-#: src/gedcom_strings.py:492
+#: src/gedcom_strings.py:557
+#, fuzzy
+msgid "Same person"
+msgstr "Dieselbe Person"
+
+#: src/gedcom_strings.py:558
 #, fuzzy
 msgid "Path:"
 msgstr "Pfad:"
 
-#: src/gedcom_strings.py:493
+#: src/gedcom_strings.py:559
 #, fuzzy
 msgid "Path to Home Person"
 msgstr "Pfad zu Startperson"
 
-#: src/gedcom_strings.py:494
+#: src/gedcom_strings.py:560
 #, fuzzy
 msgid "Home: "
 msgstr "Startseite: "
 
-#: src/gedcom_strings.py:495
+#: src/gedcom_strings.py:561
 #, fuzzy
 msgid "Calculating path…"
 msgstr "Route wird berechnet…"
 
-#: src/gedcom_strings.py:496
+#: src/gedcom_strings.py:562
 #, fuzzy
 msgid "None found within the current max depth."
 msgstr "Innerhalb der aktuellen maximalen Tiefe wurden keine gefunden."
 
-#: src/gedcom_strings.py:499
-#, fuzzy
-msgid "father"
-msgstr "Vater"
-
-#: src/gedcom_strings.py:500
-#, fuzzy
-msgid "mother"
-msgstr "Mutter"
-
-#: src/gedcom_strings.py:501
+#: src/gedcom_strings.py:567
 #, fuzzy
 msgid "sibling"
 msgstr "Geschwister"
 
-#: src/gedcom_strings.py:502
+#: src/gedcom_strings.py:568
 #, fuzzy
 msgid "spouse"
 msgstr "Ehepartner"
 
-#: src/gedcom_strings.py:503
+#: src/gedcom_strings.py:569
 #, fuzzy
 msgid "child"
 msgstr "Kind"
 
-#: src/gedcom_strings.py:505
+#: src/gedcom_strings.py:571
 #, fuzzy
 msgid "Relationship Graph"
 msgstr "Verwandtschaft Grafik"
 
-#: src/gedcom_strings.py:506
+#: src/gedcom_strings.py:572
 #, fuzzy
 msgid "Save results"
 msgstr "Speichern Ergebnisse"
 
-#: src/gedcom_strings.py:507
+#: src/gedcom_strings.py:573
+#, fuzzy
+msgid "Text files"
+msgstr "Textdateien"
+
+#: src/gedcom_strings.py:574
+#, fuzzy
+msgid "PDF files"
+msgstr "PDF-Dateien"
+
+#: src/gedcom_strings.py:575
 #, fuzzy
 msgid "Save relationship graph"
 msgstr "Speichern Beziehungsdiagramm"
 
-#: src/gedcom_strings.py:508
+#: src/gedcom_strings.py:576
 #, fuzzy
 msgid "Save graph layout debug data"
 msgstr "Speichern Debug-Daten zum Diagrammlayout"
 
-#: src/gedcom_strings.py:509 src/gedcom_strings.py:513
+#: src/gedcom_strings.py:577 src/gedcom_strings.py:581
 #, fuzzy
 msgid "Show Tree"
 msgstr "Anzeigen Stammbaum"
 
-#: src/gedcom_strings.py:510
+#: src/gedcom_strings.py:578
 #, fuzzy
 msgid "Find Path"
 msgstr "Suchen Pfad"
 
-#: src/gedcom_strings.py:511
+#: src/gedcom_strings.py:579
 #, fuzzy
 msgid "Copy Name"
 msgstr "Kopieren Name"
 
-#: src/gedcom_strings.py:512
+#: src/gedcom_strings.py:580
 #, fuzzy
 msgid "Show Profile"
 msgstr "Anzeigen Profil"
 
-#: src/gedcom_strings.py:516
+#: src/gedcom_strings.py:584
 #, fuzzy
 msgid "Search"
 msgstr "Suchen"
 
-#: src/gedcom_strings.py:517
+#: src/gedcom_strings.py:585
 #, fuzzy
 msgid "Jump"
 msgstr "Springen"
 
-#: src/gedcom_strings.py:518
+#: src/gedcom_strings.py:586
 #, fuzzy
 msgid "Debug JSON"
 msgstr "Debug JSON"
 
-#: src/gedcom_strings.py:524
+#: src/gedcom_strings.py:592
 #, python-brace-format, fuzzy
 msgid ""
 "Save graphic ({mod}S)\n"
@@ -1230,7 +1397,7 @@ msgstr ""
 "Speichern Grafik ({mod}S)\n"
 "Speichern diese grafische Darstellung in eine Datei."
 
-#: src/gedcom_strings.py:531
+#: src/gedcom_strings.py:599
 #, python-brace-format, fuzzy
 msgid ""
 "Copy graphic ({mod}C)\n"
@@ -1239,7 +1406,7 @@ msgstr ""
 "Kopieren Grafik ({mod}C)\n"
 "Kopieren Diese grafische Darstellung in die Zwischenablage kopieren."
 
-#: src/gedcom_strings.py:538
+#: src/gedcom_strings.py:606
 #, python-brace-format, fuzzy
 msgid ""
 "Search ({mod}F)\n"
@@ -1248,7 +1415,7 @@ msgstr ""
 "Suchen ({mod}F)\n"
 "Wähle eine Person aus und mache sie zum Mittelpunkt dieser grafischen Ansicht."
 
-#: src/gedcom_strings.py:545
+#: src/gedcom_strings.py:613
 #, python-brace-format, fuzzy
 msgid ""
 "Jump ({mod}J)\n"
@@ -1257,7 +1424,7 @@ msgstr ""
 "Springen ({mod}J)\n"
 "Zu einer Person schwenken, die in dieser Grafikansicht bereits zu sehen ist."
 
-#: src/gedcom_strings.py:550
+#: src/gedcom_strings.py:618
 #, fuzzy
 msgid ""
 "Save layout debug JSON (Ctrl+Shift+D)\n"
@@ -1266,88 +1433,88 @@ msgstr ""
 "Speichern Layout-Debugging JSON (Ctrl+Shift+D)\n"
 "Grafik-Layoutdaten ohne Personennamen exportieren."
 
-#: src/gedcom_strings.py:552
+#: src/gedcom_strings.py:620
 #, fuzzy
 msgid "Show parents"
 msgstr "Eltern anzeigen"
 
-#: src/gedcom_strings.py:553
+#: src/gedcom_strings.py:621
 #, fuzzy
 msgid "Hide parents"
 msgstr "Eltern ausblenden"
 
-#: src/gedcom_strings.py:554
+#: src/gedcom_strings.py:622
 #, fuzzy
 msgid "Show siblings"
 msgstr "Geschwister anzeigen"
 
-#: src/gedcom_strings.py:555
+#: src/gedcom_strings.py:623
 #, fuzzy
 msgid "Hide siblings"
 msgstr "Geschwister ausblenden"
 
-#: src/gedcom_strings.py:556
+#: src/gedcom_strings.py:624
 #, fuzzy
 msgid "Show spouses"
 msgstr "Ehepartner anzeigen"
 
-#: src/gedcom_strings.py:557
+#: src/gedcom_strings.py:625
 #, fuzzy
 msgid "Hide spouses"
 msgstr "Ehepartner ausblenden"
 
-#: src/gedcom_strings.py:558
+#: src/gedcom_strings.py:626
 #, fuzzy
 msgid "Show children"
 msgstr "Kindern zeigen"
 
-#: src/gedcom_strings.py:559
+#: src/gedcom_strings.py:627
 #, fuzzy
 msgid "Hide children"
 msgstr "Untergeordnete Elemente ausblenden"
 
-#: src/gedcom_strings.py:560
+#: src/gedcom_strings.py:628
 #, fuzzy
 msgid "START"
 msgstr "START"
 
-#: src/gedcom_strings.py:561
+#: src/gedcom_strings.py:629
 #, fuzzy
 msgid "END"
 msgstr "ENDE"
 
-#: src/gedcom_strings.py:566
+#: src/gedcom_strings.py:634
 #, fuzzy
 msgid "Relationship path:"
 msgstr "Verwandtschaftspfad:"
 
-#: src/gedcom_strings.py:567
+#: src/gedcom_strings.py:635
 #, fuzzy
 msgid "  From: "
 msgstr "  Von: "
 
-#: src/gedcom_strings.py:568
+#: src/gedcom_strings.py:636
 #, fuzzy
 msgid "  To:   "
 msgstr "  An:   "
 
-#: src/gedcom_strings.py:569
+#: src/gedcom_strings.py:637
 #, fuzzy
 msgid "(Same person selected for both.)"
 msgstr "(Für beide wurde dieselbe Person ausgewählt.)"
 
-#: src/gedcom_strings.py:570
+#: src/gedcom_strings.py:638
 #, python-brace-format, fuzzy
 msgid "No relationship path found within max depth {depth}."
 msgstr ""
 "Innerhalb der maximalen Tiefe {depth} wurde kein Beziehungspfad gefunden."
 
-#: src/gedcom_strings.py:571
+#: src/gedcom_strings.py:639
 #, python-brace-format, fuzzy
 msgid "Path #{rank}:"
 msgstr "Pfad #{rank}:"
 
-#: src/gedcom_strings.py:573
+#: src/gedcom_strings.py:641
 #, fuzzy
 msgid ""
 "(Search cap reached — there may be additional paths. Reduce Max depth to "
@@ -1356,12 +1523,12 @@ msgstr ""
 "(Suchgrenze erreicht – möglicherweise gibt es weitere Pfade. Verringern Sie "
 "die maximale Suchtiefe, um einen kleineren Bereich zu durchsuchen.)"
 
-#: src/gedcom_strings.py:580
+#: src/gedcom_strings.py:648
 #, fuzzy
 msgid "Tag definitions"
 msgstr "Tag-Definitionen"
 
-#: src/gedcom_strings.py:582
+#: src/gedcom_strings.py:650
 #, fuzzy
 msgid ""
 "No _MTTAG records found in the loaded file.\n"
@@ -1372,122 +1539,146 @@ msgstr ""
 "\n"
 "(Falls Sie noch keine Datei geladen haben, klicken Sie bitte zuerst auf „Laden“.)"
 
-#: src/gedcom_strings.py:585
+#: src/gedcom_strings.py:653
 #, fuzzy
 msgid "ID"
 msgstr "Identifikationsnummer"
 
-#: src/gedcom_strings.py:586
+#: src/gedcom_strings.py:654
 #, fuzzy
 msgid "Tag Name"
 msgstr "Tag Name"
 
-#: src/gedcom_strings.py:587
+#: src/gedcom_strings.py:655
 #, fuzzy
 msgid "OK"
 msgstr "Na gut"
 
-#: src/gedcom_strings.py:588
+#: src/gedcom_strings.py:656
 #, fuzzy
 msgid "Cancel"
 msgstr "Abbrechen"
 
-#: src/gedcom_strings.py:593
+#: src/gedcom_strings.py:661
 #, fuzzy
 msgid "Select a Person"
 msgstr "Wähle eine Person aus"
 
-#: src/gedcom_strings.py:594
+#: src/gedcom_strings.py:662
 #, fuzzy
 msgid "Select Relationship Target"
 msgstr "Wähle Verwandtschaft Ziel"
 
-#: src/gedcom_strings.py:595
+#: src/gedcom_strings.py:663
 #, fuzzy
 msgid "Select"
 msgstr "Auswählen"
 
-#: src/gedcom_strings.py:600
+#: src/gedcom_strings.py:668
 #, fuzzy
 msgid "Settings"
 msgstr "Einstellungen"
 
-#: src/gedcom_strings.py:600
+#: src/gedcom_strings.py:668
 #, fuzzy
 msgid "Preferences"
 msgstr "Einstellungen"
 
-#: src/gedcom_strings.py:601
+#: src/gedcom_strings.py:669
 #, fuzzy
 msgid "Appearance"
 msgstr "Aussehen"
 
-#: src/gedcom_strings.py:602
+#: src/gedcom_strings.py:670
 #, fuzzy
 msgid "Font size"
 msgstr "Schriftgröße"
 
-#: src/gedcom_strings.py:603
+#: src/gedcom_strings.py:671
 #, fuzzy
 msgid "Small"
 msgstr "Klein"
 
-#: src/gedcom_strings.py:604
+#: src/gedcom_strings.py:672
 #, fuzzy
 msgid "Medium"
 msgstr "Mittel"
 
-#: src/gedcom_strings.py:605
+#: src/gedcom_strings.py:673
 #, fuzzy
 msgid "Large"
 msgstr "Groß"
 
-#: src/gedcom_strings.py:606
+#: src/gedcom_strings.py:674
 #, fuzzy
 msgid "Jumbo"
 msgstr "Riese"
 
-#: src/gedcom_strings.py:607
+#: src/gedcom_strings.py:675
 #, fuzzy
 msgid "Theme"
 msgstr "Thema"
 
-#: src/gedcom_strings.py:608
+#: src/gedcom_strings.py:676
 #, fuzzy
 msgid "Hide Tooltips"
 msgstr "Hide Tooltips"
 
-#: src/gedcom_strings.py:609
+#: src/gedcom_strings.py:677
 #, fuzzy
 msgid "Hide popup explanations like this one."
 msgstr "Popup-Erklärungen wie diese ausblenden."
 
-#: src/gedcom_strings.py:610
+#: src/gedcom_strings.py:678
 #, fuzzy
 msgid "Search defaults"
 msgstr "Standardeinstellungen für die Suche"
 
-#: src/gedcom_strings.py:613
+#: src/gedcom_strings.py:681
 #, fuzzy
 msgid "Fuzzy threshold:"
 msgstr "Ungefähre Suche Schwellenwert:"
 
-#: src/gedcom_strings.py:614
+#: src/gedcom_strings.py:682
 #, fuzzy
 msgid "Max search results:"
 msgstr "Maximale Anzahl an Suchergebnissen:"
 
-#: src/gedcom_strings.py:615
+#: src/gedcom_strings.py:683
 #, fuzzy
 msgid "Display"
 msgstr "Anzeige"
 
-#: src/gedcom_strings.py:616
+#: src/gedcom_strings.py:684
+#, fuzzy
+msgid "Options"
+msgstr "Optionen"
+
+#: src/gedcom_strings.py:685
+#, fuzzy
+msgid "Export"
+msgstr "Exportieren"
+
+#: src/gedcom_strings.py:686
+#, fuzzy
+msgid "Include photos"
+msgstr "Fotos einfügen"
+
+#: src/gedcom_strings.py:688
+#, fuzzy
+msgid ""
+"Include the person's real profile photo on the first page of PDF exports. "
+"Generic placeholder images are never included."
+msgstr ""
+"Fügen Sie das echte Profilfoto der Person auf der ersten Seite der PDF-"
+"Exporte ein. Generische Platzhalterbilder werden niemals eingefügt."
+
+#: src/gedcom_strings.py:691
 #, fuzzy
 msgid "Show GEDCOM IDs"
 msgstr "GEDCOM IDs anzeigen"
 
-#: src/gedcom_strings.py:618
+#: src/gedcom_strings.py:693
 #, fuzzy
 msgid ""
 "When enabled, the GEDCOM ID for each person is shown in parentheses after "
@@ -1499,12 +1690,12 @@ msgstr ""
 "demselben Namen voneinander zu unterscheiden, und ermöglicht es Ihnen, mit "
 "anderen Tools auf die Roh-IDs für GEDCOM-Recherchen zuzugreifen."
 
-#: src/gedcom_strings.py:622
+#: src/gedcom_strings.py:697
 #, fuzzy
 msgid "Show Full GEDCOM"
 msgstr "Vollständig anzeigen GEDCOM"
 
-#: src/gedcom_strings.py:624
+#: src/gedcom_strings.py:699
 #, fuzzy
 msgid ""
 "When enabled, the Full GEDCOM Record section is included at the bottom of "
@@ -1514,12 +1705,12 @@ msgstr ""
 " GEDCOM“ am unteren Rand des Fensters Profil angezeigt, in dem die Rohdaten "
 "GEDCOM für die Person dargestellt werden."
 
-#: src/gedcom_strings.py:627
+#: src/gedcom_strings.py:702
 #, fuzzy
 msgid "Show Profile Image"
 msgstr "Bild Profil anzeigen"
 
-#: src/gedcom_strings.py:629
+#: src/gedcom_strings.py:704
 #, fuzzy
 msgid ""
 "When enabled, profile thumbnails are shown for people with local GEDCOM "
@@ -1529,82 +1720,87 @@ msgstr ""
 "Personen angezeigt, für die lokale GEDCOM-Medien vorhanden sind; sind keine "
 "lokalen Bilder verfügbar, werden generische Platzhalter verwendet."
 
-#: src/gedcom_strings.py:632
+#: src/gedcom_strings.py:707
 #, fuzzy
 msgid "Name format:"
 msgstr "Namensformat:"
 
-#: src/gedcom_strings.py:633
+#: src/gedcom_strings.py:708
+#, fuzzy
+msgid "Save format:"
+msgstr "Speichern Format:"
+
+#: src/gedcom_strings.py:709
+#, fuzzy
+msgid "Text"
+msgstr "Text"
+
+#: src/gedcom_strings.py:710
+#, fuzzy
+msgid "PDF"
+msgstr "Portable Document Format"
+
+#: src/gedcom_strings.py:711
 #, fuzzy
 msgid "First Last"
 msgstr "Vorname Nachname"
 
-#: src/gedcom_strings.py:634
+#: src/gedcom_strings.py:712
 #, fuzzy
 msgid "Last, First"
 msgstr "Nachname, Vorname"
 
-#: src/gedcom_strings.py:635
+#: src/gedcom_strings.py:713
 #, fuzzy
 msgid "Default display:"
 msgstr "Standardanzeige:"
 
-#: src/gedcom_strings.py:636
+#: src/gedcom_strings.py:714
 #, fuzzy
 msgid "Default tree:"
 msgstr "Standardbaum:"
 
-#: src/gedcom_strings.py:638
-#, fuzzy
-msgid "Pedigree"
-msgstr "Stammbaum"
-
-#: src/gedcom_strings.py:639
-#, fuzzy
-msgid "Descendants"
-msgstr "Nachkommen"
-
-#: src/gedcom_strings.py:640 src/gedcom_strings.py:723
+#: src/gedcom_strings.py:718 src/gedcom_strings.py:801
 #, fuzzy
 msgid "Cache"
 msgstr "Cache"
 
-#: src/gedcom_strings.py:641
+#: src/gedcom_strings.py:719
 #, fuzzy
 msgid "Clear Cache…"
 msgstr "Cache leeren…"
 
-#: src/gedcom_strings.py:642
+#: src/gedcom_strings.py:720
 #, fuzzy
 msgid "Remove all cached GEDCOM data"
 msgstr "Alle zwischengespeicherten GEDCOM-Daten löschen"
 
-#: src/gedcom_strings.py:643
+#: src/gedcom_strings.py:721
 #, fuzzy
 msgid "Remove All Data…"
 msgstr "Alle Daten löschen…"
 
-#: src/gedcom_strings.py:644
+#: src/gedcom_strings.py:722
 #, fuzzy
 msgid "Delete all settings and cached data"
 msgstr "Alle Einstellungen und zwischengespeicherten Daten löschen"
 
-#: src/gedcom_strings.py:645
+#: src/gedcom_strings.py:723
 #, fuzzy
 msgid "Language:"
 msgstr "Sprache:"
 
-#: src/gedcom_strings.py:646
+#: src/gedcom_strings.py:724
 #, fuzzy
 msgid "System Default"
 msgstr "Systemstandard"
 
-#: src/gedcom_strings.py:647
+#: src/gedcom_strings.py:725
 #, fuzzy
 msgid "Language Changed"
 msgstr "Sprache geändert"
 
-#: src/gedcom_strings.py:649
+#: src/gedcom_strings.py:727
 #, python-brace-format, fuzzy
 msgid ""
 "Language changed from {old} to {new}. Please restart the application for the"
@@ -1613,12 +1809,12 @@ msgstr ""
 "Die Sprache wurde von {old} auf {new} geändert. Bitte starte die Anwendung "
 "neu, damit die Änderung wirksam wird."
 
-#: src/gedcom_strings.py:655
+#: src/gedcom_strings.py:733
 #, fuzzy
 msgid "Searching"
 msgstr "Suchen"
 
-#: src/gedcom_strings.py:657
+#: src/gedcom_strings.py:735
 #, fuzzy
 msgid ""
 "Searching for tagged matches…\n"
@@ -1627,7 +1823,7 @@ msgstr ""
 "Es wird nach Treffern mit Tags gesucht…\n"
 "(Verringere die Einstellung „Maximale Tiefe“, um die Suche zu beschleunigen)"
 
-#: src/gedcom_strings.py:660
+#: src/gedcom_strings.py:738
 #, fuzzy
 msgid ""
 "Finding relationship paths…\n"
@@ -1636,32 +1832,32 @@ msgstr ""
 "SuchenBeziehungswege werden ermittelt…\n"
 "(Verringern Sie die Einstellung „Maximale Tiefe“, um die Suche zu beschleunigen)"
 
-#: src/gedcom_strings.py:662
+#: src/gedcom_strings.py:740
 #, fuzzy
 msgid "Expanding descendant branches…"
 msgstr "Nachkommenzweige erweitern…"
 
-#: src/gedcom_strings.py:667
+#: src/gedcom_strings.py:745
 #, fuzzy
 msgid "Loading…"
 msgstr "Wird geladen…"
 
-#: src/gedcom_strings.py:668
+#: src/gedcom_strings.py:746
 #, fuzzy
 msgid "Load failed."
 msgstr "Das Laden ist fehlgeschlagen."
 
-#: src/gedcom_strings.py:669
+#: src/gedcom_strings.py:747
 #, python-brace-format, fuzzy
 msgid "Loaded {count:,} individuals (from cache)."
-msgstr "{count:,} Personen wurden geladen (aus dem Cache)."
+msgstr "{count:,} Personen (aus dem Cache) geladen."
 
-#: src/gedcom_strings.py:670
+#: src/gedcom_strings.py:748
 #, python-brace-format, fuzzy
 msgid "Loaded {count:,} individuals."
 msgstr "Es wurden {count:,} Personen geladen."
 
-#: src/gedcom_strings.py:672
+#: src/gedcom_strings.py:750
 #, python-brace-format, fuzzy
 msgid ""
 "Showing first {max_display:,} of {total_matches:,} matches. Refine your "
@@ -1671,14 +1867,14 @@ msgstr ""
 "angezeigt. Verfeinere deine Suche.  ({total:,} insgesamt, {flagged} mit Tags"
 " versehen)"
 
-#: src/gedcom_strings.py:676
+#: src/gedcom_strings.py:754
 #, python-brace-format, fuzzy
 msgid "{shown:,} match{plural} shown.  ({total:,} total, {flagged} tagged)"
 msgstr ""
 "{shown:,} Treffer{plural} angezeigt.  ({total:,} insgesamt, {flagged} "
 "markiert)"
 
-#: src/gedcom_strings.py:679
+#: src/gedcom_strings.py:757
 #, python-brace-format, fuzzy
 msgid ""
 "{total:,} individuals, {families:,} families, {flagged} tagged.  Type to "
@@ -1687,32 +1883,32 @@ msgstr ""
 "{total:,} Personen, {families:,} Familien, {flagged} mit Tags versehen.  "
 "Geben Sie einen Suchbegriff ein."
 
-#: src/gedcom_strings.py:682
+#: src/gedcom_strings.py:760
 #, python-brace-format, fuzzy
 msgid "Home person set: {name}"
 msgstr "Startperson gesetzt: {name}"
 
-#: src/gedcom_strings.py:683
+#: src/gedcom_strings.py:761
 #, fuzzy
 msgid "Home person unset"
 msgstr "Startperson unset"
 
-#: src/gedcom_strings.py:688
+#: src/gedcom_strings.py:766
 #, fuzzy
 msgid "No file"
 msgstr "Keine Datei"
 
-#: src/gedcom_strings.py:689
+#: src/gedcom_strings.py:767
 #, fuzzy
 msgid "Please choose a GEDCOM file first."
 msgstr "Bitte wählen Sie zunächst eine GEDCOM-Datei aus."
 
-#: src/gedcom_strings.py:690
+#: src/gedcom_strings.py:768
 #, fuzzy
 msgid "Not found"
 msgstr "Nicht gefunden"
 
-#: src/gedcom_strings.py:691
+#: src/gedcom_strings.py:769
 #, python-brace-format, fuzzy
 msgid ""
 "File not found:\n"
@@ -1721,12 +1917,12 @@ msgstr ""
 "Datei nicht gefunden:\n"
 "{path}"
 
-#: src/gedcom_strings.py:692
+#: src/gedcom_strings.py:770
 #, fuzzy
 msgid "ZIP error"
 msgstr "ZIP Fehler"
 
-#: src/gedcom_strings.py:693
+#: src/gedcom_strings.py:771
 #, python-brace-format, fuzzy
 msgid ""
 "Could not extract GEDCOM from ZIP:\n"
@@ -1737,12 +1933,12 @@ msgstr ""
 "\n"
 "{error}"
 
-#: src/gedcom_strings.py:694
+#: src/gedcom_strings.py:772
 #, fuzzy
 msgid "Parse error"
 msgstr "Parsing-Fehler"
 
-#: src/gedcom_strings.py:695
+#: src/gedcom_strings.py:773
 #, python-brace-format, fuzzy
 msgid ""
 "Error reading GEDCOM:\n"
@@ -1753,57 +1949,57 @@ msgstr ""
 "\n"
 "{error}"
 
-#: src/gedcom_strings.py:696
+#: src/gedcom_strings.py:774
 #, fuzzy
 msgid "Encoding warning"
 msgstr "Warnung zur Kodierung"
 
-#: src/gedcom_strings.py:697
+#: src/gedcom_strings.py:775
 #, fuzzy
 msgid "No data"
 msgstr "Keine Daten"
 
-#: src/gedcom_strings.py:698
+#: src/gedcom_strings.py:776
 #, fuzzy
 msgid "Load a GEDCOM file first."
 msgstr "Lade zunächst eine GEDCOM-Datei."
 
-#: src/gedcom_strings.py:699
+#: src/gedcom_strings.py:777
 #, fuzzy
 msgid "No selection"
 msgstr "Keine Auswahl"
 
-#: src/gedcom_strings.py:700
+#: src/gedcom_strings.py:778
 #, fuzzy
 msgid "Select a person from the list first."
 msgstr "Wählen Sie zunächst eine Person aus der Liste aus."
 
-#: src/gedcom_strings.py:701
+#: src/gedcom_strings.py:779
 #, fuzzy
 msgid "Bad value"
 msgstr "Schlechter Wert"
 
-#: src/gedcom_strings.py:702
+#: src/gedcom_strings.py:780
 #, fuzzy
 msgid "Results and Max Depth must be integers."
 msgstr "Ergebnisse und Max. Tiefe müssen ganze Zahlen sein."
 
-#: src/gedcom_strings.py:703
+#: src/gedcom_strings.py:781
 #, fuzzy
 msgid "Max Depth must be an integer."
 msgstr "Max. Tiefe muss eine ganze Zahl sein."
 
-#: src/gedcom_strings.py:704
+#: src/gedcom_strings.py:782
 #, fuzzy
 msgid "Select a starting person from the main list first."
 msgstr "Wählen Sie zunächst eine Startperson aus der Hauptliste aus."
 
-#: src/gedcom_strings.py:705
+#: src/gedcom_strings.py:783
 #, fuzzy
 msgid "File not found"
 msgstr "Datei nicht gefunden"
 
-#: src/gedcom_strings.py:706
+#: src/gedcom_strings.py:784
 #, python-brace-format, fuzzy
 msgid ""
 "Could not open:\n"
@@ -1816,12 +2012,12 @@ msgstr ""
 "\n"
 "{error}"
 
-#: src/gedcom_strings.py:707
+#: src/gedcom_strings.py:785
 #, fuzzy
 msgid "Save error"
 msgstr "Speichern Fehler"
 
-#: src/gedcom_strings.py:708
+#: src/gedcom_strings.py:786
 #, python-brace-format, fuzzy
 msgid ""
 "Could not save relationship graph:\n"
@@ -1832,12 +2028,12 @@ msgstr ""
 "\n"
 "{error}"
 
-#: src/gedcom_strings.py:709
+#: src/gedcom_strings.py:787
 #, fuzzy
 msgid "Copy error"
 msgstr "Kopieren Fehler"
 
-#: src/gedcom_strings.py:710
+#: src/gedcom_strings.py:788
 #, python-brace-format, fuzzy
 msgid ""
 "Could not copy relationship graph:\n"
@@ -1848,7 +2044,7 @@ msgstr ""
 "\n"
 "{error}"
 
-#: src/gedcom_strings.py:711
+#: src/gedcom_strings.py:789
 #, python-brace-format, fuzzy
 msgid ""
 "Could not save profile image:\n"
@@ -1859,7 +2055,7 @@ msgstr ""
 "\n"
 "{error}"
 
-#: src/gedcom_strings.py:712
+#: src/gedcom_strings.py:790
 #, python-brace-format, fuzzy
 msgid ""
 "Could not copy profile image:\n"
@@ -1870,7 +2066,7 @@ msgstr ""
 "\n"
 "{error}"
 
-#: src/gedcom_strings.py:713
+#: src/gedcom_strings.py:791
 #, python-brace-format, fuzzy
 msgid ""
 "Could not save graph layout debug data:\n"
@@ -1881,7 +2077,7 @@ msgstr ""
 "\n"
 "{error}"
 
-#: src/gedcom_strings.py:714
+#: src/gedcom_strings.py:792
 #, python-brace-format, fuzzy
 msgid ""
 "Could not save results:\n"
@@ -1892,7 +2088,7 @@ msgstr ""
 "\n"
 "{error}"
 
-#: src/gedcom_strings.py:715
+#: src/gedcom_strings.py:793
 #, python-brace-format, fuzzy
 msgid ""
 "Could not save profile:\n"
@@ -1903,7 +2099,7 @@ msgstr ""
 "\n"
 "{error}"
 
-#: src/gedcom_strings.py:717
+#: src/gedcom_strings.py:795
 #, python-brace-format, fuzzy
 msgid ""
 "GEDCOM file not found:\n"
@@ -1914,19 +2110,19 @@ msgstr ""
 "GEDCOM Datei nicht gefunden:\n"
 "{path}\n"
 "\n"
-"Wähle über „Durchsuchen…“ eine andere Datei aus."
+"Wählen Sie über „Durchsuchen…“ eine andere Datei aus."
 
-#: src/gedcom_strings.py:724
+#: src/gedcom_strings.py:802
 #, fuzzy
 msgid "No cache files found."
 msgstr "Es wurden keine Cache-Dateien gefunden."
 
-#: src/gedcom_strings.py:725
+#: src/gedcom_strings.py:803
 #, fuzzy
 msgid "Clear cache"
 msgstr "Cache leeren"
 
-#: src/gedcom_strings.py:727
+#: src/gedcom_strings.py:805
 #, python-brace-format, fuzzy
 msgid ""
 "Delete {count} cached file(s)?\n"
@@ -1937,22 +2133,22 @@ msgstr ""
 "\n"
 "Hinweis: Der Cache enthält möglicherweise persönliche Daten und Rohdatensätze aus Ihren GEDCOM-Dateien."
 
-#: src/gedcom_strings.py:731
+#: src/gedcom_strings.py:809
 #, fuzzy
 msgid "Cache cleared"
 msgstr "Cache geleert"
 
-#: src/gedcom_strings.py:732
+#: src/gedcom_strings.py:810
 #, python-brace-format, fuzzy
 msgid "{deleted} file(s) deleted."
 msgstr "{deleted} Datei(en) gelöscht."
 
-#: src/gedcom_strings.py:734
+#: src/gedcom_strings.py:812
 #, fuzzy
 msgid "Remove all data"
 msgstr "Alle Daten löschen"
 
-#: src/gedcom_strings.py:736
+#: src/gedcom_strings.py:814
 #, python-brace-format, fuzzy
 msgid ""
 "This will permanently delete all GEDCOM Navigator data, including your settings, preferences, recent file list, and cached records, from:\n"
@@ -1971,17 +2167,17 @@ msgstr ""
 "\n"
 "Weiter?"
 
-#: src/gedcom_strings.py:742
+#: src/gedcom_strings.py:820
 #, fuzzy
 msgid "No application data was found to remove."
 msgstr "Es wurden keine zu löschenden Anwendungsdaten gefunden."
 
-#: src/gedcom_strings.py:743
+#: src/gedcom_strings.py:821
 #, fuzzy
 msgid "Data removed"
 msgstr "Daten entfernt"
 
-#: src/gedcom_strings.py:745
+#: src/gedcom_strings.py:823
 #, fuzzy
 msgid ""
 "All application data has been removed. GEDCOM Navigator will now close."
@@ -1989,12 +2185,12 @@ msgstr ""
 "Alle Anwendungsdaten wurden gelöscht. GEDCOM Der Navigator wird nun "
 "geschlossen."
 
-#: src/gedcom_strings.py:747
+#: src/gedcom_strings.py:825
 #, fuzzy
 msgid "Could not remove data"
 msgstr "Daten konnten nicht gelöscht werden"
 
-#: src/gedcom_strings.py:748
+#: src/gedcom_strings.py:826
 #, python-brace-format, fuzzy
 msgid ""
 "Some data could not be removed:\n"
@@ -2005,62 +2201,62 @@ msgstr ""
 "\n"
 "{error}"
 
-#: src/gedcom_strings.py:753
+#: src/gedcom_strings.py:831
 #, fuzzy
 msgid "How to Use"
 msgstr "Anleitung"
 
-#: src/gedcom_strings.py:754 src/gedcom_strings.py:848
+#: src/gedcom_strings.py:832 src/gedcom_strings.py:935
 #, fuzzy
 msgid "Keyboard Shortcuts"
 msgstr "Tastaturkürzel"
 
-#: src/gedcom_strings.py:757
+#: src/gedcom_strings.py:835
 #, fuzzy
 msgid "Checking for Updates"
 msgstr "Nach Updates suchen"
 
-#: src/gedcom_strings.py:758
+#: src/gedcom_strings.py:836
 #, fuzzy
 msgid "Update Available"
 msgstr "Update verfügbar"
 
-#: src/gedcom_strings.py:763
+#: src/gedcom_strings.py:841
 #, fuzzy
 msgid "Welcome to GEDCOM Navigator"
 msgstr "Willkommen bei GEDCOM Navigator"
 
-#: src/gedcom_strings.py:764
+#: src/gedcom_strings.py:842
 #, fuzzy
 msgid "Show this window next time"
 msgstr "Dieses Fenster beim nächsten Mal anzeigen"
 
-#: src/gedcom_strings.py:766
+#: src/gedcom_strings.py:844
 #, fuzzy
 msgid "Next"
 msgstr "Weiter"
 
-#: src/gedcom_strings.py:767
+#: src/gedcom_strings.py:845
 #, fuzzy
 msgid "Back"
 msgstr "Zurück"
 
-#: src/gedcom_strings.py:768
+#: src/gedcom_strings.py:846
 #, fuzzy
 msgid "Skip"
 msgstr "Überspringen"
 
-#: src/gedcom_strings.py:769
+#: src/gedcom_strings.py:847
 #, fuzzy
 msgid "Finish"
-msgstr "Fertigstellen"
+msgstr "Fertig"
 
-#: src/gedcom_strings.py:773
+#: src/gedcom_strings.py:851
 #, fuzzy
 msgid "People list"
 msgstr "Personenliste"
 
-#: src/gedcom_strings.py:775
+#: src/gedcom_strings.py:853
 #, fuzzy
 msgid ""
 "Everyone in your GEDCOM file appears here. Select a person to view their "
@@ -2070,12 +2266,12 @@ msgstr ""
 "Person aus, um ihr Profil anzuzeigen, Übereinstimmungen bei Markern (z. B. "
 "DNA) zu finden oder Verwandtschaftsbeziehungen nachzuverfolgen."
 
-#: src/gedcom_strings.py:778
+#: src/gedcom_strings.py:856
 #, fuzzy
 msgid "Results pane"
 msgstr "Ergebnisse eingeben"
 
-#: src/gedcom_strings.py:780
+#: src/gedcom_strings.py:858
 #, fuzzy
 msgid ""
 "Profiles, tag matches (such as DNA), and relationship paths are shown here. "
@@ -2085,12 +2281,12 @@ msgstr ""
 "werden hier angezeigt. Die Namen und Beschreibungen der "
 "Verwandtschaftsbeziehungen in diesem Bereich sind anklickbar."
 
-#: src/gedcom_strings.py:783
+#: src/gedcom_strings.py:861
 #, fuzzy
 msgid "Status bar"
 msgstr "Statusleiste"
 
-#: src/gedcom_strings.py:785
+#: src/gedcom_strings.py:863
 #, fuzzy
 msgid ""
 "Shows the loaded file and progress, and holds the Save and Copy buttons for "
@@ -2099,12 +2295,12 @@ msgstr ""
 "Zeigt die geladene Datei und den Fortschritt an und hält die Tasten "
 "Speichern und Kopieren für die aktuellen Ergebnisse bereit."
 
-#: src/gedcom_strings.py:788
+#: src/gedcom_strings.py:866
 #, fuzzy
 msgid "Clickable names"
 msgstr "Klickbare Namen"
 
-#: src/gedcom_strings.py:790
+#: src/gedcom_strings.py:868
 #, fuzzy
 msgid ""
 "Click any person's name in the results to jump to their profile. Use the "
@@ -2115,12 +2311,12 @@ msgstr ""
 "Profil zu gelangen. Verwenden Sie die Tastaturbefehle „Zurück“ und "
 "„Vorwärts“ (Alt-Links und Alt-Rechts), um Ihre Schritte zurückzuverfolgen."
 
-#: src/gedcom_strings.py:793
+#: src/gedcom_strings.py:871
 #, fuzzy
 msgid "Clickable relationships"
 msgstr "Anklickbare Verknüpfungen"
 
-#: src/gedcom_strings.py:795
+#: src/gedcom_strings.py:873
 #, fuzzy
 msgid ""
 "Click an underlined relationship description to open it as a relationship "
@@ -2130,12 +2326,12 @@ msgstr ""
 "Beziehungsdiagramm zu öffnen, das zeigt, wie die beiden Personen miteinander"
 " verbunden sind."
 
-#: src/gedcom_strings.py:798
+#: src/gedcom_strings.py:876
 #, fuzzy
 msgid "Display modes"
 msgstr "Anzeigemodi"
 
-#: src/gedcom_strings.py:800
+#: src/gedcom_strings.py:878
 #, fuzzy
 msgid ""
 "Switch the right pane between Profile, Tag Matches (e.g. DNA Tags), and "
@@ -2143,16 +2339,44 @@ msgid ""
 "you to choose another person to find paths to."
 msgstr ""
 "Wechseln Sie im rechten Fensterbereich zwischen Profil, Tag-"
-"Übereinstimmungen (z. B. DNA Tags) und Verwandtschaftspfad für die "
+"Übereinstimmungen (z. B. DNA Tags) und Verwandtschaftspfads für die "
 "ausgewählte Person. Wenn Sie „Pfade“ auswählen, werden Sie aufgefordert, "
-"eine andere Person auszuwählen, zu der Pfade gesucht werden sollen."
+"eine andere Person auszuwählen, zu der Sie Pfade suchen möchten."
 
-#: src/gedcom_strings.py:804
+#: src/gedcom_strings.py:882
+#, fuzzy
+msgid "Profile sub-modes"
+msgstr "Profil Untermodi"
+
+#: src/gedcom_strings.py:884
+#, fuzzy
+msgid ""
+"When Profile mode is active, switch between three views:\n"
+"\n"
+"• Bio — biographical details, family members, and facts.\n"
+"\n"
+"• Pedigree — an Ahnentafel ancestor report. Each person has a unique number which tells you how they are related to the selected person.\n"
+"\n"
+"• Descendants — shows all descendants in a Henry-numbered report.\n"
+"\n"
+"Names in both reports are clickable links to that person's Bio."
+msgstr ""
+"Wenn der Modus Profil aktiv ist, können Sie zwischen drei Ansichten wechseln:\n"
+"\n"
+"• Biografie – biografische Angaben, Familienmitglieder und Fakten.\n"
+"\n"
+"• Stammbaum – ein Ahnentafel-Bericht. Jede Person hat eine eindeutige Nummer, die angibt, in welcher Beziehung sie zu der ausgewählten Person steht.\n"
+"\n"
+"• Nachkommen – zeigt alle Nachkommen in einem Bericht mit Henry-Nummerierung an.\n"
+"\n"
+"Die Namen in beiden Berichten sind anklickbare Links zur Biografie der jeweiligen Person."
+
+#: src/gedcom_strings.py:891
 #, fuzzy
 msgid "Match tag settings"
 msgstr "Einstellungen für Tags anpassen"
 
-#: src/gedcom_strings.py:806
+#: src/gedcom_strings.py:893
 #, fuzzy
 msgid ""
 "In Matches mode, set the tag keyword and page marker that identify tagged "
@@ -2162,22 +2386,21 @@ msgstr ""
 "Seitenmarker fest, die die markierten Personen kennzeichnen (z. B. „DNA“), "
 "oder wählen Sie ein vorhandenes Tag aus Ihrer Datei aus."
 
-#: src/gedcom_strings.py:809
+#: src/gedcom_strings.py:896
 #, fuzzy
 msgid "Tree View menu"
 msgstr "Stammbaumansicht Menü"
 
-#: src/gedcom_strings.py:811
+#: src/gedcom_strings.py:898
 #, python-brace-format, fuzzy
 msgid ""
 "Right-click (or click) any person in the tree view for quick actions: "
 "{items}."
 msgstr ""
-"Klicken Sie mit der rechten Maustaste (oder einfach mit der linken "
-"Maustaste) auf eine beliebige Person in der Baumansicht, um Schnellaktionen "
-"aufzurufen: {items}."
+"Klicken Sie mit der rechten Maustaste (oder einfach) auf eine beliebige "
+"Person in der Baumansicht, um Schnellaktionen aufzurufen: {items}."
 
-#: src/gedcom_strings.py:814
+#: src/gedcom_strings.py:901
 #, fuzzy
 msgid ""
 "A sample family tree has been loaded so you can try these features. It will "
@@ -2186,27 +2409,27 @@ msgstr ""
 "Es wurde ein Beispielstammbaum geladen, damit Sie diese Funktionen "
 "ausprobieren können. Er wird nach Abschluss der Anleitung wieder entfernt."
 
-#: src/gedcom_strings.py:818
+#: src/gedcom_strings.py:905
 #, fuzzy
 msgid "Shortcut"
 msgstr "Schnellzugriff"
 
-#: src/gedcom_strings.py:819
+#: src/gedcom_strings.py:906
 #, fuzzy
 msgid "Action"
 msgstr "Aktion"
 
-#: src/gedcom_strings.py:821
+#: src/gedcom_strings.py:908
 #, fuzzy
 msgid "Checking GitHub for the latest release…"
 msgstr "Wird nach der neuesten Version von GitHub gesucht…"
 
-#: src/gedcom_strings.py:822
+#: src/gedcom_strings.py:909
 #, fuzzy
 msgid "Update check failed"
 msgstr "Die Überprüfung auf Updates ist fehlgeschlagen"
 
-#: src/gedcom_strings.py:823
+#: src/gedcom_strings.py:910
 #, python-brace-format, fuzzy
 msgid ""
 "Could not check for updates right now.\n"
@@ -2217,161 +2440,176 @@ msgstr ""
 "\n"
 "{error}"
 
-#: src/gedcom_strings.py:824
+#: src/gedcom_strings.py:911
 #, fuzzy
 msgid "No update available"
 msgstr "Es ist kein Update verfügbar"
 
-#: src/gedcom_strings.py:825
+#: src/gedcom_strings.py:912
 #, python-brace-format, fuzzy
 msgid "You are running the latest version ({current})."
 msgstr "Sie verwenden die neueste Version ({current})."
 
-#: src/gedcom_strings.py:826
+#: src/gedcom_strings.py:913
 #, fuzzy
 msgid "A newer version is available."
 msgstr "Es ist eine neuere Version verfügbar."
 
-#: src/gedcom_strings.py:827
+#: src/gedcom_strings.py:914
 #, python-brace-format, fuzzy
 msgid "Installed version: {current}"
 msgstr "Installierte Version: {current}"
 
-#: src/gedcom_strings.py:828
+#: src/gedcom_strings.py:915
 #, python-brace-format, fuzzy
 msgid "Latest version: {latest}"
 msgstr "Aktuelle Version: {latest}"
 
-#: src/gedcom_strings.py:829
+#: src/gedcom_strings.py:916
 #, fuzzy
 msgid "Download the latest release from GitHub:"
 msgstr "Lade die neueste Veröffentlichung von GitHub herunter:"
 
-#: src/gedcom_strings.py:830
+#: src/gedcom_strings.py:917
 #, fuzzy
 msgid "Open GitHub Releases"
 msgstr "Öffnen GitHub Veröffentlichungen"
 
-#: src/gedcom_strings.py:835
+#: src/gedcom_strings.py:922
 #, fuzzy
 msgid "Set as Default"
 msgstr "Als Standard festlegen"
 
-#: src/gedcom_strings.py:837
+#: src/gedcom_strings.py:924
 #, fuzzy
 msgid "Would you like GEDCOM Navigator to open .ged files by default?"
 msgstr "Möchten Sie, dass GEDCOM Navigator .ged-Dateien standardmäßig öffnet?"
 
-#: src/gedcom_strings.py:839
+#: src/gedcom_strings.py:926
 #, fuzzy
 msgid "Could Not Set Default"
 msgstr "Standard konnte nicht festgelegt werden"
 
-#: src/gedcom_strings.py:841
+#: src/gedcom_strings.py:928
 #, fuzzy
 msgid "GEDCOM Navigator could not register as the default .ged handler."
 msgstr ""
 "GEDCOM Navigator konnte nicht als Standard-Handler für .ged-Dateien "
 "registriert werden."
 
-#: src/gedcom_strings.py:849
+#: src/gedcom_strings.py:936
 #, fuzzy
 msgid "Open Preferences"
 msgstr "Öffnen Einstellungen"
 
-#: src/gedcom_strings.py:850
+#: src/gedcom_strings.py:937
 #, fuzzy
 msgid "Find Person"
 msgstr "Suchen Person"
 
-#: src/gedcom_strings.py:851
+#: src/gedcom_strings.py:938
 #, fuzzy
 msgid "Filter Results"
 msgstr "Filtern Ergebnisse"
 
-#: src/gedcom_strings.py:852
+#: src/gedcom_strings.py:939
 #, fuzzy
 msgid "Toggle the tagged filter"
 msgstr "Den Filter nach Tags umschalten"
 
-#: src/gedcom_strings.py:853
+#: src/gedcom_strings.py:940
 #, fuzzy
 msgid "Toggle fuzzy search mode"
 msgstr "Fuzzy-Suchmodus aktivieren"
 
-#: src/gedcom_strings.py:854
+#: src/gedcom_strings.py:941
 #, fuzzy
 msgid "Toggle married-name search mode"
 msgstr "Suchmodus für den Ehenamen umschalten"
 
-#: src/gedcom_strings.py:855
+#: src/gedcom_strings.py:942
 #, fuzzy
 msgid "Open a new GEDCOM file"
 msgstr "Öffnen eine neue GEDCOM Datei"
 
-#: src/gedcom_strings.py:856
+#: src/gedcom_strings.py:943
+#, fuzzy
+msgid "Switch the Display Pane to Profile (Bio)"
+msgstr "Stellen Sie den Anzeigebereich auf Profil (Bio) um"
+
+#: src/gedcom_strings.py:944
 #, fuzzy
 msgid "Switch the Display Pane to Matches"
 msgstr "Wechseln Sie im Anzeigebereich zu „Übereinstimmungen“"
 
-#: src/gedcom_strings.py:857
+#: src/gedcom_strings.py:945
+#, fuzzy
+msgid "Switch to Pedigree ancestor report"
+msgstr "Zum Pedigree-Stammbaumbericht wechseln"
+
+#: src/gedcom_strings.py:946
+#, fuzzy
+msgid "Switch to Descendants report"
+msgstr "Zum Bericht „Nachkommen“ wechseln"
+
+#: src/gedcom_strings.py:947
 #, fuzzy
 msgid "Open Tree View for selected person"
 msgstr "Öffnen Stammbaumansicht für die ausgewählte Person"
 
-#: src/gedcom_strings.py:858
+#: src/gedcom_strings.py:948
 #, fuzzy
 msgid "Open the selected person's image gallery"
 msgstr "Öffnen Die Bildergalerie der ausgewählten Person"
 
-#: src/gedcom_strings.py:859
+#: src/gedcom_strings.py:949
 #, fuzzy
 msgid "Set or unset the selected person as Home person"
 msgstr ""
 "Die ausgewählte Person als Startperson festlegen oder die Festlegung "
 "aufheben"
 
-#: src/gedcom_strings.py:860
+#: src/gedcom_strings.py:950
 #, fuzzy
 msgid "Switch the Display Pane to Paths"
 msgstr "Wechseln Sie im Anzeigebereich zu „Pfade“"
 
-#: src/gedcom_strings.py:861
+#: src/gedcom_strings.py:951
 #, fuzzy
 msgid "Select new tag for finding relationship paths"
-msgstr "Wähle ein neues Tag aus, um Beziehungspfade zu finden"
+msgstr "Wähle ein neues Tag aus, um Beziehungswege zu finden"
 
-#: src/gedcom_strings.py:862
+#: src/gedcom_strings.py:952
 #, fuzzy
 msgid "Reverse/restore the direction of all relationship paths"
 msgstr "Die Richtung aller Beziehungspfade umkehren/wiederherstellen"
 
-#: src/gedcom_strings.py:863
+#: src/gedcom_strings.py:953
 #, fuzzy
-msgid "Save results to a text file"
-msgstr "Speichern Ergebnisse in eine Textdatei"
+msgid "Save results using the selected format"
+msgstr "Speichern Ergebnisse im ausgewählten Format"
 
-#: src/gedcom_strings.py:864
+#: src/gedcom_strings.py:954
 #, fuzzy
 msgid "Copy result to clipboard"
 msgstr "Kopieren Ergebnis in die Zwischenablage kopieren"
 
-#: src/gedcom_strings.py:865
+#: src/gedcom_strings.py:955
 #, fuzzy
 msgid "Go back to the previous view"
 msgstr "Zurück zur vorherigen Ansicht"
 
-#: src/gedcom_strings.py:866
+#: src/gedcom_strings.py:956
 #, fuzzy
 msgid "Go forward to the next view"
 msgstr "Weiter zur nächsten Ansicht"
 
-#: src/gedcom_strings.py:867
+#: src/gedcom_strings.py:957
 #, fuzzy
 msgid "Zoom the focused text or graph view"
 msgstr "Die Ansicht des markierten Textes oder Diagramms vergrößern"
 
-#: src/gedcom_strings.py:868
+#: src/gedcom_strings.py:958
 #, fuzzy
 msgid "Reset zoom in the focused text or graph view"
 msgstr "Zoom in der fokussierten Text- oder Diagrammansicht zurücksetzen"
