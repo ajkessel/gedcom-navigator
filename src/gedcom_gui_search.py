@@ -79,6 +79,45 @@ class SearchMixin:
         except tk.TclError:
             pass
 
+    def _set_profile_sub_mode_visible(self, visible):
+        """Show the profile sub-mode selector only when Profile mode is active."""
+        frame = getattr(self, "_profile_sub_mode_frame", None)
+        if frame is None:
+            return
+        try:
+            if visible:
+                # Re-pack before self.results so it stays between the mode
+                # selector and the textbox regardless of prior pack_forget calls.
+                results = getattr(self, 'results', None)
+                kwargs = {'before': results} if results is not None else {}
+                frame.pack(fill='x', padx=8, pady=(2, 0), **kwargs)
+            else:
+                frame.pack_forget()
+        except tk.TclError:
+            pass
+
+    def _on_profile_sub_mode_selected(self, label):
+        """Handle a click on the profile sub-mode selector."""
+        mode = self._profile_sub_mode_by_label.get(label, 'bio')
+        self.profile_sub_mode.set(mode)
+        self._sync_profile_sub_mode_selector()
+        if self.display_mode.get() == 'profile':
+            self._refresh_display_pane()
+
+    def _sync_profile_sub_mode_selector(self):
+        """Keep the profile sub-mode selector widget in sync with profile_sub_mode."""
+        selector = getattr(self, '_profile_sub_mode_selector', None)
+        labels = getattr(self, '_profile_sub_mode_labels', {})
+        label = labels.get(self.profile_sub_mode.get())
+        if selector is None or label is None:
+            return
+        if hasattr(selector, 'set'):
+            selector.set(label)
+        else:
+            radio_var = getattr(self, '_profile_sub_mode_radio_var', None)
+            if radio_var is not None:
+                radio_var.set(label)
+
     def _browse(self):
         """Prompt for a GEDCOM or ZIP file and load it when selected."""
         current = self.gedcom_path.get().strip()
@@ -394,6 +433,12 @@ class SearchMixin:
             if radio_var is not None:
                 radio_var.set(label)
 
+    def _set_display_mode_and_sub(self, mode, sub_mode):
+        """Switch the main display mode and profile sub-mode together."""
+        self.profile_sub_mode.set(sub_mode)
+        self._sync_profile_sub_mode_selector()
+        self._set_display_mode(mode)
+
     def _set_display_mode(self, mode, refresh=True, prompt_for_path=True):
         """Select the active Display Pane mode."""
         if mode not in ('profile', 'matches', 'paths'):
@@ -401,6 +446,7 @@ class SearchMixin:
         self.display_mode.set(mode)
         self._set_reverse_button_visible(mode == 'paths')
         self._set_matches_settings_visible(mode == 'matches')
+        self._set_profile_sub_mode_visible(mode == 'profile')
         self._sync_display_mode_selector()
         if refresh:
             self._refresh_display_pane(prompt_for_path=prompt_for_path)
@@ -430,8 +476,15 @@ class SearchMixin:
         if mode == 'profile':
             self._results_reversed = False
             self._reverse_btn.configure(state='disabled', text=gs.BTN_REVERSE)
-            self._last_result = {'type': 'profile', 'start_id': start_id}
-            self._render_profile_result(start_id)
+            sub_mode = self.profile_sub_mode.get()
+            self._last_result = {
+                'type': 'profile', 'start_id': start_id, 'sub_mode': sub_mode}
+            if sub_mode == 'pedigree':
+                self._render_pedigree_text_result(start_id)
+            elif sub_mode == 'descendants':
+                self._render_descendants_text_result(start_id)
+            else:
+                self._render_profile_result(start_id)
         elif mode == 'matches':
             self._find_matches()
         elif mode == 'paths':

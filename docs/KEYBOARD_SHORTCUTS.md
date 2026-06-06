@@ -13,7 +13,10 @@
 | **Ctrl+M** / **⌘⇧M** | Toggle **m**arried-name search mode |
 | **Ctrl+O** | **O**pen a new GEDCOM file |
 | **Ctrl+N** | Switch the Display Pane to **N**earest Matches |
-| **Ctrl+E** | Switch the Display Pane to Profil**e** |
+| **Ctrl+B** | Switch the Display Pane to **B**io (Profile) |
+| **Ctrl+Shift+P** / **⌘⇧P** | Switch the Profile pane to **P**edigree ancestor report |
+| **Ctrl+Shift+D** / **⌘⇧D** | Switch the Profile pane to **D**escendants report |
+| **Ctrl+E** | Open the **E**xplore/Tree view for the selected person |
 | **Ctrl+G** | Open the selected person's image **G**allery |
 | **Ctrl+H** / **⌘⇧H** | Set **H**ome person to the selected person |
 | **Ctrl+P** | Switch the Display Pane to Relationship **P**aths |

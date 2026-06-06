@@ -18,7 +18,7 @@ from tkinter import filedialog, messagebox
 import customtkinter as ctk
 
 from gedcom_debug import debug_enabled
-from gedcom_display import describe
+from gedcom_display import describe, format_year
 from gedcom_family_tree import (
     INITIAL_TREE_CATEGORIES,
     build_descendant_tree_graph,
@@ -47,6 +47,10 @@ class PersonDialogMixin:
     )
     _TREE_VIEW_MODES = ("tree", "pedigree", "descendant")
     _HTTPS_URL_RE = re.compile(r"https://[^\s<>\"']+")
+    _SOURCE_URL_RE = re.compile(
+        r"^(?P<description>.+?);\s*URL:\s*(?P<url>https://.+?)\s*$",
+        re.IGNORECASE,
+    )
     _URL_TRAILING_PUNCTUATION = ".,;:!?)]}"
     _FACT_EVENT_TAGS = {
         "ADOP",
@@ -235,7 +239,21 @@ class PersonDialogMixin:
                 FACT_EVENT_NOTE.format(value=" ".join(note_parts))
             )
         for page in source_pages:
-            supplemental.append(FACT_EVENT_SOURCE.format(value=page))
+            source_match = cls._SOURCE_URL_RE.match(page)
+            if source_match:
+                source_url = re.sub(
+                    r"\s+(?=[&?#])", "", source_match.group("url").strip()
+                )
+                supplemental.append({
+                    "text": FACT_EVENT_SOURCE.format(
+                        value=source_match.group("description").strip()
+                    ),
+                    "url": source_url.rstrip(
+                        cls._URL_TRAILING_PUNCTUATION
+                    ),
+                })
+            else:
+                supplemental.append(FACT_EVENT_SOURCE.format(value=page))
 
         if not date_value and not primary_details and not supplemental:
             return None
@@ -318,6 +336,20 @@ class PersonDialogMixin:
             return []
         directory = config.get_media_parent_dir(gedcom_path)
         return [directory] if directory else []
+
+    def _pdf_profile_photo_bytes(self, indi_id):
+        """Return PNG bytes for a real profile photo, never a placeholder."""
+        media = getattr(self, '_media_service', None)
+        if media is None or indi_id not in self.individuals:
+            return None
+        path = media.resolve_person_media(
+            self.individuals[indi_id],
+            self.gedcom_path.get(),
+            media_dirs=self._profile_media_dirs(),
+        )
+        if not path:
+            return None
+        return media.full_size_png_bytes(path, (240, 240))
 
     def _initial_media_directory(self):
         """Return the best starting directory for selecting linked media."""
@@ -1413,6 +1445,20 @@ class PersonDialogMixin:
                 text.insert("end", line[last_end:])
             text.insert("end", "\n")
 
+        def add_linked_line(line, url):
+            nonlocal url_link_count
+            content = line.lstrip()
+            leading = line[:len(line) - len(content)]
+            if leading:
+                text.insert("end", leading)
+            tag = f"gedcom_url_{url_link_count}"
+            url_link_count += 1
+            text.insert("end", content, ("gedcom_url_link", tag))
+            text._textbox.tag_bind(
+                tag, "<Button-1>", lambda _, u=url: webbrowser.open(u)
+            )
+            text.insert("end", "\n")
+
         def person(pid, prefix=""):
             if prefix:
                 text.insert("end", prefix)
@@ -1469,6 +1515,11 @@ class PersonDialogMixin:
         def common_ancestor_line(ancestor_ids, prefix="", item_prefix="    "):
             if prefix:
                 text.insert("end", prefix)
+            if ancestor_ids is None:
+                text.insert("end", RESULT_COMMON_ANCESTOR)
+                text.insert("end", RESULT_COMMON_ANCESTOR_SAME_PERSON)
+                text.insert("end", "\n")
+                return
             if not ancestor_ids:
                 text.insert("end", RESULT_COMMON_ANCESTOR)
                 text.insert("end", RESULT_COMMON_ANCESTOR_NONE)
@@ -1596,9 +1647,19 @@ class PersonDialogMixin:
                         )
                     )
                     for detail in event["supplemental"]:
-                        add_with_https_links(
-                            FACT_EVENT_SUPPLEMENTAL_LINE.format(details=detail)
-                        )
+                        if isinstance(detail, dict):
+                            add_linked_line(
+                                FACT_EVENT_SUPPLEMENTAL_LINE.format(
+                                    details=detail["text"]
+                                ),
+                                detail["url"],
+                            )
+                        else:
+                            add_with_https_links(
+                                FACT_EVENT_SUPPLEMENTAL_LINE.format(
+                                    details=detail
+                                )
+                            )
             add("")
 
         indi_tags = indi.get("tags", [])
@@ -2053,11 +2114,29 @@ class PersonDialogMixin:
                     return "break"
                 try:
                     if is_pdf:
+                        name = self._display_name(indi)
+                        birth_year = indi.get("birth_year")
+                        death_year = indi.get("death_year")
+                        if birth_year and death_year:
+                            lifespan = (
+                                f" ({format_year(birth_year)}"
+                                f"–{format_year(death_year)})"
+                            )
+                        elif birth_year:
+                            lifespan = f" (b. {format_year(birth_year)})"
+                        elif death_year:
+                            lifespan = f" (d. {format_year(death_year)})"
+                        else:
+                            lifespan = ""
+                        photo_bytes = None
+                        if self._config.get_pdf_include_photos():
+                            photo_bytes = self._pdf_profile_photo_bytes(current_id)
                         render_text_widget_pdf(
                             path,
                             text._textbox,
-                            header=win.title().strip(),
-                            font_size=self._mono_size,
+                            report_title=DISPLAY_MODE_PROFILE,
+                            subject=name + lifespan,
+                            photo_bytes=photo_bytes,
                         )
                     else:
                         with open(path, "w", encoding="utf-8") as f:

@@ -169,12 +169,20 @@ class ConfigManager:
 
     def get_save_format(self):
         """Return the preferred format for saving text views."""
-        value = self.load_value('save_format', 'text')
-        return value if value in ('text', 'pdf') else 'text'
+        value = self.load_value('save_format', 'pdf')
+        return value if value in ('text', 'pdf') else 'pdf'
 
     def set_save_format(self, value):
         """Save the preferred format for saving text views."""
         self.save_value('save_format', value)
+
+    def get_pdf_include_photos(self):
+        """Return whether PDF exports should include real profile photos."""
+        return bool(self.load_value('pdf_include_photos', False))
+
+    def set_pdf_include_photos(self, value):
+        """Save whether PDF exports should include real profile photos."""
+        self.save_value('pdf_include_photos', bool(value))
 
     def get_media_parent_dir(self, gedcom_path):
         """Return the saved replacement media directory for a GEDCOM path."""

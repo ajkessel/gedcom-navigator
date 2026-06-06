@@ -189,6 +189,47 @@ def test_main_window_loads_fixture_and_exercises_core_views(gui_app, tmp_path):
 
 
 @pytest.mark.gui
+def test_export_preferences_render_and_persist_include_photos(gui_app):
+    import customtkinter as ctk
+    import gedcom_strings as gs
+
+    app = gui_app
+    root = app.root
+
+    def open_preferences():
+        before = set(root.winfo_children())
+        app._show_preferences()
+        _pump_until(root, lambda: len(set(root.winfo_children()) - before) >= 1)
+        return list(set(root.winfo_children()) - before)[0]
+
+    prefs_win = open_preferences()
+    assert _find_widgets(prefs_win, ctk.CTkLabel, gs.FRAME_EXPORT)
+    radio_types = (ctk.CTkRadioButton, tk.Radiobutton)
+    assert _find_widgets(prefs_win, radio_types, gs.SAVE_FORMAT_PDF)
+    assert _find_widgets(prefs_win, radio_types, gs.SAVE_FORMAT_TEXT)
+
+    include_photos = _find_widgets(
+        prefs_win, ctk.CTkCheckBox, gs.CHK_PDF_INCLUDE_PHOTOS)
+    assert include_photos
+    assert include_photos[0].get() == 0
+
+    include_photos[0].invoke()
+    assert include_photos[0].get() == 1
+    ok_buttons = _find_widgets(prefs_win, ctk.CTkButton, gs.BTN_OK)
+    assert ok_buttons
+    ok_buttons[0].invoke()
+    _pump_until(root, lambda: not prefs_win.winfo_exists())
+    assert app._config.get_pdf_include_photos() is True
+
+    prefs_win = open_preferences()
+    include_photos = _find_widgets(
+        prefs_win, ctk.CTkCheckBox, gs.CHK_PDF_INCLUDE_PHOTOS)
+    assert include_photos[0].get() == 1
+    _destroy_window(prefs_win)
+    _pump_until(root, lambda: not prefs_win.winfo_exists())
+
+
+@pytest.mark.gui
 def test_results_bold_tag_tracks_widget_scaling(gui_app, tmp_path):
     """The results 'bold' tag must scale with CTk widget scaling so bold person
     names/headers don't render tiny next to the scaled base font at high DPI.

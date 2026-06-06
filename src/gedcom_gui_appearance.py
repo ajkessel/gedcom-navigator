@@ -796,7 +796,10 @@ class AppearanceMixin:
                 not self.fuzzy_search.get()),
             'toggle_married_name_search': lambda: self.married_name_search.set(
                 not self.married_name_search.get()),
+            'display_profile': lambda: self._set_display_mode_and_sub('profile', 'bio'),
             'display_paths': lambda: self._set_display_mode('paths'),
+            'profile_pedigree': lambda: self._set_display_mode_and_sub('profile', 'pedigree'),
+            'profile_descendants': lambda: self._set_display_mode_and_sub('profile', 'descendants'),
             'select_tag': self._view_tags,
             'open_gedcom': self._browse,
             'set_home': self._set_home_person,
