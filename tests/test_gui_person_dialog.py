@@ -540,6 +540,91 @@ def test_profile_full_image_title_uses_filename_without_extension():
         r"C:\media\Family Photo.PNG") == "Family Photo"
 
 
+def test_profile_thumbnail_is_parented_above_inner_text(monkeypatch):
+    class Image:
+        @staticmethod
+        def width():
+            return 100
+
+        @staticmethod
+        def height():
+            return 120
+
+    class Inner:
+        def tag_delete(self, _tag):
+            pass
+
+        def update_idletasks(self):
+            pass
+
+        @staticmethod
+        def winfo_x():
+            return 10
+
+        @staticmethod
+        def winfo_y():
+            return 5
+
+        @staticmethod
+        def winfo_width():
+            return 300
+
+        def bind(self, *_args, **_kwargs):
+            pass
+
+    class Text:
+        def __init__(self):
+            self._textbox = Inner()
+            self.bindings = []
+
+        def configure(self, **_kwargs):
+            pass
+
+        def bind(self, *args, **kwargs):
+            self.bindings.append((args, kwargs))
+
+        @staticmethod
+        def winfo_toplevel():
+            return None
+
+    class Label:
+        def __init__(self, master, **_kwargs):
+            self.master = master
+            self.placements = []
+            self.lift_count = 0
+
+        def bind(self, *_args, **_kwargs):
+            pass
+
+        def place(self, **kwargs):
+            self.placements.append(kwargs)
+
+        def lift(self):
+            self.lift_count += 1
+
+        def after_idle(self, callback):
+            callback()
+
+    class App(PersonDialogMixin):
+        def _profile_media_payload(self, _indi_id, _size):
+            return {'kind': 'real', 'path': '/media/photo.jpg', 'image': Image()}
+
+        @staticmethod
+        def _profile_thumbnail_size():
+            return 100, 120
+
+    monkeypatch.setattr('gedcom_gui_person_dialog.tk.Label', Label)
+    text = Text()
+
+    layout = App()._place_profile_thumbnail(text, '@A@')
+
+    label = text._profile_image_label
+    assert label.master is text
+    assert label.placements[-1] == {'x': 302, 'y': 13, 'anchor': 'ne'}
+    assert label.lift_count >= 1
+    assert layout == {'width': 100, 'height': 120, 'pad': 8}
+
+
 def test_full_profile_image_panning_binds_both_mouse_buttons():
     class Canvas:
         def __init__(self):

@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.9.15 - Prerelease]
+
+### Changed
+
+- **Sibling connectors replaced by ghost-stub bars in family-tree graphs** — when parents are not visible, siblings were connected by horizontal lines indistinguishable from spouse double-rail lines. Siblings are now grouped by a short horizontal bar drawn above the node row with vertical drop lines to each sibling — the same visual language as the parents-visible bus, just without boxes. The stub lives in a distinct vertical zone so it cannot be confused with a spouse connection. Half-sibling groups use the split dashed-rail style; step-sibling groups use the dotted style.
+
+### Fixed
+
+- **Family-tree connector bus line no longer overlaps parent nodes at high display scaling** — at high DPI (e.g. Windows 300 % scaling), enlarged fonts make node heights grow, causing the horizontal bus line that connects parents to children to be placed inside the parent node boxes rather than below them. The bus-line midpoint now anchors to the actual parent node bottom rather than the couple's centre, keeping 44 design-unit clearance between the parent boxes and the bus regardless of DPI.
+- **Find, filter, profile pane, and profile photo clear when loading a new file** — opening a different GEDCOM file now resets the Find and Filter fields, clears the results/profile pane text, and destroys any floating profile thumbnail so no stale content from the previous file is left visible.
+- **Profile photo updates when switching persons in Pedigree and Descendants views** — selecting a new person while in Pedigree or Descendants sub-mode now replaces the profile thumbnail with the new person's photo rather than leaving the previous person's photo in place. Both text-report renderers now call `_place_profile_thumbnail` the same way the Bio renderer does.
+- **Full-size image window no longer opens automatically on profile navigation** — a Windows Tkinter quirk caused the photo thumbnail's click handler to be invoked with no event argument during navigation, which (after a prior defensive fix) inadvertently opened the full-size image viewer. The handler now only opens the image when called with a real click event.
+- **Profile photos remain above text on macOS** — the profile thumbnail is now layered over the outer textbox instead of inside Aqua's native text widget, preventing Matches-view text redraws from painting over the image. The thumbnail is repositioned and raised whenever either textbox layer is resized.
+
 ## [1.9.14] - 2026-06-05
 
 ### Added

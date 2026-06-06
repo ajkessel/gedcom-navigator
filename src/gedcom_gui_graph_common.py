@@ -657,6 +657,34 @@ class GraphCommonMixin:
                 canvas, start_x, start_y, end_x, end_y,
                 colors['sibling'], scale)
 
+    def _draw_sibling_stub(self, canvas, bus_x_start, bus_x_end, stub_y,
+                           child_xs, child_top_ys, kind, colors, scale):
+        """Draw a ghost family stub bar for siblings with no visible parent node."""
+        if kind == 'half':
+            self._draw_half_sibling_line(
+                canvas, bus_x_start, stub_y, bus_x_end, stub_y,
+                colors['half_sibling'], scale)
+            drop_color = colors['half_sibling']
+            drop_dash = (scale(9), scale(5))
+        elif kind == 'step':
+            canvas.create_line(
+                bus_x_start, stub_y, bus_x_end, stub_y,
+                fill=colors['step'], width=scale(4),
+                dash=(scale(10), scale(4), scale(2), scale(4)))
+            drop_color = colors['step']
+            drop_dash = (scale(10), scale(4), scale(2), scale(4))
+        else:
+            canvas.create_line(
+                bus_x_start, stub_y, bus_x_end, stub_y,
+                fill=colors['sibling'], width=scale(4))
+            drop_color = colors['sibling']
+            drop_dash = None
+        for child_x, child_top in zip(child_xs, child_top_ys):
+            line_kwargs = {'fill': drop_color, 'width': scale(3)}
+            if drop_dash:
+                line_kwargs['dash'] = drop_dash
+            canvas.create_line(child_x, stub_y, child_x, child_top, **line_kwargs)
+
     @staticmethod
     def _graph_relationship_legend_items(kinds):
         """Return legend rows, including biological baseline when needed."""

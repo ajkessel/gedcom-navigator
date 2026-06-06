@@ -3,7 +3,13 @@
 Generate Mac App Store screenshots and animated preview assets.
 
 Run from the project root on MacOS:
-    python dev/generate-appstore-assets.py
+    python dev/generate-appstore-assets.py                # full pipeline
+    python dev/generate-appstore-assets.py --only pedigree  # one screenshot
+    python dev/generate-appstore-assets.py --only tree pedigree  # a subset
+
+With no --only the full pipeline runs (all screenshots + video).  --only
+regenerates just the named screenshot(s) and skips video compilation; the
+mandatory setup (GEDCOM load, home person, Maya selection) always runs.
 
 Produces in docs/screenshots/appstore/:
   screenshot_01_main.png          – person list, Maya selected, path-to-home visible
@@ -35,6 +41,19 @@ import threading
 import time
 import queue
 from pathlib import Path
+
+if sys.platform != 'darwin':
+    print("Error: this script requires a MacOS environment", file=sys.stderr)
+    sys.exit(1)
+
+# Detect if the script is running inside a virtual environment
+if sys.prefix == sys.base_prefix:
+    venv_python = Path(__file__).parent.parent / ".venv" / "bin" / "python"
+    if venv_python.exists():
+        os.execl(str(venv_python), str(venv_python), *sys.argv)
+    else:
+        print("Error: Virtual environment ('venv') not found.", file=sys.stderr)
+        sys.exit(1)
 
 # ---------------------------------------------------------------------------
 # Project paths
@@ -79,6 +98,21 @@ TREE_TITLES = {
     "pedigree": "Pedigree Tree",
     "descendant": "Descendant Tree",
 }
+
+# Selective regeneration keys — each maps to one logical screenshot step.  Pass
+# one or more with `--only KEY [KEY ...]` to regenerate just those screenshots;
+# with no `--only` the full pipeline runs (every screenshot plus the GIF/MP4).
+# "graph" covers both the combined (screenshot_04_with_graph) and graph-only
+# (screenshot_04_graph_only) captures, which share the same setup.
+SCREENSHOT_KEYS = (
+    "main",        # screenshot_01_main.png
+    "matches",     # screenshot_02_matches.png
+    "paths",       # screenshot_03_paths.png
+    "graph",       # screenshot_04_with_graph.png + screenshot_04_graph_only.png
+    "tree",        # screenshot_05_tree.png
+    "pedigree",    # screenshot_06_pedigree.png
+    "descendant",  # screenshot_07_descendant.png
+)
 
 
 def _relationship_for_path(app, start_id, path):
@@ -449,8 +483,20 @@ def _capture_tree_view(
 # ---------------------------------------------------------------------------
 
 
-def automation(app, done_event: threading.Event):
-    """Screenshot automation — runs in the worker thread."""
+def automation(app, done_event: threading.Event, selected=None):
+    """Screenshot automation — runs in the worker thread.
+
+    *selected* – optional set of screenshot keys (see SCREENSHOT_KEYS) to
+    regenerate.  When None, the full pipeline runs (every screenshot plus the
+    GIF/MP4 video assets).  When a subset is given, the mandatory setup (GEDCOM
+    load, home person, Maya selection) still runs, then only the requested
+    screenshots are captured; the video assets are skipped because they need
+    the complete frame sequence.
+    """
+
+    def want(name: str) -> bool:
+        return selected is None or name in selected
+
     try:
         OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
         FRAMES_DIR.mkdir(parents=True, exist_ok=True)
@@ -500,160 +546,194 @@ def automation(app, done_event: threading.Event):
         time.sleep(2.5)
 
         _snaps(20, "main window loaded", pause=0.4)
-        _screenshot(OUTPUT_DIR / "screenshot_01_main.png")
+        if want("main"):
+            _screenshot(OUTPUT_DIR / "screenshot_01_main.png")
 
-        # ---------------------------------------------------------------
-        # 3. Run DNA match search for Maya
-        # ---------------------------------------------------------------
-        print("\n[3/9] Running DNA match search …")
-        _ui(
-            lambda: (app.tree.selection_set(sel_id), setattr(app, "_active_id", sel_id))
-        )
-        _ui(app._find_matches)
+        if want("matches"):
+            # -----------------------------------------------------------
+            # 3. Run DNA match search for Maya
+            # -----------------------------------------------------------
+            print("\n[3/9] Running DNA match search …")
+            _ui(
+                lambda: (
+                    app.tree.selection_set(sel_id),
+                    setattr(app, "_active_id", sel_id),
+                )
+            )
+            _ui(app._find_matches)
 
-        _snaps(6, "searching", pause=0.6)
-        _wait_not_busy(app, timeout=60)
-        time.sleep(0.4)
+            _snaps(6, "searching", pause=0.6)
+            _wait_not_busy(app, timeout=60)
+            time.sleep(0.4)
 
-        # ---------------------------------------------------------------
-        # 4. Screenshot DNA results — scroll to show path-to-home section
-        # ---------------------------------------------------------------
-        print("\n[4/9] Screenshot – DNA results with path to home person …")
-        _snaps(25, "results", pause=0.4)
+            # -----------------------------------------------------------
+            # 4. Screenshot DNA results — scroll to show path-to-home section
+            # -----------------------------------------------------------
+            print("\n[4/9] Screenshot – DNA results with path to home person …")
+            _snaps(25, "results", pause=0.4)
 
-        # Scroll the results panel to the bottom so the "Path to Home Person"
-        # section (showing Maya → Daniel → Arthur) is visible.
-        def _scroll_results_bottom():
-            try:
-                app.results.yview_moveto(1.0)
-            except Exception:  # pylint: disable=broad-exception-caught
-                pass
+            # Scroll the results panel to the bottom so the "Path to Home
+            # Person" section (showing Maya → Daniel → Arthur) is visible.
+            def _scroll_results_bottom():
+                try:
+                    app.results.yview_moveto(1.0)
+                except Exception:  # pylint: disable=broad-exception-caught
+                    pass
 
-        _ui(_scroll_results_bottom)
-        time.sleep(0.5)
-        _screenshot(OUTPUT_DIR / "screenshot_02_matches.png")
+            _ui(_scroll_results_bottom)
+            time.sleep(0.5)
+            _screenshot(OUTPUT_DIR / "screenshot_02_matches.png")
 
         # ---------------------------------------------------------------
         # 5. Paths mode: Maya → Brianna Logan Vaughn (second cousin-in-law)
         # ---------------------------------------------------------------
-        print("\n[5/9] Screenshot – paths mode (Maya → Brianna Logan Vaughn) …")
-
-        # Compute the path up front so the relationship-graph screenshot in
-        # step 6 can reuse it — running the path search overwrites
-        # app._last_result with type='path' and no path list.
-        _paths_path = _best_path_to(app, START_PERSON_ID, PATHS_TARGET_ID)
-        _paths_rel = (
-            _relationship_for_path(app, START_PERSON_ID, _paths_path)
-            if _paths_path
-            else "relationship"
-        )
-
-        if _paths_path:
-            _ui(lambda: app._run_path_search(START_PERSON_ID, PATHS_TARGET_ID))
-            _wait_not_busy(app, timeout=30)
-            time.sleep(0.5)
-            _snaps(8, "paths mode", pause=0.4)
-            _screenshot(OUTPUT_DIR / "screenshot_03_paths.png")
-        else:
-            print(
-                f"  No path {START_PERSON_ID} → {PATHS_TARGET_ID} – skipping."
+        # The path/relationship are reused by both the paths screenshot and the
+        # relationship-graph screenshot, so compute them whenever either is
+        # requested.
+        _paths_path = None
+        _paths_rel = "relationship"
+        if want("paths") or want("graph"):
+            # Compute the path up front so the relationship-graph screenshot in
+            # step 6 can reuse it — running the path search overwrites
+            # app._last_result with type='path' and no path list.
+            _paths_path = _best_path_to(app, START_PERSON_ID, PATHS_TARGET_ID)
+            _paths_rel = (
+                _relationship_for_path(app, START_PERSON_ID, _paths_path)
+                if _paths_path
+                else "relationship"
             )
+
+        if want("paths"):
+            print(
+                "\n[5/9] Screenshot – paths mode (Maya → Brianna Logan Vaughn) …"
+            )
+            if _paths_path:
+                _ui(lambda: app._run_path_search(START_PERSON_ID, PATHS_TARGET_ID))
+                _wait_not_busy(app, timeout=30)
+                time.sleep(0.5)
+                _snaps(8, "paths mode", pause=0.4)
+                _screenshot(OUTPUT_DIR / "screenshot_03_paths.png")
+            else:
+                print(
+                    f"  No path {START_PERSON_ID} → {PATHS_TARGET_ID} – skipping."
+                )
 
         # ---------------------------------------------------------------
         # 6. Relationship graph for the Maya → Brianna path
         # ---------------------------------------------------------------
-        print("\n[6/9] Opening relationship graph (Maya → Brianna Logan Vaughn) …")
-        if _paths_path:
-            _ui(lambda: app._show_path_graph(_paths_path, _paths_rel))
-            print(f"  Graph opened ({_paths_rel}).")
-        else:
-            print("  No graph data – skipping.")
+        if want("graph"):
+            print(
+                "\n[6/9] Opening relationship graph (Maya → Brianna Logan Vaughn) …"
+            )
+            if _paths_path:
+                _ui(lambda: app._show_path_graph(_paths_path, _paths_rel))
+                print(f"  Graph opened ({_paths_rel}).")
+            else:
+                print("  No graph data – skipping.")
 
-        time.sleep(1.2)
+            time.sleep(1.2)
 
-        # Position graph window offset from the main window.
-        graph_win = getattr(app, "_path_graph_win", None) or getattr(
-            app, "_secondary_win", None
-        )
-        if graph_win is not None:
-            try:
-                if _ui(lambda: graph_win.winfo_exists()):
-                    _ui(lambda: graph_win.geometry(f"+{WIN_X + 160}+{WIN_Y + 80}"))
-                    time.sleep(0.5)
-            except Exception:  # pylint: disable=broad-exception-caught
-                pass
-
-        _snaps(30, "graph open", pause=0.4)
-        _screenshot(OUTPUT_DIR / "screenshot_04_with_graph.png")
-
-        # Graph-only screenshot — resize to 1280×772 for 2560×1600 Retina.
-        graph_win = getattr(app, "_path_graph_win", None) or getattr(
-            app, "_secondary_win", None
-        )
-        if graph_win is not None:
-            try:
-                if _ui(lambda: graph_win.winfo_exists()):
-                    _ui(
-                        lambda: graph_win.geometry(
-                            f"{WIN_W}x{WIN_CONTENT_H}+{WIN_X + 160}+{WIN_Y + 80}"
+            # Position graph window offset from the main window.
+            graph_win = getattr(app, "_path_graph_win", None) or getattr(
+                app, "_secondary_win", None
+            )
+            if graph_win is not None:
+                try:
+                    if _ui(lambda: graph_win.winfo_exists()):
+                        _ui(
+                            lambda: graph_win.geometry(
+                                f"+{WIN_X + 160}+{WIN_Y + 80}"
+                            )
                         )
-                    )
-                    time.sleep(0.6)
-                    # With images enabled the nodes are tall enough that a
-                    # multi-row path overflows the fixed 1280×772 window and the
-                    # bottom rows clip.  Shrink the graph to fit the (now final)
-                    # viewport so the whole relationship path is visible while
-                    # the captured asset stays exactly 2560×1600.
-                    fit_graph = getattr(app, "_fit_open_graph", None)
-                    if fit_graph is not None:
-                        _ui(fit_graph)
                         time.sleep(0.5)
-                    else:
-                        print("  WARNING: graph fit hook unavailable.")
-            except Exception:  # pylint: disable=broad-exception-caught
-                pass
-        _screenshot(
-            OUTPUT_DIR / "screenshot_04_graph_only.png", title="Relationship Gr"
-        )
+                except Exception:  # pylint: disable=broad-exception-caught
+                    pass
+
+            _snaps(30, "graph open", pause=0.4)
+            _screenshot(OUTPUT_DIR / "screenshot_04_with_graph.png")
+
+            # Graph-only screenshot — resize to 1280×772 for 2560×1600 Retina.
+            graph_win = getattr(app, "_path_graph_win", None) or getattr(
+                app, "_secondary_win", None
+            )
+            if graph_win is not None:
+                try:
+                    if _ui(lambda: graph_win.winfo_exists()):
+                        _ui(
+                            lambda: graph_win.geometry(
+                                f"{WIN_W}x{WIN_CONTENT_H}+{WIN_X + 160}+{WIN_Y + 80}"
+                            )
+                        )
+                        time.sleep(0.6)
+                        # With images enabled the nodes are tall enough that a
+                        # multi-row path overflows the fixed 1280×772 window and
+                        # the bottom rows clip.  Shrink the graph to fit the (now
+                        # final) viewport so the whole relationship path is
+                        # visible while the captured asset stays exactly
+                        # 2560×1600.
+                        fit_graph = getattr(app, "_fit_open_graph", None)
+                        if fit_graph is not None:
+                            _ui(fit_graph)
+                            time.sleep(0.5)
+                        else:
+                            print("  WARNING: graph fit hook unavailable.")
+                except Exception:  # pylint: disable=broad-exception-caught
+                    pass
+            _screenshot(
+                OUTPUT_DIR / "screenshot_04_graph_only.png", title="Relationship Gr"
+            )
 
         # ---------------------------------------------------------------
         # 7. Family tree view: Daniel Hart — 19 relatives around the centre
         # ---------------------------------------------------------------
-        print("\n[7/9] Opening family tree view (Daniel Hart, 19 relatives) …")
-        _capture_tree_view(
-            app, TREE_PERSON_ID, "tree", "screenshot_05_tree.png", fit=True
-        )
+        if want("tree"):
+            print("\n[7/9] Opening family tree view (Daniel Hart, 19 relatives) …")
+            _capture_tree_view(
+                app, TREE_PERSON_ID, "tree", "screenshot_05_tree.png", fit=True
+            )
 
         # ---------------------------------------------------------------
         # 8. Pedigree (ancestor) tree: Maya Hart — 8 ancestors, 3 generations
         # ---------------------------------------------------------------
-        print("\n[8/9] Opening pedigree tree (Maya Hart, 8 ancestors) …")
-        _capture_tree_view(
-            app, PEDIGREE_PERSON_ID, "pedigree", "screenshot_06_pedigree.png"
-        )
+        if want("pedigree"):
+            print("\n[8/9] Opening pedigree tree (Maya Hart, 8 ancestors) …")
+            _capture_tree_view(
+                app,
+                PEDIGREE_PERSON_ID,
+                "pedigree",
+                "screenshot_06_pedigree.png",
+                fit=True,
+            )
 
         # ---------------------------------------------------------------
         # 9. Descendant tree: Arthur Hart — 148 descendants, 3 generations
         # ---------------------------------------------------------------
-        print("\n[9/9] Opening descendant tree (Arthur Hart, 148 descendants) …")
-        _capture_tree_view(
-            app,
-            DESCENDANT_PERSON_ID,
-            "descendant",
-            "screenshot_07_descendant.png",
-            expand_all=True,
-            zoom=0.5,
-        )
+        if want("descendant"):
+            print(
+                "\n[9/9] Opening descendant tree (Arthur Hart, 148 descendants) …"
+            )
+            _capture_tree_view(
+                app,
+                DESCENDANT_PERSON_ID,
+                "descendant",
+                "screenshot_07_descendant.png",
+                expand_all=True,
+                zoom=0.5,
+            )
 
         # ---------------------------------------------------------------
-        # Compile video assets
+        # Compile video assets — only for a full run; a selective run does not
+        # capture the complete frame sequence the GIF/MP4 require.
         # ---------------------------------------------------------------
-        total = frame_idx
-        print(f"\nCompiling video assets ({total} frames) …")
-        build_gif(FRAMES_DIR, OUTPUT_DIR / "screen_recording.gif", fps=5)
-        build_mp4(FRAMES_DIR, OUTPUT_DIR / "app_preview.mp4", fps=5)
-
         import shutil
+
+        if selected is None:
+            total = frame_idx
+            print(f"\nCompiling video assets ({total} frames) …")
+            build_gif(FRAMES_DIR, OUTPUT_DIR / "screen_recording.gif", fps=5)
+            build_mp4(FRAMES_DIR, OUTPUT_DIR / "app_preview.mp4", fps=5)
+        else:
+            print("\nSelective run — skipping GIF/MP4 video compilation.")
 
         shutil.rmtree(FRAMES_DIR, ignore_errors=True)
 
@@ -677,11 +757,65 @@ def automation(app, done_event: threading.Event):
 # ---------------------------------------------------------------------------
 
 
-def main():
+def _parse_args(argv):
+    """Parse command-line arguments.
+
+    With no arguments the full pipeline runs (all screenshots + video).  Pass
+    `--only KEY [KEY ...]` to regenerate just those screenshots; see
+    SCREENSHOT_KEYS for the valid keys.
+    """
+    import argparse  # noqa: PLC0415
+
+    parser = argparse.ArgumentParser(
+        description=(
+            "Generate Mac App Store screenshots and preview video.  With no "
+            "options the full pipeline runs; use --only to regenerate a subset."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=(
+            "screenshot keys (for --only):\n"
+            "  main        screenshot_01_main.png\n"
+            "  matches     screenshot_02_matches.png\n"
+            "  paths       screenshot_03_paths.png\n"
+            "  graph       screenshot_04_with_graph.png + screenshot_04_graph_only.png\n"
+            "  tree        screenshot_05_tree.png\n"
+            "  pedigree    screenshot_06_pedigree.png\n"
+            "  descendant  screenshot_07_descendant.png\n"
+            "\n"
+            "examples:\n"
+            "  python dev/generate-appstore-assets.py\n"
+            "  python dev/generate-appstore-assets.py --only pedigree\n"
+            "  python dev/generate-appstore-assets.py --only tree pedigree descendant"
+        ),
+    )
+    parser.add_argument(
+        "--only",
+        nargs="+",
+        choices=SCREENSHOT_KEYS,
+        metavar="KEY",
+        help=(
+            "regenerate only these screenshot(s); video assets are skipped. "
+            "choices: " + ", ".join(SCREENSHOT_KEYS)
+        ),
+    )
+    return parser.parse_args(argv)
+
+
+def main(argv=None):
     global _root_ref
 
+    args = _parse_args(sys.argv[1:] if argv is None else argv)
+    selected = set(args.only) if args.only else None
+    if selected is not None:
+        print(f"Selective regeneration: {', '.join(sorted(selected))}")
+
+    import customtkinter as ctk  # noqa: PLC0415
     import tkinter as tk
     from gedcom_navigator_gui import GedcomNavigatorApp  # noqa: PLC0415
+
+    # Force light mode so screenshots are never rendered in dark mode,
+    # regardless of the user's system preference or saved settings.
+    ctk.set_appearance_mode("light")
 
     _init_capturer()
 
@@ -690,6 +824,9 @@ def main():
     root.geometry(f"{WIN_W}x{WIN_CONTENT_H}+{WIN_X}+{WIN_Y}")
 
     app = GedcomNavigatorApp(root)
+    # Prevent the app from overriding the forced light mode with a saved dark theme.
+    app._theme_pref = "Light"
+    app._apply_theme("Light")
 
     # Redirect the auto-load to use our fictional sample.
     # Must happen before root.mainloop() fires the queued callback.
@@ -704,7 +841,9 @@ def main():
     root.deiconify()
 
     done = threading.Event()
-    t = threading.Thread(target=automation, args=(app, done), daemon=True)
+    t = threading.Thread(
+        target=automation, args=(app, done, selected), daemon=True
+    )
     t.start()
 
     root.mainloop()

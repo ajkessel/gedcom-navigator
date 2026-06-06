@@ -236,6 +236,7 @@ class ResultsMixin(GraphRenderMixin, GraphLayoutMixin):
             w.delete('1.0', 'end')
         except tk.TclError:
             return
+        self._place_profile_thumbnail(w, start_id)
         self._clear_person_tags(w)
         self._set_results_header_for_person(start_id)
 
@@ -310,6 +311,7 @@ class ResultsMixin(GraphRenderMixin, GraphLayoutMixin):
             w.delete('1.0', 'end')
         except tk.TclError:
             return
+        self._place_profile_thumbnail(w, start_id)
         self._clear_person_tags(w)
         self._set_results_header_for_person(start_id)
 
@@ -852,6 +854,7 @@ class ResultsMixin(GraphRenderMixin, GraphLayoutMixin):
 
     def _reset_results_pane(self):
         """Reset invalid result state after the underlying person data changes."""
+        self._clear_profile_thumbnail(self.results)
         self.results.configure(state='normal')
         self.results.delete('1.0', 'end')
         self.results.configure(state='disabled')
