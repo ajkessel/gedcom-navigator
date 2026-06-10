@@ -1,6 +1,6 @@
 # Changelog
 
-## [1.9.15 - Prerelease]
+## [1.9.15]
 
 ### Changed
 
