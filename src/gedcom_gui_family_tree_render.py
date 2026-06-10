@@ -18,6 +18,7 @@ from gedcom_family_tree import (
     family_tree_expansion_options,
     layout_family_tree,
 )
+from gedcom_family_tree_layout import layout_family_tree_units
 from gedcom_strings import *  # pylint: disable=unused-wildcard-import
 
 
@@ -183,13 +184,15 @@ class FamilyTreeRenderMixin:
                 'spouses': [],
                 'children': [],
             }
-        parents, siblings, spouses, children = self._get_family_members(
-            indi_id)
+        entries = self._get_family_member_entries(indi_id)
         return {
-            'parents': parents,
-            'siblings': siblings,
-            'spouses': spouses,
-            'children': children,
+            'parents': [e['id'] for e in entries['parents']],
+            'siblings': [
+                e['id'] for e in entries['siblings']
+                if e.get('kind') != 'step'
+            ],
+            'spouses': [e['id'] for e in entries['spouses']],
+            'children': [e['id'] for e in entries['children']],
         }
 
     def _co_parents_for_children(self, indi_id, child_ids):
@@ -304,6 +307,113 @@ class FamilyTreeRenderMixin:
         ))
         return result
 
+    def _family_tree_bus_groups(self, child_buses, positions, v_gap,
+                                h_gap=None):
+        """Convert layout-emitted family-unit buses into render groups.
+
+        Returns (child_edge_groups, stub_groups): buses with a visible parent
+        become parent-child bus groups anchored at their own parent(s); buses
+        without visible parents become ghost sibling stubs.  Parentless buses
+        sharing a hidden parent merge into one half-sibling stub so the
+        half relationship stays visible.
+        """
+        child_edge_groups = []
+        orphan_buses = []
+        for bus in child_buses:
+            children = [cid for cid in bus['children'] if cid in positions]
+            if not children:
+                continue
+            parents = [pid for pid in bus['parent_ids'] if pid in positions]
+            if parents:
+                xs = sorted(positions[pid][0] for pid in parents)
+                ys = [positions[pid][1] for pid in parents]
+                # Parents who are not side by side (e.g. divorced biological
+                # parents each shown with a later spouse) each get their own
+                # drop line; a single midpoint drop would cross other boxes.
+                split = h_gap is not None and len(xs) > 1 and any(
+                    right - left > h_gap * 1.2
+                    for left, right in zip(xs, xs[1:]))
+                child_edge_groups.append({
+                    'parent_ids': tuple(sorted(parents)),
+                    'parent_x': sum(xs) / len(xs),
+                    'parent_y': sum(ys) / len(ys),
+                    'parent_h': None if split or len(parents) == 1 else 0,
+                    'parent_drop_xs': xs if split else None,
+                    'children': children,
+                })
+            else:
+                orphan_buses.append({
+                    'all_parents': bus.get('all_parents', frozenset()),
+                    'children': children,
+                })
+
+        merged = []
+        for bus in orphan_buses:
+            target = None
+            for candidate in merged:
+                if candidate['all_parents'] & bus['all_parents']:
+                    target = candidate
+                    break
+            if target is None:
+                merged.append({
+                    'all_parents': set(bus['all_parents']),
+                    'children': list(bus['children']),
+                    'kinds': {frozenset(bus['all_parents'])},
+                })
+            else:
+                target['all_parents'] |= bus['all_parents']
+                target['children'].extend(bus['children'])
+                target['kinds'].add(frozenset(bus['all_parents']))
+
+        stub_groups = []
+        for group in merged:
+            if len(group['children']) < 2:
+                continue
+            child_ids = sorted(
+                group['children'], key=lambda cid: positions[cid][0])
+            sibling_y = positions[child_ids[0]][1]
+            stub_groups.append({
+                'kind': 'half' if len(group['kinds']) > 1 else 'birth',
+                'child_ids': child_ids,
+                'stub_y': sibling_y - v_gap / 2,
+            })
+        return child_edge_groups, stub_groups
+
+    @staticmethod
+    def _family_tree_bus_lanes(child_edge_groups, positions, scale):
+        """Assign vertical lane offsets so overlapping buses stay distinct.
+
+        Two family units can drop children onto the same row (e.g. each
+        step-parent's own children); without separation their horizontal bus
+        lines would overlay each other.  Greedily assign overlapping spans to
+        different lanes, offset upward in scaled steps.
+        """
+        rows = {}
+        for group in child_edge_groups:
+            row_y = round(min(
+                positions[cid][1] for cid in group['children']))
+            rows.setdefault(row_y, []).append(group)
+        offsets = {}
+        for row_groups in rows.values():
+            spans = []
+            for group in row_groups:
+                xs = [positions[cid][0] for cid in group['children']]
+                xs.append(group['parent_x'])
+                spans.append((min(xs), max(xs), group))
+            spans.sort(key=lambda item: (item[0], item[1]))
+            active = []
+            for start_x, end_x, group in spans:
+                used = {
+                    lane for lane_end, lane in active
+                    if lane_end >= start_x - scale(8)
+                }
+                lane = 0
+                while lane in used:
+                    lane += 1
+                offsets[id(group)] = lane * scale(12)
+                active.append((end_x, lane))
+        return offsets
+
     @staticmethod
     def _family_tree_child_bus_span(parent_x, child_xs):
         """Return the horizontal connector span for a parent-child group."""
@@ -320,6 +430,12 @@ class FamilyTreeRenderMixin:
             if category != 'siblings':
                 continue
             if source_id not in positions or target_id not in positions:
+                continue
+            # Step-siblings do not share birth parents, so a step edge must not
+            # merge two otherwise-distinct birth/half-sibling groups into one
+            # component (which would then be mis-styled as step for all of them).
+            if self._edge_relationship_kind(
+                    source_id, target_id, category) == 'step':
                 continue
             sibling_adj.setdefault(source_id, set()).add(target_id)
             sibling_adj.setdefault(target_id, set()).add(source_id)
@@ -391,7 +507,18 @@ class FamilyTreeRenderMixin:
                 self._co_parents_for_children)
         else:
             visible_ids, edges = graph_builder()
-        layout = layout_builder(center_id, visible_ids, edges)
+        if layout_builder is layout_family_tree and graph_type == 'family_tree':
+            family_members = {
+                visible_id: self._family_tree_members_for(visible_id)
+                for visible_id in visible_ids
+            }
+            layout = layout_family_tree_units(
+                center_id, visible_ids, edges, family_members,
+                parent_kind=lambda parent_id, child_id:
+                    self._edge_relationship_kind(
+                        child_id, parent_id, 'parents'))
+        else:
+            layout = layout_builder(center_id, visible_ids, edges)
         visible_set = set(visible_ids)
         expanded_set = set(
             expanded if expanded_for_buttons is None else expanded_for_buttons)
@@ -570,8 +697,32 @@ class FamilyTreeRenderMixin:
             for source_id, target_id, category in edges
             if category == 'spouses'
         ]
-        child_edge_groups = self._family_tree_child_edge_groups(
-            edges, positions, self._co_parents_for_children, spouse_edges)
+        child_buses = getattr(layout, 'child_buses', None)
+        stub_groups = None
+        if child_buses is not None:
+            child_edge_groups, stub_groups = self._family_tree_bus_groups(
+                child_buses, positions, v_gap, h_gap)
+        else:
+            # Augment edges with implicit 'parents' links for any visible node
+            # whose parents are also visible but who arrived only via sibling
+            # edges (no explicit 'parents'/'children' edge in the graph).
+            # This ensures the parent-child bus is drawn for such nodes
+            # without altering the layout (already computed above).
+            _edge_set = set(edges)
+            _edges_for_groups = list(edges)
+            for node in layout:
+                node_id = node['id']
+                for parent_id in self._family_tree_members_for(
+                        node_id).get('parents', ()):
+                    if parent_id not in positions:
+                        continue
+                    candidate = (node_id, parent_id, 'parents')
+                    if candidate not in _edge_set:
+                        _edges_for_groups.append(candidate)
+                        _edge_set.add(candidate)
+            child_edge_groups = self._family_tree_child_edge_groups(
+                _edges_for_groups, positions, self._co_parents_for_children,
+                spouse_edges)
         canvas_w = margin * 2 + node_w + (max_column - min_column) * h_gap
         canvas_h = top_margin + margin + node_h + (
             max_generation - min_generation) * v_gap
@@ -660,8 +811,10 @@ class FamilyTreeRenderMixin:
                     self._draw_spouse_line(
                         canvas, start_x, sy, end_x, ty, colors['spouse'], scale)
                     continue
-            for group in self._sibling_stub_groups(
-                    edges, positions, child_edge_groups, v_gap):
+            if stub_groups is None:
+                stub_groups = self._sibling_stub_groups(
+                    edges, positions, child_edge_groups, v_gap)
+            for group in stub_groups:
                 pulse_progress()
                 child_ids = group['child_ids']
                 child_xs = [positions[cid][0] for cid in child_ids]
@@ -669,6 +822,8 @@ class FamilyTreeRenderMixin:
                 self._draw_sibling_stub(
                     canvas, min(child_xs), max(child_xs), group['stub_y'],
                     child_xs, child_tops, group['kind'], colors, scale)
+            bus_lane_offsets = self._family_tree_bus_lanes(
+                child_edge_groups, positions, scale)
             for group in child_edge_groups:
                 pulse_progress()
                 parent_x = group['parent_x']
@@ -681,11 +836,15 @@ class FamilyTreeRenderMixin:
                     for child_id in group['children']
                 ]
                 end_y = min(child_tops)
-                mid_y = (parent_y + node_h / 2 + end_y) / 2
+                mid_y = ((parent_y + node_h / 2 + end_y) / 2
+                         - bus_lane_offsets.get(id(group), 0))
                 child_xs = [positions[child_id][0]
                             for child_id in group['children']]
+                parent_drop_xs = group.get('parent_drop_xs')
+                span_xs = child_xs + list(parent_drop_xs or ())
                 bus_start_x, bus_end_x = self._family_tree_child_bus_span(
-                    parent_x, child_xs)
+                    parent_x if parent_drop_xs is None else span_xs[0],
+                    span_xs)
                 group_kind = 'birth'
                 for child_id in group['children']:
                     child_kind = self._combined_parent_child_kind(
@@ -695,8 +854,9 @@ class FamilyTreeRenderMixin:
                         break
                 line_options = self._graph_parent_line_options(
                     group_kind, colors, scale)
-                canvas.create_line(
-                    parent_x, start_y, parent_x, mid_y, **line_options)
+                for drop_x in (parent_drop_xs or (parent_x,)):
+                    canvas.create_line(
+                        drop_x, start_y, drop_x, mid_y, **line_options)
                 canvas.create_line(
                     bus_start_x, mid_y, bus_end_x, mid_y, **line_options)
                 for child_id in group['children']:
