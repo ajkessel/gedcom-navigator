@@ -254,6 +254,11 @@ An API token for your PyPI account, used by `twine` to upload the wheel and sour
 
 The existing local build scripts continue to work unchanged alongside the CI workflow. See [DEVELOPMENT.md](DEVELOPMENT.md) for `dev/build.sh`, `dev/build.ps1`, and the multi-platform `dev/build-and-release.sh` orchestrator.
 
+**Linux system dependencies:** If building on Linux locally, install `python3-tk` (provides the `tkinter` module required by tests):
+```bash
+sudo apt-get install python3-tk python3-dev libcairo2-dev
+```
+
 ## Exporting certificates as base64
 
 A quick reference for the base64 export step required by several secrets above:
