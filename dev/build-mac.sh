@@ -41,12 +41,14 @@ echo 'Building for macOS...'
 	[ "${x}" == "q" ] && exit 1
 	rm -r ./.venv "${HOME}/.pyenv"
 }
-if [[ -e "${HOME}/.config/p" ]]; then
-	echo 'Local keychain password found, unlocking keychain...'
-	security unlock-keychain -p "$(cat "${HOME}"/.config/p)" "${HOME}/Library/Keychains/login.keychain-db"
-else
-	echo 'Password file not found at ~/.config/p, skipping automatic keychain unlock.'
-	security unlock-keychain "${HOME}/Library/Keychains/login.keychain-db"
+if [[ -z "${CI:-}" ]]; then
+	if [[ -e "${HOME}/.config/p" ]]; then
+		echo 'Local keychain password found, unlocking keychain...'
+		security unlock-keychain -p "$(cat "${HOME}"/.config/p)" "${HOME}/Library/Keychains/login.keychain-db"
+	else
+		echo 'Password file not found at ~/.config/p, skipping automatic keychain unlock.'
+		security unlock-keychain "${HOME}/Library/Keychains/login.keychain-db"
+	fi
 fi
 export PATH="/usr/local/bin:$PATH"
 if command -v brew >/dev/null 2>&1; then
@@ -175,6 +177,16 @@ ditto -c -k --sequesterRsrc --keepParent "dist/gedcom-navigator.app" "${output_f
 	echo 'Cannot build zip file.'
 	exit 1
 }
+if [[ -n "${APPLE_NOTARIZATION_APPLE_ID:-}" ]]; then
+	echo 'Setting up notarytool credentials from environment...'
+	xcrun notarytool store-credentials notarytool-profile \
+		--apple-id "${APPLE_NOTARIZATION_APPLE_ID}" \
+		--password "${APPLE_NOTARIZATION_PASSWORD}" \
+		--team-id "${APPLE_NOTARIZATION_TEAM_ID}" || {
+		echo 'Failed to store notarytool credentials.'
+		exit 1
+	}
+fi
 xcrun notarytool submit "${output_file}" --keychain-profile "notarytool-profile" --wait || {
 	echo 'Notarytool failed.'
 	exit 1

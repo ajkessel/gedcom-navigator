@@ -1,0 +1,198 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+
+  # ── Linux ──────────────────────────────────────────────────────────────────
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: sudo apt-get update && sudo apt-get install -y python3-dev libcairo2-dev
+
+      - name: Build
+        run: bash dev/build-linux.sh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-build
+          path: dist/gedcom-navigator-linux.zip
+
+  # ── Windows ────────────────────────────────────────────────────────────────
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Inno Setup
+        run: choco install innosetup -y
+
+      - name: Install Azure Trusted Signing DLL
+        run: nuget install Microsoft.ArtifactSigning.Client -x -OutputDirectory "$env:LOCALAPPDATA\Microsoft.ArtifactSigning.Client"
+
+      - name: Build
+        env:
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+        run: pwsh dev/build.ps1
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-build
+          path: |
+            dist/gedcom-navigator-windows-portable.zip
+            dist/gedcom-navigator-windows-installer.exe
+
+  # ── macOS Developer ID ─────────────────────────────────────────────────────
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up signing keychain
+        env:
+          APPLE_DEVELOPER_CERT_P12: ${{ secrets.APPLE_DEVELOPER_CERT_P12 }}
+          APPLE_DEVELOPER_CERT_PASSWORD: ${{ secrets.APPLE_DEVELOPER_CERT_PASSWORD }}
+        run: |
+          KEYCHAIN_PATH="$RUNNER_TEMP/app-signing.keychain-db"
+          KEYCHAIN_PASSWORD="$(openssl rand -base64 20)"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          echo -n "$APPLE_DEVELOPER_CERT_P12" | base64 --decode -o /tmp/devid.p12
+          security import /tmp/devid.p12 -P "$APPLE_DEVELOPER_CERT_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security list-keychain -d user -s "$KEYCHAIN_PATH"
+          rm /tmp/devid.p12
+          echo "KEYCHAIN_PATH=$KEYCHAIN_PATH" >> "$GITHUB_ENV"
+
+      - name: Build
+        env:
+          APPLE_NOTARIZATION_APPLE_ID: ${{ secrets.APPLE_NOTARIZATION_APPLE_ID }}
+          APPLE_NOTARIZATION_PASSWORD: ${{ secrets.APPLE_NOTARIZATION_PASSWORD }}
+          APPLE_NOTARIZATION_TEAM_ID: ${{ secrets.APPLE_NOTARIZATION_TEAM_ID }}
+        run: bash dev/build-mac.sh
+
+      - name: Clean up keychain
+        if: always()
+        run: security delete-keychain "$KEYCHAIN_PATH"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-build
+          path: dist/gedcom-navigator-mac.zip
+
+  # ── macOS App Store ────────────────────────────────────────────────────────
+  build-macos-appstore:
+    runs-on: macos-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up signing keychain
+        env:
+          APPLE_DEVELOPER_CERT_P12: ${{ secrets.APPLE_DEVELOPER_CERT_P12 }}
+          APPLE_DEVELOPER_CERT_PASSWORD: ${{ secrets.APPLE_DEVELOPER_CERT_PASSWORD }}
+          APPLE_APPSTORE_CERT_P12: ${{ secrets.APPLE_APPSTORE_CERT_P12 }}
+          APPLE_APPSTORE_CERT_PASSWORD: ${{ secrets.APPLE_APPSTORE_CERT_PASSWORD }}
+          APPLE_APPSTORE_INSTALLER_CERT_P12: ${{ secrets.APPLE_APPSTORE_INSTALLER_CERT_P12 }}
+          APPLE_APPSTORE_INSTALLER_CERT_PASSWORD: ${{ secrets.APPLE_APPSTORE_INSTALLER_CERT_PASSWORD }}
+        run: |
+          KEYCHAIN_PATH="$RUNNER_TEMP/appstore-signing.keychain-db"
+          KEYCHAIN_PASSWORD="$(openssl rand -base64 20)"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          echo -n "$APPLE_DEVELOPER_CERT_P12" | base64 --decode -o /tmp/devid.p12
+          security import /tmp/devid.p12 -P "$APPLE_DEVELOPER_CERT_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          echo -n "$APPLE_APPSTORE_CERT_P12" | base64 --decode -o /tmp/appstore_app.p12
+          security import /tmp/appstore_app.p12 -P "$APPLE_APPSTORE_CERT_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          echo -n "$APPLE_APPSTORE_INSTALLER_CERT_P12" | base64 --decode -o /tmp/appstore_installer.p12
+          security import /tmp/appstore_installer.p12 -P "$APPLE_APPSTORE_INSTALLER_CERT_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security list-keychain -d user -s "$KEYCHAIN_PATH"
+          rm /tmp/devid.p12 /tmp/appstore_app.p12 /tmp/appstore_installer.p12
+          echo "KEYCHAIN_PATH=$KEYCHAIN_PATH" >> "$GITHUB_ENV"
+
+      - name: Set up provisioning profile
+        run: |
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          echo -n "${{ secrets.APPLE_APPSTORE_PROVISIONING_PROFILE }}" | base64 --decode \
+            -o ~/Library/MobileDevice/Provisioning\ Profiles/gedcom-navigator.provisionprofile
+
+      - name: Set up App Store Connect credentials
+        run: |
+          mkdir -p ~/.appstoreconnect/private_keys
+          printf '%s' "${{ secrets.APP_STORE_CONNECT_KEY_ID }}" > ~/.appstoreconnect/apikey.txt
+          printf '%s' "${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}" > ~/.appstoreconnect/apiissuer.txt
+          printf '%s' "${{ secrets.APP_STORE_CONNECT_APP_ID }}" > ~/.appstoreconnect/appid.txt
+          KEY_ID="${{ secrets.APP_STORE_CONNECT_KEY_ID }}"
+          printf '%s' "${{ secrets.APP_STORE_CONNECT_API_KEY }}" > ~/.appstoreconnect/private_keys/AuthKey_${KEY_ID}.p8
+
+      - name: Build Developer ID app (prerequisite for App Store build)
+        env:
+          APPLE_NOTARIZATION_APPLE_ID: ${{ secrets.APPLE_NOTARIZATION_APPLE_ID }}
+          APPLE_NOTARIZATION_PASSWORD: ${{ secrets.APPLE_NOTARIZATION_PASSWORD }}
+          APPLE_NOTARIZATION_TEAM_ID: ${{ secrets.APPLE_NOTARIZATION_TEAM_ID }}
+        run: bash dev/build-mac.sh
+
+      - name: Build and submit to App Store
+        run: bash dev/build-mac-appstore.sh
+
+      - name: Clean up keychain
+        if: always()
+        run: security delete-keychain "$KEYCHAIN_PATH"
+
+  # ── PyPI ───────────────────────────────────────────────────────────────────
+  build-pypi:
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build and upload to PyPI
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
+        run: bash dev/build-pypi.sh
+
+  # ── GitHub Release ─────────────────────────────────────────────────────────
+  release:
+    needs: [build-linux, build-windows, build-macos]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-artifacts
+
+      - name: Create release and upload artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${{ github.ref_name }}"
+          gh release create "$TAG" --generate-notes --draft
+
+          gh release upload "$TAG" \
+            release-artifacts/linux-build/gedcom-navigator-linux.zip \
+            release-artifacts/macos-build/gedcom-navigator-mac.zip \
+            release-artifacts/windows-build/gedcom-navigator-windows-portable.zip
+
+          if [[ -f release-artifacts/windows-build/gedcom-navigator-windows-installer.exe ]]; then
+            gh release upload "$TAG" release-artifacts/windows-build/gedcom-navigator-windows-installer.exe
+          fi
+
+          gh release edit "$TAG" --draft=false
