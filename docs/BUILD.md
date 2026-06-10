@@ -20,11 +20,13 @@ This is useful for testing a single build, rebuilding PyPI, or submitting to App
 | `build-linux` | ubuntu-latest | always | `gedcom-navigator-linux.zip` |
 | `build-windows` | windows-latest | always | `gedcom-navigator-windows-portable.zip`, `gedcom-navigator-windows-installer.exe` |
 | `build-macos` | macos-latest | always | `gedcom-navigator-mac.zip` (notarized) |
-| `build-macos-appstore` | macos-latest | tag push only | submits `.pkg` to App Store Connect |
+| `build-macos-appstore` | macos-latest | manual only (workflow_dispatch) | submits `.pkg` to App Store Connect |
 | `build-pypi` | ubuntu-latest | tag push only | uploads wheel + sdist to PyPI |
 | `release` | ubuntu-latest | tag push only | creates GitHub release, uploads all artifacts |
 
-The three binary build jobs run in parallel. `release` waits for all three to succeed before creating the GitHub release. `build-macos-appstore` and `build-pypi` run in parallel with everything else but do not gate the release.
+The three binary build jobs (Linux, Windows, macOS) run in parallel. `release` waits for all three to succeed before creating the GitHub release. `build-pypi` runs in parallel with everything else but does not gate the release.
+
+**App Store builds:** The `build-macos-appstore` job uses a pre-built patched Python from [fix-tk-for-appstore](https://github.com/ajkessel/fix-tk-for-appstore/releases) that has the forbidden App Store symbol removed from Tk. The job is available via manual `workflow_dispatch` with `Build and submit to Mac App Store` checked.
 
 On a manual `workflow_dispatch` run only the three binary build jobs execute (no release, no App Store submission, no PyPI upload), which is safe for testing.
 
@@ -331,3 +333,21 @@ This means the base64-encoded P12 secret is invalid. Check:
    ```
 
 If the `openssl` command fails, the P12 is invalid or the password is wrong. Re-export from Keychain and try again.
+
+## App Store Builds in GitHub Actions
+
+The `build-macos-appstore` job is fully automated using a pre-built patched Python downloaded from [https://github.com/ajkessel/fix-tk-for-appstore/releases](https://github.com/ajkessel/fix-tk-for-appstore/releases).
+
+**How it works:**
+1. The workflow downloads the pre-built patched Python tarball
+2. Extracts it to `/Library/Frameworks/Python.framework`
+3. Verifies that the Tk framework no longer contains the forbidden `_NSWindowDidOrderOnScreenNotification` symbol
+4. Builds and submits the app to App Store Connect
+
+**To use it:** On tag push or manual `workflow_dispatch`, check the `Build and submit to Mac App Store` input to include the App Store job in your release.
+
+**Updating the patched Python version:** If you release a new version of patched Python in the [fix-tk-for-appstore](https://github.com/ajkessel/fix-tk-for-appstore/releases) repo, update the download URL in `.github/workflows/release.yml`:
+
+```yaml
+PYTHON_URL="https://github.com/ajkessel/fix-tk-for-appstore/releases/download/VERSION/patched-python-VERSION-macos-universal2.tar.gz"
+```

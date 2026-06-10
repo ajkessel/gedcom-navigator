@@ -127,8 +127,10 @@ jobs:
           path: dist/gedcom-navigator-mac.zip
 
   # ── macOS App Store ────────────────────────────────────────────────────────
+  # Uses a pre-built patched Python from https://github.com/ajkessel/fix-tk-for-appstore
+  # which has the forbidden App Store symbol (_NSWindowDidOrderOnScreenNotification) removed from Tk.
   build-macos-appstore:
-    if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')) || inputs.build_appstore
+    if: inputs.build_appstore
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
@@ -198,6 +200,22 @@ jobs:
           printf '%s' "${{ secrets.APP_STORE_CONNECT_APP_ID }}" > ~/.appstoreconnect/appid.txt
           KEY_ID="${{ secrets.APP_STORE_CONNECT_KEY_ID }}"
           printf '%s' "${{ secrets.APP_STORE_CONNECT_API_KEY }}" > ~/.appstoreconnect/private_keys/AuthKey_${KEY_ID}.p8
+
+      - name: Download patched Python with fixed Tk
+        run: |
+          PYTHON_URL="https://github.com/ajkessel/fix-tk-for-appstore/releases/download/3.13.9/patched-python-3.13.9-macos-universal2.tar.gz"
+          echo "Downloading patched Python from $PYTHON_URL"
+          curl -L -o /tmp/patched-python.tar.gz "$PYTHON_URL"
+          echo "Extracting to /"
+          sudo tar xzf /tmp/patched-python.tar.gz -C /
+          echo "Verifying Tk framework"
+          TK_PATH="/Library/Frameworks/Python.framework/Versions/3.13.9/Frameworks/Tk.framework/Versions/Current/Tk"
+          if nm -pa "$TK_PATH" 2>/dev/null | grep -iq _nswindowdidorder; then
+            echo "ERROR: Tk still contains forbidden symbol after extraction"
+            exit 1
+          else
+            echo "✓ Tk is clean (no forbidden symbols)"
+          fi
 
       - name: Build Developer ID app (prerequisite for App Store build)
         env:
