@@ -28,10 +28,12 @@ done
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
 cd "${SCRIPT_DIR}/.."
 exec > >(sed 's/\x1b\[[0-9;]*m//g' | tee -a build-mac-appstore.log) 2>&1
-git switch "${git_branch}" || {
-	echo "Error: could not switch to ${git_branch}. Aborting."
-	exit 1
-}
+if [[ -z "${CI:-}" ]]; then
+	git switch "${git_branch}" || {
+		echo "Error: could not switch to ${git_branch}. Aborting."
+		exit 1
+	}
+fi
 VERSION=$(grep __version__ gedcom_navigator/__init__.py | grep -o '[0-9]\+\.[0-9]\+\(\.[0-9]\+\)\+')
 x=0
 if grep xcrun build-mac-appstore.log | grep -qF "${VERSION}"; then
@@ -47,7 +49,7 @@ if nm -pa /Library/Frameworks/Python.framework/Versions/Current/Frameworks/Tk.fr
 	echo "Patch available at https://github.com/ajkessel/fix-tk-for-appstore "
 	exit 1
 fi
-security unlock-keychain -p "$(cat ~/.config/p)" ~/Library/Keychains/login.keychain-db
+[[ -z "${CI:-}" ]] && security unlock-keychain -p "$(cat ~/.config/p)" ~/Library/Keychains/login.keychain-db
 if [[ ! -e 'dist/gedcom-navigator.app' ]]; then
 	echo 'Built app not found, building now.'
 	./dev/build.sh -b "${git_branch}"
