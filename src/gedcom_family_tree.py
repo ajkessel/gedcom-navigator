@@ -1216,8 +1216,22 @@ def _visible_child_ids(source_id, relations, positions):
     return visible
 
 
-def layout_family_tree(center_id, visible_ids, edges):
-    """Return family-tree nodes with generation and column coordinates."""
+def layout_family_tree(center_id, visible_ids, edges, family_members=None,
+                       parent_kind=None):
+    """Return family-tree nodes with generation and column coordinates.
+
+    Delegates to the family-unit block layout (gedcom_family_tree_layout).
+    When family_members is omitted, per-person relation lists are inferred
+    from the edges.  parent_kind optionally maps (parent_id, child_id) to a
+    parentage kind so step-parents are kept out of a child's family unit.
+    """
+    from gedcom_family_tree_layout import layout_family_tree_units
+    return layout_family_tree_units(
+        center_id, visible_ids, edges, family_members, parent_kind)
+
+
+def layout_family_tree_legacy(center_id, visible_ids, edges):
+    """Pass-based layout kept only for dev/layout_compare.py comparisons."""
     relations = defaultdict(lambda: defaultdict(list))
     for source_id, target_id, category in edges:
         relations[source_id][category].append(target_id)
@@ -1351,6 +1365,7 @@ def layout_family_tree(center_id, visible_ids, edges):
             source_generation, source_column = positions[source_id]
             spouse_groups = []
             seen_spouses = set()
+            same_generation_spouses = []
             for spouse_id in _visible_spouse_ids(source_id, relations, positions):
                 if spouse_id in seen_spouses:
                     continue
@@ -1358,6 +1373,7 @@ def layout_family_tree(center_id, visible_ids, edges):
                 spouse_generation, _spouse_column = positions[spouse_id]
                 if spouse_generation != source_generation:
                     continue
+                same_generation_spouses.append(spouse_id)
                 child_generation = source_generation + 1
                 shared_children = [
                     child_id for child_id in children_by_parent.get(source_id, ())
@@ -1375,6 +1391,45 @@ def layout_family_tree(center_id, visible_ids, edges):
                     'child_center': (
                         min(child_columns) + max(child_columns)) / 2,
                 })
+            fertile_ids = {group['spouse_id'] for group in spouse_groups}
+            infertile_spouses = [
+                s for s in same_generation_spouses if s not in fertile_ids
+            ]
+            if len(spouse_groups) == 1 and infertile_spouses:
+                # Only separate infertile spouses when they have no other
+                # visible same-gen spouse — otherwise enforce_spouse_adjacency
+                # would fight this placement and cause oscillation.
+                any_infertile_has_other_spouse = any(
+                    any(
+                        s2 != source_id
+                        and positions.get(s2, (None,))[0] == source_generation
+                        for s2 in _visible_spouse_ids(s, relations, positions)
+                    )
+                    for s in infertile_spouses
+                )
+                if not any_infertile_has_other_spouse:
+                    # One fertile spouse: put infertile spouses on the opposite
+                    # side so the parent-child bus midpoint can't pass through.
+                    fertile_id = spouse_groups[0]['spouse_id']
+                    child_center = spouse_groups[0]['child_center']
+                    direction = 1 if child_center >= source_column else -1
+                    desired = {
+                        fertile_id: source_column + direction * MIN_COLUMN_SPACING
+                    }
+                    for offset, infertile_id in enumerate(
+                            infertile_spouses, start=1):
+                        desired[infertile_id] = (
+                            source_column
+                            - direction * offset * MIN_COLUMN_SPACING)
+                    protected_ids = {source_id, *desired}
+                    for spouse_id, column in sorted(
+                            desired.items(), key=lambda item: item[1]):
+                        if abs(positions[spouse_id][1] - column) < 0.001:
+                            continue
+                        ctx.reserve(source_generation, column, protected_ids)
+                        positions[spouse_id] = (source_generation, column)
+                        ctx.rebuild()
+                    continue
             if len(spouse_groups) < 2:
                 continue
 
@@ -1409,6 +1464,111 @@ def layout_family_tree(center_id, visible_ids, edges):
                 ctx.reserve(source_generation, column, protected_ids)
                 positions[spouse_id] = (source_generation, column)
                 ctx.rebuild()
+
+    def linearize_spouse_chains():
+        """Batch-place chains of 3+ same-gen spouses as a linear sequence.
+
+        Pairwise enforce_spouse_adjacency oscillates for chains of length >= 3
+        (A-B-C-D): fixing B-C displaces B from A, which is then corrected, and
+        so on.  This function detects path-topology spouse components per
+        generation and places all nodes at once, anchored at their centroid.
+        Star topologies (any node degree >= 3) are left to
+        enforce_multi_spouse_family_groups.  Current left-to-right order is
+        always preserved to prevent cascading orientation flips.
+        """
+        by_gen = defaultdict(set)
+        for node_id, (gen, _col) in positions.items():
+            by_gen[gen].add(node_id)
+
+        for gen, gen_nodes in by_gen.items():
+            spouse_adj = defaultdict(set)
+            for node_id in gen_nodes:
+                for spouse_id in _visible_spouse_ids(
+                        node_id, relations, positions):
+                    if spouse_id in gen_nodes:
+                        spouse_adj[node_id].add(spouse_id)
+
+            visited = set()
+            for start in sorted(gen_nodes, key=lambda n: positions[n][1]):
+                if start in visited or not spouse_adj.get(start):
+                    continue
+                component = []
+                q = deque([start])
+                while q:
+                    node = q.popleft()
+                    if node in visited:
+                        continue
+                    visited.add(node)
+                    component.append(node)
+                    q.extend(sorted(
+                        spouse_adj[node] - visited,
+                        key=lambda n: positions[n][1]))
+
+                if len(component) < 3:
+                    continue
+                # Stars (degree >= 3) handled by enforce_multi_spouse_family_groups
+                if any(len(spouse_adj[n]) > 2 for n in component):
+                    continue
+                # Require exactly two endpoints (path, not cycle)
+                endpoints = [
+                    n for n in component if len(spouse_adj[n]) == 1]
+                if not endpoints:
+                    continue
+
+                # Walk the graph path from one endpoint to determine
+                # the marriage-edge order, then pick the orientation
+                # (forward or reversed) that minimises total displacement
+                # while breaking ties by placing the currently-leftmost
+                # endpoint first (prevents orientation flips at equal cost).
+                path = [endpoints[0]]
+                path_set = {endpoints[0]}
+                current = endpoints[0]
+                while True:
+                    nxt_candidates = spouse_adj[current] - path_set
+                    if not nxt_candidates:
+                        break
+                    nxt = next(iter(nxt_candidates))
+                    path.append(nxt)
+                    path_set.add(nxt)
+                    current = nxt
+
+                current_cols = [positions[n][1] for n in path]
+                centroid = sum(current_cols) / len(current_cols)
+                half = (len(path) - 1) / 2.0
+
+                fwd_targets = {
+                    node: centroid + (i - half) * MIN_COLUMN_SPACING
+                    for i, node in enumerate(path)
+                }
+                rev_path = list(reversed(path))
+                bwd_targets = {
+                    node: centroid + (i - half) * MIN_COLUMN_SPACING
+                    for i, node in enumerate(rev_path)
+                }
+                fwd_cost = sum(
+                    abs(positions[n][1] - fwd_targets[n]) for n in path)
+                bwd_cost = sum(
+                    abs(positions[n][1] - bwd_targets[n]) for n in path)
+                if fwd_cost < bwd_cost:
+                    targets = fwd_targets
+                elif bwd_cost < fwd_cost:
+                    targets = bwd_targets
+                else:
+                    # Tie-break: keep currently-leftmost endpoint on the left
+                    left_ep = min(endpoints, key=lambda n: positions[n][1])
+                    targets = (
+                        fwd_targets if path[0] == left_ep else bwd_targets)
+
+                changed = False
+                for node_id, target_col in targets.items():
+                    if abs(positions[node_id][1] - target_col) < 0.001:
+                        continue
+                    positions[node_id] = (gen, target_col)
+                    changed = True
+                if changed:
+                    ctx.rebuild()
+                    _resolve_same_row_conflicts(positions, set(path))
+                    ctx.rebuild()
 
     def enforce_child_alignment():
         assigned_child_columns_by_generation = defaultdict(list)
@@ -2378,7 +2538,9 @@ def layout_family_tree(center_id, visible_ids, edges):
                 if positions[spouse_id][0] == source_generation)
             for block_ids in child_blocks.values():
                 protected_ids.update(block_ids)
-            direction = 1 if delta_to_parent < 0 else -1
+            # Always push conflicts rightward: cascading left-pushes from
+            # sibling_cluster_branch_block cause runaway expansion.
+            direction = 1
             desired_columns = {
                 child_id: base_column + offset
                 for child_id, offset in zip(
@@ -2704,16 +2866,19 @@ def layout_family_tree(center_id, visible_ids, edges):
         compact_sibling_branch_blocks()
         enforce_spouse_adjacency()
         enforce_multi_spouse_family_groups()
+        linearize_spouse_chains()
         enforce_child_alignment()
         compact_interleaved_child_family_groups()
         align_detached_child_branches()
         enforce_spouse_adjacency()
         enforce_multi_spouse_family_groups()
+        linearize_spouse_chains()
         ctx.run_until_stable(
             (
                 compact_sibling_branch_blocks,
                 enforce_spouse_adjacency,
                 enforce_multi_spouse_family_groups,
+                linearize_spouse_chains,
                 compact_sibling_side_gaps,
                 compact_interleaved_child_family_groups,
                 align_detached_child_branches,
@@ -2728,6 +2893,7 @@ def layout_family_tree(center_id, visible_ids, edges):
         enforce_parent_child_alignment()
         enforce_spouse_adjacency()
         enforce_multi_spouse_family_groups()
+        linearize_spouse_chains()
 
     place_initial_nodes()
     settle_core_constraints()

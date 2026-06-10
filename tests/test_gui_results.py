@@ -23,6 +23,21 @@ from gedcom_gui_results import ResultsMixin
 import gedcom_strings as gs
 
 
+def _debug_fixture_parent_kind(payload):
+    """Build a (parent_id, child_id) -> kind lookup from saved edge kinds."""
+    kinds = {}
+    for edge in payload['edges']:
+        kind = edge.get('relationship_kind')
+        if not kind:
+            continue
+        if edge['category'] == 'parents':
+            kinds[(edge['target'], edge['source'])] = kind
+        elif edge['category'] == 'children':
+            kinds[(edge['source'], edge['target'])] = kind
+    return lambda parent_id, child_id: kinds.get(
+        (parent_id, child_id), 'birth')
+
+
 def _load_debug_family_tree_layout(name):
     path = Path('debug') / f'{name}.json'
     if not path.exists():
@@ -34,7 +49,9 @@ def _load_debug_family_tree_layout(name):
     ]
     return (
         layout_family_tree(
-            payload['center_id'], payload['visible_ids'], edges),
+            payload['center_id'], payload['visible_ids'], edges,
+            payload.get('family_members'),
+            _debug_fixture_parent_kind(payload)),
         edges,
     )
 
@@ -4915,7 +4932,7 @@ def test_family_tree_layout_keeps_spouse_adjacent_before_siblings():
     by_id = {node['id']: node for node in layout}
 
     assert by_id['@SPOUSE@']['column'] == 1.0
-    assert by_id['@SIB@']['column'] == -1.4
+    assert by_id['@SIB@']['column'] == -1.0
 
 
 def test_family_tree_layout_keeps_auto_coparent_adjacent_to_sibling():
@@ -5762,18 +5779,25 @@ def test_family_tree_debug_fixtures_preserve_layout_invariants():
 
 
 def test_family_tree_debug_parent_couple_moves_above_child_when_unblocked():
-    """A displayed parent couple shifts over its child when space permits."""
+    """A displayed parent couple centers over its visible children group."""
     layout, edges = _load_debug_family_tree_layout('2')
     by_id = {node['id']: node for node in layout}
     parent_midpoint = (
         by_id['@I102698315410@']['column']
         + by_id['@I102698315502@']['column']
     ) / 2
+    child_ids = (
+        '@I102667033207@', '@I102698315854@',
+        '@I102698315865@', '@I102698315878@',
+    )
+    child_columns = [by_id[child_id]['column'] for child_id in child_ids]
+    child_midpoint = (min(child_columns) + max(child_columns)) / 2
 
     _assert_no_same_row_conflicts(layout)
     _assert_visible_spouses_adjacent(layout, edges)
+    assert abs(parent_midpoint - child_midpoint) <= 0.5
     assert abs(
-        parent_midpoint - by_id['@I102667033207@']['column']) <= 0.5
+        parent_midpoint - by_id['@I102667033207@']['column']) <= 2.0
 
 
 def test_family_tree_debug_single_unbranched_sibling_stays_compact():
@@ -5924,19 +5948,23 @@ def test_family_tree_debug_large_tree_keeps_neighbor_family_units_together():
         '@I102667033206@',
         '@I102667033281@',
     ]
-    ordered_row = [
-        node['id'] for node in sorted(
-            (
-                node for node in layout
-                if node['generation'] == same_generation
-                and node['id'] in {*family_a, *family_b}
-            ),
-            key=lambda node: node['column'],
-        )
+    def family_span(member_ids):
+        columns = [by_id[member_id]['column'] for member_id in member_ids]
+        return min(columns), max(columns)
+
+    span_a = family_span(family_a)
+    span_b = family_span(family_b)
+    interlopers = [
+        node['id'] for node in layout
+        if node['generation'] == same_generation
+        and any(low < node['column'] < high for low, high in (span_a, span_b))
+        and node['id'] not in {*family_a, *family_b}
     ]
 
     _assert_no_same_row_conflicts(layout)
-    assert ordered_row == family_a + family_b
+    # Each family unit stays contiguous and the two do not interleave.
+    assert not interlopers
+    assert span_a[1] < span_b[0] or span_b[1] < span_a[0]
 
 
 def test_family_tree_child_alignment_keeps_adjusted_siblings_separate():
@@ -6917,3 +6945,138 @@ def test_render_profile_result_exits_if_results_widget_is_destroyed_mid_render()
     app._render_profile_result("@A@", home_paths={})
 
     assert app._reverse_btn.calls == []
+
+
+def test_family_tree_step_siblings_get_separate_child_buses():
+    """Step-siblings hang from their own parent's bus, not the couple's.
+
+    Regression test for debug/26: children of each remarried parent's
+    earlier family must not render as children of the visible couple.
+    """
+    visible = ['@C@', '@F@', '@M@', '@FS@', '@MD@']
+    edges = [
+        ('@C@', '@F@', 'parents'),
+        ('@C@', '@M@', 'parents'),
+        ('@F@', '@M@', 'spouses'),
+        ('@C@', '@FS@', 'siblings'),
+        ('@C@', '@MD@', 'siblings'),
+    ]
+    family_members = {
+        '@C@': {'parents': ['@F@', '@M@'], 'siblings': ['@FS@', '@MD@'],
+                'spouses': [], 'children': []},
+        '@F@': {'parents': [], 'siblings': [], 'spouses': ['@M@', '@X@'],
+                'children': ['@C@', '@FS@']},
+        '@M@': {'parents': [], 'siblings': [], 'spouses': ['@F@', '@Y@'],
+                'children': ['@C@', '@MD@']},
+        '@FS@': {'parents': ['@F@', '@X@'], 'siblings': ['@C@'],
+                 'spouses': [], 'children': []},
+        '@MD@': {'parents': ['@M@', '@Y@'], 'siblings': ['@C@'],
+                 'spouses': [], 'children': []},
+    }
+
+    layout = layout_family_tree('@C@', visible, edges, family_members)
+    buses = {
+        tuple(sorted(bus['parent_ids'])): bus['children']
+        for bus in layout.child_buses
+    }
+
+    assert buses[('@F@', '@M@')] == ['@C@']
+    assert buses[('@F@',)] == ['@FS@']
+    assert buses[('@M@',)] == ['@MD@']
+
+
+def test_family_tree_debug_fixture_sweep_holds_layout_invariants():
+    """Every family-tree debug fixture lays out without overlap or split
+    spouse pairs (pairs may only be separated by their own spouse chain)."""
+    fixture_paths = sorted(Path('debug').glob('*.json'))
+    if not fixture_paths:
+        pytest.skip('no debug fixtures present')
+    checked = 0
+    for path in fixture_paths:
+        payload = json.loads(path.read_text())
+        if payload.get('graph_type', 'family_tree') != 'family_tree':
+            continue
+        edges = [
+            (edge['source'], edge['target'], edge['category'])
+            for edge in payload['edges']
+        ]
+        layout = layout_family_tree(
+            payload['center_id'], payload['visible_ids'], edges,
+            payload.get('family_members'),
+            _debug_fixture_parent_kind(payload))
+        by_id = {node['id']: node for node in layout}
+        assert len(by_id) == len(set(payload['visible_ids'])), path.name
+
+        rows = {}
+        for node in layout:
+            rows.setdefault(node['generation'], []).append(
+                (node['column'], node['id']))
+        for row in rows.values():
+            row.sort()
+            for (left_col, left_id), (right_col, right_id) in zip(
+                    row, row[1:]):
+                assert right_col - left_col >= 1.0 - 1e-9, (
+                    f'{path.name}: {left_id} and {right_id} overlap')
+
+        chain_of = {}
+        for source_id, target_id, category in edges:
+            if category != 'spouses':
+                continue
+            if source_id not in by_id or target_id not in by_id:
+                continue
+            roots = [chain_of.get(source_id), chain_of.get(target_id)]
+            root = next((r for r in roots if r is not None), source_id)
+            for member, current in list(chain_of.items()):
+                if current in roots:
+                    chain_of[member] = root
+            chain_of[source_id] = root
+            chain_of[target_id] = root
+        for source_id, target_id, category in edges:
+            if category != 'spouses':
+                continue
+            if source_id not in by_id or target_id not in by_id:
+                continue
+            left = by_id[source_id]
+            right = by_id[target_id]
+            assert left['generation'] == right['generation'], (
+                f'{path.name}: {source_id} {target_id} on different rows')
+            low = min(left['column'], right['column'])
+            high = max(left['column'], right['column'])
+            between = [
+                node_id for col, node_id in rows[left['generation']]
+                if low + 1e-9 < col < high - 1e-9
+            ]
+            for node_id in between:
+                assert chain_of.get(node_id) == chain_of.get(source_id), (
+                    f'{path.name}: {node_id} splits spouse pair '
+                    f'{source_id}/{target_id}')
+        checked += 1
+    assert checked
+
+
+def test_family_tree_step_parent_excluded_from_biological_family_unit():
+    """Regression test for debug/27: a child of divorced biological parents
+    must hang from both of them, not appear as a step-child of the parent's
+    later spouse, even though GEDCOM lists the step-parent in a famc."""
+    path = Path('debug/27.json')
+    if not path.exists():
+        pytest.skip('debug/27.json not found')
+    payload = json.loads(path.read_text())
+    edges = [
+        (edge['source'], edge['target'], edge['category'])
+        for edge in payload['edges']
+    ]
+    layout = layout_family_tree(
+        payload['center_id'], payload['visible_ids'], edges,
+        payload['family_members'], _debug_fixture_parent_kind(payload))
+    buses = {
+        tuple(sorted(bus['parent_ids'])): bus['children']
+        for bus in layout.child_buses
+        if bus['parent_ids']
+    }
+
+    # Jamie (@I23182@) under biological parents Richard (@I186@) and
+    # Leah (@I23195@); step-father Michael (@I23221@) not on Jamie's bus.
+    assert buses[('@I186@', '@I23195@')] == ['@I23182@']
+    # Jason (@I23222@) stays under Leah and Michael.
+    assert buses[('@I23195@', '@I23221@')] == ['@I23222@']
