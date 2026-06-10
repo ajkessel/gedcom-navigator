@@ -101,7 +101,7 @@ jobs:
           security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
           security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-          echo -n "$APPLE_DEVELOPER_CERT_P12" | base64 --decode -o /tmp/devid.p12
+          echo "$APPLE_DEVELOPER_CERT_P12" | tr -d '\n' | base64 --decode -o /tmp/devid.p12
           security import /tmp/devid.p12 -P "$APPLE_DEVELOPER_CERT_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
           security list-keychain -d user -s "$KEYCHAIN_PATH"
@@ -145,11 +145,11 @@ jobs:
           security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
           security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-          echo -n "$APPLE_DEVELOPER_CERT_P12" | base64 --decode -o /tmp/devid.p12
+          echo "$APPLE_DEVELOPER_CERT_P12" | tr -d '\n' | base64 --decode -o /tmp/devid.p12
           security import /tmp/devid.p12 -P "$APPLE_DEVELOPER_CERT_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
-          echo -n "$APPLE_APPSTORE_CERT_P12" | base64 --decode -o /tmp/appstore_app.p12
+          echo "$APPLE_APPSTORE_CERT_P12" | tr -d '\n' | base64 --decode -o /tmp/appstore_app.p12
           security import /tmp/appstore_app.p12 -P "$APPLE_APPSTORE_CERT_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
-          echo -n "$APPLE_APPSTORE_INSTALLER_CERT_P12" | base64 --decode -o /tmp/appstore_installer.p12
+          echo "$APPLE_APPSTORE_INSTALLER_CERT_P12" | tr -d '\n' | base64 --decode -o /tmp/appstore_installer.p12
           security import /tmp/appstore_installer.p12 -P "$APPLE_APPSTORE_INSTALLER_CERT_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
           security list-keychain -d user -s "$KEYCHAIN_PATH"
