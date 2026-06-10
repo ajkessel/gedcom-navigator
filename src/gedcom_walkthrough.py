@@ -411,7 +411,7 @@ class WalkthroughMixin:
         self.gedcom_path.set(sample)
         self._wt_used_sample = True
         self._load_file(
-            add_to_history=False,
+            add_to_history=True,
             on_loaded=lambda: self._wt_after_data(then))
 
     def _wt_after_data(self, then):
