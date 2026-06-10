@@ -301,3 +301,33 @@ base64 -i path/to/file.p12               # Linux — prints to stdout
 ```
 
 Paste the resulting string (no line breaks needed — GitHub handles it) directly into the secret value field.
+
+## Troubleshooting
+
+### "Unable to decode the provided data" on App Store build
+
+This means the base64-encoded P12 secret is invalid. Check:
+
+1. **Did you base64-encode the actual `.p12` file?** Not the filename, not a screenshot — the binary `.p12` file itself.
+   ```bash
+   # ✓ Correct
+   base64 -i ~/Downloads/certificate.p12
+   
+   # ✗ Wrong (encodes the text "certificate.p12", not the file)
+   echo "certificate.p12" | base64
+   ```
+
+2. **Is the secret complete?** The base64 output should be a single long string starting with `MIIJrwIBA` or similar. If it's short or empty, the export failed.
+
+3. **Did you use the correct export password?** When exporting from Keychain, you set an export password (different from your Mac login password). Use that same password for the `APPLE_*_CERT_PASSWORD` secret.
+
+4. **Verify locally before pushing secrets:**
+   ```bash
+   # Decode and check file type
+   echo "YOUR_BASE64_SECRET_HERE" | base64 -D > test.p12
+   file test.p12  # Should show: "data" or similar (binary format)
+   openssl pkcs12 -in test.p12 -password pass:YOUR_EXPORT_PASSWORD -noout  # Should succeed
+   rm test.p12
+   ```
+
+If the `openssl` command fails, the P12 is invalid or the password is wrong. Re-export from Keychain and try again.
