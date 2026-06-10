@@ -5,11 +5,43 @@ on:
     tags:
       - 'v*'
   workflow_dispatch:
+    inputs:
+      build_linux:
+        description: 'Build Linux'
+        required: false
+        default: 'false'
+        type: boolean
+      build_windows:
+        description: 'Build Windows'
+        required: false
+        default: 'false'
+        type: boolean
+      build_macos:
+        description: 'Build macOS'
+        required: false
+        default: 'false'
+        type: boolean
+      build_pypi:
+        description: 'Build and upload PyPI package'
+        required: false
+        default: 'false'
+        type: boolean
+      build_appstore:
+        description: 'Build and submit to Mac App Store'
+        required: false
+        default: 'false'
+        type: boolean
+      create_release:
+        description: 'Create GitHub release (requires build_linux, build_windows, build_macos)'
+        required: false
+        default: 'false'
+        type: boolean
 
 jobs:
 
   # ── Linux ──────────────────────────────────────────────────────────────────
   build-linux:
+    if: github.event_name == 'push' || inputs.build_linux
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -27,6 +59,7 @@ jobs:
 
   # ── Windows ────────────────────────────────────────────────────────────────
   build-windows:
+    if: github.event_name == 'push' || inputs.build_windows
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -53,6 +86,7 @@ jobs:
 
   # ── macOS Developer ID ─────────────────────────────────────────────────────
   build-macos:
+    if: github.event_name == 'push' || inputs.build_macos
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
@@ -92,8 +126,8 @@ jobs:
 
   # ── macOS App Store ────────────────────────────────────────────────────────
   build-macos-appstore:
+    if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')) || inputs.build_appstore
     runs-on: macos-latest
-    if: startsWith(github.ref, 'refs/tags/')
     steps:
       - uses: actions/checkout@v4
 
@@ -153,8 +187,8 @@ jobs:
 
   # ── PyPI ───────────────────────────────────────────────────────────────────
   build-pypi:
+    if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')) || inputs.build_pypi
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/')
     steps:
       - uses: actions/checkout@v4
 
@@ -168,7 +202,7 @@ jobs:
   release:
     needs: [build-linux, build-windows, build-macos]
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/')
+    if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')) || inputs.create_release
     permissions:
       contents: write
     steps:

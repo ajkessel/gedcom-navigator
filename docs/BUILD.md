@@ -4,7 +4,14 @@ This document covers the automated GitHub Actions build pipeline and the secrets
 
 ## Overview
 
-Pushing a version tag (e.g. `git tag v1.9.16 && git push origin v1.9.16`) triggers a parallel multi-platform release. You can also run the workflow manually from the **Actions** tab using **Run workflow** — useful for testing without creating a release.
+Pushing a version tag (e.g. `git tag v1.9.16 && git push origin v1.9.16`) triggers a parallel multi-platform release with all jobs and all artifacts uploaded to a GitHub release.
+
+You can also run the workflow manually from the **Actions** tab using **Run workflow**:
+- **Default** (all inputs unchecked): does nothing — check the inputs you want to run
+- Check individual job inputs (`Build Linux`, `Build Windows`, etc.) to run only those
+- Check `Create GitHub release` to publish artifacts to a GitHub release (requires at least the three binary builds to be checked)
+
+This is useful for testing a single build, rebuilding PyPI, or submitting to App Store without rebuilding everything.
 
 ### Jobs
 
