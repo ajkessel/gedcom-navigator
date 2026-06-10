@@ -9,6 +9,7 @@
 
 ### Fixed
 
+- **Each spouse's ancestors stay on that spouse's side in family-tree graphs** — when both members of a couple had visible parents, one set of parents could be placed on the wrong side (e.g. the wife's parents left of the husband's), making the parent drop lines cross. Ancestor blocks are now placed strictly left-to-right following the couple's order, so connector lines to parents never cross.
 - **Family-tree connector bus line no longer overlaps parent nodes at high display scaling** — at high DPI (e.g. Windows 300 % scaling), enlarged fonts make node heights grow, causing the horizontal bus line that connects parents to children to be placed inside the parent node boxes rather than below them. The bus-line midpoint now anchors to the actual parent node bottom rather than the couple's centre, keeping 44 design-unit clearance between the parent boxes and the bus regardless of DPI.
 - **Find, filter, profile pane, and profile photo clear when loading a new file** — opening a different GEDCOM file now resets the Find and Filter fields, clears the results/profile pane text, and destroys any floating profile thumbnail so no stale content from the previous file is left visible.
 - **Profile photo updates when switching persons in Pedigree and Descendants views** — selecting a new person while in Pedigree or Descendants sub-mode now replaces the profile thumbnail with the new person's photo rather than leaving the previous person's photo in place. Both text-report renderers now call `_place_profile_thumbnail` the same way the Bio renderer does.
