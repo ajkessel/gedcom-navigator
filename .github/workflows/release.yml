@@ -182,13 +182,13 @@ jobs:
           security import /tmp/appstore_installer.p12 -P "$APPLE_APPSTORE_INSTALLER_CERT_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH" -T /usr/bin/codesign || { echo "FAILED to import Installer cert. Please verify the APPLE_APPSTORE_INSTALLER_CERT_P12 secret contains a valid base64-encoded .p12 file."; exit 1; }
 
           echo "Listing identities in keychain:"
-          security find-identity -v -p codesigning -k "$KEYCHAIN_PATH"
+          security find-identity -v -p codesigning "$KEYCHAIN_PATH"
 
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
           security list-keychain -d user -s "$KEYCHAIN_PATH"
 
           echo "Listing identities again after partition list:"
-          security find-identity -v -p codesigning -k "$KEYCHAIN_PATH"
+          security find-identity -v -p codesigning "$KEYCHAIN_PATH"
 
           rm /tmp/devid.p12 /tmp/appstore_app.p12 /tmp/appstore_installer.p12
           echo "KEYCHAIN_PATH=$KEYCHAIN_PATH" >> "$GITHUB_ENV"

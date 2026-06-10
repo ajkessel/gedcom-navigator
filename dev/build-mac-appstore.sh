@@ -56,16 +56,16 @@ if [[ ! -e 'dist/gedcom-navigator.app' ]]; then
 	./dev/build.sh -b "${git_branch}"
 fi
 # Search in CI keychain if set, otherwise search all keychains
-KEYCHAIN_SEARCH_ARG=""
+KEYCHAIN_ARG=""
 if [[ -n "${KEYCHAIN_PATH:-}" ]]; then
-	KEYCHAIN_SEARCH_ARG="-k ${KEYCHAIN_PATH}"
+	KEYCHAIN_ARG="'${KEYCHAIN_PATH}'"
 	echo "Searching for certificates in ${KEYCHAIN_PATH}"
 fi
 
-AS_APP_CERT=$(security find-identity -v -p codesigning ${KEYCHAIN_SEARCH_ARG} 2>/dev/null |
+AS_APP_CERT=$(eval "security find-identity -v -p codesigning ${KEYCHAIN_ARG}" 2>/dev/null |
 	grep "3rd Party Mac Developer Application" |
 	grep -Eo '[0-9A-Z]{40}' | head -1)
-AS_INST_CERT=$(security find-identity -v ${KEYCHAIN_SEARCH_ARG} 2>/dev/null |
+AS_INST_CERT=$(eval "security find-identity -v ${KEYCHAIN_ARG}" 2>/dev/null |
 	grep "3rd Party Mac Developer Installer" |
 	grep -Eo '[0-9A-Z]{40}' | head -1)
 
