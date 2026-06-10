@@ -83,6 +83,7 @@ jobs:
           path: |
             dist/gedcom-navigator-windows-portable.zip
             dist/gedcom-navigator-windows-installer.exe
+            dist/gedcom-navigator.msix
 
   # ── macOS Developer ID ─────────────────────────────────────────────────────
   build-macos:
@@ -214,6 +215,16 @@ jobs:
           KEY_ID="${{ secrets.APP_STORE_CONNECT_KEY_ID }}"
           printf '%s' "${{ secrets.APP_STORE_CONNECT_API_KEY }}" > ~/.appstoreconnect/private_keys/AuthKey_${KEY_ID}.p8
 
+          echo "Verifying App Store Connect credentials:"
+          echo "Key ID: $(cat ~/.appstoreconnect/apikey.txt)"
+          echo "Issuer ID: $(cat ~/.appstoreconnect/apiissuer.txt)"
+          echo "App ID: $(cat ~/.appstoreconnect/appid.txt)"
+          echo "API Key file exists: $(ls -lh ~/.appstoreconnect/private_keys/AuthKey_${KEY_ID}.p8 2>/dev/null && echo 'yes' || echo 'NO')"
+          echo "API Key file size: $(wc -c < ~/.appstoreconnect/private_keys/AuthKey_${KEY_ID}.p8 2>/dev/null || echo 'ERROR')"
+          echo "API Key file first 50 chars:"
+          head -c 50 ~/.appstoreconnect/private_keys/AuthKey_${KEY_ID}.p8
+          echo ""
+
       - name: Download patched Python with fixed Tk
         run: |
           PYTHON_URL="https://github.com/ajkessel/fix-tk-for-appstore/releases/download/3.13.9/patched-python-3.13.9-macos-universal2.tar.gz"
@@ -286,6 +297,10 @@ jobs:
 
           if [[ -f release-artifacts/windows-build/gedcom-navigator-windows-installer.exe ]]; then
             gh release upload "$TAG" release-artifacts/windows-build/gedcom-navigator-windows-installer.exe
+          fi
+
+          if [[ -f release-artifacts/windows-build/gedcom-navigator.msix ]]; then
+            gh release upload "$TAG" release-artifacts/windows-build/gedcom-navigator.msix
           fi
 
           gh release edit "$TAG" --draft=false
