@@ -36,7 +36,7 @@ if [[ -z "${CI:-}" ]]; then
 fi
 VERSION=$(grep __version__ gedcom_navigator/__init__.py | grep -o '[0-9]\+\.[0-9]\+\(\.[0-9]\+\)\+')
 x=0
-if grep xcrun build-mac-appstore.log | grep -qF "${VERSION}"; then
+if grep -s xcrun build-mac-appstore.log | grep -qF "${VERSION}"; then
 	echo "Prior build for ${VERSION} found in build-mac-app-store.log; do you need to bump version?"
 	echo "Clear build-mac-app-store.log if you want to re-submit with ${VERSION}."
 	exit 1
@@ -49,6 +49,7 @@ if nm -pa /Library/Frameworks/Python.framework/Versions/Current/Frameworks/Tk.fr
 	echo "Patch available at https://github.com/ajkessel/fix-tk-for-appstore "
 	exit 1
 fi
+echo "_NSWindowDidOrderOnScreenNotification appears clear from Tk framework, thus avoiding potential App Store rejection."
 [[ -z "${CI:-}" ]] && security unlock-keychain -p "$(cat ~/.config/p)" ~/Library/Keychains/login.keychain-db
 if [[ ! -e 'dist/gedcom-navigator.app' ]]; then
 	echo 'Built app not found, building now.'
