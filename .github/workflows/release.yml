@@ -173,6 +173,8 @@ jobs:
           [[ -f /tmp/appstore_app.p12 ]] && [[ -s /tmp/appstore_app.p12 ]] || { echo "ERROR: appstore_app.p12 is empty or missing"; exit 1; }
           echo "App Store cert: $(ls -lh /tmp/appstore_app.p12 | awk '{print $5}')"
           file /tmp/appstore_app.p12
+          echo "Inspecting App Store cert contents:"
+          openssl pkcs12 -in /tmp/appstore_app.p12 -password pass:"$APPLE_APPSTORE_CERT_PASSWORD" -noout -info 2>&1 | head -20 || true
           security import /tmp/appstore_app.p12 -P "$APPLE_APPSTORE_CERT_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH" -T /usr/bin/codesign || { echo "FAILED to import App Store cert. Please verify the APPLE_APPSTORE_CERT_P12 secret contains a valid base64-encoded .p12 file."; exit 1; }
 
           printf '%s' "$APPLE_APPSTORE_INSTALLER_CERT_P12" | base64 -D -o /tmp/appstore_installer.p12
