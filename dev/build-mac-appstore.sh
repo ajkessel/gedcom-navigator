@@ -5,9 +5,9 @@ if [[ "$OSTYPE" != "darwin"* ]]; then
 fi
 # this is necessary to keep screen buffer up to date
 # while logging to file
-if [[ "$STDBUF_ACTIVE" != "1" ]]; then
-	export STDBUF_ACTIVE=1
-	exec stdbuf -oL "$0" "$@"
+if [[ -z "${CI:-}" && "$STDBUF_ACTIVE" != "1" ]]; then
+        export STDBUF_ACTIVE=1
+        exec stdbuf -oL "$0" "$@"
 fi
 git_branch="main"
 while getopts "hnb:" opt; do
@@ -27,7 +27,7 @@ while getopts "hnb:" opt; do
 done
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
 cd "${SCRIPT_DIR}/.."
-exec > >(sed 's/\x1b\[[0-9;]*m//g' | tee -a build-mac-appstore.log) 2>&1
+[[ -z "${CI:-}" ]] && exec > >(sed 's/\x1b\[[0-9;]*m//g' | tee -a build-mac-appstore.log) 2>&1
 if [[ -z "${CI:-}" ]]; then
 	git switch "${git_branch}" || {
 		echo "Error: could not switch to ${git_branch}. Aborting."
