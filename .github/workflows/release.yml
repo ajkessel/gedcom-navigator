@@ -167,24 +167,24 @@ jobs:
           [[ -f /tmp/devid.p12 ]] && [[ -s /tmp/devid.p12 ]] || { echo "ERROR: devid.p12 is empty or missing"; exit 1; }
           echo "Developer ID cert: $(ls -lh /tmp/devid.p12 | awk '{print $5}')"
           file /tmp/devid.p12
-          echo "Developer ID cert subject:"
-          openssl pkcs12 -in /tmp/devid.p12 -password pass:"$APPLE_DEVELOPER_CERT_PASSWORD" -noout -nodes 2>&1 | grep "subject=" | head -1 || echo "(failed to extract)"
+          echo "Developer ID cert details:"
+          openssl pkcs12 -in /tmp/devid.p12 -password pass:"$APPLE_DEVELOPER_CERT_PASSWORD" -noout -nodes 2>&1 | head -15
           security import /tmp/devid.p12 -P "$APPLE_DEVELOPER_CERT_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH" -T /usr/bin/codesign || { echo "FAILED to import Developer ID cert. Please verify the APPLE_DEVELOPER_CERT_P12 secret contains a valid base64-encoded .p12 file."; exit 1; }
 
           printf '%s' "$APPLE_APPSTORE_CERT_P12" | base64 -D -o /tmp/appstore_app.p12
           [[ -f /tmp/appstore_app.p12 ]] && [[ -s /tmp/appstore_app.p12 ]] || { echo "ERROR: appstore_app.p12 is empty or missing"; exit 1; }
           echo "App Store Application cert: $(ls -lh /tmp/appstore_app.p12 | awk '{print $5}')"
           file /tmp/appstore_app.p12
-          echo "App Store Application cert subject:"
-          openssl pkcs12 -in /tmp/appstore_app.p12 -password pass:"$APPLE_APPSTORE_CERT_PASSWORD" -noout -nodes 2>&1 | grep "subject=" | head -1 || echo "(failed to extract)"
+          echo "App Store Application cert details:"
+          openssl pkcs12 -in /tmp/appstore_app.p12 -password pass:"$APPLE_APPSTORE_CERT_PASSWORD" -noout -nodes 2>&1 | head -15
           security import /tmp/appstore_app.p12 -P "$APPLE_APPSTORE_CERT_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH" -T /usr/bin/codesign || { echo "FAILED to import App Store cert. Please verify the APPLE_APPSTORE_CERT_P12 secret contains a valid base64-encoded .p12 file."; exit 1; }
 
           printf '%s' "$APPLE_APPSTORE_INSTALLER_CERT_P12" | base64 -D -o /tmp/appstore_installer.p12
           [[ -f /tmp/appstore_installer.p12 ]] && [[ -s /tmp/appstore_installer.p12 ]] || { echo "ERROR: appstore_installer.p12 is empty or missing"; exit 1; }
           echo "App Store Installer cert: $(ls -lh /tmp/appstore_installer.p12 | awk '{print $5}')"
           file /tmp/appstore_installer.p12
-          echo "App Store Installer cert subject:"
-          openssl pkcs12 -in /tmp/appstore_installer.p12 -password pass:"$APPLE_APPSTORE_INSTALLER_CERT_PASSWORD" -noout -nodes 2>&1 | grep "subject=" | head -1 || echo "(failed to extract)"
+          echo "App Store Installer cert details:"
+          openssl pkcs12 -in /tmp/appstore_installer.p12 -password pass:"$APPLE_APPSTORE_INSTALLER_CERT_PASSWORD" -noout -nodes 2>&1 | head -15
           security import /tmp/appstore_installer.p12 -P "$APPLE_APPSTORE_INSTALLER_CERT_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH" -T /usr/bin/codesign || { echo "FAILED to import Installer cert. Please verify the APPLE_APPSTORE_INSTALLER_CERT_P12 secret contains a valid base64-encoded .p12 file."; exit 1; }
 
           echo "Listing identities in keychain:"
