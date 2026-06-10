@@ -48,15 +48,16 @@ A base64-encoded PKCS#12 file containing your **Developer ID Application** certi
 
 1. Open **Keychain Access** on your Mac.
 2. Under **My Certificates**, find the certificate named *Developer ID Application: Your Name (TEAMID)*.
-3. Right-click it → **Export** → choose `.p12` format.
-4. Set an export password (this becomes `APPLE_DEVELOPER_CERT_PASSWORD`).
-5. Base64-encode the file:
+3. Right-click it → **Export** → choose `.p12` format → set an export password (remember this for `APPLE_DEVELOPER_CERT_PASSWORD`).
+4. Base64-encode the exported file and copy to clipboard:
    ```bash
-   base64 -i DeveloperIDApplication.p12 | pbcopy
+   base64 -i ~/Downloads/DeveloperIDApplication.p12 | pbcopy
    ```
-6. Paste the copied text as the secret value.
+5. Go to GitHub → Settings → Secrets and variables → Actions → New repository secret.
+6. Name: `APPLE_DEVELOPER_CERT_P12`
+7. Paste the value (should start with `MIIJrwIBA` or similar) → Save.
 
-If you do not have a Developer ID Application certificate, request one at [developer.apple.com/account/resources/certificates](https://developer.apple.com/account/resources/certificates/add) under **Software** → **Developer ID Application**.
+If you don't have a Developer ID Application certificate, request one at [developer.apple.com/account/resources/certificates](https://developer.apple.com/account/resources/certificates/add) under **Software** → **Developer ID Application**.
 
 ---
 
@@ -107,7 +108,17 @@ These are used only by the `build-macos-appstore` job. If you do not distribute 
 
 Base64-encoded PKCS#12 for the **3rd Party Mac Developer Application** certificate.
 
-**How to obtain:** Same export process as the Developer ID cert above, but select the certificate named *3rd Party Mac Developer Application: Your Name (TEAMID)*. Request one at [developer.apple.com/account/resources/certificates](https://developer.apple.com/account/resources/certificates/add) under **Software → Mac App Distribution** if you do not have one.
+**How to obtain:**
+
+1. Open **Keychain Access** on your Mac and find the certificate named *3rd Party Mac Developer Application: Your Name (TEAMID)*.
+2. Right-click it → **Export** → choose `.p12` format → set an export password.
+3. Base64-encode the `.p12` file:
+   ```bash
+   base64 -i "3rd Party Mac Developer Application.p12" | pbcopy
+   ```
+4. Paste the output into the GitHub secret. The secret should start with `MIIJrwIBA` or similar.
+
+(Request the cert at [developer.apple.com/account/resources/certificates](https://developer.apple.com/account/resources/certificates/add) under **Software → Mac App Distribution** if you don't have one.)
 
 ---
 
@@ -121,7 +132,17 @@ Export password for the App Store application `.p12`.
 
 Base64-encoded PKCS#12 for the **3rd Party Mac Developer Installer** certificate.
 
-**How to obtain:** Export *3rd Party Mac Developer Installer: Your Name (TEAMID)* from Keychain Access. Request one at the certificates page under **Software → Mac Installer Distribution**.
+**How to obtain:**
+
+1. Open **Keychain Access** and find *3rd Party Mac Developer Installer: Your Name (TEAMID)*.
+2. Right-click → **Export** → `.p12` format → set an export password → save.
+3. Base64-encode and copy:
+   ```bash
+   base64 -i "3rd Party Mac Developer Installer.p12" | pbcopy
+   ```
+4. Paste into GitHub secret `APPLE_APPSTORE_INSTALLER_CERT_P12`.
+
+(Request at [developer.apple.com/account/resources/certificates](https://developer.apple.com/account/resources/certificates/add) under **Software → Mac Installer Distribution** if missing.)
 
 ---
 

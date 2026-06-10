@@ -163,15 +163,21 @@ jobs:
 
           printf '%s' "$APPLE_DEVELOPER_CERT_P12" | base64 -D -o /tmp/devid.p12
           [[ -f /tmp/devid.p12 ]] && [[ -s /tmp/devid.p12 ]] || { echo "ERROR: devid.p12 is empty or missing"; exit 1; }
-          security import /tmp/devid.p12 -P "$APPLE_DEVELOPER_CERT_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          echo "Developer ID cert: $(ls -lh /tmp/devid.p12 | awk '{print $5}')"
+          file /tmp/devid.p12
+          security import /tmp/devid.p12 -P "$APPLE_DEVELOPER_CERT_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH" || { echo "FAILED to import Developer ID cert. Please verify the APPLE_DEVELOPER_CERT_P12 secret contains a valid base64-encoded .p12 file."; exit 1; }
 
           printf '%s' "$APPLE_APPSTORE_CERT_P12" | base64 -D -o /tmp/appstore_app.p12
           [[ -f /tmp/appstore_app.p12 ]] && [[ -s /tmp/appstore_app.p12 ]] || { echo "ERROR: appstore_app.p12 is empty or missing"; exit 1; }
-          security import /tmp/appstore_app.p12 -P "$APPLE_APPSTORE_CERT_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          echo "App Store cert: $(ls -lh /tmp/appstore_app.p12 | awk '{print $5}')"
+          file /tmp/appstore_app.p12
+          security import /tmp/appstore_app.p12 -P "$APPLE_APPSTORE_CERT_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH" || { echo "FAILED to import App Store cert. Please verify the APPLE_APPSTORE_CERT_P12 secret contains a valid base64-encoded .p12 file."; exit 1; }
 
           printf '%s' "$APPLE_APPSTORE_INSTALLER_CERT_P12" | base64 -D -o /tmp/appstore_installer.p12
           [[ -f /tmp/appstore_installer.p12 ]] && [[ -s /tmp/appstore_installer.p12 ]] || { echo "ERROR: appstore_installer.p12 is empty or missing"; exit 1; }
-          security import /tmp/appstore_installer.p12 -P "$APPLE_APPSTORE_INSTALLER_CERT_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          echo "Installer cert: $(ls -lh /tmp/appstore_installer.p12 | awk '{print $5}')"
+          file /tmp/appstore_installer.p12
+          security import /tmp/appstore_installer.p12 -P "$APPLE_APPSTORE_INSTALLER_CERT_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH" || { echo "FAILED to import Installer cert. Please verify the APPLE_APPSTORE_INSTALLER_CERT_P12 secret contains a valid base64-encoded .p12 file."; exit 1; }
 
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
           security list-keychain -d user -s "$KEYCHAIN_PATH"
