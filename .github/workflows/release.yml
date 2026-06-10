@@ -96,12 +96,14 @@ jobs:
           APPLE_DEVELOPER_CERT_P12: ${{ secrets.APPLE_DEVELOPER_CERT_P12 }}
           APPLE_DEVELOPER_CERT_PASSWORD: ${{ secrets.APPLE_DEVELOPER_CERT_PASSWORD }}
         run: |
+          [[ -z "$APPLE_DEVELOPER_CERT_P12" ]] && echo "ERROR: APPLE_DEVELOPER_CERT_P12 secret not set" && exit 1
           KEYCHAIN_PATH="$RUNNER_TEMP/app-signing.keychain-db"
           KEYCHAIN_PASSWORD="$(openssl rand -base64 20)"
           security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
           security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-          echo "$APPLE_DEVELOPER_CERT_P12" | tr -d '\n' | base64 --decode -o /tmp/devid.p12
+          printf '%s' "$APPLE_DEVELOPER_CERT_P12" | base64 -D -o /tmp/devid.p12
+          [[ -f /tmp/devid.p12 ]] && [[ -s /tmp/devid.p12 ]] || { echo "ERROR: devid.p12 is empty or missing"; exit 1; }
           security import /tmp/devid.p12 -P "$APPLE_DEVELOPER_CERT_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
           security list-keychain -d user -s "$KEYCHAIN_PATH"
@@ -131,6 +133,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Validate App Store secrets
+        env:
+          APPLE_DEVELOPER_CERT_P12: ${{ secrets.APPLE_DEVELOPER_CERT_P12 }}
+          APPLE_APPSTORE_CERT_P12: ${{ secrets.APPLE_APPSTORE_CERT_P12 }}
+          APPLE_APPSTORE_INSTALLER_CERT_P12: ${{ secrets.APPLE_APPSTORE_INSTALLER_CERT_P12 }}
+          APP_STORE_CONNECT_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
+        run: |
+          [[ -z "$APPLE_DEVELOPER_CERT_P12" ]] && echo "ERROR: APPLE_DEVELOPER_CERT_P12 secret not set" && exit 1
+          [[ -z "$APPLE_APPSTORE_CERT_P12" ]] && echo "ERROR: APPLE_APPSTORE_CERT_P12 secret not set" && exit 1
+          [[ -z "$APPLE_APPSTORE_INSTALLER_CERT_P12" ]] && echo "ERROR: APPLE_APPSTORE_INSTALLER_CERT_P12 secret not set" && exit 1
+          [[ -z "$APP_STORE_CONNECT_API_KEY" ]] && echo "ERROR: APP_STORE_CONNECT_API_KEY secret not set" && exit 1
+          echo "All required App Store secrets are set"
+
       - name: Set up signing keychain
         env:
           APPLE_DEVELOPER_CERT_P12: ${{ secrets.APPLE_DEVELOPER_CERT_P12 }}
@@ -145,12 +160,19 @@ jobs:
           security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
           security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-          echo "$APPLE_DEVELOPER_CERT_P12" | tr -d '\n' | base64 --decode -o /tmp/devid.p12
+
+          printf '%s' "$APPLE_DEVELOPER_CERT_P12" | base64 -D -o /tmp/devid.p12
+          [[ -f /tmp/devid.p12 ]] && [[ -s /tmp/devid.p12 ]] || { echo "ERROR: devid.p12 is empty or missing"; exit 1; }
           security import /tmp/devid.p12 -P "$APPLE_DEVELOPER_CERT_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
-          echo "$APPLE_APPSTORE_CERT_P12" | tr -d '\n' | base64 --decode -o /tmp/appstore_app.p12
+
+          printf '%s' "$APPLE_APPSTORE_CERT_P12" | base64 -D -o /tmp/appstore_app.p12
+          [[ -f /tmp/appstore_app.p12 ]] && [[ -s /tmp/appstore_app.p12 ]] || { echo "ERROR: appstore_app.p12 is empty or missing"; exit 1; }
           security import /tmp/appstore_app.p12 -P "$APPLE_APPSTORE_CERT_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
-          echo "$APPLE_APPSTORE_INSTALLER_CERT_P12" | tr -d '\n' | base64 --decode -o /tmp/appstore_installer.p12
+
+          printf '%s' "$APPLE_APPSTORE_INSTALLER_CERT_P12" | base64 -D -o /tmp/appstore_installer.p12
+          [[ -f /tmp/appstore_installer.p12 ]] && [[ -s /tmp/appstore_installer.p12 ]] || { echo "ERROR: appstore_installer.p12 is empty or missing"; exit 1; }
           security import /tmp/appstore_installer.p12 -P "$APPLE_APPSTORE_INSTALLER_CERT_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
           security list-keychain -d user -s "$KEYCHAIN_PATH"
           rm /tmp/devid.p12 /tmp/appstore_app.p12 /tmp/appstore_installer.p12
