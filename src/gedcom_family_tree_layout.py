@@ -272,13 +272,16 @@ def _overlaps(acc, block, dx):
     return False
 
 
-def _fit_at_desired(acc, block, desired_dx):
+def _fit_at_desired(acc, block, desired_dx, min_dx=None):
     """Shift closest to desired_dx avoiding contour overlap with acc.
 
     Tries the desired position first, then every placement flush against a
     contour segment boundary (which includes hole interiors), keeping the
-    feasible shift nearest to the desired one.
+    feasible shift nearest to the desired one.  min_dx, when given, is a
+    hard lower bound on the shift.
     """
+    if min_dx is not None and desired_dx < min_dx:
+        desired_dx = min_dx
     if not _overlaps(acc, block, desired_dx):
         return desired_dx
     candidates = set()
@@ -290,9 +293,16 @@ def _fit_at_desired(acc, block, desired_dx):
             for acc_low, acc_high in acc_segments:
                 candidates.add(acc_high + MIN_COLUMN_SPACING - low)
                 candidates.add(acc_low - MIN_COLUMN_SPACING - high)
-    feasible = [dx for dx in candidates if not _overlaps(acc, block, dx)]
+    feasible = [
+        dx for dx in candidates
+        if (min_dx is None or dx >= min_dx - _EPSILON)
+        and not _overlaps(acc, block, dx)
+    ]
     if not feasible:
-        return desired_dx
+        rightmost = _min_shift_right(acc, block)
+        if rightmost is None:
+            return desired_dx
+        return rightmost if min_dx is None else max(rightmost, min_dx)
     return min(feasible, key=lambda dx: (abs(dx - desired_dx), dx))
 
 
@@ -487,6 +497,10 @@ def _layout_chain(seed_persons, tree, gens, units):
             block.absorb(group)
 
     # Ancestor chains above, centered over their child and its siblings.
+    # Chains are placed left to right following the row order; a later
+    # chain landing left of an earlier one would always cross drop lines,
+    # so the previous chain's parent row is a hard lower bound.
+    prev_row_high = None
     for person_id, _down_units in members:
         up_index = _up_unit(person_id, tree)
         if up_index is None:
@@ -495,14 +509,20 @@ def _layout_chain(seed_persons, tree, gens, units):
         if not partners:
             continue
         parent_block = _layout_chain(partners, tree, gens, units)
+        parent_gen = gens[partners[0]]
         span_cols = [block.cols[person_id]]
         span_cols.extend(sibling_cols.get(person_id, ()))
         desired_center = (min(span_cols) + max(span_cols)) / 2
         partner_cols = [parent_block.cols[pid] for pid in partners]
         partner_center = (min(partner_cols) + max(partner_cols)) / 2
+        min_dx = None
+        if prev_row_high is not None:
+            row_low = parent_block.extent[parent_gen][0][0]
+            min_dx = prev_row_high + MIN_COLUMN_SPACING - row_low
         dx = _fit_at_desired(block, parent_block,
-                             desired_center - partner_center)
+                             desired_center - partner_center, min_dx)
         parent_block.shift(dx)
+        prev_row_high = parent_block.extent[parent_gen][-1][1]
         block.absorb(parent_block)
 
     return block

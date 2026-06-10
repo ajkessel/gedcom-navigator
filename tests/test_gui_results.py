@@ -7080,3 +7080,29 @@ def test_family_tree_step_parent_excluded_from_biological_family_unit():
     assert buses[('@I186@', '@I23195@')] == ['@I23182@']
     # Jason (@I23222@) stays under Leah and Michael.
     assert buses[('@I23195@', '@I23221@')] == ['@I23222@']
+
+
+def test_family_tree_ancestor_blocks_follow_couple_order():
+    """Regression test for debug/28: each spouse's parents must sit on that
+    spouse's side — Herbert left of Barbara means Herbert's parents stay
+    left of Barbara's parents, so the parent drop lines never cross."""
+    path = Path('debug/28.json')
+    if not path.exists():
+        pytest.skip('debug/28.json not found')
+    payload = json.loads(path.read_text())
+    edges = [
+        (edge['source'], edge['target'], edge['category'])
+        for edge in payload['edges']
+    ]
+    layout = layout_family_tree(
+        payload['center_id'], payload['visible_ids'], edges,
+        payload['family_members'], _debug_fixture_parent_kind(payload))
+    cols = {node['id']: node['column'] for node in layout}
+
+    couple = {
+        '@I25@': ('@I30@', '@I29@'),   # Herbert -> Abraham, Helen
+        '@I26@': ('@I13@', '@I14@'),   # Barbara -> Maurice, Dorothy
+    }
+    left_spouse, right_spouse = sorted(couple, key=lambda pid: cols[pid])
+    assert max(cols[pid] for pid in couple[left_spouse]) < min(
+        cols[pid] for pid in couple[right_spouse])
