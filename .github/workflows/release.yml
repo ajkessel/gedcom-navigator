@@ -221,9 +221,10 @@ jobs:
           echo "App ID: $(cat ~/.appstoreconnect/appid.txt)"
           echo "API Key file exists: $(ls -lh ~/.appstoreconnect/private_keys/AuthKey_${KEY_ID}.p8 2>/dev/null && echo 'yes' || echo 'NO')"
           echo "API Key file size: $(wc -c < ~/.appstoreconnect/private_keys/AuthKey_${KEY_ID}.p8 2>/dev/null || echo 'ERROR')"
-          echo "API Key file first 50 chars:"
-          head -c 50 ~/.appstoreconnect/private_keys/AuthKey_${KEY_ID}.p8
-          echo ""
+          echo "API Key file first line:"
+          head -1 ~/.appstoreconnect/private_keys/AuthKey_${KEY_ID}.p8
+          echo "API Key file last line:"
+          tail -1 ~/.appstoreconnect/private_keys/AuthKey_${KEY_ID}.p8
 
       - name: Download patched Python with fixed Tk
         run: |
