@@ -374,7 +374,7 @@ jobs:
           tail -1 ~/.appstoreconnect/private_keys/AuthKey_${KEY_ID}.p8
 
       - name: Build and submit to App Store
-        run: xcrun altool --list-apps --type osx --apiKey "${apiKey}" --apiIssuer "${apiIssuer}" --apple-id "${appid}"
+        run: xcrun altool --list-apps --type osx --apiKey "${apiKey}" --apiIssuer "${apiIssuer}"
 
       - name: Clean up keychain
         if: always()
