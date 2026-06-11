@@ -187,8 +187,14 @@ appid=$(cat "${HOME}/.appstoreconnect/appid.txt")
 	echo "Need apiKey, apiIssuer, version, and appid to be set for app store upload."
 	exit 1
 }
-# optional steps - not use to submit to app store, just validate pkg
-#xcrun altool --validate-app -f dist/gedcom-navigator.pkg -t macos --apiKey "${apiKey}" --apiIssuer "${apiIssuer}"
-echo 'Uploading with the following command:'
-echo xcrun altool --upload-package dist/gedcom-navigator.pkg --type osx --bundle-id "com.ajkessel.gedcom-navigator" --bundle-short-version-string "${VERSION}" --bundle-version "${VERSION}" --apiKey "${apiKey}" --apiIssuer "${apiIssuer}" --apple-id "${appid}"
-[ "${DRY}" ] || xcrun altool --upload-package dist/gedcom-navigator.pkg --type osx --bundle-id "com.ajkessel.gedcom-navigator" --bundle-short-version-string "${VERSION}" --bundle-version "${VERSION}" --apiKey "${apiKey}" --apiIssuer "${apiIssuer}" --apple-id "${appid}"
+[ "${DRY}" ] || { 
+  xcrun altool --upload-package "dist/gedcom-navigator.pkg" \
+             --type osx \
+             --apiKey "${apiKey}" \
+             --apiIssuer "${apiIssuer}" \
+             --apple-id "${appid}" \
+             --bundle-id "com.ajkessel.gedcom-navigator" \
+             --bundle-version "${VERSION}" \
+             --bundle-short-version-string "${VERSION}"
+
+}
