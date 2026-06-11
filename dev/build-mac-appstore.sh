@@ -145,15 +145,6 @@ if [[ -n "${AS_APP_CERT}" && -n "${AS_INST_CERT}" ]]; then
 
 	find "${APP_AS}" -type f -perm +111 -exec codesign --force --options runtime --sign "${AS_APP_CERT}" {} \;
 
-	echo "Signing provisioning profile."
-	codesign --force --verbose \
-		--sign "${AS_APP_CERT}" \
-		--entitlements "./dev/entitlements-appstore.plist" \
-		"${APP_AS}/Contents/embedded.provisionprofile" || {
-		echo "App Store code-signing of provision profile failed."
-		exit 1
-	}
-
 	echo "Signing entitlements."
 	codesign --force --verbose \
 		--sign "${AS_APP_CERT}" \
