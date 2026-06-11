@@ -56,18 +56,26 @@ if [[ ! -e 'dist/gedcom-navigator.app' ]]; then
 	./dev/build.sh -b "${git_branch}"
 fi
 # Search in CI keychain if set, otherwise search all keychains
-KEYCHAIN_ARG=""
 if [[ -n "${KEYCHAIN_PATH:-}" ]]; then
-	KEYCHAIN_ARG="'${KEYCHAIN_PATH}'"
-	echo "Searching for certificates in ${KEYCHAIN_PATH}"
+	echo "Searching for App Store certificates in ${KEYCHAIN_PATH}"
+	AS_APP_CERT=$(security find-identity -v -p codesigning "$KEYCHAIN_PATH" 2>/dev/null |
+		grep "3rd Party Mac Developer Application" |
+		grep -Eo '[0-9A-Z]{40}' | head -1)
+	AS_INST_CERT=$(security find-identity -v "$KEYCHAIN_PATH" 2>/dev/null |
+		grep "3rd Party Mac Developer Installer" |
+		grep -Eo '[0-9A-Z]{40}' | head -1)
+else
+	echo "Searching for App Store certificates in default keychains"
+	AS_APP_CERT=$(security find-identity -v -p codesigning 2>/dev/null |
+		grep "3rd Party Mac Developer Application" |
+		grep -Eo '[0-9A-Z]{40}' | head -1)
+	AS_INST_CERT=$(security find-identity -v 2>/dev/null |
+		grep "3rd Party Mac Developer Installer" |
+		grep -Eo '[0-9A-Z]{40}' | head -1)
 fi
 
-AS_APP_CERT=$(eval "security find-identity -v -p codesigning ${KEYCHAIN_ARG}" 2>/dev/null |
-	grep "3rd Party Mac Developer Application" |
-	grep -Eo '[0-9A-Z]{40}' | head -1)
-AS_INST_CERT=$(eval "security find-identity -v ${KEYCHAIN_ARG}" 2>/dev/null |
-	grep "3rd Party Mac Developer Installer" |
-	grep -Eo '[0-9A-Z]{40}' | head -1)
+echo "Found App Cert: ${AS_APP_CERT:0:10}..."
+echo "Found Installer Cert: ${AS_INST_CERT:0:10}..."
 
 if [[ -n "${AS_APP_CERT}" && -n "${AS_INST_CERT}" ]]; then
 	echo "Building App Store package..."
