@@ -373,8 +373,8 @@ jobs:
           echo "API Key file last line:"
           tail -1 ~/.appstoreconnect/private_keys/AuthKey_${KEY_ID}.p8
 
-      - name: Build and submit to App Store
-        run: xcrun altool --list-apps --type osx --apiKey "${apiKey}" --apiIssuer "${apiIssuer}"
+      - name: Test run with xcrun
+        run: bash dev/test-mac-appstore.sh
 
       - name: Clean up keychain
         if: always()
