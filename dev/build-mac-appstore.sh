@@ -116,6 +116,18 @@ if [[ -n "${AS_APP_CERT}" && -n "${AS_INST_CERT}" ]]; then
 	# --deep triggers errSecInternalComponent on Python .so extension modules,
 	# so sign nested components individually first, then the executable, then
 	# the bundle. The sandbox entitlement only needs to be on the main executable.
+
+	# First, sign the Python framework binary explicitly (required for App Store)
+	echo "Signing Python framework binary..."
+	PYTHON_BIN="${APP_AS}/Contents/Frameworks/Python.framework/Versions/3.13/Python"
+	if [[ -f "$PYTHON_BIN" ]]; then
+		codesign --force --sign "${AS_APP_CERT}" "$PYTHON_BIN" || {
+			echo "App Store code-signing failed on Python binary"
+			exit 1
+		}
+	fi
+
+	# Sign all .so, .dylib files and any other 'Python' files
 	while IFS= read -r -d '' f; do
 		codesign --force --sign "${AS_APP_CERT}" "$f" || {
 			echo "App Store code-signing failed on: $f"
