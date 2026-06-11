@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.9.16]
+
+- Updating for automated build
+
 ## [1.9.15]
 
 ### Changed
