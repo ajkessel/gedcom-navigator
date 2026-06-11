@@ -373,13 +373,6 @@ jobs:
           echo "API Key file last line:"
           tail -1 ~/.appstoreconnect/private_keys/AuthKey_${KEY_ID}.p8
 
-      - name: Build Developer ID app (prerequisite for App Store build)
-        env:
-          APPLE_NOTARIZATION_APPLE_ID: ${{ secrets.APPLE_NOTARIZATION_APPLE_ID }}
-          APPLE_NOTARIZATION_PASSWORD: ${{ secrets.APPLE_NOTARIZATION_PASSWORD }}
-          APPLE_NOTARIZATION_TEAM_ID: ${{ secrets.APPLE_NOTARIZATION_TEAM_ID }}
-        run: bash dev/build-mac.sh
-
       - name: Build and submit to App Store
         run: xcrun altool --list-apps --type osx --apiKey "${apiKey}" --apiIssuer "${apiIssuer}" --apple-id "${appid}"
 
