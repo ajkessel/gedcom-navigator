@@ -4,7 +4,7 @@ if [[ "$OSTYPE" != "darwin"* ]]; then
 	echo "${OSTYPE} detected, exiting."
 	exit 1
 fi
-if [[ "$STDBUF_ACTIVE" != "1" ]]; then
+if [[ -z "${CI:-}" && "$STDBUF_ACTIVE" != "1" ]]; then
         export STDBUF_ACTIVE=1
         exec stdbuf -oL "$0" "$@"
 fi
@@ -33,7 +33,7 @@ while getopts "hnco:b:" opt; do
 done
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
 cd "${SCRIPT_DIR}/.." || exit 1
-exec > >(sed 's/\x1b\[[0-9;]*m//g' | tee -a build-mac.log) 2>&1
+[[ -z "${CI:-}" ]] && exec > >(sed 's/\x1b\[[0-9;]*m//g' | tee -a build-mac.log) 2>&1
 echo 'Building for macOS...'
 [[ "$CLEAN" ]] && {
 	echo 'Warning: this will delete the current .venv and any .pyenv in your home folder.'
@@ -116,8 +116,7 @@ pytest -v --tb=short --disable-warnings || {
 	exit 1
 }
 python3 ./dev/generate_icon.py ./icons/gedcom_navigator.svg || {
-	echo 'Failed to generate ICO file.'
-	exit 1
+	echo 'Warning: Failed to generate ICO file (cairosvg not available). Continuing anyway — ICO is not needed on macOS.'
 }
 # dry-run mode does not need to compile universal2 binary
 [ "${DRY}" ] && {

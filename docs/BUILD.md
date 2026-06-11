@@ -4,7 +4,14 @@ This document covers the automated GitHub Actions build pipeline and the secrets
 
 ## Overview
 
-Pushing a version tag (e.g. `git tag v1.9.16 && git push origin v1.9.16`) triggers a parallel multi-platform release. You can also run the workflow manually from the **Actions** tab using **Run workflow** — useful for testing without creating a release.
+Pushing a version tag (e.g. `git tag v1.9.16 && git push origin v1.9.16`) triggers a parallel multi-platform release with all jobs and all artifacts uploaded to a GitHub release.
+
+You can also run the workflow manually from the **Actions** tab using **Run workflow**:
+- **Default** (all inputs unchecked): does nothing — check the inputs you want to run
+- Check individual job inputs (`Build Linux`, `Build Windows`, etc.) to run only those
+- Check `Create GitHub release` to publish artifacts to a GitHub release (requires at least the three binary builds to be checked)
+
+This is useful for testing a single build, rebuilding PyPI, or submitting to App Store without rebuilding everything.
 
 ### Jobs
 
@@ -13,11 +20,13 @@ Pushing a version tag (e.g. `git tag v1.9.16 && git push origin v1.9.16`) trigge
 | `build-linux` | ubuntu-latest | always | `gedcom-navigator-linux.zip` |
 | `build-windows` | windows-latest | always | `gedcom-navigator-windows-portable.zip`, `gedcom-navigator-windows-installer.exe` |
 | `build-macos` | macos-latest | always | `gedcom-navigator-mac.zip` (notarized) |
-| `build-macos-appstore` | macos-latest | tag push only | submits `.pkg` to App Store Connect |
+| `build-macos-appstore` | macos-latest | manual only (workflow_dispatch) | submits `.pkg` to App Store Connect |
 | `build-pypi` | ubuntu-latest | tag push only | uploads wheel + sdist to PyPI |
 | `release` | ubuntu-latest | tag push only | creates GitHub release, uploads all artifacts |
 
-The three binary build jobs run in parallel. `release` waits for all three to succeed before creating the GitHub release. `build-macos-appstore` and `build-pypi` run in parallel with everything else but do not gate the release.
+The three binary build jobs (Linux, Windows, macOS) run in parallel. `release` waits for all three to succeed before creating the GitHub release. `build-pypi` runs in parallel with everything else but does not gate the release.
+
+**App Store builds:** The `build-macos-appstore` job uses a pre-built patched Python from [fix-tk-for-appstore](https://github.com/ajkessel/fix-tk-for-appstore/releases) that has the forbidden App Store symbol removed from Tk. The job is available via manual `workflow_dispatch` with `Build and submit to Mac App Store` checked.
 
 On a manual `workflow_dispatch` run only the three binary build jobs execute (no release, no App Store submission, no PyPI upload), which is safe for testing.
 
@@ -41,15 +50,16 @@ A base64-encoded PKCS#12 file containing your **Developer ID Application** certi
 
 1. Open **Keychain Access** on your Mac.
 2. Under **My Certificates**, find the certificate named *Developer ID Application: Your Name (TEAMID)*.
-3. Right-click it → **Export** → choose `.p12` format.
-4. Set an export password (this becomes `APPLE_DEVELOPER_CERT_PASSWORD`).
-5. Base64-encode the file:
+3. Right-click it → **Export** → choose `.p12` format → set an export password (remember this for `APPLE_DEVELOPER_CERT_PASSWORD`).
+4. Base64-encode the exported file and copy to clipboard:
    ```bash
-   base64 -i DeveloperIDApplication.p12 | pbcopy
+   base64 -i ~/Downloads/DeveloperIDApplication.p12 | pbcopy
    ```
-6. Paste the copied text as the secret value.
+5. Go to GitHub → Settings → Secrets and variables → Actions → New repository secret.
+6. Name: `APPLE_DEVELOPER_CERT_P12`
+7. Paste the value (should start with `MIIJrwIBA` or similar) → Save.
 
-If you do not have a Developer ID Application certificate, request one at [developer.apple.com/account/resources/certificates](https://developer.apple.com/account/resources/certificates/add) under **Software** → **Developer ID Application**.
+If you don't have a Developer ID Application certificate, request one at [developer.apple.com/account/resources/certificates](https://developer.apple.com/account/resources/certificates/add) under **Software** → **Developer ID Application**.
 
 ---
 
@@ -100,7 +110,17 @@ These are used only by the `build-macos-appstore` job. If you do not distribute 
 
 Base64-encoded PKCS#12 for the **3rd Party Mac Developer Application** certificate.
 
-**How to obtain:** Same export process as the Developer ID cert above, but select the certificate named *3rd Party Mac Developer Application: Your Name (TEAMID)*. Request one at [developer.apple.com/account/resources/certificates](https://developer.apple.com/account/resources/certificates/add) under **Software → Mac App Distribution** if you do not have one.
+**How to obtain:**
+
+1. Open **Keychain Access** on your Mac and find the certificate named *3rd Party Mac Developer Application: Your Name (TEAMID)*.
+2. Right-click it → **Export** → choose `.p12` format → set an export password.
+3. Base64-encode the `.p12` file:
+   ```bash
+   base64 -i "3rd Party Mac Developer Application.p12" | pbcopy
+   ```
+4. Paste the output into the GitHub secret. The secret should start with `MIIJrwIBA` or similar.
+
+(Request the cert at [developer.apple.com/account/resources/certificates](https://developer.apple.com/account/resources/certificates/add) under **Software → Mac App Distribution** if you don't have one.)
 
 ---
 
@@ -114,7 +134,17 @@ Export password for the App Store application `.p12`.
 
 Base64-encoded PKCS#12 for the **3rd Party Mac Developer Installer** certificate.
 
-**How to obtain:** Export *3rd Party Mac Developer Installer: Your Name (TEAMID)* from Keychain Access. Request one at the certificates page under **Software → Mac Installer Distribution**.
+**How to obtain:**
+
+1. Open **Keychain Access** and find *3rd Party Mac Developer Installer: Your Name (TEAMID)*.
+2. Right-click → **Export** → `.p12` format → set an export password → save.
+3. Base64-encode and copy:
+   ```bash
+   base64 -i "3rd Party Mac Developer Installer.p12" | pbcopy
+   ```
+4. Paste into GitHub secret `APPLE_APPSTORE_INSTALLER_CERT_P12`.
+
+(Request at [developer.apple.com/account/resources/certificates](https://developer.apple.com/account/resources/certificates/add) under **Software → Mac Installer Distribution** if missing.)
 
 ---
 
@@ -254,6 +284,11 @@ An API token for your PyPI account, used by `twine` to upload the wheel and sour
 
 The existing local build scripts continue to work unchanged alongside the CI workflow. See [DEVELOPMENT.md](DEVELOPMENT.md) for `dev/build.sh`, `dev/build.ps1`, and the multi-platform `dev/build-and-release.sh` orchestrator.
 
+**Linux system dependencies:** If building on Linux locally, install `python3-tk` (provides the `tkinter` module required by tests):
+```bash
+sudo apt-get install python3-tk python3-dev libcairo2-dev
+```
+
 ## Exporting certificates as base64
 
 A quick reference for the base64 export step required by several secrets above:
@@ -268,3 +303,51 @@ base64 -i path/to/file.p12               # Linux — prints to stdout
 ```
 
 Paste the resulting string (no line breaks needed — GitHub handles it) directly into the secret value field.
+
+## Troubleshooting
+
+### "Unable to decode the provided data" on App Store build
+
+This means the base64-encoded P12 secret is invalid. Check:
+
+1. **Did you base64-encode the actual `.p12` file?** Not the filename, not a screenshot — the binary `.p12` file itself.
+   ```bash
+   # ✓ Correct
+   base64 -i ~/Downloads/certificate.p12
+   
+   # ✗ Wrong (encodes the text "certificate.p12", not the file)
+   echo "certificate.p12" | base64
+   ```
+
+2. **Is the secret complete?** The base64 output should be a single long string starting with `MIIJrwIBA` or similar. If it's short or empty, the export failed.
+
+3. **Did you use the correct export password?** When exporting from Keychain, you set an export password (different from your Mac login password). Use that same password for the `APPLE_*_CERT_PASSWORD` secret.
+
+4. **Verify locally before pushing secrets:**
+   ```bash
+   # Decode and check file type
+   echo "YOUR_BASE64_SECRET_HERE" | base64 -D > test.p12
+   file test.p12  # Should show: "data" or similar (binary format)
+   openssl pkcs12 -in test.p12 -password pass:YOUR_EXPORT_PASSWORD -noout  # Should succeed
+   rm test.p12
+   ```
+
+If the `openssl` command fails, the P12 is invalid or the password is wrong. Re-export from Keychain and try again.
+
+## App Store Builds in GitHub Actions
+
+The `build-macos-appstore` job is fully automated using a pre-built patched Python downloaded from [https://github.com/ajkessel/fix-tk-for-appstore/releases](https://github.com/ajkessel/fix-tk-for-appstore/releases).
+
+**How it works:**
+1. The workflow downloads the pre-built patched Python tarball
+2. Extracts it to `/Library/Frameworks/Python.framework`
+3. Verifies that the Tk framework no longer contains the forbidden `_NSWindowDidOrderOnScreenNotification` symbol
+4. Builds and submits the app to App Store Connect
+
+**To use it:** On tag push or manual `workflow_dispatch`, check the `Build and submit to Mac App Store` input to include the App Store job in your release.
+
+**Updating the patched Python version:** If you release a new version of patched Python in the [fix-tk-for-appstore](https://github.com/ajkessel/fix-tk-for-appstore/releases) repo, update the download URL in `.github/workflows/release.yml`:
+
+```yaml
+PYTHON_URL="https://github.com/ajkessel/fix-tk-for-appstore/releases/download/VERSION/patched-python-VERSION-macos-universal2.tar.gz"
+```

@@ -40,7 +40,7 @@ try {
     }
     if ( $clean -and ( Test-Path .\venv ) ) {
         Write-Output "Clean build selected, re-creating venv from scratch."
-        Remove-Item -Force -Recurse .\venv
+        Remove-Item -Force -Recurse .\venv -ErrorAction SilentlyContinue
     }
     if ( -not ( Test-Path .\venv\scripts\activate.ps1)) {
         Write-Output "Creating and activating virtual environment, and installing dependencies..."
@@ -59,7 +59,7 @@ try {
     }
     git pull
     & ".\venv\Scripts\activate.ps1"
-    Remove-Item -Recurse -Force -Path dist\
+    Remove-Item -Recurse -Force -Path dist\ -ErrorAction SilentlyContinue
     New-Item -ItemType Directory -Path dist -Force | Out-Null
 
     # Generate plain-text LICENSE.txt for Inno Setup (stripping markdown)

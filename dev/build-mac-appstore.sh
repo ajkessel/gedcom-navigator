@@ -5,9 +5,9 @@ if [[ "$OSTYPE" != "darwin"* ]]; then
 fi
 # this is necessary to keep screen buffer up to date
 # while logging to file
-if [[ "$STDBUF_ACTIVE" != "1" ]]; then
-	export STDBUF_ACTIVE=1
-	exec stdbuf -oL "$0" "$@"
+if [[ -z "${CI:-}" && "$STDBUF_ACTIVE" != "1" ]]; then
+        export STDBUF_ACTIVE=1
+        exec stdbuf -oL "$0" "$@"
 fi
 git_branch="main"
 while getopts "hnb:" opt; do
@@ -27,7 +27,7 @@ while getopts "hnb:" opt; do
 done
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
 cd "${SCRIPT_DIR}/.."
-exec > >(sed 's/\x1b\[[0-9;]*m//g' | tee -a build-mac-appstore.log) 2>&1
+[[ -z "${CI:-}" ]] && exec > >(sed 's/\x1b\[[0-9;]*m//g' | tee -a build-mac-appstore.log) 2>&1
 if [[ -z "${CI:-}" ]]; then
 	git switch "${git_branch}" || {
 		echo "Error: could not switch to ${git_branch}. Aborting."
@@ -36,7 +36,7 @@ if [[ -z "${CI:-}" ]]; then
 fi
 VERSION=$(grep __version__ gedcom_navigator/__init__.py | grep -o '[0-9]\+\.[0-9]\+\(\.[0-9]\+\)\+')
 x=0
-if grep xcrun build-mac-appstore.log | grep -qF "${VERSION}"; then
+if grep -s xcrun build-mac-appstore.log | grep -qF "${VERSION}"; then
 	echo "Prior build for ${VERSION} found in build-mac-app-store.log; do you need to bump version?"
 	echo "Clear build-mac-app-store.log if you want to re-submit with ${VERSION}."
 	exit 1
@@ -49,17 +49,33 @@ if nm -pa /Library/Frameworks/Python.framework/Versions/Current/Frameworks/Tk.fr
 	echo "Patch available at https://github.com/ajkessel/fix-tk-for-appstore "
 	exit 1
 fi
+echo "_NSWindowDidOrderOnScreenNotification appears clear from Tk framework, thus avoiding potential App Store rejection."
 [[ -z "${CI:-}" ]] && security unlock-keychain -p "$(cat ~/.config/p)" ~/Library/Keychains/login.keychain-db
 if [[ ! -e 'dist/gedcom-navigator.app' ]]; then
 	echo 'Built app not found, building now.'
 	./dev/build.sh -b "${git_branch}"
 fi
-AS_APP_CERT=$(security find-identity -v -p codesigning 2>/dev/null |
-	grep "3rd Party Mac Developer Application" |
-	grep -Eo '[0-9A-Z]{40}' | head -1)
-AS_INST_CERT=$(security find-identity -v 2>/dev/null |
-	grep "3rd Party Mac Developer Installer" |
-	grep -Eo '[0-9A-Z]{40}' | head -1)
+# Search in CI keychain if set, otherwise search all keychains
+if [[ -n "${KEYCHAIN_PATH:-}" ]]; then
+	echo "Searching for App Store certificates in ${KEYCHAIN_PATH}"
+	AS_APP_CERT=$(security find-identity -v -p codesigning "$KEYCHAIN_PATH" 2>/dev/null |
+		grep "3rd Party Mac Developer Application" |
+		grep -Eo '[0-9A-Z]{40}' | head -1)
+	AS_INST_CERT=$(security find-identity -v "$KEYCHAIN_PATH" 2>/dev/null |
+		grep "3rd Party Mac Developer Installer" |
+		grep -Eo '[0-9A-Z]{40}' | head -1)
+else
+	echo "Searching for App Store certificates in default keychains"
+	AS_APP_CERT=$(security find-identity -v -p codesigning 2>/dev/null |
+		grep "3rd Party Mac Developer Application" |
+		grep -Eo '[0-9A-Z]{40}' | head -1)
+	AS_INST_CERT=$(security find-identity -v 2>/dev/null |
+		grep "3rd Party Mac Developer Installer" |
+		grep -Eo '[0-9A-Z]{40}' | head -1)
+fi
+
+echo "Found App Cert: ${AS_APP_CERT:0:10}..."
+echo "Found Installer Cert: ${AS_INST_CERT:0:10}..."
 
 if [[ -n "${AS_APP_CERT}" && -n "${AS_INST_CERT}" ]]; then
 	echo "Building App Store package..."
@@ -108,6 +124,18 @@ if [[ -n "${AS_APP_CERT}" && -n "${AS_INST_CERT}" ]]; then
 	# --deep triggers errSecInternalComponent on Python .so extension modules,
 	# so sign nested components individually first, then the executable, then
 	# the bundle. The sandbox entitlement only needs to be on the main executable.
+
+	# First, sign the Python framework binary explicitly (required for App Store)
+	echo "Signing Python framework binary..."
+	PYTHON_BIN="${APP_AS}/Contents/Frameworks/Python.framework/Versions/3.13/Python"
+	if [[ -f "$PYTHON_BIN" ]]; then
+		codesign --force --sign "${AS_APP_CERT}" "$PYTHON_BIN" || {
+			echo "App Store code-signing failed on Python binary"
+			exit 1
+		}
+	fi
+
+	# Sign all .so, .dylib files and any other 'Python' files
 	while IFS= read -r -d '' f; do
 		codesign --force --sign "${AS_APP_CERT}" "$f" || {
 			echo "App Store code-signing failed on: $f"
@@ -116,15 +144,6 @@ if [[ -n "${AS_APP_CERT}" && -n "${AS_INST_CERT}" ]]; then
 	done < <(find "${APP_AS}" -type f \( -name "*.so" -o -name "*.dylib" -o -name 'Python' \) -print0)
 
 	find "${APP_AS}" -type f -perm +111 -exec codesign --force --options runtime --sign "${AS_APP_CERT}" {} \;
-
-	echo "Signing provisioning profile."
-	codesign --force --verbose \
-		--sign "${AS_APP_CERT}" \
-		--entitlements "./dev/entitlements-appstore.plist" \
-		"${APP_AS}/Contents/embedded.provisionprofile" || {
-		echo "App Store code-signing of provision profile failed."
-		exit 1
-	}
 
 	echo "Signing entitlements."
 	codesign --force --verbose \
@@ -179,8 +198,14 @@ appid=$(cat "${HOME}/.appstoreconnect/appid.txt")
 	echo "Need apiKey, apiIssuer, version, and appid to be set for app store upload."
 	exit 1
 }
-# optional steps - not use to submit to app store, just validate pkg
-#xcrun altool --validate-app -f dist/gedcom-navigator.pkg -t macos --apiKey "${apiKey}" --apiIssuer "${apiIssuer}"
-echo 'Uploading with the following command:'
-echo xcrun altool --upload-package dist/gedcom-navigator.pkg --type osx --bundle-id "com.ajkessel.gedcom-navigator" --bundle-short-version-string "${VERSION}" --bundle-version "${VERSION}" --apiKey "${apiKey}" --apiIssuer "${apiIssuer}" --apple-id "${appid}"
-[ "${DRY}" ] || xcrun altool --upload-package dist/gedcom-navigator.pkg --type osx --bundle-id "com.ajkessel.gedcom-navigator" --bundle-short-version-string "${VERSION}" --bundle-version "${VERSION}" --apiKey "${apiKey}" --apiIssuer "${apiIssuer}" --apple-id "${appid}"
+[ "${DRY}" ] || { 
+  xcrun altool --upload-package "dist/gedcom-navigator.pkg" \
+             --type osx \
+             --apiKey "${apiKey}" \
+             --apiIssuer "${apiIssuer}" \
+             --apple-id "${appid}" \
+             --bundle-id "com.ajkessel.gedcom-navigator" \
+             --bundle-version "${VERSION}" \
+             --bundle-short-version-string "${VERSION}"
+
+}

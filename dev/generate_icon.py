@@ -44,7 +44,11 @@ if str(input_file).lower().endswith('.svg'):
         img_list[0].save(output_file, format='ICO', append_images=img_list[1:], sizes=icon_sizes)
         exit()
     else:
-        input_file = Path(argv[1].with_suffix('.png'))
+        png_fallback = input_file.with_suffix('.png')
+        if not png_fallback.is_file():
+            print(f"cairosvg not available and no PNG fallback found at {png_fallback}. Skipping icon generation.")
+            exit()
+        input_file = png_fallback
 
 try:
     img = Image.open(input_file)
