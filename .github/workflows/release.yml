@@ -31,6 +31,11 @@ on:
         required: false
         default: 'false'
         type: boolean
+      test_appstore:
+        description: 'Test App Store Connection'
+        required: false
+        default: 'false'
+        type: boolean
       create_release:
         description: 'Create GitHub release (requires build_linux, build_windows, build_macos)'
         required: false
@@ -268,6 +273,119 @@ jobs:
           TWINE_USERNAME: __token__
           TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
         run: bash dev/build-pypi.sh
+        #
+  # ── macOS App Store ────────────────────────────────────────────────────────
+  # Uses a pre-built patched Python from https://github.com/ajkessel/fix-tk-for-appstore
+  # which has the forbidden App Store symbol (_NSWindowDidOrderOnScreenNotification) removed from Tk.
+  test-macos-appstore:
+    if: inputs.test_appstore
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate App Store secrets
+        env:
+          APPLE_DEVELOPER_CERT_P12: ${{ secrets.APPLE_DEVELOPER_CERT_P12 }}
+          APPLE_APPSTORE_CERT_P12: ${{ secrets.APPLE_APPSTORE_CERT_P12 }}
+          APPLE_APPSTORE_INSTALLER_CERT_P12: ${{ secrets.APPLE_APPSTORE_INSTALLER_CERT_P12 }}
+          APP_STORE_CONNECT_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
+        run: |
+          [[ -z "$APPLE_DEVELOPER_CERT_P12" ]] && echo "ERROR: APPLE_DEVELOPER_CERT_P12 secret not set" && exit 1
+          [[ -z "$APPLE_APPSTORE_CERT_P12" ]] && echo "ERROR: APPLE_APPSTORE_CERT_P12 secret not set" && exit 1
+          [[ -z "$APPLE_APPSTORE_INSTALLER_CERT_P12" ]] && echo "ERROR: APPLE_APPSTORE_INSTALLER_CERT_P12 secret not set" && exit 1
+          [[ -z "$APP_STORE_CONNECT_API_KEY" ]] && echo "ERROR: APP_STORE_CONNECT_API_KEY secret not set" && exit 1
+          echo "All required App Store secrets are set"
+
+      - name: Set up signing keychain
+        env:
+          APPLE_DEVELOPER_CERT_P12: ${{ secrets.APPLE_DEVELOPER_CERT_P12 }}
+          APPLE_DEVELOPER_CERT_PASSWORD: ${{ secrets.APPLE_DEVELOPER_CERT_PASSWORD }}
+          APPLE_APPSTORE_CERT_P12: ${{ secrets.APPLE_APPSTORE_CERT_P12 }}
+          APPLE_APPSTORE_CERT_PASSWORD: ${{ secrets.APPLE_APPSTORE_CERT_PASSWORD }}
+          APPLE_APPSTORE_INSTALLER_CERT_P12: ${{ secrets.APPLE_APPSTORE_INSTALLER_CERT_P12 }}
+          APPLE_APPSTORE_INSTALLER_CERT_PASSWORD: ${{ secrets.APPLE_APPSTORE_INSTALLER_CERT_PASSWORD }}
+        run: |
+          KEYCHAIN_PATH="$RUNNER_TEMP/appstore-signing.keychain-db"
+          KEYCHAIN_PASSWORD="$(openssl rand -base64 20)"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          printf '%s' "$APPLE_DEVELOPER_CERT_P12" | base64 -D -o /tmp/devid.p12
+          [[ -f /tmp/devid.p12 ]] && [[ -s /tmp/devid.p12 ]] || { echo "ERROR: devid.p12 is empty or missing"; exit 1; }
+          echo "Developer ID cert: $(ls -lh /tmp/devid.p12 | awk '{print $5}')"
+          file /tmp/devid.p12
+          echo "Developer ID cert details:"
+          openssl pkcs12 -in /tmp/devid.p12 -password pass:"$APPLE_DEVELOPER_CERT_PASSWORD" -noout -nodes 2>&1 | head -15
+          security import /tmp/devid.p12 -P "$APPLE_DEVELOPER_CERT_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH" -T /usr/bin/codesign || { echo "FAILED to import Developer ID cert. Please verify the APPLE_DEVELOPER_CERT_P12 secret contains a valid base64-encoded .p12 file."; exit 1; }
+
+          printf '%s' "$APPLE_APPSTORE_CERT_P12" | base64 -D -o /tmp/appstore_app.p12
+          [[ -f /tmp/appstore_app.p12 ]] && [[ -s /tmp/appstore_app.p12 ]] || { echo "ERROR: appstore_app.p12 is empty or missing"; exit 1; }
+          echo "App Store Application cert: $(ls -lh /tmp/appstore_app.p12 | awk '{print $5}')"
+          file /tmp/appstore_app.p12
+          echo "App Store Application cert details:"
+          openssl pkcs12 -in /tmp/appstore_app.p12 -password pass:"$APPLE_APPSTORE_CERT_PASSWORD" -noout -nodes 2>&1 | head -15
+          security import /tmp/appstore_app.p12 -P "$APPLE_APPSTORE_CERT_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH" -T /usr/bin/codesign || { echo "FAILED to import App Store cert. Please verify the APPLE_APPSTORE_CERT_P12 secret contains a valid base64-encoded .p12 file."; exit 1; }
+
+          printf '%s' "$APPLE_APPSTORE_INSTALLER_CERT_P12" | base64 -D -o /tmp/appstore_installer.p12
+          [[ -f /tmp/appstore_installer.p12 ]] && [[ -s /tmp/appstore_installer.p12 ]] || { echo "ERROR: appstore_installer.p12 is empty or missing"; exit 1; }
+          echo "App Store Installer cert: $(ls -lh /tmp/appstore_installer.p12 | awk '{print $5}')"
+          file /tmp/appstore_installer.p12
+          echo "App Store Installer cert details:"
+          openssl pkcs12 -in /tmp/appstore_installer.p12 -password pass:"$APPLE_APPSTORE_INSTALLER_CERT_PASSWORD" -noout -nodes 2>&1 | head -15
+          security import /tmp/appstore_installer.p12 -P "$APPLE_APPSTORE_INSTALLER_CERT_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH" -T /usr/bin/codesign || { echo "FAILED to import Installer cert. Please verify the APPLE_APPSTORE_INSTALLER_CERT_P12 secret contains a valid base64-encoded .p12 file."; exit 1; }
+
+          echo "Listing identities in keychain:"
+          security find-identity -v -p codesigning "$KEYCHAIN_PATH"
+
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security list-keychain -d user -s "$KEYCHAIN_PATH"
+
+          echo "Listing identities again after partition list:"
+          security find-identity -v -p codesigning "$KEYCHAIN_PATH"
+
+          rm /tmp/devid.p12 /tmp/appstore_app.p12 /tmp/appstore_installer.p12
+          echo "KEYCHAIN_PATH=$KEYCHAIN_PATH" >> "$GITHUB_ENV"
+
+      - name: Set up provisioning profile
+        run: |
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          echo -n "${{ secrets.APPLE_APPSTORE_PROVISIONING_PROFILE }}" | base64 --decode \
+            -o ~/Library/MobileDevice/Provisioning\ Profiles/gedcom-navigator.provisionprofile
+
+      - name: Set up App Store Connect credentials
+        run: |
+          mkdir -p ~/.appstoreconnect/private_keys
+          printf '%s' "${{ secrets.APP_STORE_CONNECT_KEY_ID }}" > ~/.appstoreconnect/apikey.txt
+          printf '%s' "${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}" > ~/.appstoreconnect/apiissuer.txt
+          printf '%s' "${{ secrets.APP_STORE_CONNECT_APP_ID }}" > ~/.appstoreconnect/appid.txt
+          KEY_ID="${{ secrets.APP_STORE_CONNECT_KEY_ID }}"
+          printf '%s' "${{ secrets.APP_STORE_CONNECT_API_KEY }}" > ~/.appstoreconnect/private_keys/AuthKey_${KEY_ID}.p8
+
+          echo "Verifying App Store Connect credentials:"
+          echo "Key ID: $(cat ~/.appstoreconnect/apikey.txt)"
+          echo "Issuer ID: $(cat ~/.appstoreconnect/apiissuer.txt)"
+          echo "App ID: $(cat ~/.appstoreconnect/appid.txt)"
+          echo "API Key file exists: $(ls -lh ~/.appstoreconnect/private_keys/AuthKey_${KEY_ID}.p8 2>/dev/null && echo 'yes' || echo 'NO')"
+          echo "API Key file size: $(wc -c < ~/.appstoreconnect/private_keys/AuthKey_${KEY_ID}.p8 2>/dev/null || echo 'ERROR')"
+          echo "API Key file first line:"
+          head -1 ~/.appstoreconnect/private_keys/AuthKey_${KEY_ID}.p8
+          echo "API Key file last line:"
+          tail -1 ~/.appstoreconnect/private_keys/AuthKey_${KEY_ID}.p8
+
+      - name: Build Developer ID app (prerequisite for App Store build)
+        env:
+          APPLE_NOTARIZATION_APPLE_ID: ${{ secrets.APPLE_NOTARIZATION_APPLE_ID }}
+          APPLE_NOTARIZATION_PASSWORD: ${{ secrets.APPLE_NOTARIZATION_PASSWORD }}
+          APPLE_NOTARIZATION_TEAM_ID: ${{ secrets.APPLE_NOTARIZATION_TEAM_ID }}
+        run: bash dev/build-mac.sh
+
+      - name: Build and submit to App Store
+        run: xcrun altool --list-apps --type osx --apiKey "${apiKey}" --apiIssuer "${apiIssuer}" --apple-id "${appid}"
+
+      - name: Clean up keychain
+        if: always()
+        run: security delete-keychain "$KEYCHAIN_PATH"
 
   # ── GitHub Release ─────────────────────────────────────────────────────────
   release:
