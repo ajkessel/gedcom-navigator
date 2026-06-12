@@ -101,7 +101,7 @@ class HelpDialogsMixin:
         self._show_file_window(
             WIN_ABOUT,
             self._resource_path('docs/LICENSE.md'), markdown=True,
-            preamble=f"# {APP_TITLE}  v{self._version} ({self._release_date})\n\n",
+            preamble=f"# {APP_TITLE} v{self._version} ({self._release_date})\n\n",
         )
     def _show_privacy_policy(self):
         """Open the privacy policy documentation window."""
