@@ -34,7 +34,6 @@ if [[ -z "${CI:-}" ]]; then
 		exit 1
 	}
 fi
-python3 dev/update_version.py
 VERSION=$(grep __version__ gedcom_navigator/__init__.py | grep -o '[0-9]\+\.[0-9]\+\(\.[0-9]\+\)\+')
 x=0
 if grep -s xcrun build-mac-appstore.log | grep -qF "${VERSION}"; then
