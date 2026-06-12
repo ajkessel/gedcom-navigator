@@ -439,12 +439,26 @@ jobs:
           VERSION=$(grep -oP '__version__\s*=\s*"\K[^"]+' gedcom_navigator/__init__.py)
           echo "version=${VERSION}.0" >> "$GITHUB_OUTPUT"
 
+  # ── WinGet ─────────────────────────────────────────────────────────────────
+  winget:
+    if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')) || inputs.build_winget
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Get version from __init__.py
+        id: get_version
+        shell: bash
+        run: |
+          VERSION=$(grep -oP '__version__\s*=\s*"\K[^"]+' gedcom_navigator/__init__.py)
+          echo "version=${VERSION}.0" >> "$GITHUB_OUTPUT"
+
       - name: Publish to WinGet
-        if: inputs.build_winget
         uses: vedantmgoyal9/winget-releaser@v2
         with:
           token: ${{ secrets.WINGET_TOKEN }}
           identifier: AdamKessel.GEDCOMNavigator
           version: ${{ steps.get_version.outputs.version }}
           installers-regex: 'gedcom-navigator-windows-installer\.exe$'
-          continue-on-error: true
+        continue-on-error: true
+
