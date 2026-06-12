@@ -59,6 +59,7 @@ try {
     }
     git pull
     & ".\venv\Scripts\activate.ps1"
+    python .\dev\update_version.py
     Remove-Item -Recurse -Force -Path dist\ -ErrorAction SilentlyContinue
     New-Item -ItemType Directory -Path dist -Force | Out-Null
 

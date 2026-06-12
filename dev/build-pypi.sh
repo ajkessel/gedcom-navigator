@@ -32,6 +32,8 @@ cd "$(dirname "$0")/.."
 
 [[ -e .venv/bin/activate ]] && source .venv/bin/activate
 
+python3 dev/update_version.py
+
 echo "==> Installing / upgrading build tools..."
 python3 -m pip install --upgrade build hatchling twine
 
