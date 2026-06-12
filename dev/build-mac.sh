@@ -61,7 +61,9 @@ fi
 
 # preference is for universal2 python from python.org
 # alternatively, set up pyenv environment
-if [ -e "/Library/Frameworks/Python.framework/Versions/current/bin/python3" ]; then
+if [ -e "/Library/Frameworks/Python.framework/Versions/3.14/bin/python3.14" ]; then
+	export PATH="/Library/Frameworks/Python.framework/Versions/3.14/bin/:${PATH}"
+elif [ -e "/Library/Frameworks/Python.framework/Versions/current/bin/python3" ]; then
 	export PATH="/Library/Frameworks/Python.framework/Versions/current/bin/:${PATH}"
 else
 	echo 'Python from python.org not found, attempting to set up pyenv...'
@@ -103,6 +105,71 @@ if clang --version | grep -q ' version 21'; then
 else
 	echo 'Xcode less than 15, skipping -Wno-error=default-const-init-var-unsafe.'
 fi
+# Pillow no longer ships universal2 wheels; only arm64 and x86_64 are provided.
+# Download both, install the arm64 wheel into the venv, then lipo every .so /
+# .dylib in the installed PIL directory with its x86_64 counterpart so
+# PyInstaller's fat-binary check passes.
+python3 - << 'PYEOF'
+import json, os, subprocess, sys, sysconfig, tempfile, urllib.request, zipfile
+
+# Derive the exact ABI tag of the running Python (cp314 or cp314t for
+# free-threaded builds) so we pick the right Pillow wheel to install.
+abiflags = sysconfig.get_config_var('ABIFLAGS') or ''
+cp     = f"cp{sys.version_info.major}{sys.version_info.minor}"
+cp_abi = f"{cp}{abiflags}"
+print(f"Building universal2 Pillow for {cp}/{cp_abi} via lipo merge...")
+with urllib.request.urlopen("https://pypi.org/pypi/pillow/json") as r:
+    data = json.loads(r.read())
+latest = data["info"]["version"]
+urls = {}
+for f in data["releases"].get(latest, []):
+    fn = f["filename"]
+    if not (fn.endswith(".whl") and "macosx" in fn):
+        continue
+    # Parse wheel filename: name-ver-pytag-abitag-platform.whl
+    parts = fn[:-4].split('-')
+    if len(parts) != 5 or parts[3] != cp_abi:
+        continue
+    for arch in ("arm64", "x86_64"):
+        if arch in parts[4]:
+            urls[arch] = (f["url"], fn)
+if set(urls) != {"arm64", "x86_64"}:
+    print(f"ERROR: need arm64+x86_64 Pillow {latest} wheels for {cp_abi}; got {list(urls)}", file=sys.stderr)
+    sys.exit(1)
+with tempfile.TemporaryDirectory() as tmp:
+    # Use the real wheel filename so pip accepts it (pip validates the filename)
+    arm64_fn, x86_fn = urls["arm64"][1], urls["x86_64"][1]
+    arm64_whl = os.path.join(tmp, arm64_fn)
+    x86_whl   = os.path.join(tmp, x86_fn)
+    x86_dir   = os.path.join(tmp, "x86_64")
+    print(f"Installing arm64: {arm64_fn}")
+    urllib.request.urlretrieve(urls["arm64"][0], arm64_whl)
+    subprocess.check_call([sys.executable, "-m", "pip", "install",
+                           arm64_whl, "--no-deps", "--force-reinstall"])
+    print(f"Extracting x86_64: {x86_fn}")
+    urllib.request.urlretrieve(urls["x86_64"][0], x86_whl)
+    with zipfile.ZipFile(x86_whl) as z:
+        z.extractall(x86_dir)
+    # index x86_64 binaries by filename
+    x86_bins = {}
+    for root, _, files in os.walk(x86_dir):
+        for fn in files:
+            if fn.endswith((".so", ".dylib")):
+                x86_bins.setdefault(fn, []).append(os.path.join(root, fn))
+    site_pkg = subprocess.check_output(
+        [sys.executable, "-c", "import site; print(site.getsitepackages()[0])"]
+    ).decode().strip()
+    pil_dir = os.path.join(site_pkg, "PIL")
+    for root, _, files in os.walk(pil_dir):
+        for fn in files:
+            if fn.endswith((".so", ".dylib")) and fn in x86_bins:
+                arm64_f = os.path.join(root, fn)
+                x86_f   = x86_bins[fn][0]
+                print(f"  lipo {fn}")
+                subprocess.check_call(["lipo", "-create", arm64_f, x86_f, "-output", arm64_f])
+print(f"universal2 Pillow {latest} ready")
+PYEOF
+[ $? -eq 0 ] || { echo 'Failed to build universal2 Pillow.'; exit 1; }
 env CFLAGS="${myflags:-}" ARCHFLAGS="-arch arm64 -arch x86_64" pip install -r ./dev/requirements-dev.txt --no-binary pyobjc-core,pyobjc-framework-Cocoa,pyobjc-framework-CoreServices || {
 	echo 'Failed to install dependencies.'
 	exit 1

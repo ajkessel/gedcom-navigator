@@ -156,6 +156,7 @@ class SearchMixin:
 
         dna_keyword = self.tag_keyword.get()
         page_marker = self.page_marker.get()
+        detection_fields = self._config.get_detection_fields()
         cache_dir = self._cache_dir()
 
         def _do_load():
@@ -171,6 +172,7 @@ class SearchMixin:
                     dna_keyword=dna_keyword,
                     page_marker=page_marker,
                     cache_dir=cache_dir,
+                    detection_fields=detection_fields,
                 )
                 self.root.after(
                     0, lambda: _on_done(result, None, tmp_path, ged_name))
@@ -207,6 +209,8 @@ class SearchMixin:
             self.families = self._model.families
             self.tag_records = self._model.tag_records
             self.media_records = self._model.media_records
+            self.custom_field_records = self._model.custom_field_records
+            self.uses_alternate_tags = self._model.uses_alternate_tags
             self._display_path_target_id = None
             self._last_result = None
             self._clear_home_path_cache()
@@ -241,6 +245,8 @@ class SearchMixin:
         self.families = {}
         self.tag_records = {}
         self.media_records = {}
+        self.custom_field_records = []
+        self.uses_alternate_tags = False
         self.sorted_ids = []
         self._home_person_id = None
         self._last_result = None
@@ -271,7 +277,8 @@ class SearchMixin:
             return
         dna_keyword = self.tag_keyword.get()
         page_marker = self.page_marker.get()
-        self._model.reflag(dna_keyword, page_marker)
+        detection_fields = self._config.get_detection_fields()
+        self._model.reflag(dna_keyword, page_marker, detection_fields)
         self._populate_tree()
 
     def _clear_home_path_cache(self):

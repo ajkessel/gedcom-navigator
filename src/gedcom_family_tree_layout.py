@@ -97,6 +97,7 @@ def _build_spanning_tree(root_id, units, person_units):
     visited_units = set()
     discovered_as = {root_id: (None, 'root')}
     tree_parent = {root_id: None}
+    discovery = [root_id]
     queue = deque([root_id])
 
     def is_tree_ancestor(candidate_id, person_id):
@@ -107,73 +108,105 @@ def _build_spanning_tree(root_id, units, person_units):
             current = tree_parent.get(current)
         return False
 
-    while queue:
-        person_id = queue.popleft()
+    def traverse_unit(person_id, index, direction):
+        visited_units.add(index)
+        unit = units[index]
         gen = generations[person_id]
-        entries = person_units.get(
-            person_id, {'as_partner': (), 'as_child': ()})
-        traversals = [
-            (index, 'down') for index in entries['as_partner']
-            if index not in visited_units
-        ] + [
-            (index, 'up') for index in entries['as_child']
-            if index not in visited_units
-        ]
-        person_children[person_id] = []
-        for index, direction in traversals:
-            visited_units.add(index)
-            unit = units[index]
-            if direction == 'down':
-                partner_gen, child_gen = gen, gen + 1
-            else:
-                partner_gen, child_gen = gen - 1, gen
-            new_partners = []
-            for partner_id in unit['partners']:
-                if partner_id in visited_people:
-                    if partner_id == person_id:
-                        continue
-                    # Cycle cut: prefer cutting a parent-child link over a
-                    # marriage.  A partner who sits in a sibling group of
-                    # another branch is pulled into this marriage row; the
-                    # parent bus reaches them with an elbow connector.
-                    source_unit, role = discovered_as.get(
-                        partner_id, (None, None))
-                    if (role == 'child'
-                            and generations[partner_id] == partner_gen
-                            and not is_tree_ancestor(partner_id, person_id)):
-                        old_node = unit_children.get(source_unit)
-                        if old_node and partner_id in old_node['children']:
-                            old_node['children'].remove(partner_id)
-                            discovered_as[partner_id] = (index, 'partner')
-                            tree_parent[partner_id] = person_id
-                            new_partners.append(partner_id)
+        if direction == 'down':
+            partner_gen, child_gen = gen, gen + 1
+        else:
+            partner_gen, child_gen = gen - 1, gen
+        new_partners = []
+        for partner_id in unit['partners']:
+            if partner_id in visited_people:
+                if partner_id == person_id:
                     continue
-                visited_people.add(partner_id)
-                generations[partner_id] = partner_gen
-                discovered_as[partner_id] = (index, 'partner')
-                tree_parent[partner_id] = person_id
-                new_partners.append(partner_id)
-                queue.append(partner_id)
-            new_children = []
-            for child_id in unit['children']:
-                if child_id in visited_people:
-                    continue
-                visited_people.add(child_id)
-                generations[child_id] = child_gen
-                discovered_as[child_id] = (index, 'child')
-                tree_parent[child_id] = person_id
-                new_children.append(child_id)
-                queue.append(child_id)
-            if not new_partners and not new_children:
-                visited_units.discard(index)
+                # Cycle cut: prefer cutting a parent-child link over a
+                # marriage.  A partner who sits in a sibling group of
+                # another branch is pulled into this marriage row; the
+                # parent bus reaches them with an elbow connector.
+                source_unit, role = discovered_as.get(
+                    partner_id, (None, None))
+                if (role == 'child'
+                        and generations[partner_id] == partner_gen
+                        and not is_tree_ancestor(partner_id, person_id)):
+                    old_node = unit_children.get(source_unit)
+                    if old_node and partner_id in old_node['children']:
+                        old_node['children'].remove(partner_id)
+                        discovered_as[partner_id] = (index, 'partner')
+                        tree_parent[partner_id] = person_id
+                        new_partners.append(partner_id)
                 continue
-            person_children[person_id].append((index, direction))
-            unit_children[index] = {
-                'via': person_id,
-                'direction': direction,
-                'partners': new_partners,
-                'children': new_children,
-            }
+            visited_people.add(partner_id)
+            generations[partner_id] = partner_gen
+            discovered_as[partner_id] = (index, 'partner')
+            tree_parent[partner_id] = person_id
+            new_partners.append(partner_id)
+            discovery.append(partner_id)
+            queue.append(partner_id)
+        new_children = []
+        for child_id in unit['children']:
+            if child_id in visited_people:
+                continue
+            visited_people.add(child_id)
+            generations[child_id] = child_gen
+            discovered_as[child_id] = (index, 'child')
+            tree_parent[child_id] = person_id
+            new_children.append(child_id)
+            discovery.append(child_id)
+            queue.append(child_id)
+        if not new_partners and not new_children:
+            visited_units.discard(index)
+            return False
+        person_children.setdefault(person_id, []).append((index, direction))
+        unit_children[index] = {
+            'via': person_id,
+            'direction': direction,
+            'partners': new_partners,
+            'children': new_children,
+        }
+        return True
+
+    units_by_parent = {}
+    for index, unit in enumerate(units):
+        for parent_id in unit['all_parents']:
+            units_by_parent.setdefault(parent_id, []).append(index)
+
+    while True:
+        while queue:
+            person_id = queue.popleft()
+            entries = person_units.get(
+                person_id, {'as_partner': (), 'as_child': ()})
+            traversals = [
+                (index, 'down') for index in entries['as_partner']
+            ] + [
+                (index, 'up') for index in entries['as_child']
+            ]
+            person_children.setdefault(person_id, [])
+            for index, direction in traversals:
+                if index in visited_units:
+                    continue
+                traverse_unit(person_id, index, direction)
+        # Half-sibling units: a unit whose only link to the graph is a
+        # parent shared with a visited person's own family (the shared
+        # parent is usually hidden, so no person-level traversal reaches
+        # it).  Attach it at that person, placing its children on the
+        # person's row — half-siblings are the same generation by
+        # definition.  Connected graphs never get here with work to do.
+        attached = False
+        for person_id in discovery:
+            for own_index in person_units.get(
+                    person_id, {}).get('as_child', ()):
+                for parent_id in sorted(units[own_index]['all_parents']):
+                    for other_index in units_by_parent.get(parent_id, ()):
+                        if other_index in visited_units:
+                            continue
+                        if traverse_unit(person_id, other_index, 'up'):
+                            attached = True
+            if attached:
+                break
+        if not attached:
+            break
     return (
         {'person': person_children, 'unit': unit_children},
         generations,
@@ -403,11 +436,13 @@ def _order_chain_row(members, seed_persons, tree):
     return [by_id[person_id] for person_id in path]
 
 
-def _up_unit(person_id, tree):
-    for index, direction in tree['person'].get(person_id, ()):
-        if direction == 'up':
-            return index
-    return None
+def _up_units(person_id, tree):
+    """Units traversed upward from person_id: own family first, then any
+    half-sibling units attached through a shared parent."""
+    return [
+        index for index, direction in tree['person'].get(person_id, ())
+        if direction == 'up'
+    ]
 
 
 def _layout_chain(seed_persons, tree, gens, units):
@@ -428,11 +463,9 @@ def _layout_chain(seed_persons, tree, gens, units):
     # descendants force wider gaps) move outward.
     sibling_cols = {}
     for person_id, _down_units in members:
-        up_index = _up_unit(person_id, tree)
-        if up_index is None:
-            continue
         sibling_blocks = [
             (sibling_id, _layout_chain([sibling_id], tree, gens, units))
+            for up_index in _up_units(person_id, tree)
             for sibling_id in tree['unit'][up_index]['children']
         ]
         sibling_blocks.sort(key=lambda item: _block_width(item[1]))
@@ -501,10 +534,12 @@ def _layout_chain(seed_persons, tree, gens, units):
     # chain landing left of an earlier one would always cross drop lines,
     # so the previous chain's parent row is a hard lower bound.
     prev_row_high = None
-    for person_id, _down_units in members:
-        up_index = _up_unit(person_id, tree)
-        if up_index is None:
-            continue
+    up_chains = [
+        (person_id, up_index)
+        for person_id, _down_units in members
+        for up_index in _up_units(person_id, tree)
+    ]
+    for person_id, up_index in up_chains:
         partners = tree['unit'][up_index]['partners']
         if not partners:
             continue

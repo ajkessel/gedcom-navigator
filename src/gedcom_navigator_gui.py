@@ -138,6 +138,8 @@ class GedcomNavigatorApp(
         self.families = {}
         self.tag_records = {}
         self.media_records = {}
+        self.custom_field_records = []
+        self.uses_alternate_tags = False
         self.sorted_ids = []
         self._home_person_id = None
         self._home_path_cache = {}

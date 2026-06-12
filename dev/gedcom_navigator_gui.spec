@@ -133,6 +133,15 @@ exe = EXE(
 
 if sys.platform == 'darwin':
     target_arch = os.environ.get('target_arch', 'universal2')
+    if target_arch == 'universal2':
+        # _avif requires libavif which is not available as a universal2 fat
+        # binary on GitHub CI runners, so its .so is arm64-only and breaks
+        # PyInstaller's fat-binary validation.  AVIF support is optional for
+        # GEDCOM image display, so drop it from the bundle entirely.
+        _before = len(a.binaries)
+        a.binaries = [b for b in a.binaries if '_avif' not in b[0]]
+        if len(a.binaries) < _before:
+            print('[spec] dropped PIL._avif (no universal2 libavif available)')
     exe = EXE(pyz,
               a.scripts,
               exclude_binaries=True,

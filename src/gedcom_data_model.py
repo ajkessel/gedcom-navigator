@@ -33,7 +33,7 @@ class GedcomDataModel:
 
     # Bump this whenever the cached individual/family schema changes so that
     # stale cache files are automatically discarded and reparsed.
-    _CACHE_VERSION = 9
+    _CACHE_VERSION = 11
 
     def __init__(self):
         self.individuals = {}
@@ -41,12 +41,15 @@ class GedcomDataModel:
         self.tag_records = {}
         self.media_records = {}
         self.married_name_index = {}
+        self.uses_alternate_tags = False
+        self.custom_field_records = []
 
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
 
-    def load(self, gedcom_path, dna_keyword, page_marker, cache_dir):
+    def load(self, gedcom_path, dna_keyword, page_marker, cache_dir,
+             detection_fields=None):
         """Parse (or restore from cache) a GEDCOM file.
 
         Returns (from_cache, encoding_warning, model_error).
@@ -60,8 +63,12 @@ class GedcomDataModel:
                 self.families,
                 self.tag_records,
                 self.media_records,
+                self.uses_alternate_tags,
+                self.custom_field_records,
             ) = cached
-            apply_dna_flags(self.individuals, self.tag_records, dna_keyword, page_marker)
+            apply_dna_flags(
+                self.individuals, self.tag_records, dna_keyword, page_marker,
+                self.uses_alternate_tags, detection_fields)
             self.married_name_index = self._build_married_name_index()
             return True, None, None
 
@@ -72,10 +79,13 @@ class GedcomDataModel:
             self.media_records,
             warning,
             model_error,
+            self.uses_alternate_tags,
+            self.custom_field_records,
         ) = build_model(
             gedcom_path,
             dna_keyword=dna_keyword,
             page_marker=page_marker,
+            detection_fields=detection_fields,
         )
         if model_error:
             self.individuals = {}
@@ -83,14 +93,18 @@ class GedcomDataModel:
             self.tag_records = {}
             self.media_records = {}
             self.married_name_index = {}
+            self.uses_alternate_tags = False
+            self.custom_field_records = []
             return False, warning, model_error
         self.married_name_index = self._build_married_name_index()
         self._save_to_cache(gedcom_path, cache_dir)
         return False, warning, None
 
-    def reflag(self, dna_keyword, page_marker):
+    def reflag(self, dna_keyword, page_marker, detection_fields=None):
         """Re-apply DNA flags in-place without re-parsing or touching the cache."""
-        apply_dna_flags(self.individuals, self.tag_records, dna_keyword, page_marker)
+        apply_dna_flags(
+            self.individuals, self.tag_records, dna_keyword, page_marker,
+            self.uses_alternate_tags, detection_fields)
 
     def find_dna_matches(self, start_id, top_n, max_depth, cancel_event=None):
         """Find the nearest DNA-flagged people to a given individual."""
@@ -187,6 +201,8 @@ class GedcomDataModel:
                 data['families'],
                 data['tag_records'],
                 data.get('media_records', {}),
+                data.get('uses_alternate_tags', False),
+                data.get('custom_field_records', []),
             )
         except Exception: # pylint: disable=broad-exception-caught
             log_exception(f"loading parse cache for {gedcom_path!r}")
@@ -204,6 +220,8 @@ class GedcomDataModel:
                 'families': self.families,
                 'tag_records': self.tag_records,
                 'media_records': self.media_records,
+                'uses_alternate_tags': self.uses_alternate_tags,
+                'custom_field_records': self.custom_field_records,
             }
             tmp = cache_file.with_suffix('.tmp')
             with tmp.open('w', encoding='utf-8') as f:

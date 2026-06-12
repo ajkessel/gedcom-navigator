@@ -7106,3 +7106,61 @@ def test_family_tree_ancestor_blocks_follow_couple_order():
     left_spouse, right_spouse = sorted(couple, key=lambda pid: cols[pid])
     assert max(cols[pid] for pid in couple[left_spouse]) < min(
         cols[pid] for pid in couple[right_spouse])
+
+
+def test_family_tree_half_siblings_share_their_siblings_generation():
+    """Regression test for debug/29: half-siblings whose own parents are all
+    hidden share a parent with their sibling's family unit but belong to no
+    visible person's unit, so the spanning tree must attach them through the
+    shared parent instead of dropping them to a disconnected component at
+    generation 0."""
+    path = Path('debug/29.json')
+    if not path.exists():
+        pytest.skip('debug/29.json not found')
+    payload = json.loads(path.read_text())
+    edges = [
+        (edge['source'], edge['target'], edge['category'])
+        for edge in payload['edges']
+    ]
+    layout = layout_family_tree(
+        payload['center_id'], payload['visible_ids'], edges,
+        payload['family_members'], _debug_fixture_parent_kind(payload))
+    gens = {node['id']: node['generation'] for node in layout}
+
+    # Samuel (@I111@) and Nathan (@I112@) are half-brothers of Daniel
+    # (@I45@) through a shared hidden father; all three sit on one row.
+    assert gens['@I111@'] == gens['@I45@']
+    assert gens['@I112@'] == gens['@I45@']
+
+
+def test_family_tree_half_sibling_stub_keeps_full_sibling_units():
+    """Regression test for debug/30: a merged hidden-parent stub must keep
+    each family unit's children separate, so full siblings share a solid
+    bar and only the bridges between units render half-style."""
+    path = Path('debug/30.json')
+    if not path.exists():
+        pytest.skip('debug/30.json not found')
+    payload = json.loads(path.read_text())
+    edges = [
+        (edge['source'], edge['target'], edge['category'])
+        for edge in payload['edges']
+    ]
+    layout = layout_family_tree(
+        payload['center_id'], payload['visible_ids'], edges,
+        payload['family_members'], _debug_fixture_parent_kind(payload))
+    positions = {
+        node['id']: (node['column'] * 100, node['generation'] * 100)
+        for node in layout
+    }
+    _groups, stubs = FamilyTreeRenderMixin._family_tree_bus_groups(
+        None, layout.child_buses, positions, v_gap=100, h_gap=100)
+
+    assert len(stubs) == 1
+    units = {frozenset(unit) for unit in stubs[0]['units']}
+    # Daniel (@I45@) and his five full siblings form one unit; half-brothers
+    # Samuel (@I111@) and Nathan (@I112@) are singleton units of their own.
+    assert frozenset((
+        '@I45@', '@I149@', '@I150@', '@I15112@', '@I16861@', '@I16862@',
+    )) in units
+    assert frozenset(('@I111@',)) in units
+    assert frozenset(('@I112@',)) in units

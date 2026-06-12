@@ -5,7 +5,7 @@ window](https://raw.githubusercontent.com/ajkessel/gedcom-navigator/main/docs/sc
 
 Given a GEDCOM file and a target individual, the tool performs a breadth-first search through the tree's relationship graph (parents, children, siblings, spouses) and returns the closest individuals flagged as DNA matches, along with the relationship path connecting each match to the target.
 
-Two flag formats are recognized by default:
+Two Ancestry flag formats are recognized by default:
 
 - **AncestryDNA citations.** When an Ancestry-managed tree marks a person as a DNA match, the exported GEDCOM contains a source citation with a `PAGE` line of the form:
   ```
@@ -22,6 +22,22 @@ Two flag formats are recognized by default:
   ```
 
 Both substrings are configurable, so you can adapt the tool to other genealogy software's conventions.
+
+### Non-Ancestry files
+
+There is no universal GEDCOM standard for DNA matches, and most genealogy programs (RootsMagic, Gramps, Family Historian, Legacy, etc.) do not use `_MTTAG`. When a loaded file contains **no `_MTTAG` records at all**, the tool automatically broadens its search to the custom fields those programs use, matching the same keyword (default `DNA`) against:
+
+| GEDCOM form | Example |
+| --- | --- |
+| Custom event | `1 EVEN` / `2 TYPE DNA Match` |
+| Custom fact | `1 FACT Shared 120 cM` / `2 TYPE DNA` |
+| Custom attribute (Family Historian) | `1 _ATTR` / `2 TYPE DNA` |
+| Reference number | `1 REFN kit-123` / `2 TYPE DNA kit` |
+| Custom `_DNA`-style tag | `1 _DNAMATCH Y` |
+
+Free-text `NOTE` fields are **not** scanned by default because they mention "DNA" too often; they can be enabled explicitly (see `--detection-fields`). This fallback only runs on files that lack `_MTTAG`, so Ancestry exports behave exactly as before and a stray custom fact mentioning DNA in an Ancestry file is not flagged.
+
+For non-Ancestry files, the **Select Tag** browser (and the CLI `--list-tags`) lists a catalog of the custom field types discovered in the file — their kind (`EVEN`/`FACT`/`_ATTR`/`REFN`/`_TAG`), type value, and occurrence count — so you can pick exactly which one to match on.
 
 Although this software was developed for this DNA use case, you could use it to find the closest path to any tag or page marker by entering that string into "tag keyword" or "page marker" rather than a DNA-specific term. For example, if your paternal relatives are tagged with a "paternal" tag, you could use this tool to find the path between anyone in your tree and anyone tagged as a paternal relative.
 
@@ -175,10 +191,11 @@ python gedcom_navigator_cli.py tree.ged "Jane Doe" --top 5 --max-depth 80
 | `--top`             | 3                   | Number of nearest matches to return.                                        |
 | `--max-depth`       | 50                  | Maximum BFS depth, in edges.                                                |
 | `--page-marker`     | `AncestryDNA Match` | Substring to look for in source-citation `PAGE` text. Case-insensitive.     |
-| `--tag-keyword`     | `DNA`               | Substring to look for in `_MTTAG` `NAME` values. Case-insensitive.          |
+| `--tag-keyword`     | `DNA`               | Substring to look for in `_MTTAG` `NAME` values (and, for non-Ancestry files, in alternate custom fields). Case-insensitive. |
+| `--detection-fields`| `even,fact,attr,tag,refn` | Comma-separated alternate fields scanned when the file has no `_MTTAG` records: `even,fact,attr,tag,refn,note`. `note` is excluded by default. |
 | `--fuzzy`           | off                 | Enable fuzzy name matching for typos and spelling variants.                 |
 | `--fuzzy-threshold` | 0.6                 | Similarity cutoff for `--fuzzy`, between 0.0 and 1.0. Lower = more matches. |
-| `--list-tags`       |                     | Print all `_MTTAG` definitions in the file and exit.                        |
+| `--list-tags`       |                     | Print all `_MTTAG` definitions (or, for non-Ancestry files, the discovered custom-field catalog) and exit. |
 | `--list-flagged`    |                     | Print every individual currently flagged as a DNA match and exit.           |
 
 ## Example output

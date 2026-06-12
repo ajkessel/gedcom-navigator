@@ -33,15 +33,20 @@ def main():
             version = ref_name[1:]
             print(f"Using version from GITHUB_REF_NAME: {version}")
 
-    # Fallback to git describe
+    # Fallback to git describe (nearest ancestor tag, exact; no hash suffix)
     if not version:
-        git_desc = run_git(["describe", "--tags", "--always"])
+        git_desc = run_git(["describe", "--tags", "--abbrev=0"])
+        if not git_desc:
+            # shallow clone or no tags: try with hash suffix and strip it
+            git_desc = run_git(["describe", "--tags", "--always"])
         if git_desc:
-            if git_desc.startswith("v"):
-                version = git_desc[1:]
+            candidate = git_desc[1:] if git_desc.startswith("v") else git_desc
+            if re.match(r"^\d+\.\d+", candidate):
+                # strip any trailing -N-gHASH from a describe-with-distance result
+                version = re.sub(r"-\d+-g[0-9a-f]+$", "", candidate)
+                print(f"Using version from git describe: {version}")
             else:
-                version = git_desc
-            print(f"Using version from git describe: {version}")
+                print(f"git describe returned non-version string '{git_desc}', ignoring")
 
     # 2. Determine release date
     release_date = os.environ.get("GEDCOM_NAVIGATOR_RELEASE_DATE")

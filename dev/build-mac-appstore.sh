@@ -34,7 +34,6 @@ if [[ -z "${CI:-}" ]]; then
 		exit 1
 	}
 fi
-python3 dev/update_version.py
 VERSION=$(grep __version__ gedcom_navigator/__init__.py | grep -o '[0-9]\+\.[0-9]\+\(\.[0-9]\+\)\+')
 x=0
 if grep -s xcrun build-mac-appstore.log | grep -qF "${VERSION}"; then
@@ -192,11 +191,20 @@ else
 	exit 1
 fi
 echo "Submitting App Store package to app store..."
-apiKey=$(cat "${HOME}/.appstoreconnect/apikey.txt")
-apiIssuer=$(cat "${HOME}/.appstoreconnect/apiissuer.txt")
-appid=$(cat "${HOME}/.appstoreconnect/appid.txt")
+apiKey=$(cat "${HOME}/.appstoreconnect/apikey.txt" 2>/dev/null)
+apiIssuer=$(cat "${HOME}/.appstoreconnect/apiissuer.txt" 2>/dev/null)
+appid=$(cat "${HOME}/.appstoreconnect/appid.txt" 2>/dev/null)
+echo "  VERSION:   ${VERSION:-(empty)}"
+echo "  apiKey:    ${apiKey:-(empty)}"
+echo "  apiIssuer: ${apiIssuer:-(empty)}"
+echo "  appid:     ${appid:-(empty)}"
+echo "  __init__.py version line: $(grep __version__ gedcom_navigator/__init__.py)"
 [ -z "${apiKey}" ] || [ -z "${apiIssuer}" ] || [ -z "${VERSION}" ] || [ -z "${appid}" ] && {
 	echo "Need apiKey, apiIssuer, version, and appid to be set for app store upload."
+	[[ -z "${apiKey}" ]]    && echo "  MISSING: apiKey (check ~/.appstoreconnect/apikey.txt)"
+	[[ -z "${apiIssuer}" ]] && echo "  MISSING: apiIssuer (check ~/.appstoreconnect/apiissuer.txt)"
+	[[ -z "${VERSION}" ]]   && echo "  MISSING: VERSION (check gedcom_navigator/__init__.py __version__ format)"
+	[[ -z "${appid}" ]]     && echo "  MISSING: appid (check ~/.appstoreconnect/appid.txt)"
 	exit 1
 }
 [ "${DRY}" ] || { 

@@ -118,8 +118,15 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
         return max(min_w, width)
 
     def _view_tags(self):
-        """Show tag-record definitions and allow choosing the DNA tag keyword."""
-        if not self.tag_records:
+        """Show tag-record definitions and allow choosing the DNA tag keyword.
+
+        Ancestry files list their _MTTAG definitions. Non-Ancestry files (no
+        _MTTAG records) instead list the discovered custom-field catalog
+        (kind / type / count) so the user can pick a custom EVEN/FACT/_DNA/REFN
+        type as the match keyword.
+        """
+        catalog_mode = not self.tag_records and bool(self.custom_field_records)
+        if not self.tag_records and not catalog_mode:
             messagebox.showinfo(WIN_TAG_DEFINITIONS, MSG_NO_TAGS)
             return
 
@@ -130,12 +137,25 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
         win.resizable(True, True)
 
         show_ids = self.show_ids.get()
-        rows = sorted(self.tag_records.items())
 
         list_frame = ctk.CTkFrame(win, fg_color='transparent')
         list_frame.pack(fill='both', expand=True, padx=8, pady=(8, 0))
 
-        if show_ids:
+        first_match = None
+        current_kw = self.tag_keyword.get().strip().lower()
+        if catalog_mode:
+            rows = self.custom_field_records
+            tag_tree = ttk.Treeview(list_frame, columns=('kind', 'name', 'count'),
+                                    show='headings', selectmode='browse',
+                                    height=min(len(rows), 20))
+            tag_tree.heading('kind', text=COL_TAG_KIND)
+            tag_tree.heading('name', text=COL_TAG_NAME)
+            tag_tree.heading('count', text=COL_TAG_COUNT)
+            tag_tree.column('kind', width=80, anchor='w', stretch=False)
+            tag_tree.column('name', width=250, anchor='w', stretch=True)
+            tag_tree.column('count', width=60, anchor='e', stretch=False)
+        elif show_ids:
+            rows = sorted(self.tag_records.items())
             tag_tree = ttk.Treeview(list_frame, columns=('id', 'name'),
                                     show='headings', selectmode='browse',
                                     height=min(len(rows), 20))
@@ -144,6 +164,7 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
             tag_tree.column('id', width=90, anchor='w', stretch=False)
             tag_tree.column('name', width=300, anchor='w', stretch=True)
         else:
+            rows = sorted(self.tag_records.items())
             tag_tree = ttk.Treeview(list_frame, columns=('name',),
                                     show='headings', selectmode='browse',
                                     height=min(len(rows), 20))
@@ -156,13 +177,43 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
         tag_tree.pack(side='left', fill='both', expand=True)
         ysb.pack(side='right', fill='y')
 
-        current_kw = self.tag_keyword.get().strip().lower()
-        first_match = None
-        for ref, name in rows:
-            iid = tag_tree.insert('', 'end',
-                                  values=(ref, name) if show_ids else (name,))
-            if first_match is None and name.strip().lower() == current_kw:
-                first_match = iid
+        if catalog_mode:
+            for rec in rows:
+                name = rec['type']
+                iid = tag_tree.insert(
+                    '', 'end', values=(rec['kind'], name, rec['count']))
+                if first_match is None and name.strip().lower() == current_kw:
+                    first_match = iid
+        else:
+            for ref, name in rows:
+                iid = tag_tree.insert('', 'end',
+                                      values=(ref, name) if show_ids else (name,))
+                if first_match is None and name.strip().lower() == current_kw:
+                    first_match = iid
+
+        # Let the user sort by clicking any column header (count sorts numerically).
+        sort_state = {}
+
+        def _sort_tag_tree(col):
+            reverse = sort_state.get(col, False)
+            numeric = col == 'count'
+
+            def _key(item):
+                val = tag_tree.set(item, col)
+                if numeric:
+                    try:
+                        return int(val)
+                    except ValueError:
+                        return 0
+                return val.lower()
+
+            ordered = sorted(tag_tree.get_children(''), key=_key, reverse=reverse)
+            for index, item in enumerate(ordered):
+                tag_tree.move(item, '', index)
+            sort_state[col] = not reverse
+
+        for _col in tag_tree['columns']:
+            tag_tree.heading(_col, command=lambda c=_col: _sort_tag_tree(c))
 
         btn_frame = ctk.CTkFrame(win, fg_color='transparent')
         btn_frame.pack(fill='x', padx=8, pady=8)
@@ -818,6 +869,14 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
         Tooltip(_pref_page_marker_label, TIP_PAGE_MARKER)
         Tooltip(_pref_page_marker_entry, TIP_PAGE_MARKER)
 
+        scan_notes_var = tk.BooleanVar(
+            value='NOTE' in self._config.get_detection_fields())
+        _pref_scan_notes_chk = ctk.CTkCheckBox(
+            search_frame, text=CHK_SCAN_NOTES, variable=scan_notes_var)
+        _pref_scan_notes_chk.grid(
+            row=4, column=1, columnspan=3, sticky='w', pady=(6, 0))
+        Tooltip(_pref_scan_notes_chk, TIP_SCAN_NOTES)
+
         # Export section
         export_section = ctk.CTkFrame(outer, border_width=1)
         export_section.pack(fill='x', pady=(0, 8))
@@ -996,6 +1055,13 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
             self._config.set_tag_keyword(tag_keyword_var.get())
             self.page_marker.set(page_marker_var.get())
             self._config.set_page_marker(page_marker_var.get())
+            old_fields = self._config.get_detection_fields()
+            new_fields = [f for f in old_fields if f != 'NOTE']
+            if scan_notes_var.get():
+                new_fields.append('NOTE')
+            if new_fields != old_fields:
+                self._config.set_detection_fields(new_fields)
+                self._reload_if_loaded()
             self.show_ids.set(show_ids_var.get())
             self._config.set_show_ids(show_ids_var.get())
             self.show_full_gedcom.set(show_full_gedcom_var.get())

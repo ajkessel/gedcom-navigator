@@ -1,8 +1,34 @@
 # Changelog
 
-## [1.9.16]
+## [1.9.19]
 
-- Updating for automated build
+GEDCOM Navigator now finds DNA matches in family trees exported from any genealogy software, not just Ancestry.
+
+Previously, DNA-match detection relied on Ancestry-specific data structures (_MTTAG custom tags and AncestryDNA Match source citations). Files exported from other programs — MyHeritage, Family Historian, Legacy Family Tree, RootsMagic, and others — were not recognized.
+
+When your GEDCOM file was not exported by Ancestry, the app now scans the custom fields those programs use to record DNA relationships:
+
+* Custom events and facts (EVEN/FACT records with a DNA-related TYPE, e.g. "DNA Match" or "MyHeritage DNA")
+* Family Historian custom attributes (_ATTR)
+* Reference number fields (REFN)
+* Custom _DNA-style tags
+
+The match keyword is configurable (default: "DNA"). When a custom event uses the generic TYPE value "Custom", the app uses the event's own text as the label — so a record like 1 FACT MyHeritage DNA / 2 TYPE Custom appears and matches as "MyHeritage DNA".
+
+Notes (free-text NOTE fields) are excluded by default — they mention "DNA" too often to be useful for detection. You can enable note scanning with the new Scan note text for matches toggle in Preferences.
+
+## New controls
+
+* Select Tag browser — for non-Ancestry files, the tag browser now shows a catalog of the custom field types discovered in your GEDCOM. Columns are sortable by clicking any header, so you can quickly find and select the specific tag to match on.
+Preferences: Scan note text for matches — opt in to include free-text NOTE fields in DNA detection.
+* CLI: --detection-fields — controls which field categories are scanned (events/facts, custom attributes, reference numbers, etc.).
+* CLI: --list-tags — now shows the full catalog of discovered custom field types for non-Ancestry files.
+
+## Bug Fixes
+* Full siblings display with a solid connector inside mixed half-sibling groups — when a sibling group with hidden parents included both full and half-siblings, the entire group's connector bar was drawn in the half-sibling dashed style, making full siblings appear to be half-siblings. Full-sibling groups within the bar now use the solid style; only the bridges between different family groups use the dashed style.
+* Half-siblings with hidden parents are placed on their sibling's row — a half-sibling whose own parents are not visible was being placed as a disconnected component far from their sibling group. They are now correctly attached on the same row as their siblings.
+
+**Full Changelog**: https://github.com/ajkessel/gedcom-navigator/compare/v1.9.18...v1.9.19
 
 ## [1.9.15]
 
@@ -13,6 +39,8 @@
 
 ### Fixed
 
+- **Full siblings keep a solid connector inside mixed half-sibling groups** — when a sibling group with hidden parents included half-siblings, the whole group's ghost stub was drawn in the half-sibling dashed style, making full siblings look like half-siblings. Each hidden family's children now share a solid bar, and only the bridges between the family bars use the dashed half-sibling style.
+- **Half-siblings with no visible parents are placed on their sibling's row in family-tree graphs** — a half-sibling whose own parents are all hidden belongs to a family unit no visible person shares, so the rewritten layout treated them as a disconnected component and dropped them to the centre row at the far right. The layout now attaches such units through the shared (hidden) parent, placing the half-siblings on the same row as their siblings.
 - **Each spouse's ancestors stay on that spouse's side in family-tree graphs** — when both members of a couple had visible parents, one set of parents could be placed on the wrong side (e.g. the wife's parents left of the husband's), making the parent drop lines cross. Ancestor blocks are now placed strictly left-to-right following the couple's order, so connector lines to parents never cross.
 - **Family-tree connector bus line no longer overlaps parent nodes at high display scaling** — at high DPI (e.g. Windows 300 % scaling), enlarged fonts make node heights grow, causing the horizontal bus line that connects parents to children to be placed inside the parent node boxes rather than below them. The bus-line midpoint now anchors to the actual parent node bottom rather than the couple's centre, keeping 44 design-unit clearance between the parent boxes and the bus regardless of DPI.
 - **Find, filter, profile pane, and profile photo clear when loading a new file** — opening a different GEDCOM file now resets the Find and Filter fields, clears the results/profile pane text, and destroys any floating profile thumbnail so no stale content from the previous file is left visible.

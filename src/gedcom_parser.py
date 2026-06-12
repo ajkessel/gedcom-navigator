@@ -273,18 +273,196 @@ def _rank_media_candidates(candidates, person_name, media_records):
     return [candidate for _rank, _order, candidate in ranked]
 
 
-def build_model(gedcom_path, dna_keyword, page_marker):
+# Alternate (non-Ancestry) DNA-detection field modes. Used only when a file
+# contains no _MTTAG records. NOTE is excluded from the defaults because free
+# text frequently mentions "DNA" incidentally (high false-positive rate).
+ALTERNATE_FIELD_MODES = ('EVEN', 'FACT', '_ATTR', '_TAG', 'REFN', 'NOTE')
+DEFAULT_ALTERNATE_FIELDS = frozenset({'EVEN', 'FACT', '_ATTR', '_TAG', 'REFN'})
+
+# Accepts both short CLI spellings and canonical tag tokens.
+_FIELD_ALIASES = {
+    'even': 'EVEN', 'fact': 'FACT', 'attr': '_ATTR', '_attr': '_ATTR',
+    'tag': '_TAG', '_tag': '_TAG', 'refn': 'REFN', 'note': 'NOTE',
+}
+
+
+def normalize_detection_fields(value):
+    """Return a frozenset of valid alternate-field modes from a list/set/str.
+
+    ``None`` yields the default set. Unknown tokens are ignored. An input that
+    resolves to nothing falls back to the default set.
+    """
+    if value is None:
+        return DEFAULT_ALTERNATE_FIELDS
+    items = value.split(',') if isinstance(value, str) else value
+    out = set()
+    for item in items:
+        token = _FIELD_ALIASES.get(str(item).strip().lower())
+        if token:
+            out.add(token)
+    return frozenset(out) if out else DEFAULT_ALTERNATE_FIELDS
+
+
+def _entry_child_type(raw, start, n):
+    """Return the level-2 TYPE value under raw[start], or '' if none."""
+    for j in range(start + 1, n):
+        l2, t2, v2 = raw[j][0], raw[j][2], raw[j][3]
+        if l2 <= 1:
+            break
+        if l2 == 2 and t2 == 'TYPE':
+            return v2.strip()
+    return ''
+
+
+def _field_descriptor(type_val, value):
+    """Return the human-meaningful label for a custom EVEN/FACT/_ATTR/REFN field.
+
+    Normally the ``2 TYPE`` value is the label. Some software (e.g. MyHeritage)
+    writes a generic ``2 TYPE Custom`` and puts the real label in the field value
+    instead — ``1 FACT MyHeritage DNA`` / ``2 TYPE Custom`` — so when TYPE is
+    empty or the placeholder "Custom" we fall back to the field value.
+    """
+    t = (type_val or '').strip()
+    v = (value or '').strip()
+    if t and t.lower() != 'custom':
+        return t
+    return v or t
+
+
+def derive_dna_flags(raw, tag_records, *, dna_keyword, page_marker,
+                     scan_alternate, alternate_fields):
+    """Return (dna_markers, tags) for one individual's _raw record.
+
+    The single source of truth for DNA-flag detection, shared by build_model
+    and apply_dna_flags. ``raw`` may hold tuples (fresh parse) or lists (after a
+    JSON cache round-trip); entries are read positionally as
+    (level, xref, tag, value), only indexing level/tag/value.
+
+    Unconditional rules (every file): inline ``_MTTAG``/``2 NAME``, ``_MTTAG``
+    pointer references resolved against ``tag_records``, and ``PAGE`` source
+    citations matching ``page_marker``. Alternate rules (custom EVEN/FACT/_ATTR/
+    REFN/NOTE and custom ``_DNA``-style tags) run only when ``scan_alternate`` is
+    set and the field's mode is present in ``alternate_fields``.
+    """
+    dna_markers = []
+    tags = []
+    page_marker_l = (page_marker or '').lower()
+    dna_kw_l = (dna_keyword or '').lower()
+    fields = alternate_fields or frozenset()
+    raw = raw or []
+    n = len(raw)
+    mttag_refs = []
+
+    for i in range(1, n):
+        entry = raw[i]
+        level, tag, value = entry[0], entry[2], entry[3]
+
+        # --- Unconditional Ancestry rules ---
+        if level == 1 and tag == '_MTTAG':
+            v = value.strip()
+            if v.startswith('@') and v.endswith('@'):
+                mttag_refs.append(v)
+            else:
+                for j in range(i + 1, n):
+                    l2, t2, v2 = raw[j][0], raw[j][2], raw[j][3]
+                    if l2 <= 1:
+                        break
+                    if l2 == 2 and t2 == 'NAME':
+                        name_val = v2.strip()
+                        tags.append(name_val)
+                        if dna_kw_l and dna_kw_l in name_val.lower():
+                            dna_markers.append(f'_MTTAG (inline): {name_val}')
+                        break
+        elif tag == 'PAGE' and page_marker_l and page_marker_l in value.lower():
+            dna_markers.append(f'Source citation: "{value.strip()}"')
+
+        # --- Alternate (non-Ancestry) rules, keyword-gated ---
+        elif scan_alternate and dna_kw_l and level == 1:
+            if tag in ('EVEN', 'FACT', '_ATTR') and tag in fields:
+                type_val = _entry_child_type(raw, i, n)
+                if dna_kw_l in f'{type_val} {value}'.lower():
+                    label = {'EVEN': 'Event', 'FACT': 'Fact',
+                             '_ATTR': 'Attribute'}[tag]
+                    desc = _field_descriptor(type_val, value)
+                    dna_markers.append(f'{label}: {desc}')
+                    tags.append(desc)
+            elif tag == 'REFN' and 'REFN' in fields:
+                type_val = _entry_child_type(raw, i, n)
+                if dna_kw_l in f'{type_val} {value}'.lower():
+                    desc = _field_descriptor(type_val, value)
+                    dna_markers.append(f'Reference: {desc}')
+                    tags.append(desc)
+            elif tag == 'NOTE' and 'NOTE' in fields:
+                if dna_kw_l in value.lower():
+                    desc = value.strip()
+                    dna_markers.append(f'Note: {desc[:60]}')
+                    tags.append(desc)
+            elif (tag.startswith('_') and tag != '_MTTAG'
+                  and '_TAG' in fields and dna_kw_l in tag.lower()):
+                dna_markers.append(f'Custom tag: {tag}')
+                tags.append(tag)
+
+    for ref in mttag_refs:
+        tag_name = tag_records.get(ref, '')
+        if tag_name:
+            tags.append(tag_name)
+            if dna_kw_l and dna_kw_l in tag_name.lower():
+                dna_markers.append(f'Tag: {tag_name} ({ref})')
+
+    return dna_markers, tags
+
+
+def _discover_custom_fields(records):
+    """Catalog non-Ancestry custom field types across all INDI records.
+
+    Returns a sorted list of {'kind', 'type', 'count'} dicts describing distinct
+    custom EVEN/FACT/_ATTR/REFN TYPE values and custom ``_``-prefixed level-1
+    tags, so the GUI tag browser and CLI --list-tags can show the user what is
+    available to match on. NOTE free text is intentionally excluded.
+    """
+    counts = {}
+    for rec in records:
+        if not rec:
+            continue
+        head_level, _head_xref, head_tag, _ = rec[0]
+        if head_level != 0 or head_tag != 'INDI':
+            continue
+        n = len(rec)
+        for i in range(1, n):
+            level, _x, tag, value = rec[i]
+            if level != 1:
+                continue
+            if tag in ('EVEN', 'FACT', '_ATTR', 'REFN'):
+                type_val = _field_descriptor(_entry_child_type(rec, i, n), value)
+                key = (tag, type_val)
+            elif tag.startswith('_') and tag != '_MTTAG':
+                key = ('_TAG', tag)
+            else:
+                continue
+            counts[key] = counts.get(key, 0) + 1
+    return [
+        {'kind': kind, 'type': type_val, 'count': count}
+        for (kind, type_val), count in sorted(counts.items())
+    ]
+
+
+def build_model(gedcom_path, dna_keyword, page_marker, detection_fields=None):
     """Parse the GEDCOM and return model data plus warnings/errors.
 
     individuals[id] = {
-        id, name, sex, famc[], fams[], dna_markers[],
+        id, name, sex, famc[], fams[], dna_markers[], tags[],
         birth_year, death_year, _raw
     }
     families[id]    = {id, husb, wife, chil[]}
     tag_records[id] = name string (from the NAME subrecord of an _MTTAG record)
+    uses_alternate_tags = True when the file has no _MTTAG records, so DNA
+        detection falls back to custom EVEN/FACT/_ATTR/_DNA/REFN fields.
+    custom_field_records = discovered non-Ancestry custom field catalog (only
+        populated when uses_alternate_tags is True; else an empty list)
     encoding_warning = string or None
     model_error = string or None; non-None when no usable model could be built
     """
+    alternate_fields = normalize_detection_fields(detection_fields)
     records, encoding_warning = iter_records_checked(gedcom_path)
 
     individuals = {}
@@ -307,7 +485,12 @@ def build_model(gedcom_path, dna_keyword, page_marker):
         elif head_tag == 'OBJE':
             media_records[head_xref] = _top_level_media_record(rec)
 
-    page_marker_l = page_marker.lower()
+    # Files with no _MTTAG records are not Ancestry exports; fall back to
+    # scanning alternate custom fields for DNA markers, and catalog the custom
+    # field types found so the user can pick which to match on.
+    uses_alternate_tags = not tag_records
+    custom_field_records = (
+        _discover_custom_fields(records) if uses_alternate_tags else [])
 
     # Pass 2: individuals and families
     for rec in records:
@@ -332,7 +515,6 @@ def build_model(gedcom_path, dna_keyword, page_marker):
                 'tags': [],
                 'birth_year': None,
                 'death_year': None,
-                '_mttag_refs': [],
                 'media_candidates': [],
                 '_raw': rec,
             }
@@ -390,24 +572,6 @@ def build_model(gedcom_path, dna_keyword, page_marker):
                             adop_role = v2.strip().upper() or adop_role
                     if adop_fam_id:
                         indi['_adop_famc'].append((adop_fam_id, adop_role))
-                elif level == 1 and tag == '_MTTAG':
-                    v = value.strip()
-                    if v.startswith('@') and v.endswith('@'):
-                        indi['_mttag_refs'].append(v)
-                    else:
-                        # Inline form: 1 _MTTAG / 2 NAME DNA Match
-                        for j in range(i + 1, n):
-                            l2, _, t2, v2 = rec[j]
-                            if l2 <= 1:
-                                break
-                            if l2 == 2 and t2 == 'NAME':
-                                name_val = v2.strip()
-                                indi['tags'].append(name_val)
-                                if dna_keyword.lower() in name_val.lower():
-                                    indi['dna_markers'].append(
-                                        f'_MTTAG (inline): {name_val}'
-                                    )
-                                break
                 elif level == 1 and tag in ('BIRT', 'DEAT'):
                     for j in range(i + 1, n):
                         l2, _, t2, v2 = rec[j]
@@ -421,10 +585,6 @@ def build_model(gedcom_path, dna_keyword, page_marker):
                                 else:
                                     indi['death_year'] = year
                             break
-                elif tag == 'PAGE' and page_marker_l and page_marker_l in value.lower():
-                    indi['dna_markers'].append(
-                        f'Source citation: "{value.strip()}"'
-                    )
                 elif level == 1 and tag in ('OBJE', '_PHOTO'):
                     block = []
                     for j in range(i + 1, n):
@@ -500,17 +660,15 @@ def build_model(gedcom_path, dna_keyword, page_marker):
             if role in ('WIFE', 'BOTH'):
                 link['mother'] = 'adopted'
 
-    # Pass 3: resolve _MTTAG pointer references against the tag dictionary
-    dna_kw_l = dna_keyword.lower()
+    # Pass 3: derive DNA flags via the shared detection path (Ancestry
+    # _MTTAG/PAGE plus, for non-Ancestry files, alternate custom fields).
     for indi in individuals.values():
-        for ref in indi.pop('_mttag_refs'):
-            tag_name = tag_records.get(ref, '')
-            if tag_name:
-                indi['tags'].append(tag_name)
-                if dna_kw_l in tag_name.lower():
-                    indi['dna_markers'].append(
-                        f'Tag: {tag_name} ({ref})'
-                    )
+        indi['dna_markers'], indi['tags'] = derive_dna_flags(
+            indi['_raw'], tag_records,
+            dna_keyword=dna_keyword, page_marker=page_marker,
+            scan_alternate=uses_alternate_tags,
+            alternate_fields=alternate_fields,
+        )
 
     add_transliterated_names(individuals)
 
@@ -531,52 +689,30 @@ def build_model(gedcom_path, dna_keyword, page_marker):
             "The app needs at least one INDI record to build the family model."
         )
 
-    return individuals, families, tag_records, media_records, encoding_warning, model_error
+    return (individuals, families, tag_records, media_records,
+            encoding_warning, model_error,
+            uses_alternate_tags, custom_field_records)
 
-def apply_dna_flags(individuals, tag_records, dna_keyword, page_marker):
+def apply_dna_flags(individuals, tag_records, dna_keyword, page_marker,
+                    uses_alternate_tags=False, detection_fields=None):
     """Re-populate dna_markers and tags for all individuals from their _raw records.
 
     Safe to call after a cache load or whenever keywords change — no file I/O,
-    only O(N) string comparisons over already-parsed tuples/lists.
+    only O(N) string comparisons over already-parsed tuples/lists. Delegates to
+    derive_dna_flags so detection stays in one place. ``uses_alternate_tags``
+    (a per-file property restored from the cache) enables the non-Ancestry
+    fallback fields named in ``detection_fields``.
     """
-    page_marker_l = page_marker.lower()
-    dna_kw_l = dna_keyword.lower()
+    alternate_fields = (
+        normalize_detection_fields(detection_fields)
+        if uses_alternate_tags else frozenset())
     for indi in individuals.values():
-        indi['dna_markers'] = []
-        indi['tags'] = []
-        raw = indi.get('_raw') or []
-        n = len(raw)
-        mttag_refs = []
-        for i, entry in enumerate(raw):
-            if i == 0:
-                continue
-            # Entries are tuples from a fresh parse or lists after JSON round-trip.
-            level, tag, value = entry[0], entry[2], entry[3]
-            if level == 1 and tag == '_MTTAG':
-                v = value.strip()
-                if v.startswith('@') and v.endswith('@'):
-                    mttag_refs.append(v)
-                else:
-                    for j in range(i + 1, n):
-                        l2, t2, v2 = raw[j][0], raw[j][2], raw[j][3]
-                        if l2 <= 1:
-                            break
-                        if l2 == 2 and t2 == 'NAME':
-                            name_val = v2.strip()
-                            indi['tags'].append(name_val)
-                            if dna_kw_l in name_val.lower():
-                                indi['dna_markers'].append(
-                                    f'_MTTAG (inline): {name_val}'
-                                )
-                            break
-            elif tag == 'PAGE' and page_marker_l and page_marker_l in value.lower():
-                indi['dna_markers'].append(f'Source citation: "{value.strip()}"')
-        for ref in mttag_refs:
-            tag_name = tag_records.get(ref, '')
-            if tag_name:
-                indi['tags'].append(tag_name)
-                if dna_kw_l in tag_name.lower():
-                    indi['dna_markers'].append(f'Tag: {tag_name} ({ref})')
+        indi['dna_markers'], indi['tags'] = derive_dna_flags(
+            indi.get('_raw') or [], tag_records,
+            dna_keyword=dna_keyword, page_marker=page_marker,
+            scan_alternate=uses_alternate_tags,
+            alternate_fields=alternate_fields,
+        )
 
 
 def extract_ged_from_zip(zip_path, cancel_event=None):

@@ -51,6 +51,27 @@ HEBREW_GED = """\
 0 TRLR
 """
 
+# Non-Ancestry export: no _MTTAG, DNA encoded as a custom FACT.
+ALT_GED = """\
+0 HEAD
+1 GEDC
+2 VERS 5.5.1
+0 @I1@ INDI
+1 NAME Root /Person/
+1 SEX M
+1 FAMS @F1@
+0 @I2@ INDI
+1 NAME Fact Match /Person/
+1 SEX F
+1 FACT Shared 90 cM
+2 TYPE DNA
+1 FAMC @F1@
+0 @F1@ FAM
+1 HUSB @I1@
+1 CHIL @I2@
+0 TRLR
+"""
+
 def _write_ged(tmp_path, content="", filename="tree.ged"):
     p = tmp_path / filename
     p.write_text(content or SIMPLE_GED, encoding="utf-8")
@@ -266,6 +287,59 @@ class TestCacheInvalidation:
         assert from_cache is False
         assert error is None
         assert "@I1@" in mdl.individuals
+
+
+# ===========================================================================
+# Alternate (non-Ancestry) detection through the cache layer
+# ===========================================================================
+
+class TestAlternateDetectionCache:
+    def test_fresh_load_sets_alternate_state(self, tmp_path):
+        cache_dir = str(tmp_path / "cache")
+        p = _write_ged(tmp_path, ALT_GED)
+        mdl = GedcomDataModel()
+        mdl.load(p, "DNA", "AncestryDNA", cache_dir)
+        assert mdl.uses_alternate_tags is True
+        assert any(r["kind"] == "FACT" for r in mdl.custom_field_records)
+        assert mdl.individuals["@I2@"]["dna_markers"]
+
+    def test_cache_hit_preserves_alternate_state_and_flags(self, tmp_path):
+        cache_dir = str(tmp_path / "cache")
+        p = _write_ged(tmp_path, ALT_GED)
+        GedcomDataModel().load(p, "DNA", "AncestryDNA", cache_dir)
+
+        mdl = GedcomDataModel()
+        from_cache, _, _ = mdl.load(p, "DNA", "AncestryDNA", cache_dir)
+        assert from_cache is True
+        assert mdl.uses_alternate_tags is True
+        assert any(r["kind"] == "FACT" for r in mdl.custom_field_records)
+        # Re-derived from cached _raw without a re-parse.
+        assert mdl.individuals["@I2@"]["dna_markers"]
+
+    def test_reflag_respects_detection_fields(self, tmp_path):
+        cache_dir = str(tmp_path / "cache")
+        p = _write_ged(tmp_path, ALT_GED)
+        mdl = GedcomDataModel()
+        mdl.load(p, "DNA", "AncestryDNA", cache_dir)
+        # Disable FACT scanning -> the only match disappears, no re-parse.
+        mdl.reflag("DNA", "AncestryDNA", detection_fields=["EVEN"])
+        assert mdl.individuals["@I2@"]["dna_markers"] == []
+        mdl.reflag("DNA", "AncestryDNA", detection_fields=["FACT"])
+        assert mdl.individuals["@I2@"]["dna_markers"]
+
+    def test_stale_cache_version_invalidated(self, tmp_path):
+        import json
+        cache_dir = tmp_path / "cache"
+        p = _write_ged(tmp_path, ALT_GED)
+        mdl = GedcomDataModel()
+        mdl.load(p, "DNA", "AncestryDNA", str(cache_dir))
+        cache_file = next(cache_dir.glob("*.json"))
+        data = json.loads(cache_file.read_text())
+        data["cache_version"] = 9
+        cache_file.write_text(json.dumps(data))
+        from_cache, _, _ = GedcomDataModel().load(
+            p, "DNA", "AncestryDNA", str(cache_dir))
+        assert from_cache is False
 
 
 # ===========================================================================
