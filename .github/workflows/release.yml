@@ -123,6 +123,17 @@ jobs:
           rm /tmp/devid.p12
           echo "KEYCHAIN_PATH=$KEYCHAIN_PATH" >> "$GITHUB_ENV"
 
+      - name: Install Python.org universal2 Python 3.14
+        run: |
+          PYTHON_VER=$(curl -fsSL https://www.python.org/ftp/python/ \
+            | grep -oE '3\.14\.[0-9]+' | sort -V | tail -1)
+          echo "Installing Python ${PYTHON_VER} from python.org (universal2)..."
+          curl -fsSL -o /tmp/python.pkg \
+            "https://www.python.org/ftp/python/${PYTHON_VER}/python-${PYTHON_VER}-macos11.pkg"
+          sudo installer -pkg /tmp/python.pkg -target /
+          /Library/Frameworks/Python.framework/Versions/3.14/bin/python3.14 -c \
+            "import sysconfig; p=sysconfig.get_platform(); print('Platform:', p); assert 'universal2' in p"
+
       - name: Build
         env:
           APPLE_NOTARIZATION_APPLE_ID: ${{ secrets.APPLE_NOTARIZATION_APPLE_ID }}
