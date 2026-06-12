@@ -4,7 +4,20 @@ import argparse
 
 import pytest
 
-from gedcom_navigator_cli import find_target, positive_int, ratio_float
+from gedcom_navigator_cli import find_target, main, positive_int, ratio_float
+
+
+ALT_GED = """\
+0 HEAD
+1 GEDC
+2 VERS 5.5.1
+0 @I1@ INDI
+1 NAME Fact Match /Person/
+1 SEX F
+1 FACT Shared 90 cM
+2 TYPE DNA
+0 TRLR
+"""
 
 
 INDIVIDUALS = {
@@ -49,3 +62,15 @@ class TestFindTarget:
             INDIVIDUALS, "Jon Smit", fuzzy=True, fuzzy_threshold=0.72)
         assert candidates[0][0] == "@I1@"
         assert candidates[0][1] is not None
+
+
+class TestListTagsCatalog:
+    def test_list_tags_prints_custom_field_catalog(
+            self, tmp_path, monkeypatch, capsys):
+        ged = tmp_path / "alt.ged"
+        ged.write_text(ALT_GED, encoding="utf-8")
+        monkeypatch.setattr(
+            "sys.argv", ["prog", str(ged), "_", "--list-tags"])
+        main()
+        out = capsys.readouterr().out
+        assert "FACT\tDNA\t1" in out

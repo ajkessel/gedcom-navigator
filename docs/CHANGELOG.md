@@ -1,8 +1,12 @@
 # Changelog
 
-## [1.9.16]
+## [1.9.18]
 
 - Updating for automated build
+
+### Added
+
+- **DNA-match detection for non-Ancestry GEDCOM files** — previously only Ancestry exports were recognized, via `_MTTAG` MyTreeTags and `AncestryDNA Match` source-citation page markers. When a loaded file contains no `_MTTAG` records (i.e. it was not exported by Ancestry), the app now falls back to scanning the custom fields other genealogy software uses to record DNA matches: custom events and facts (`EVEN`/`FACT` with a `TYPE` of e.g. "DNA Match"), Family Historian custom attributes (`_ATTR`), reference numbers (`REFN`), and custom `_DNA`-style tags. Matching still uses the same configurable keyword (default "DNA"). Free-text `NOTE` fields are excluded by default (they mention "DNA" too often) but can be enabled with the **Scan note text for matches** option in Preferences. When a custom event or fact uses a generic `TYPE` of "Custom", the field's own text is used as the tag name (e.g. `1 FACT MyHeritage DNA` / `2 TYPE Custom` is shown and matched as "MyHeritage DNA"). For these files the **Select Tag** browser and CLI `--list-tags` now show a catalog of the discovered custom field types so you can pick exactly which one to match on; the browser is sortable by clicking any column header, and a new CLI `--detection-fields` option controls which field types are scanned.
 
 ## [1.9.15]
 
@@ -13,6 +17,8 @@
 
 ### Fixed
 
+- **Full siblings keep a solid connector inside mixed half-sibling groups** — when a sibling group with hidden parents included half-siblings, the whole group's ghost stub was drawn in the half-sibling dashed style, making full siblings look like half-siblings. Each hidden family's children now share a solid bar, and only the bridges between the family bars use the dashed half-sibling style.
+- **Half-siblings with no visible parents are placed on their sibling's row in family-tree graphs** — a half-sibling whose own parents are all hidden belongs to a family unit no visible person shares, so the rewritten layout treated them as a disconnected component and dropped them to the centre row at the far right. The layout now attaches such units through the shared (hidden) parent, placing the half-siblings on the same row as their siblings.
 - **Each spouse's ancestors stay on that spouse's side in family-tree graphs** — when both members of a couple had visible parents, one set of parents could be placed on the wrong side (e.g. the wife's parents left of the husband's), making the parent drop lines cross. Ancestor blocks are now placed strictly left-to-right following the couple's order, so connector lines to parents never cross.
 - **Family-tree connector bus line no longer overlaps parent nodes at high display scaling** — at high DPI (e.g. Windows 300 % scaling), enlarged fonts make node heights grow, causing the horizontal bus line that connects parents to children to be placed inside the parent node boxes rather than below them. The bus-line midpoint now anchors to the actual parent node bottom rather than the couple's centre, keeping 44 design-unit clearance between the parent boxes and the bus regardless of DPI.
 - **Find, filter, profile pane, and profile photo clear when loading a new file** — opening a different GEDCOM file now resets the Find and Filter fields, clears the results/profile pane text, and destroys any floating profile thumbnail so no stale content from the previous file is left visible.
