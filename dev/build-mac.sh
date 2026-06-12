@@ -105,35 +105,60 @@ if clang --version | grep -q ' version 21'; then
 else
 	echo 'Xcode less than 15, skipping -Wno-error=default-const-init-var-unsafe.'
 fi
-# pip download --platform requires all four override flags together; mixing them
-# produces generic 'none-none' tags that match no compiled wheel.  Query PyPI's
-# JSON API directly to find and fetch the universal2 Pillow wheel, then install
-# it with --force-reinstall so the main deps pass below leaves it alone.
+# Pillow no longer ships universal2 wheels; only arm64 and x86_64 are provided.
+# Download both, install the arm64 wheel into the venv, then lipo every .so /
+# .dylib in the installed PIL directory with its x86_64 counterpart so
+# PyInstaller's fat-binary check passes.
 python3 - << 'PYEOF'
-import json, os, subprocess, sys, urllib.request
+import json, os, subprocess, sys, tempfile, urllib.request, zipfile
 
 cp = f"cp{sys.version_info.major}{sys.version_info.minor}"
-print(f"Fetching universal2 Pillow wheel for {cp} from PyPI...")
+print(f"Building universal2 Pillow for {cp} via lipo merge...")
 with urllib.request.urlopen("https://pypi.org/pypi/pillow/json") as r:
     data = json.loads(r.read())
 latest = data["info"]["version"]
-url = name = None
+urls = {}
 for f in data["releases"].get(latest, []):
     fn = f["filename"]
-    if "universal2" in fn and cp in fn and fn.endswith(".whl"):
-        url, name = f["url"], fn
-        break
-if not url:
-    print(f"ERROR: no universal2 Pillow {latest} wheel for {cp}", file=sys.stderr)
+    if cp in fn and fn.endswith(".whl"):
+        for arch in ("arm64", "x86_64"):
+            if arch in fn:
+                urls[arch] = (f["url"], fn)
+if set(urls) != {"arm64", "x86_64"}:
+    print(f"ERROR: need arm64+x86_64 Pillow {latest} wheels for {cp}; got {list(urls)}", file=sys.stderr)
     sys.exit(1)
-print(f"Downloading {name}...")
-path = f"/tmp/{name}"
-urllib.request.urlretrieve(url, path)
-subprocess.check_call([sys.executable, "-m", "pip", "install",
-                       path, "--no-deps", "--force-reinstall"])
-os.unlink(path)
+with tempfile.TemporaryDirectory() as tmp:
+    arm64_whl = os.path.join(tmp, "arm64.whl")
+    x86_whl   = os.path.join(tmp, "x86.whl")
+    x86_dir   = os.path.join(tmp, "x86_64")
+    print(f"Installing arm64: {urls['arm64'][1]}")
+    urllib.request.urlretrieve(urls["arm64"][0], arm64_whl)
+    subprocess.check_call([sys.executable, "-m", "pip", "install",
+                           arm64_whl, "--no-deps", "--force-reinstall"])
+    print(f"Extracting x86_64: {urls['x86_64'][1]}")
+    urllib.request.urlretrieve(urls["x86_64"][0], x86_whl)
+    with zipfile.ZipFile(x86_whl) as z:
+        z.extractall(x86_dir)
+    # index x86_64 binaries by filename
+    x86_bins = {}
+    for root, _, files in os.walk(x86_dir):
+        for fn in files:
+            if fn.endswith((".so", ".dylib")):
+                x86_bins.setdefault(fn, []).append(os.path.join(root, fn))
+    site_pkg = subprocess.check_output(
+        [sys.executable, "-c", "import site; print(site.getsitepackages()[0])"]
+    ).decode().strip()
+    pil_dir = os.path.join(site_pkg, "PIL")
+    for root, _, files in os.walk(pil_dir):
+        for fn in files:
+            if fn.endswith((".so", ".dylib")) and fn in x86_bins:
+                arm64_f = os.path.join(root, fn)
+                x86_f   = x86_bins[fn][0]
+                print(f"  lipo {fn}")
+                subprocess.check_call(["lipo", "-create", arm64_f, x86_f, "-output", arm64_f])
+print(f"universal2 Pillow {latest} ready")
 PYEOF
-[ $? -eq 0 ] || { echo 'Failed to install universal2 Pillow wheel.'; exit 1; }
+[ $? -eq 0 ] || { echo 'Failed to build universal2 Pillow.'; exit 1; }
 env CFLAGS="${myflags:-}" ARCHFLAGS="-arch arm64 -arch x86_64" pip install -r ./dev/requirements-dev.txt --no-binary pyobjc-core,pyobjc-framework-Cocoa,pyobjc-framework-CoreServices || {
 	echo 'Failed to install dependencies.'
 	exit 1
