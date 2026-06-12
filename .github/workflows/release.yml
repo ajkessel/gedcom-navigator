@@ -59,6 +59,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-tags: true
 
       - name: Install system dependencies
         run: sudo apt-get update && sudo apt-get install -y python3-dev python3-tk libcairo2-dev
@@ -77,6 +79,8 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-tags: true
 
       - name: Install Inno Setup
         run: choco install innosetup -y
@@ -105,6 +109,8 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-tags: true
 
       - name: Set up signing keychain
         env:
@@ -160,6 +166,8 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-tags: true
 
       - name: Validate App Store secrets
         env:
@@ -287,6 +295,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-tags: true
 
       - name: Build and upload to PyPI
         env:
