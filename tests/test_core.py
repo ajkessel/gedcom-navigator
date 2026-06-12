@@ -5,6 +5,7 @@ import zipfile
 
 import pytest
 
+import gedcom_parser as parser_mod
 from gedcom_core import (
     SearchCancelled,
     ZIP_MAX_BYTES,
@@ -182,6 +183,83 @@ DNA_INLINE_GED = """\
 0 TRLR
 """
 
+# Non-Ancestry export: no _MTTAG records, DNA matches encoded in the various
+# custom-field forms produced by other genealogy software.
+DNA_ALTERNATE_GED = """\
+0 HEAD
+1 GEDC
+2 VERS 5.5.1
+0 @I1@ INDI
+1 NAME Start /Person/
+1 SEX M
+1 FAMS @F1@
+0 @I2@ INDI
+1 NAME Even Match /Person/
+1 SEX F
+1 EVEN
+2 TYPE DNA Match
+1 FAMC @F1@
+0 @I3@ INDI
+1 NAME Fact Match /Person/
+1 SEX M
+1 FACT Shared 120 cM
+2 TYPE DNA
+1 FAMC @F1@
+0 @I4@ INDI
+1 NAME Tag Match /Person/
+1 SEX F
+1 _DNAMATCH Y
+1 FAMC @F1@
+0 @I5@ INDI
+1 NAME Refn Match /Person/
+1 SEX M
+1 REFN kit-12345
+2 TYPE DNA kit
+1 FAMC @F1@
+0 @I6@ INDI
+1 NAME Note Only /Person/
+1 SEX F
+1 NOTE Possible DNA cousin, not yet confirmed
+1 FAMC @F1@
+0 @I7@ INDI
+1 NAME Plain Person /Person/
+1 SEX M
+1 FAMC @F1@
+0 @F1@ FAM
+1 HUSB @I1@
+1 CHIL @I2@
+1 CHIL @I3@
+1 CHIL @I4@
+1 CHIL @I5@
+1 CHIL @I6@
+1 CHIL @I7@
+0 TRLR
+"""
+
+# Ancestry file (has _MTTAG) that also carries a stray custom FACT mentioning
+# DNA. The FACT must be ignored because _MTTAG records are present.
+DNA_MTTAG_WITH_FACT_GED = """\
+0 HEAD
+1 GEDC
+2 VERS 5.5.1
+0 @T1@ _MTTAG
+1 NAME DNA Match Tag
+0 @I1@ INDI
+1 NAME Start /Person/
+1 SEX M
+1 FAMS @F1@
+0 @I2@ INDI
+1 NAME Stray Fact /Person/
+1 SEX F
+1 FACT Shared 80 cM
+2 TYPE DNA
+1 FAMC @F1@
+0 @F1@ FAM
+1 HUSB @I1@
+1 CHIL @I2@
+0 TRLR
+"""
+
 
 # ===========================================================================
 # extract_year
@@ -269,24 +347,24 @@ class TestHistoricalDateParsing:
 
     def test_bce_birth_and_death_years(self, tmp_path):
         p = _write_ged(tmp_path, HISTORICAL_DATES_GED)
-        indiv, _, _, _, _, _ = build_model(p, "DNA", "AncestryDNA")
+        indiv, _, _, _, _, _, _, _ = build_model(p, "DNA", "AncestryDNA")
         assert indiv["@I1@"]["birth_year"] == -100
         assert indiv["@I1@"]["death_year"] == -44
 
     def test_dual_years_resolve_to_new_style(self, tmp_path):
         p = _write_ged(tmp_path, HISTORICAL_DATES_GED)
-        indiv, _, _, _, _, _ = build_model(p, "DNA", "AncestryDNA")
+        indiv, _, _, _, _, _, _, _ = build_model(p, "DNA", "AncestryDNA")
         assert indiv["@I2@"]["birth_year"] == 1709
         assert indiv["@I2@"]["death_year"] == 1700
 
     def test_single_digit_bce_birth_year(self, tmp_path):
         p = _write_ged(tmp_path, HISTORICAL_DATES_GED)
-        indiv, _, _, _, _, _ = build_model(p, "DNA", "AncestryDNA")
+        indiv, _, _, _, _, _, _, _ = build_model(p, "DNA", "AncestryDNA")
         assert indiv["@I3@"]["birth_year"] == -1
 
     def test_bce_lifespan_rendering(self, tmp_path):
         p = _write_ged(tmp_path, HISTORICAL_DATES_GED)
-        indiv, _, _, _, _, _ = build_model(p, "DNA", "AncestryDNA")
+        indiv, _, _, _, _, _, _, _ = build_model(p, "DNA", "AncestryDNA")
         assert lifespan(indiv["@I1@"]) == "100 BC-44 BC"
 
 
@@ -365,12 +443,12 @@ class TestIterRecordsChecked:
 class TestBuildModel:
     def test_parses_all_individuals(self, tmp_path):
         p = _write_ged(tmp_path, SIMPLE_GED)
-        indiv, _, _, _, _, _ = build_model(p, "DNA", "AncestryDNA")
+        indiv, _, _, _, _, _, _, _ = build_model(p, "DNA", "AncestryDNA")
         assert set(indiv) >= {"@I1@", "@I2@", "@I3@", "@I4@"}
 
     def test_parses_family(self, tmp_path):
         p = _write_ged(tmp_path, SIMPLE_GED)
-        _, fams, _, _, _, _ = build_model(p, "DNA", "AncestryDNA")
+        _, fams, _, _, _, _, _, _ = build_model(p, "DNA", "AncestryDNA")
         fam = fams["@F1@"]
         assert fam["husb"] == "@I1@"
         assert fam["wife"] == "@I2@"
@@ -379,33 +457,33 @@ class TestBuildModel:
 
     def test_parses_name_components(self, tmp_path):
         p = _write_ged(tmp_path, SIMPLE_GED)
-        indiv, _, _, _, _, _ = build_model(p, "DNA", "AncestryDNA")
+        indiv, _, _, _, _, _, _, _ = build_model(p, "DNA", "AncestryDNA")
         assert indiv["@I1@"]["name"] == "John Smith"
         assert indiv["@I1@"]["surname"] == "Smith"
         assert indiv["@I1@"]["given_name"] == "John"
 
     def test_parses_sex(self, tmp_path):
         p = _write_ged(tmp_path, SIMPLE_GED)
-        indiv, _, _, _, _, _ = build_model(p, "DNA", "AncestryDNA")
+        indiv, _, _, _, _, _, _, _ = build_model(p, "DNA", "AncestryDNA")
         assert indiv["@I1@"]["sex"] == "M"
         assert indiv["@I2@"]["sex"] == "F"
 
     def test_parses_birth_year(self, tmp_path):
         p = _write_ged(tmp_path, SIMPLE_GED)
-        indiv, _, _, _, _, _ = build_model(p, "DNA", "AncestryDNA")
+        indiv, _, _, _, _, _, _, _ = build_model(p, "DNA", "AncestryDNA")
         assert indiv["@I1@"]["birth_year"] == 1950
         assert indiv["@I2@"]["birth_year"] == 1952
         assert indiv["@I3@"]["birth_year"] == 1980
 
     def test_parses_death_year(self, tmp_path):
         p = _write_ged(tmp_path, SIMPLE_GED)
-        indiv, _, _, _, _, _ = build_model(p, "DNA", "AncestryDNA")
+        indiv, _, _, _, _, _, _, _ = build_model(p, "DNA", "AncestryDNA")
         assert indiv["@I2@"]["death_year"] == 2010
         assert indiv["@I1@"]["death_year"] is None
 
     def test_parses_famc_fams(self, tmp_path):
         p = _write_ged(tmp_path, SIMPLE_GED)
-        indiv, _, _, _, _, _ = build_model(p, "DNA", "AncestryDNA")
+        indiv, _, _, _, _, _, _, _ = build_model(p, "DNA", "AncestryDNA")
         assert "@F1@" in indiv["@I1@"]["fams"]
         assert "@F1@" in indiv["@I3@"]["famc"]
 
@@ -436,7 +514,7 @@ class TestBuildModel:
 0 TRLR
 """
         p = _write_ged(tmp_path, ged)
-        _indiv, fams, _, _, _, _ = build_model(p, "DNA", "AncestryDNA")
+        _indiv, fams, _, _, _, _, _, _ = build_model(p, "DNA", "AncestryDNA")
 
         link = fams["@F1@"]["child_links"]["@CHILD@"]
         assert link["family"] == "foster"
@@ -445,43 +523,43 @@ class TestBuildModel:
 
     def test_no_dna_markers_in_plain_file(self, tmp_path):
         p = _write_ged(tmp_path, SIMPLE_GED)
-        indiv, _, _, _, _, _ = build_model(p, "DNA", "AncestryDNA")
+        indiv, _, _, _, _, _, _, _ = build_model(p, "DNA", "AncestryDNA")
         for indi in indiv.values():
             assert indi["dna_markers"] == []
 
     def test_mttag_pointer_adds_dna_marker(self, tmp_path):
         p = _write_ged(tmp_path, DNA_MTTAG_GED)
-        indiv, _, _, _, _, _ = build_model(p, "DNA", "AncestryDNA")
+        indiv, _, _, _, _, _, _, _ = build_model(p, "DNA", "AncestryDNA")
         assert len(indiv["@I2@"]["dna_markers"]) > 0
         # Non-matching tag should not be flagged
         assert len(indiv["@I3@"]["dna_markers"]) == 0
 
     def test_mttag_tag_records_collected(self, tmp_path):
         p = _write_ged(tmp_path, DNA_MTTAG_GED)
-        _, _, tags, _, _, _ = build_model(p, "DNA", "AncestryDNA")
+        _, _, tags, _, _, _, _, _ = build_model(p, "DNA", "AncestryDNA")
         assert "@T1@" in tags
         assert tags["@T1@"] == "DNA Match Tag"
 
     def test_page_marker_adds_dna_marker(self, tmp_path):
         p = _write_ged(tmp_path, DNA_PAGE_GED)
-        indiv, _, _, _, _, _ = build_model(p, "DNA", "AncestryDNA")
+        indiv, _, _, _, _, _, _, _ = build_model(p, "DNA", "AncestryDNA")
         assert len(indiv["@I2@"]["dna_markers"]) > 0
         assert any("AncestryDNA" in m for m in indiv["@I2@"]["dna_markers"])
 
     def test_page_marker_case_insensitive(self, tmp_path):
         content = DNA_PAGE_GED.replace("AncestryDNA", "ANCESTRYDNA")
         p = _write_ged(tmp_path, content)
-        indiv, _, _, _, _, _ = build_model(p, "DNA", "ancestrydna")
+        indiv, _, _, _, _, _, _, _ = build_model(p, "DNA", "ancestrydna")
         assert len(indiv["@I2@"]["dna_markers"]) > 0
 
     def test_inline_mttag_adds_dna_marker(self, tmp_path):
         p = _write_ged(tmp_path, DNA_INLINE_GED)
-        indiv, _, _, _, _, _ = build_model(p, "DNA", "AncestryDNA")
+        indiv, _, _, _, _, _, _, _ = build_model(p, "DNA", "AncestryDNA")
         assert len(indiv["@I2@"]["dna_markers"]) > 0
 
     def test_clean_file_no_encoding_warning(self, tmp_path):
         p = _write_ged(tmp_path, SIMPLE_GED)
-        _, _, _, _, warn, error = build_model(p, "DNA", "AncestryDNA")
+        _, _, _, _, warn, error, _, _ = build_model(p, "DNA", "AncestryDNA")
         assert warn is None
         assert error is None
 
@@ -489,12 +567,12 @@ class TestBuildModel:
         # DNA_MTTAG_GED uses "DNA Match Tag"; searching for a different keyword
         # should not flag I2
         p = _write_ged(tmp_path, DNA_MTTAG_GED)
-        indiv, _, _, _, _, _ = build_model(p, "XYZ_NOMATCH", "AncestryDNA")
+        indiv, _, _, _, _, _, _, _ = build_model(p, "XYZ_NOMATCH", "AncestryDNA")
         assert indiv["@I2@"]["dna_markers"] == []
 
     def test_empty_file_returns_model_error(self, tmp_path):
         p = _write_ged(tmp_path, "")
-        individuals, families, tags, _, warning, error = build_model(
+        individuals, families, tags, _, warning, error, _, _ = build_model(
             p, "DNA", "AncestryDNA")
         assert individuals == {}
         assert families == {}
@@ -505,7 +583,7 @@ class TestBuildModel:
 
     def test_file_without_individuals_returns_model_error(self, tmp_path):
         p = _write_ged(tmp_path, "0 HEAD\n1 GEDC\n2 VERS 5.5.1\n0 TRLR\n")
-        individuals, _, _, _, _, error = build_model(p, "DNA", "AncestryDNA")
+        individuals, _, _, _, _, error, _, _ = build_model(p, "DNA", "AncestryDNA")
         assert individuals == {}
         assert error is not None
         assert "No individual records" in error
@@ -523,7 +601,7 @@ class TestBuildModel:
 0 TRLR
 """
         p = _write_ged(tmp_path, ged)
-        individuals, _, _, _, _, _ = build_model(p, "DNA", "AncestryDNA")
+        individuals, _, _, _, _, _, _, _ = build_model(p, "DNA", "AncestryDNA")
         candidates = individuals["@I1@"]["media_candidates"]
         assert candidates[0]["kind"] == "_PHOTO"
         assert candidates[0]["file"] == "portrait.jpg"
@@ -544,7 +622,7 @@ class TestBuildModel:
 0 TRLR
 """
         p = _write_ged(tmp_path, ged)
-        individuals, _, _, media, _, _ = build_model(p, "DNA", "AncestryDNA")
+        individuals, _, _, media, _, _, _, _ = build_model(p, "DNA", "AncestryDNA")
         candidate = individuals["@I1@"]["media_candidates"][0]
         assert media["@M1@"]["file"] == "portraits/alice.jpg"
         assert candidate["ref"] == "@M1@"
@@ -569,7 +647,7 @@ class TestBuildModel:
 0 TRLR
 """
         p = _write_ged(tmp_path, ged)
-        individuals, _, _, _, _, _ = build_model(p, "DNA", "AncestryDNA")
+        individuals, _, _, _, _, _, _, _ = build_model(p, "DNA", "AncestryDNA")
         candidates = individuals["@I1@"]["media_candidates"]
         assert candidates[0]["file"] == "Alice Smith.png"
         assert candidates[0]["name_match"] is True
@@ -593,10 +671,78 @@ class TestBuildModel:
 0 TRLR
 """
         p = _write_ged(tmp_path, ged)
-        individuals, _, _, _, _, _ = build_model(p, "DNA", "AncestryDNA")
+        individuals, _, _, _, _, _, _, _ = build_model(p, "DNA", "AncestryDNA")
         candidates = individuals["@I1@"]["media_candidates"]
         assert candidates[0]["primary"] is True
         assert candidates[0]["file"] == ""
+
+
+# ===========================================================================
+# Non-Ancestry (alternate) DNA detection
+# ===========================================================================
+
+class TestAlternateDnaDetection:
+    def test_alternate_fields_flag_when_no_mttag(self, tmp_path):
+        p = _write_ged(tmp_path, DNA_ALTERNATE_GED)
+        indiv, _, _, _, _, _, uses_alt, catalog = build_model(
+            p, "DNA", "AncestryDNA")
+        assert uses_alt is True
+        # EVEN / FACT / custom _DNA tag / REFN all flagged
+        assert indiv["@I2@"]["dna_markers"]
+        assert indiv["@I3@"]["dna_markers"]
+        assert indiv["@I4@"]["dna_markers"]
+        assert indiv["@I5@"]["dna_markers"]
+        # NOTE not scanned by default
+        assert indiv["@I6@"]["dna_markers"] == []
+        # Unrelated plain person never flagged
+        assert indiv["@I7@"]["dna_markers"] == []
+
+    def test_note_field_flags_when_enabled(self, tmp_path):
+        p = _write_ged(tmp_path, DNA_ALTERNATE_GED)
+        indiv, _, _, _, _, _, _, _ = build_model(
+            p, "DNA", "AncestryDNA", detection_fields="note")
+        assert indiv["@I6@"]["dna_markers"]
+        # With only NOTE enabled, EVEN-based match is not flagged
+        assert indiv["@I2@"]["dna_markers"] == []
+
+    def test_discovery_catalog_populated(self, tmp_path):
+        p = _write_ged(tmp_path, DNA_ALTERNATE_GED)
+        _, _, _, _, _, _, _, catalog = build_model(p, "DNA", "AncestryDNA")
+        entries = {(r["kind"], r["type"]) for r in catalog}
+        assert ("EVEN", "DNA Match") in entries
+        assert ("FACT", "DNA") in entries
+        assert ("REFN", "DNA kit") in entries
+        assert ("_TAG", "_DNAMATCH") in entries
+
+    def test_mttag_file_ignores_alternate_fields(self, tmp_path):
+        p = _write_ged(tmp_path, DNA_MTTAG_WITH_FACT_GED)
+        indiv, _, _, _, _, _, uses_alt, catalog = build_model(
+            p, "DNA", "AncestryDNA")
+        # _MTTAG present -> alternate detection disabled, stray FACT ignored
+        assert uses_alt is False
+        assert catalog == []
+        assert indiv["@I2@"]["dna_markers"] == []
+
+    def test_empty_keyword_flags_nobody(self, tmp_path):
+        p = _write_ged(tmp_path, DNA_ALTERNATE_GED)
+        indiv, _, _, _, _, _, _, _ = build_model(p, "", "")
+        assert all(not i["dna_markers"] for i in indiv.values())
+
+    def test_derive_dna_flags_tuple_and_list_equivalent(self):
+        raw_tuples = [
+            (0, "@I1@", "INDI", ""),
+            (1, None, "FACT", "Shared 120 cM"),
+            (2, None, "TYPE", "DNA"),
+        ]
+        raw_lists = [list(t) for t in raw_tuples]
+        kwargs = dict(
+            dna_keyword="DNA", page_marker="AncestryDNA",
+            scan_alternate=True,
+            alternate_fields=parser_mod.DEFAULT_ALTERNATE_FIELDS)
+        markers_t, tags_t = parser_mod.derive_dna_flags(raw_tuples, {}, **kwargs)
+        markers_l, tags_l = parser_mod.derive_dna_flags(raw_lists, {}, **kwargs)
+        assert markers_t == markers_l and markers_t
+        assert tags_t == tags_l
 
 
 # ===========================================================================

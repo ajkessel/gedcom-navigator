@@ -256,6 +256,22 @@ class ConfigManager:
         """Save the DNA page marker keyword."""
         self.save_value('page_marker', str(value))
 
+    # Alternate (non-Ancestry) DNA-detection fields, used only for files that
+    # contain no _MTTAG records. Mirrors gedcom_parser.DEFAULT_ALTERNATE_FIELDS
+    # (NOTE excluded by default: free text mentions "DNA" too often).
+    _DEFAULT_DETECTION_FIELDS = ['EVEN', 'FACT', '_ATTR', '_TAG', 'REFN']
+
+    def get_detection_fields(self):
+        """Return the saved list of enabled alternate-detection field modes."""
+        val = self.load_value('detection_fields', None)
+        if isinstance(val, list) and all(isinstance(x, str) for x in val):
+            return val
+        return list(self._DEFAULT_DETECTION_FIELDS)
+
+    def set_detection_fields(self, value):
+        """Save the list of enabled alternate-detection field modes."""
+        self.save_value('detection_fields', [str(x) for x in value])
+
     def get_language(self):
         """Return the saved language code (e.g., 'en', 'fr') or 'sys' for system default."""
         return self.load_value('language', 'sys')

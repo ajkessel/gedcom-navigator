@@ -314,8 +314,9 @@ class FamilyTreeRenderMixin:
         Returns (child_edge_groups, stub_groups): buses with a visible parent
         become parent-child bus groups anchored at their own parent(s); buses
         without visible parents become ghost sibling stubs.  Parentless buses
-        sharing a hidden parent merge into one half-sibling stub so the
-        half relationship stays visible.
+        sharing a hidden parent merge into one stub group but keep their
+        per-unit children, so full siblings share a solid bar and only the
+        bridges between units render in the half-sibling style.
         """
         child_edge_groups = []
         orphan_buses = []
@@ -357,24 +358,26 @@ class FamilyTreeRenderMixin:
             if target is None:
                 merged.append({
                     'all_parents': set(bus['all_parents']),
-                    'children': list(bus['children']),
-                    'kinds': {frozenset(bus['all_parents'])},
+                    'units': [list(bus['children'])],
                 })
             else:
                 target['all_parents'] |= bus['all_parents']
-                target['children'].extend(bus['children'])
-                target['kinds'].add(frozenset(bus['all_parents']))
+                target['units'].append(list(bus['children']))
 
         stub_groups = []
         for group in merged:
-            if len(group['children']) < 2:
+            children = [cid for unit in group['units'] for cid in unit]
+            if len(children) < 2:
                 continue
-            child_ids = sorted(
-                group['children'], key=lambda cid: positions[cid][0])
+            child_ids = sorted(children, key=lambda cid: positions[cid][0])
             sibling_y = positions[child_ids[0]][1]
             stub_groups.append({
-                'kind': 'half' if len(group['kinds']) > 1 else 'birth',
+                'kind': 'half' if len(group['units']) > 1 else 'birth',
                 'child_ids': child_ids,
+                'units': [
+                    sorted(unit, key=lambda cid: positions[cid][0])
+                    for unit in group['units']
+                ],
                 'stub_y': sibling_y - v_gap / 2,
             })
         return child_edge_groups, stub_groups
@@ -816,6 +819,12 @@ class FamilyTreeRenderMixin:
                     edges, positions, child_edge_groups, v_gap)
             for group in stub_groups:
                 pulse_progress()
+                units = group.get('units')
+                if units and len(units) > 1:
+                    self._draw_segmented_sibling_stub(
+                        canvas, units, positions, group['stub_y'],
+                        node_h, colors, scale)
+                    continue
                 child_ids = group['child_ids']
                 child_xs = [positions[cid][0] for cid in child_ids]
                 child_tops = [positions[cid][1] - node_h / 2 for cid in child_ids]

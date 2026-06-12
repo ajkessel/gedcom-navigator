@@ -685,6 +685,30 @@ class GraphCommonMixin:
                 line_kwargs['dash'] = drop_dash
             canvas.create_line(child_x, stub_y, child_x, child_top, **line_kwargs)
 
+    def _draw_segmented_sibling_stub(self, canvas, units, positions, stub_y,
+                                     node_h, colors, scale):
+        """Stub for a half-sibling group spanning several hidden families.
+
+        Each family unit's children (full siblings of each other) share a
+        solid bar; the bars are linked by half-sibling-style bridges, so
+        only the relation *between* the units reads as half.
+        """
+        segments = []
+        for unit in units:
+            xs = sorted(positions[cid][0] for cid in unit)
+            tops = [positions[cid][1] - node_h / 2 for cid in unit]
+            segments.append((xs[0], xs[-1], xs, tops))
+        segments.sort()
+        for low, high, xs, tops in segments:
+            self._draw_sibling_stub(
+                canvas, low, high, stub_y, xs, tops, 'birth', colors, scale)
+        for (_low1, high1, _xs1, _t1), (low2, _high2, _xs2, _t2) in zip(
+                segments, segments[1:]):
+            if low2 > high1:
+                self._draw_half_sibling_line(
+                    canvas, high1, stub_y, low2, stub_y,
+                    colors['half_sibling'], scale)
+
     @staticmethod
     def _graph_relationship_legend_items(kinds):
         """Return legend rows, including biological baseline when needed."""

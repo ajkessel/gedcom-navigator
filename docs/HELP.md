@@ -60,6 +60,8 @@ Two flag formats are recognized by default:
 
 Both substrings are configurable, so you can adapt the tool to other genealogy software's conventions.
 
+**Files not exported by Ancestry** do not contain `_MTTAG` records. For those, the tool automatically looks for the custom fields other genealogy programs (RootsMagic, Gramps, Family Historian, Legacy, etc.) use to record DNA matches — custom events and facts (`EVEN`/`FACT` with a `TYPE` such as "DNA Match"), custom attributes (`_ATTR`), reference numbers (`REFN`), and custom `_DNA`-style tags — matching the same tag keyword. Free-text notes are not scanned by default. Use the **Select Tag** button to see which custom field types were found in your file and choose one to match on.
+
 Although this software was developed for this DNA use case, you could use it to find the closest path to any tag or page marker by entering that string into "tag keyword" or "page marker" rather than a DNA-specific term. For example, if your paternal relatives are tagged with a "paternal" tag, you could use this tool to find the path between anyone in your tree and anyone tagged as a paternal relative.
 
 ## Profile View: Bio, Pedigree, and Descendants

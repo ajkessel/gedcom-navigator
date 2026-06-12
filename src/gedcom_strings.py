@@ -238,6 +238,8 @@ def get_tip_filter():
 
 TIP_TAG_KEYWORD = _(
     "Enter a keyword to filter the list of tags used for finding relationship paths. "
+    "For Ancestry files this matches _MTTAG tag names; for files exported by other "
+    "software it also matches custom EVEN/FACT/_DNA/REFN fields. "
     "Leave this blank to use only the page marker keyword to find relationship paths."
 )
 TIP_PAGE_MARKER = _(
@@ -647,11 +649,13 @@ PATH_SEARCH_CAP = _(
 # ---------------------------------------------------------------------------
 WIN_TAG_DEFINITIONS = _("Tag definitions")
 MSG_NO_TAGS = _(
-    "No _MTTAG records found in the loaded file.\n\n"
+    "No _MTTAG records or custom DNA fields found in the loaded file.\n\n"
     "(If you haven't loaded a file yet, click Load first.)"
 )
 COL_TAG_ID = _("ID")
 COL_TAG_NAME = _("Tag Name")
+COL_TAG_KIND = _("Field")
+COL_TAG_COUNT = _("Count")
 BTN_OK = _("OK")
 BTN_CANCEL = _("Cancel")
 

@@ -118,8 +118,15 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
         return max(min_w, width)
 
     def _view_tags(self):
-        """Show tag-record definitions and allow choosing the DNA tag keyword."""
-        if not self.tag_records:
+        """Show tag-record definitions and allow choosing the DNA tag keyword.
+
+        Ancestry files list their _MTTAG definitions. Non-Ancestry files (no
+        _MTTAG records) instead list the discovered custom-field catalog
+        (kind / type / count) so the user can pick a custom EVEN/FACT/_DNA/REFN
+        type as the match keyword.
+        """
+        catalog_mode = not self.tag_records and bool(self.custom_field_records)
+        if not self.tag_records and not catalog_mode:
             messagebox.showinfo(WIN_TAG_DEFINITIONS, MSG_NO_TAGS)
             return
 
@@ -130,12 +137,25 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
         win.resizable(True, True)
 
         show_ids = self.show_ids.get()
-        rows = sorted(self.tag_records.items())
 
         list_frame = ctk.CTkFrame(win, fg_color='transparent')
         list_frame.pack(fill='both', expand=True, padx=8, pady=(8, 0))
 
-        if show_ids:
+        first_match = None
+        current_kw = self.tag_keyword.get().strip().lower()
+        if catalog_mode:
+            rows = self.custom_field_records
+            tag_tree = ttk.Treeview(list_frame, columns=('kind', 'name', 'count'),
+                                    show='headings', selectmode='browse',
+                                    height=min(len(rows), 20))
+            tag_tree.heading('kind', text=COL_TAG_KIND)
+            tag_tree.heading('name', text=COL_TAG_NAME)
+            tag_tree.heading('count', text=COL_TAG_COUNT)
+            tag_tree.column('kind', width=80, anchor='w', stretch=False)
+            tag_tree.column('name', width=250, anchor='w', stretch=True)
+            tag_tree.column('count', width=60, anchor='e', stretch=False)
+        elif show_ids:
+            rows = sorted(self.tag_records.items())
             tag_tree = ttk.Treeview(list_frame, columns=('id', 'name'),
                                     show='headings', selectmode='browse',
                                     height=min(len(rows), 20))
@@ -144,6 +164,7 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
             tag_tree.column('id', width=90, anchor='w', stretch=False)
             tag_tree.column('name', width=300, anchor='w', stretch=True)
         else:
+            rows = sorted(self.tag_records.items())
             tag_tree = ttk.Treeview(list_frame, columns=('name',),
                                     show='headings', selectmode='browse',
                                     height=min(len(rows), 20))
@@ -156,13 +177,19 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
         tag_tree.pack(side='left', fill='both', expand=True)
         ysb.pack(side='right', fill='y')
 
-        current_kw = self.tag_keyword.get().strip().lower()
-        first_match = None
-        for ref, name in rows:
-            iid = tag_tree.insert('', 'end',
-                                  values=(ref, name) if show_ids else (name,))
-            if first_match is None and name.strip().lower() == current_kw:
-                first_match = iid
+        if catalog_mode:
+            for rec in rows:
+                name = rec['type']
+                iid = tag_tree.insert(
+                    '', 'end', values=(rec['kind'], name, rec['count']))
+                if first_match is None and name.strip().lower() == current_kw:
+                    first_match = iid
+        else:
+            for ref, name in rows:
+                iid = tag_tree.insert('', 'end',
+                                      values=(ref, name) if show_ids else (name,))
+                if first_match is None and name.strip().lower() == current_kw:
+                    first_match = iid
 
         btn_frame = ctk.CTkFrame(win, fg_color='transparent')
         btn_frame.pack(fill='x', padx=8, pady=8)

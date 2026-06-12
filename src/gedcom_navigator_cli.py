@@ -6,7 +6,7 @@ gedcom_navigator_cli.py
 Given a GEDCOM file and a target person, find the closest relative(s)
 who are flagged as DNA matches.
 
-Two DNA-flag signals are detected (either is sufficient):
+DNA-flag signals are detected (any is sufficient):
 
   1. A source-citation PAGE line whose text contains "AncestryDNA Match"
      (the format Ancestry uses when you tag a person as a DNA match in
@@ -21,8 +21,14 @@ Two DNA-flag signals are detected (either is sufficient):
        0 @T182059@ _MTTAG
        1 NAME DNA Match
 
-Use --list-tags first to see all tag definitions in your file, and
---list-flagged to see every flagged individual. Then run a normal query.
+  3. For files with no _MTTAG records (i.e. not Ancestry exports), the
+     keyword is matched against alternate custom fields produced by other
+     genealogy software: custom events/facts/attributes (EVEN/FACT/_ATTR
+     with a 2 TYPE child), reference numbers (REFN), and custom
+     "_DNA"-style tags. See --detection-fields.
+
+Use --list-tags first to see all tag (or custom-field) definitions in your
+file, and --list-flagged to see every flagged individual. Then run a query.
 
 No third-party packages are required. Optional transliteration packages are used
 when installed to improve fuzzy matching for some non-Latin names.
@@ -167,9 +173,14 @@ def main():
                         help='Case-insensitive substring to match in source-citation PAGE text. '
                              'Default: "AncestryDNA Match".')
     parser.add_argument('--tag-keyword', default='DNA',
-                        help='Case-insensitive substring to match in _MTTAG NAME values. '
+                        help='Case-insensitive substring to match in _MTTAG NAME values '
+                             '(and, for non-Ancestry files, in alternate custom fields). '
                              'Default: "DNA". '
                              'Use "DNA Match" to exclude DNA Connection / Common DNA Ancestor.')
+    parser.add_argument('--detection-fields', default=None,
+                        help='Comma-separated alternate fields to scan when the file has '
+                             'no _MTTAG records: even,fact,attr,tag,refn,note. '
+                             'Default: even,fact,attr,tag,refn (note excluded).')
     parser.add_argument('--fuzzy', action='store_true',
                         help='Enable fuzzy name matching. In addition to token matches, '
                              'include names whose similarity to the query exceeds '
@@ -180,7 +191,8 @@ def main():
                              'Lower = more matches, higher = stricter. '
                              'Uses difflib.SequenceMatcher.ratio.')
     parser.add_argument('--list-tags', action='store_true',
-                        help='Print all _MTTAG definitions found in the file and exit.')
+                        help='Print all _MTTAG definitions (or, for non-Ancestry files, '
+                             'the discovered custom-field catalog) and exit.')
     parser.add_argument('--list-flagged', action='store_true',
                         help='Print every individual currently flagged as a DNA match and exit.')
     parser.add_argument('--debug', action='store_true',
@@ -214,10 +226,13 @@ def main():
             _media_records,
             encoding_warning,
             model_error,
+            uses_alternate_tags,
+            custom_field_records,
         ) = build_model(
             gedcom_path,
             dna_keyword=args.tag_keyword,
             page_marker=args.page_marker,
+            detection_fields=args.detection_fields,
         )
     finally:
         if tmp_path:
@@ -233,18 +248,27 @@ def main():
         print(f'Error: {model_error}', file=sys.stderr)
         sys.exit(1)
 
-    print(f'  {len(individuals)} individuals, {len(families)} families, '
-          f'{len(tag_records)} _MTTAG definitions', file=sys.stderr)
+    summary = (f'  {len(individuals)} individuals, {len(families)} families, '
+               f'{len(tag_records)} _MTTAG definitions')
+    if uses_alternate_tags:
+        summary += (f', {len(custom_field_records)} custom field types '
+                    '(no _MTTAG; using alternate detection)')
+    print(summary, file=sys.stderr)
 
     flagged = [i for i in individuals.values() if i['dna_markers']]
     print(f'  {len(flagged)} DNA-flagged individuals', file=sys.stderr)
 
     if args.list_tags:
-        if not tag_records:
-            print('No _MTTAG records found.')
-        else:
+        if tag_records:
             for tid, name in sorted(tag_records.items()):
                 print(f'{tid}\t{name}')
+        elif custom_field_records:
+            print('No _MTTAG records found; discovered custom fields '
+                  '(kind\ttype\tcount):')
+            for rec in custom_field_records:
+                print(f"{rec['kind']}\t{rec['type']}\t{rec['count']}")
+        else:
+            print('No _MTTAG records or custom fields found.')
         return
 
     if args.list_flagged:
