@@ -11,6 +11,6 @@ PackageName: GEDCOM Navigator
 PackageUrl: https://github.com/ajkessel/gedcom-navigator
 License: BSD-2-Clause
 ShortDescription: GEDCOM Navigator Setup
-ReleaseNotesUrl: https://github.com/ajkessel/gedcom-navigator/releases/tag/{VERSIONX}
+ReleaseNotesUrl: https://github.com/ajkessel/gedcom-navigator/releases/tag/v{VERSIONX}
 ManifestType: defaultLocale
 ManifestVersion: 1.12.0
