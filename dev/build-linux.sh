@@ -36,6 +36,7 @@ done
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
 cd "${SCRIPT_DIR}/.." || exit 1
 exec > >(sed 's/\x1b\[[0-9;]*m//g' | tee -a build-linux.log) 2>&1
+python3 dev/update_version.py
 [[ "$CLEAN" ]] && [[ -e ".venv" ]] && rm -r ".venv"
 [[ -e ".venv/bin/activate" ]] || {
 	echo 'Creating virtual environment...'

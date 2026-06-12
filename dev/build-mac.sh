@@ -34,6 +34,7 @@ done
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
 cd "${SCRIPT_DIR}/.." || exit 1
 [[ -z "${CI:-}" ]] && exec > >(sed 's/\x1b\[[0-9;]*m//g' | tee -a build-mac.log) 2>&1
+python3 dev/update_version.py
 echo 'Building for macOS...'
 [[ "$CLEAN" ]] && {
 	echo 'Warning: this will delete the current .venv and any .pyenv in your home folder.'

@@ -1,54 +1,56 @@
 name: Release
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
 on:
   push:
     tags:
-      - 'v*'
+      - "v*"
   workflow_dispatch:
     inputs:
       build_linux:
-        description: 'Build Linux'
+        description: "Build Linux"
         required: false
-        default: 'false'
+        default: "false"
         type: boolean
       build_windows:
-        description: 'Build Windows'
+        description: "Build Windows"
         required: false
-        default: 'false'
+        default: "false"
         type: boolean
       build_macos:
-        description: 'Build macOS'
+        description: "Build macOS"
         required: false
-        default: 'false'
+        default: "false"
         type: boolean
       build_pypi:
-        description: 'Build and upload PyPI package'
+        description: "Build and upload PyPI package"
         required: false
-        default: 'false'
+        default: "false"
         type: boolean
       build_appstore:
-        description: 'Build and submit to Mac App Store'
+        description: "Build and submit to Mac App Store"
         required: false
-        default: 'false'
+        default: "false"
         type: boolean
       test_appstore:
-        description: 'Test App Store Connection'
+        description: "Test App Store Connection"
         required: false
-        default: 'false'
+        default: "false"
         type: boolean
       build_winget:
-        description: 'Build and submit to Winget'
+        description: "Build and submit to Winget"
         required: false
-        default: 'false'
+        default: "false"
         type: boolean
       create_release:
-        description: 'Create GitHub release (requires build_linux, build_windows, build_macos)'
+        description: "Create GitHub release (requires build_linux, build_windows, build_macos)"
         required: false
-        default: 'false'
+        default: "false"
         type: boolean
 
 jobs:
-
   # ── Linux ──────────────────────────────────────────────────────────────────
   build-linux:
     if: github.event_name == 'push' || inputs.build_linux
@@ -429,13 +431,12 @@ jobs:
           VERSION=$(grep -oP '__version__\s*=\s*"\K[^"]+' gedcom_navigator/__init__.py)
           echo "version=${VERSION}.0" >> "$GITHUB_OUTPUT"
 
-      - name: Publish to WinGet 
+      - name: Publish to WinGet
         if: inputs.build_winget
         uses: vedantmgoyal9/winget-releaser@v2
-        with: 
+        with:
+          token: ${{ secrets.WINGET_TOKEN }}
           identifier: AdamKessel.GEDCOMNavigator
           version: ${{ steps.get_version.outputs.version }}
           installers-regex: 'gedcom-navigator-windows-installer\.exe$'
-          token: ${{ secrets.WINGET_TOKEN }}
           continue-on-error: true
-
