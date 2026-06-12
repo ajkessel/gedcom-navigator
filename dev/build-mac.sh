@@ -103,7 +103,15 @@ if clang --version | grep -q ' version 21'; then
 else
 	echo 'Xcode less than 15, skipping -Wno-error=default-const-init-var-unsafe.'
 fi
-env CFLAGS="${myflags:-}" ARCHFLAGS="-arch arm64 -arch x86_64" pip install -r ./dev/requirements-dev.txt --no-binary pyobjc-core,pyobjc-framework-Cocoa,pyobjc-framework-CoreServices,pillow || {
+# On Apple Silicon, pip defaults to the arm64-only Pillow wheel.  The universal2
+# wheel has libjpeg statically vendored, so install it first before the main
+# deps install (which would otherwise pick the arm64 wheel and leave _imaging.so
+# with an unbundled libjpeg dependency).
+_PYTHON_HOST_PLATFORM="macosx-10.13-universal2" pip install pillow --only-binary=:all: || {
+	echo 'Failed to install universal2 Pillow wheel.'
+	exit 1
+}
+env CFLAGS="${myflags:-}" ARCHFLAGS="-arch arm64 -arch x86_64" pip install -r ./dev/requirements-dev.txt --no-binary pyobjc-core,pyobjc-framework-Cocoa,pyobjc-framework-CoreServices || {
 	echo 'Failed to install dependencies.'
 	exit 1
 }
