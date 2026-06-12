@@ -60,7 +60,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
-          fetch-tags: true
+          fetch-depth: 0
 
       - name: Install system dependencies
         run: sudo apt-get update && sudo apt-get install -y python3-dev python3-tk libcairo2-dev
@@ -80,7 +80,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
-          fetch-tags: true
+          fetch-depth: 0
 
       - name: Install Inno Setup
         run: choco install innosetup -y
@@ -110,7 +110,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
-          fetch-tags: true
+          fetch-depth: 0
 
       - name: Set up signing keychain
         env:
@@ -167,7 +167,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
-          fetch-tags: true
+          fetch-depth: 0
 
       - name: Validate App Store secrets
         env:
@@ -296,7 +296,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
-          fetch-tags: true
+          fetch-depth: 0
 
       - name: Build and upload to PyPI
         env:
