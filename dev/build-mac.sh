@@ -103,11 +103,20 @@ if clang --version | grep -q ' version 21'; then
 else
 	echo 'Xcode less than 15, skipping -Wno-error=default-const-init-var-unsafe.'
 fi
-# On Apple Silicon, pip defaults to the arm64-only Pillow wheel.  The universal2
-# wheel has libjpeg statically vendored, so install it first before the main
-# deps install (which would otherwise pick the arm64 wheel and leave _imaging.so
-# with an unbundled libjpeg dependency).
-_PYTHON_HOST_PLATFORM="macosx-10.13-universal2" pip install pillow --only-binary=:all: || {
+# On Apple Silicon, pip prefers the arm64-only Pillow wheel over universal2.
+# Use `pip download --platform` to fetch the fat universal2 wheel explicitly
+# (it has libjpeg/zlib statically vendored, avoiding dylib-bundling issues)
+# and install it before the main deps pass so pip sees it already satisfied.
+pip download pillow \
+	--platform macosx_10_13_universal2 \
+	--python-version 3.14 \
+	--implementation cp \
+	--only-binary=:all: \
+	-d /tmp/pillow_u2/ || {
+	echo 'Failed to download universal2 Pillow wheel.'
+	exit 1
+}
+pip install /tmp/pillow_u2/*.whl --no-deps || {
 	echo 'Failed to install universal2 Pillow wheel.'
 	exit 1
 }
