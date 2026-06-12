@@ -133,6 +133,23 @@ exe = EXE(
 
 if sys.platform == 'darwin':
     target_arch = os.environ.get('target_arch', 'universal2')
+    if target_arch == 'universal2':
+        # Drop single-arch PIL extensions that break the fat-binary check.
+        # e.g. _avif.so from a wheel built without a universal2 libavif.
+        def _is_fat(path):
+            try:
+                archs = subprocess.check_output(
+                    ['lipo', '-archs', path], stderr=subprocess.DEVNULL
+                ).decode().split()
+                return len(archs) >= 2
+            except Exception:
+                return True
+        _before = len(a.binaries)
+        a.binaries = [b for b in a.binaries
+                      if b[2] != 'EXTENSION' or 'PIL' not in b[0] or _is_fat(b[1])]
+        _dropped = _before - len(a.binaries)
+        if _dropped:
+            print(f'[spec] dropped {_dropped} single-arch PIL extension(s) for universal2 build')
     exe = EXE(pyz,
               a.scripts,
               exclude_binaries=True,
