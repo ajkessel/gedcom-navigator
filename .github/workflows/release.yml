@@ -451,7 +451,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Resolve release tag
+      - name: Resolve release tag and version
         id: resolve_tag
         env:
           GH_TOKEN: ${{ github.token }}
@@ -461,20 +461,15 @@ jobs:
             TAG=$(gh release list --repo "${{ github.repository }}" --limit 1 --json tagName -q '.[0].tagName')
           fi
           echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
-
-      - name: Get version from __init__.py
-        id: get_version
-        shell: bash
-        run: |
-          VERSION=$(grep -oP '__version__\s*=\s*"\K[^"]+' gedcom_navigator/__init__.py)
-          echo "version=${VERSION}.0" >> "$GITHUB_OUTPUT"
+          VERSION="${TAG#v}.0"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
 
       - name: Publish to WinGet
         uses: vedantmgoyal9/winget-releaser@v2
         with:
           token: ${{ secrets.WINGET_TOKEN }}
           identifier: AdamKessel.GEDCOMNavigator
-          version: ${{ steps.get_version.outputs.version }}
+          version: ${{ steps.resolve_tag.outputs.version }}
           release-tag: ${{ steps.resolve_tag.outputs.tag }}
           installers-regex: 'gedcom-navigator-windows-installer\.exe$'
         continue-on-error: true
