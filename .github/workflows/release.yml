@@ -41,6 +41,11 @@ on:
         required: false
         default: "false"
         type: boolean
+      winget_release_tag:
+        description: "Release tag for Winget submission (e.g. v1.9.18)"
+        required: false
+        default: ""
+        type: string
       create_release:
         description: "Create GitHub release (requires build_linux, build_windows, build_macos)"
         required: false
@@ -459,6 +464,7 @@ jobs:
           token: ${{ secrets.WINGET_TOKEN }}
           identifier: AdamKessel.GEDCOMNavigator
           version: ${{ steps.get_version.outputs.version }}
+          release-tag: ${{ inputs.winget_release_tag || github.ref_name }}
           installers-regex: 'gedcom-navigator-windows-installer\.exe$'
         continue-on-error: true
 
