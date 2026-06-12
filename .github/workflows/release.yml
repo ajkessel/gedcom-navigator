@@ -36,6 +36,11 @@ on:
         required: false
         default: 'false'
         type: boolean
+      build_winget:
+        description: 'Build and submit to Winget'
+        required: false
+        default: 'false'
+        type: boolean
       create_release:
         description: 'Create GitHub release (requires build_linux, build_windows, build_macos)'
         required: false
@@ -424,12 +429,13 @@ jobs:
           VERSION=$(grep -oP '__version__\s*=\s*"\K[^"]+' gedcom_navigator/__init__.py)
           echo "version=${VERSION}.0" >> "$GITHUB_OUTPUT"
 
-      - name: Publish to WinGet
+      - name: Publish to WinGet 
+        if: inputs.build_winget
         uses: vedantmgoyal9/winget-releaser@v2
-        continue-on-error: true
-        with:
+        with: 
           identifier: AdamKessel.GEDCOMNavigator
           version: ${{ steps.get_version.outputs.version }}
           installers-regex: 'gedcom-navigator-windows-installer\.exe$'
           token: ${{ secrets.WINGET_TOKEN }}
+          continue-on-error: true
 
