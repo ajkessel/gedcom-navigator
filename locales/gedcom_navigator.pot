@@ -1,14 +1,15 @@
-# Translations template for PROJECT.
-# Copyright (C) 2026 ORGANIZATION
-# This file is distributed under the same license as the PROJECT project.
+# Translations template for GEDCOM Navigator.
+# Copyright (C) 2026 Adam J. Kessel
+# This file is distributed under the same license as the GEDCOM Navigator
+# project.
 # FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
 #
 #, fuzzy
 msgid ""
 msgstr ""
-"Project-Id-Version: PROJECT VERSION\n"
-"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-06-05 21:17-0400\n"
+"Project-Id-Version: GEDCOM Navigator v1.9.18\n"
+"Report-Msgid-Bugs-To: adam@rosi-kessel.org\n"
+"POT-Creation-Date: 2026-06-12 14:16-0400\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
