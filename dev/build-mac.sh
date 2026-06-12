@@ -103,6 +103,22 @@ if clang --version | grep -q ' version 21'; then
 else
 	echo 'Xcode less than 15, skipping -Wno-error=default-const-init-var-unsafe.'
 fi
+# On arm64 runners pip prefers arm64-only Pillow wheels even with universal2
+# Python, which breaks PyInstaller's fat-binary check.  Download the universal2
+# wheel explicitly using --platform (no --python-version / --implementation so
+# pip derives those from the running venv interpreter and computes a correct ABI
+# tag).  The universal2 wheel has libjpeg/zlib statically vendored.
+pip download pillow \
+	--platform macosx_10_13_universal2 \
+	--only-binary=:all: \
+	-d /tmp/pillow_u2/ || {
+	echo 'Failed to download universal2 Pillow wheel.'
+	exit 1
+}
+pip install /tmp/pillow_u2/*.whl --no-deps --force-reinstall || {
+	echo 'Failed to install universal2 Pillow wheel.'
+	exit 1
+}
 env CFLAGS="${myflags:-}" ARCHFLAGS="-arch arm64 -arch x86_64" pip install -r ./dev/requirements-dev.txt --no-binary pyobjc-core,pyobjc-framework-Cocoa,pyobjc-framework-CoreServices || {
 	echo 'Failed to install dependencies.'
 	exit 1
