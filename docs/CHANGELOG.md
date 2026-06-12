@@ -1,12 +1,34 @@
 # Changelog
 
-## [1.9.18]
+## [1.9.19]
 
-- Updating for automated build
+GEDCOM Navigator now finds DNA matches in family trees exported from any genealogy software, not just Ancestry.
 
-### Added
+Previously, DNA-match detection relied on Ancestry-specific data structures (_MTTAG custom tags and AncestryDNA Match source citations). Files exported from other programs — MyHeritage, Family Historian, Legacy Family Tree, RootsMagic, and others — were not recognized.
 
-- **DNA-match detection for non-Ancestry GEDCOM files** — previously only Ancestry exports were recognized, via `_MTTAG` MyTreeTags and `AncestryDNA Match` source-citation page markers. When a loaded file contains no `_MTTAG` records (i.e. it was not exported by Ancestry), the app now falls back to scanning the custom fields other genealogy software uses to record DNA matches: custom events and facts (`EVEN`/`FACT` with a `TYPE` of e.g. "DNA Match"), Family Historian custom attributes (`_ATTR`), reference numbers (`REFN`), and custom `_DNA`-style tags. Matching still uses the same configurable keyword (default "DNA"). Free-text `NOTE` fields are excluded by default (they mention "DNA" too often) but can be enabled with the **Scan note text for matches** option in Preferences. When a custom event or fact uses a generic `TYPE` of "Custom", the field's own text is used as the tag name (e.g. `1 FACT MyHeritage DNA` / `2 TYPE Custom` is shown and matched as "MyHeritage DNA"). For these files the **Select Tag** browser and CLI `--list-tags` now show a catalog of the discovered custom field types so you can pick exactly which one to match on; the browser is sortable by clicking any column header, and a new CLI `--detection-fields` option controls which field types are scanned.
+When your GEDCOM file was not exported by Ancestry, the app now scans the custom fields those programs use to record DNA relationships:
+
+* Custom events and facts (EVEN/FACT records with a DNA-related TYPE, e.g. "DNA Match" or "MyHeritage DNA")
+* Family Historian custom attributes (_ATTR)
+* Reference number fields (REFN)
+* Custom _DNA-style tags
+
+The match keyword is configurable (default: "DNA"). When a custom event uses the generic TYPE value "Custom", the app uses the event's own text as the label — so a record like 1 FACT MyHeritage DNA / 2 TYPE Custom appears and matches as "MyHeritage DNA".
+
+Notes (free-text NOTE fields) are excluded by default — they mention "DNA" too often to be useful for detection. You can enable note scanning with the new Scan note text for matches toggle in Preferences.
+
+## New controls
+
+* Select Tag browser — for non-Ancestry files, the tag browser now shows a catalog of the custom field types discovered in your GEDCOM. Columns are sortable by clicking any header, so you can quickly find and select the specific tag to match on.
+Preferences: Scan note text for matches — opt in to include free-text NOTE fields in DNA detection.
+* CLI: --detection-fields — controls which field categories are scanned (events/facts, custom attributes, reference numbers, etc.).
+* CLI: --list-tags — now shows the full catalog of discovered custom field types for non-Ancestry files.
+
+## Bug Fixes
+* Full siblings display with a solid connector inside mixed half-sibling groups — when a sibling group with hidden parents included both full and half-siblings, the entire group's connector bar was drawn in the half-sibling dashed style, making full siblings appear to be half-siblings. Full-sibling groups within the bar now use the solid style; only the bridges between different family groups use the dashed style.
+* Half-siblings with hidden parents are placed on their sibling's row — a half-sibling whose own parents are not visible was being placed as a disconnected component far from their sibling group. They are now correctly attached on the same row as their siblings.
+
+**Full Changelog**: https://github.com/ajkessel/gedcom-navigator/compare/v1.9.18...v1.9.19
 
 ## [1.9.15]
 
