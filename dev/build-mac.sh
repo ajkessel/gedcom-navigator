@@ -61,7 +61,9 @@ fi
 
 # preference is for universal2 python from python.org
 # alternatively, set up pyenv environment
-if [ -e "/Library/Frameworks/Python.framework/Versions/current/bin/python3" ]; then
+if [ -e "/Library/Frameworks/Python.framework/Versions/3.14/bin/python3.14" ]; then
+	export PATH="/Library/Frameworks/Python.framework/Versions/3.14/bin/:${PATH}"
+elif [ -e "/Library/Frameworks/Python.framework/Versions/current/bin/python3" ]; then
 	export PATH="/Library/Frameworks/Python.framework/Versions/current/bin/:${PATH}"
 else
 	echo 'Python from python.org not found, attempting to set up pyenv...'
@@ -103,22 +105,35 @@ if clang --version | grep -q ' version 21'; then
 else
 	echo 'Xcode less than 15, skipping -Wno-error=default-const-init-var-unsafe.'
 fi
-# On arm64 runners pip prefers arm64-only Pillow wheels even with universal2
-# Python, which breaks PyInstaller's fat-binary check.  Download the universal2
-# wheel explicitly using --platform (no --python-version / --implementation so
-# pip derives those from the running venv interpreter and computes a correct ABI
-# tag).  The universal2 wheel has libjpeg/zlib statically vendored.
-pip download pillow \
-	--platform macosx_10_13_universal2 \
-	--only-binary=:all: \
-	-d /tmp/pillow_u2/ || {
-	echo 'Failed to download universal2 Pillow wheel.'
-	exit 1
-}
-pip install /tmp/pillow_u2/*.whl --no-deps --force-reinstall || {
-	echo 'Failed to install universal2 Pillow wheel.'
-	exit 1
-}
+# pip download --platform requires all four override flags together; mixing them
+# produces generic 'none-none' tags that match no compiled wheel.  Query PyPI's
+# JSON API directly to find and fetch the universal2 Pillow wheel, then install
+# it with --force-reinstall so the main deps pass below leaves it alone.
+python3 - << 'PYEOF'
+import json, os, subprocess, sys, urllib.request
+
+cp = f"cp{sys.version_info.major}{sys.version_info.minor}"
+print(f"Fetching universal2 Pillow wheel for {cp} from PyPI...")
+with urllib.request.urlopen("https://pypi.org/pypi/pillow/json") as r:
+    data = json.loads(r.read())
+latest = data["info"]["version"]
+url = name = None
+for f in data["releases"].get(latest, []):
+    fn = f["filename"]
+    if "universal2" in fn and cp in fn and fn.endswith(".whl"):
+        url, name = f["url"], fn
+        break
+if not url:
+    print(f"ERROR: no universal2 Pillow {latest} wheel for {cp}", file=sys.stderr)
+    sys.exit(1)
+print(f"Downloading {name}...")
+path = f"/tmp/{name}"
+urllib.request.urlretrieve(url, path)
+subprocess.check_call([sys.executable, "-m", "pip", "install",
+                       path, "--no-deps", "--force-reinstall"])
+os.unlink(path)
+PYEOF
+[ $? -eq 0 ] || { echo 'Failed to install universal2 Pillow wheel.'; exit 1; }
 env CFLAGS="${myflags:-}" ARCHFLAGS="-arch arm64 -arch x86_64" pip install -r ./dev/requirements-dev.txt --no-binary pyobjc-core,pyobjc-framework-Cocoa,pyobjc-framework-CoreServices || {
 	echo 'Failed to install dependencies.'
 	exit 1
