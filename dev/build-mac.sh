@@ -120,7 +120,7 @@ latest = data["info"]["version"]
 urls = {}
 for f in data["releases"].get(latest, []):
     fn = f["filename"]
-    if cp in fn and fn.endswith(".whl"):
+    if cp in fn and fn.endswith(".whl") and "macosx" in fn:
         for arch in ("arm64", "x86_64"):
             if arch in fn:
                 urls[arch] = (f["url"], fn)
