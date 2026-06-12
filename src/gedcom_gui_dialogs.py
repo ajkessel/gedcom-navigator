@@ -191,6 +191,30 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
                 if first_match is None and name.strip().lower() == current_kw:
                     first_match = iid
 
+        # Let the user sort by clicking any column header (count sorts numerically).
+        sort_state = {}
+
+        def _sort_tag_tree(col):
+            reverse = sort_state.get(col, False)
+            numeric = col == 'count'
+
+            def _key(item):
+                val = tag_tree.set(item, col)
+                if numeric:
+                    try:
+                        return int(val)
+                    except ValueError:
+                        return 0
+                return val.lower()
+
+            ordered = sorted(tag_tree.get_children(''), key=_key, reverse=reverse)
+            for index, item in enumerate(ordered):
+                tag_tree.move(item, '', index)
+            sort_state[col] = not reverse
+
+        for _col in tag_tree['columns']:
+            tag_tree.heading(_col, command=lambda c=_col: _sort_tag_tree(c))
+
         btn_frame = ctk.CTkFrame(win, fg_color='transparent')
         btn_frame.pack(fill='x', padx=8, pady=8)
 
@@ -845,6 +869,14 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
         Tooltip(_pref_page_marker_label, TIP_PAGE_MARKER)
         Tooltip(_pref_page_marker_entry, TIP_PAGE_MARKER)
 
+        scan_notes_var = tk.BooleanVar(
+            value='NOTE' in self._config.get_detection_fields())
+        _pref_scan_notes_chk = ctk.CTkCheckBox(
+            search_frame, text=CHK_SCAN_NOTES, variable=scan_notes_var)
+        _pref_scan_notes_chk.grid(
+            row=4, column=1, columnspan=3, sticky='w', pady=(6, 0))
+        Tooltip(_pref_scan_notes_chk, TIP_SCAN_NOTES)
+
         # Export section
         export_section = ctk.CTkFrame(outer, border_width=1)
         export_section.pack(fill='x', pady=(0, 8))
@@ -1023,6 +1055,13 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
             self._config.set_tag_keyword(tag_keyword_var.get())
             self.page_marker.set(page_marker_var.get())
             self._config.set_page_marker(page_marker_var.get())
+            old_fields = self._config.get_detection_fields()
+            new_fields = [f for f in old_fields if f != 'NOTE']
+            if scan_notes_var.get():
+                new_fields.append('NOTE')
+            if new_fields != old_fields:
+                self._config.set_detection_fields(new_fields)
+                self._reload_if_loaded()
             self.show_ids.set(show_ids_var.get())
             self._config.set_show_ids(show_ids_var.get())
             self.show_full_gedcom.set(show_full_gedcom_var.get())

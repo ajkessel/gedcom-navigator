@@ -75,6 +75,12 @@ DLG_SELECT_GEDCOM = _("Select GEDCOM file")
 LBL_TAG_KEYWORD = _("Tag keyword:")
 LBL_PAGE_MARKER = _("Page marker:")
 BTN_SELECT_TAG = _("Select Tag")
+CHK_SCAN_NOTES = _("Scan note text for matches")
+TIP_SCAN_NOTES = _(
+    "For files with no Ancestry _MTTAG tags, also treat free-text NOTE fields "
+    "containing the tag keyword as matches. Off by default because notes often "
+    "mention \"DNA\" incidentally, which can over-match."
+)
 
 # ---------------------------------------------------------------------------
 # People list

@@ -314,6 +314,21 @@ def _entry_child_type(raw, start, n):
     return ''
 
 
+def _field_descriptor(type_val, value):
+    """Return the human-meaningful label for a custom EVEN/FACT/_ATTR/REFN field.
+
+    Normally the ``2 TYPE`` value is the label. Some software (e.g. MyHeritage)
+    writes a generic ``2 TYPE Custom`` and puts the real label in the field value
+    instead — ``1 FACT MyHeritage DNA`` / ``2 TYPE Custom`` — so when TYPE is
+    empty or the placeholder "Custom" we fall back to the field value.
+    """
+    t = (type_val or '').strip()
+    v = (value or '').strip()
+    if t and t.lower() != 'custom':
+        return t
+    return v or t
+
+
 def derive_dna_flags(raw, tag_records, *, dna_keyword, page_marker,
                      scan_alternate, alternate_fields):
     """Return (dna_markers, tags) for one individual's _raw record.
@@ -368,13 +383,13 @@ def derive_dna_flags(raw, tag_records, *, dna_keyword, page_marker,
                 if dna_kw_l in f'{type_val} {value}'.lower():
                     label = {'EVEN': 'Event', 'FACT': 'Fact',
                              '_ATTR': 'Attribute'}[tag]
-                    desc = type_val or value.strip()
+                    desc = _field_descriptor(type_val, value)
                     dna_markers.append(f'{label}: {desc}')
                     tags.append(desc)
             elif tag == 'REFN' and 'REFN' in fields:
                 type_val = _entry_child_type(raw, i, n)
                 if dna_kw_l in f'{type_val} {value}'.lower():
-                    desc = type_val or value.strip()
+                    desc = _field_descriptor(type_val, value)
                     dna_markers.append(f'Reference: {desc}')
                     tags.append(desc)
             elif tag == 'NOTE' and 'NOTE' in fields:
@@ -418,7 +433,7 @@ def _discover_custom_fields(records):
             if level != 1:
                 continue
             if tag in ('EVEN', 'FACT', '_ATTR', 'REFN'):
-                type_val = _entry_child_type(rec, i, n) or value.strip()
+                type_val = _field_descriptor(_entry_child_type(rec, i, n), value)
                 key = (tag, type_val)
             elif tag.startswith('_') and tag != '_MTTAG':
                 key = ('_TAG', tag)

@@ -744,6 +744,30 @@ class TestAlternateDnaDetection:
         assert markers_t == markers_l and markers_t
         assert tags_t == tags_l
 
+    def test_generic_custom_type_uses_field_value_as_label(self, tmp_path):
+        # MyHeritage-style: `1 FACT MyHeritage DNA` / `2 TYPE Custom`.
+        ged = """\
+0 HEAD
+1 GEDC
+2 VERS 5.5.1
+0 @I1@ INDI
+1 NAME Adam Joseph /Kessel/
+1 FACT MyHeritage DNA
+2 TYPE Custom
+0 TRLR
+"""
+        p = _write_ged(tmp_path, ged)
+        indiv, _, _, _, _, _, uses_alt, catalog = build_model(
+            p, "DNA", "AncestryDNA")
+        assert uses_alt is True
+        # The label/tag is the field value, not the generic "Custom" type.
+        assert indiv["@I1@"]["tags"] == ["MyHeritage DNA"]
+        assert any("MyHeritage DNA" in m for m in indiv["@I1@"]["dna_markers"])
+        assert not any("Custom" in m for m in indiv["@I1@"]["dna_markers"])
+        # The discovery catalog uses the same descriptor.
+        assert ("FACT", "MyHeritage DNA") in {
+            (r["kind"], r["type"]) for r in catalog}
+
 
 # ===========================================================================
 # neighbors
