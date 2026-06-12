@@ -134,22 +134,14 @@ exe = EXE(
 if sys.platform == 'darwin':
     target_arch = os.environ.get('target_arch', 'universal2')
     if target_arch == 'universal2':
-        # Drop single-arch PIL extensions that break the fat-binary check.
-        # e.g. _avif.so from a wheel built without a universal2 libavif.
-        def _is_fat(path):
-            try:
-                archs = subprocess.check_output(
-                    ['lipo', '-archs', path], stderr=subprocess.DEVNULL
-                ).decode().split()
-                return len(archs) >= 2
-            except Exception:
-                return True
+        # _avif requires libavif which is not available as a universal2 fat
+        # binary on GitHub CI runners, so its .so is arm64-only and breaks
+        # PyInstaller's fat-binary validation.  AVIF support is optional for
+        # GEDCOM image display, so drop it from the bundle entirely.
         _before = len(a.binaries)
-        a.binaries = [b for b in a.binaries
-                      if b[2] != 'EXTENSION' or 'PIL' not in b[0] or _is_fat(b[1])]
-        _dropped = _before - len(a.binaries)
-        if _dropped:
-            print(f'[spec] dropped {_dropped} single-arch PIL extension(s) for universal2 build')
+        a.binaries = [b for b in a.binaries if '_avif' not in b[0]]
+        if len(a.binaries) < _before:
+            print('[spec] dropped PIL._avif (no universal2 libavif available)')
     exe = EXE(pyz,
               a.scripts,
               exclude_binaries=True,
