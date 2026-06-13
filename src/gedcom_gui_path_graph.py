@@ -396,24 +396,6 @@ class PathGraphMixin:
             canvas.create_rectangle(
                 x1, y1, x2, y2, fill=fill, outline=node_outline,
                 width=outline_width, tags=('path_node', node_tag))
-            step_number = path_step_numbers.get(node_id)
-            if step_number is not None:
-                badge_r = scale(9)
-                if is_endpoint:
-                    step_cx = x2 - badge_r - scale(3)
-                else:
-                    step_cx = x1 + badge_r + scale(3)
-                step_cy = y1 + badge_r + scale(3)
-                canvas.create_oval(
-                    step_cx - badge_r, step_cy - badge_r,
-                    step_cx + badge_r, step_cy + badge_r,
-                    fill=colors['step_badge_fill'],
-                    outline=colors['path_casing'], width=scale(1),
-                    tags=('path_node', node_tag))
-                canvas.create_text(
-                    step_cx, step_cy, text=str(step_number),
-                    fill=colors['step_badge_text'], font=badge_font,
-                    anchor='center', tags=('path_node', node_tag))
             if is_endpoint:
                 badge = PATH_GRAPH_START if index == 0 else PATH_GRAPH_END
                 badge_w = badge_font.measure(badge) + scale(12)
@@ -520,6 +502,26 @@ class PathGraphMixin:
                     font=label_font,
                     width=label_width, justify='center',
                     tags=('path_node', node_tag))
+
+            # Drawn last, so the step badge stays above any profile image.
+            step_number = path_step_numbers.get(node_id)
+            if step_number is not None:
+                badge_r = scale(9)
+                if is_endpoint:
+                    step_cx = x2 - badge_r - scale(3)
+                else:
+                    step_cx = x1 + badge_r + scale(3)
+                step_cy = y1 + badge_r + scale(3)
+                canvas.create_oval(
+                    step_cx - badge_r, step_cy - badge_r,
+                    step_cx + badge_r, step_cy + badge_r,
+                    fill=colors['step_badge_fill'],
+                    outline=colors['path_casing'], width=scale(1),
+                    tags=('path_node', node_tag))
+                canvas.create_text(
+                    step_cx, step_cy, text=str(step_number),
+                    fill=colors['step_badge_text'], font=badge_font,
+                    anchor='center', tags=('path_node', node_tag))
 
             if node_id in self.individuals:
                 canvas.tag_bind(
