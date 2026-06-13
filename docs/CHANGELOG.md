@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.11.0]
+
+### Added
+
+- **Profile photos in PNG and SVG graph exports** — relationship-path and family-tree graphs exported via Copy Image or Save as PNG/SVG now include any visible profile photo thumbnails. Previously, canvas image items were silently skipped and left blank rectangles in exported files.
+- **Numbered step badges on relationship-path nodes** — each person along the relationship path now carries a numbered badge (1, 2, 3 … N) so you can follow the chain at a glance without tracing connector lines. Badges survive PNG and SVG export.
+- **Emphasized path spine** — the main relationship path is now visually distinct from the surrounding family context: off-path relatives and their edges are faded toward the background, while path edges gain a heavier line with a casing under-stroke and consistent source-to-target flow arrows. Path nodes get a strong accent outline.
+- **Solid, consistently colored flow arrowheads** — spouse and sibling segments on the path now use a larger solid arrowhead in the accent color instead of a thin open chevron. Arrowheads appear in PNG and SVG exports.
+
+### Fixed
+
+- **Step badges draw above profile images** — the numbered badge was rendered before the profile image and thus painted over; each node's badge is now drawn last so it stays visible on nodes with photos.
+- **Expand buttons lift off the path connector line instead of moving sideways** — when a sibling or spouse expand button was positioned on the side facing an adjacent path node, it landed in the short connector gap and hid the direction arrowhead. The button is now raised vertically off the connector line, keeping the arrow visible without displacing the button to an already-occupied side.
+
+**Full Changelog**: https://github.com/ajkessel/gedcom-navigator/compare/v1.10.0...v1.11.0
+
 ## [1.10.0]
 
 GEDCOM Navigator now finds DNA matches in family trees exported from any genealogy software, not just Ancestry.
