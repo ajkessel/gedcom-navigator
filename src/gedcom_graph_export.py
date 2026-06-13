@@ -348,6 +348,17 @@ def canvas_to_png_bytes(canvas, width, height):
                 _draw_arrowhead(
                     draw, coords[-4], coords[-3], coords[-2], coords[-1],
                     fill, item_width)
+        elif item_type == 'oval':
+            x1, y1, x2, y2 = canvas.coords(item_id)
+            fill = _canvas_color_to_rgb(
+                canvas.itemcget(item_id, 'fill'), default=None)
+            outline = _canvas_color_to_rgb(
+                canvas.itemcget(item_id, 'outline'), default=None)
+            item_width = max(
+                int(float(canvas.itemcget(item_id, 'width') or 1)), 1)
+            draw.ellipse(
+                (x1, y1, x2, y2), fill=fill, outline=outline,
+                width=item_width)
         elif item_type == 'text':
             _draw_canvas_text_png(draw, canvas, item_id)
 
@@ -492,6 +503,18 @@ def canvas_to_svg(canvas, width, height):
                     for i in range(0, len(coords), 2))
                 attrs['points'] = points
                 body.append(f'  <polyline{_svg_attrs(**attrs)}/>')
+        elif item_type == 'oval':
+            x1, y1, x2, y2 = canvas.coords(item_id)
+            attrs = _svg_attrs(
+                cx=_svg_number((x1 + x2) / 2),
+                cy=_svg_number((y1 + y2) / 2),
+                rx=_svg_number((x2 - x1) / 2),
+                ry=_svg_number((y2 - y1) / 2),
+                fill=canvas.itemcget(item_id, 'fill'),
+                stroke=canvas.itemcget(item_id, 'outline'),
+                stroke_width=canvas.itemcget(item_id, 'width'),
+            )
+            body.append(f'  <ellipse{attrs}/>')
         elif item_type == 'text':
             body.append(_canvas_text_svg(canvas, item_id))
 

@@ -82,7 +82,25 @@ class GraphCommonMixin:
             'spouse': cls._mix_hex_color(accent, theme['fg'], 0.28),
             'sibling': cls._mix_hex_color(accent, theme['trough'], 0.45),
             'half_sibling': cls._mix_hex_color(accent, theme['trough'], 0.18),
+            'path_casing': theme['bg'],
+            'path_node_outline': cls._mix_hex_color(accent, theme['fg'], 0.15),
+            'step_badge_fill': accent,
+            'step_badge_text': cls._readable_text_color(accent),
         }
+
+    # Edge/outline colors faded toward the background for off-path elements.
+    _MUTED_GRAPH_COLOR_KEYS = (
+        'parent', 'step', 'adopted', 'foster', 'spouse', 'sibling',
+        'half_sibling', 'node_outline',
+    )
+
+    @classmethod
+    def _muted_graph_colors(cls, colors):
+        """Return a copy of graph colors with off-path edges faded toward bg."""
+        muted = dict(colors)
+        for key in cls._MUTED_GRAPH_COLOR_KEYS:
+            muted[key] = cls._mix_hex_color(colors[key], colors['bg'], 0.55)
+        return muted
 
     @staticmethod
     def _wrap_canvas_label(text, font, max_width):
@@ -570,13 +588,45 @@ class GraphCommonMixin:
         return '\n'.join(lines)
 
     @staticmethod
-    def _draw_spouse_line(canvas, start_x, start_y, end_x, end_y, color,
-                          scale):
+    def _draw_path_casing(canvas, points, casing_color, width):
+        """Draw a wide background-colored underlay beneath a path segment."""
+        canvas.create_line(*points, fill=casing_color, width=width,
+                           capstyle='round', joinstyle='round')
+
+    @staticmethod
+    def _draw_flow_chevron(canvas, start_x, start_y, end_x, end_y, color,
+                           scale):
+        """Draw an open chevron pointing start->end to mark path direction."""
+        dx = end_x - start_x
+        dy = end_y - start_y
+        length = max((dx * dx + dy * dy) ** 0.5, 1)
+        ux, uy = dx / length, dy / length
+        size = scale(8)
+        # Place the chevron tip a little past the segment midpoint.
+        tip_x = start_x + dx * 0.6
+        tip_y = start_y + dy * 0.6
+        for sign in (-1, 1):
+            back_x = tip_x - ux * size + sign * -uy * size * 0.7
+            back_y = tip_y - uy * size + sign * ux * size * 0.7
+            canvas.create_line(
+                back_x, back_y, tip_x, tip_y,
+                fill=color, width=scale(3), capstyle='round')
+
+    @classmethod
+    def _draw_spouse_line(cls, canvas, start_x, start_y, end_x, end_y, color,
+                          scale, casing_color=None, flow_color=None):
         """Draw a spouse relationship as paired solid rails."""
+        if casing_color is not None:
+            cls._draw_path_casing(
+                canvas, (start_x, start_y, end_x, end_y), casing_color,
+                scale(10) + scale(4))
         for offset in (-scale(5), scale(5)):
             canvas.create_line(
                 start_x, start_y + offset, end_x, end_y + offset,
                 fill=color, width=scale(3))
+        if flow_color is not None:
+            cls._draw_flow_chevron(
+                canvas, start_x, start_y, end_x, end_y, flow_color, scale)
 
     @staticmethod
     def _draw_sibling_line(canvas, start_x, start_y, end_x, end_y, color,
@@ -641,8 +691,13 @@ class GraphCommonMixin:
         return {'fill': colors['parent'], 'width': scale(3)}
 
     def _draw_graph_sibling_line(self, canvas, start_x, start_y, end_x, end_y,
-                                 kind, colors, scale):
+                                 kind, colors, scale, casing_color=None,
+                                 flow_color=None):
         """Draw a sibling edge with full/half/step visual styles."""
+        if casing_color is not None:
+            self._draw_path_casing(
+                canvas, (start_x, start_y, end_x, end_y), casing_color,
+                scale(4) + scale(4))
         if kind == 'half':
             self._draw_half_sibling_line(
                 canvas, start_x, start_y, end_x, end_y,
@@ -656,6 +711,9 @@ class GraphCommonMixin:
             self._draw_sibling_line(
                 canvas, start_x, start_y, end_x, end_y,
                 colors['sibling'], scale)
+        if flow_color is not None:
+            self._draw_flow_chevron(
+                canvas, start_x, start_y, end_x, end_y, flow_color, scale)
 
     def _draw_sibling_stub(self, canvas, bus_x_start, bus_x_end, stub_y,
                            child_xs, child_top_ys, kind, colors, scale):

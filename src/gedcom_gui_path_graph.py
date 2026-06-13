@@ -196,60 +196,7 @@ class PathGraphMixin:
                 margin / 2, y, canvas_w - margin / 2, y,
                 fill=colors['guide'], dash=(scale(3), scale(8)))
 
-        for index in range(1, len(layout)):
-            if (not layout[index - 1].get('is_path_node')
-                    or not layout[index].get('is_path_node')):
-                continue
-            edge = layout[index]['edge']
-            x1, y1 = positions[index - 1]
-            x2, y2 = positions[index]
-
-            if edge == 'spouse':
-                start_x = x1 + node_w / 2
-                end_x = x2 - node_w / 2
-                self._draw_spouse_line(
-                    canvas, start_x, y1, end_x, y2, colors['spouse'], scale)
-            elif edge == 'sibling':
-                start_x = x1 + node_w / 2
-                end_x = x2 - node_w / 2
-                self._draw_graph_sibling_line(
-                    canvas, start_x, y1, end_x, y2,
-                    self._edge_relationship_kind(
-                        layout[index - 1]['id'], layout[index]['id'], edge),
-                    colors, scale)
-            else:
-                from_h = node_heights[index - 1]
-                to_h = node_heights[index]
-                from_x, from_y = x1, y1
-                if edge == 'child':
-                    parent_midpoint = self._child_parent_midpoint(
-                        layout[index - 1]['id'], layout[index]['id'],
-                        position_by_id, self._co_parents_for_children,
-                        spouse_edges)
-                    if parent_midpoint:
-                        from_x, from_y = parent_midpoint
-                        from_h = 0
-                elif edge in ('father', 'mother'):
-                    parent_midpoint = self._child_parent_midpoint(
-                        layout[index]['id'], layout[index - 1]['id'],
-                        position_by_id, self._co_parents_for_children,
-                        spouse_edges)
-                    if parent_midpoint:
-                        x2, y2 = parent_midpoint
-                        to_h = 0
-                start_y = from_y + (
-                    from_h / 2 if y2 > from_y else -from_h / 2)
-                end_y = y2 - (to_h / 2 if y2 > from_y else -to_h / 2)
-                mid_y = (start_y + end_y) / 2
-                line_options = self._graph_parent_line_options(
-                    self._edge_relationship_kind(
-                        layout[index - 1]['id'], layout[index]['id'],
-                        'children' if edge == 'child' else 'parents'),
-                    colors, scale)
-                canvas.create_line(
-                    from_x, start_y, from_x, mid_y, x2, mid_y, x2, end_y,
-                    arrow='last', **line_options,
-                    arrowshape=(scale(12), scale(14), scale(5)))
+        muted = self._muted_graph_colors(colors)
 
         drawn_parent_midpoint_edges = set()
         for source_id, target_id, category in extra_edges:
@@ -307,7 +254,7 @@ class PathGraphMixin:
                 end_x = tx + (node_w / 2 if tx < sx else -node_w / 2)
                 self._draw_spouse_line(
                     canvas, start_x, sy, end_x, ty,
-                    colors['spouse'], scale)
+                    muted['spouse'], scale)
                 continue
             else:
                 start_x = sx + (-node_w / 2 if tx < sx else node_w / 2)
@@ -316,7 +263,7 @@ class PathGraphMixin:
                     canvas, start_x, sy, end_x, ty,
                     self._edge_relationship_kind(
                         source_id, target_id, category),
-                    colors, scale)
+                    muted, scale)
                 continue
 
             start_y = parent_y + parent_h / 2
@@ -325,11 +272,77 @@ class PathGraphMixin:
             grouped_child_id = source_id if category == 'parents' else target_id
             line_options = self._graph_parent_line_options(
                 self._combined_parent_child_kind(parent_ids, grouped_child_id),
-                colors, scale)
+                muted, scale)
             canvas.create_line(
                 parent_x, start_y, parent_x, mid_y, child_x, mid_y,
                 child_x, end_y, arrow='last', **line_options,
                 arrowshape=(scale(12), scale(14), scale(5)))
+
+        # Path (source->target) edges are drawn after off-path edges so their
+        # casing reads as a continuous route over everything else.
+        for index in range(1, len(layout)):
+            if (not layout[index - 1].get('is_path_node')
+                    or not layout[index].get('is_path_node')):
+                continue
+            edge = layout[index]['edge']
+            x1, y1 = positions[index - 1]
+            x2, y2 = positions[index]
+
+            if edge == 'spouse':
+                start_x = x1 + node_w / 2
+                end_x = x2 - node_w / 2
+                self._draw_spouse_line(
+                    canvas, start_x, y1, end_x, y2, colors['spouse'], scale,
+                    casing_color=colors['path_casing'],
+                    flow_color=colors['spouse'])
+            elif edge == 'sibling':
+                start_x = x1 + node_w / 2
+                end_x = x2 - node_w / 2
+                self._draw_graph_sibling_line(
+                    canvas, start_x, y1, end_x, y2,
+                    self._edge_relationship_kind(
+                        layout[index - 1]['id'], layout[index]['id'], edge),
+                    colors, scale,
+                    casing_color=colors['path_casing'],
+                    flow_color=colors['sibling'])
+            else:
+                from_h = node_heights[index - 1]
+                to_h = node_heights[index]
+                from_x, from_y = x1, y1
+                if edge == 'child':
+                    parent_midpoint = self._child_parent_midpoint(
+                        layout[index - 1]['id'], layout[index]['id'],
+                        position_by_id, self._co_parents_for_children,
+                        spouse_edges)
+                    if parent_midpoint:
+                        from_x, from_y = parent_midpoint
+                        from_h = 0
+                elif edge in ('father', 'mother'):
+                    parent_midpoint = self._child_parent_midpoint(
+                        layout[index]['id'], layout[index - 1]['id'],
+                        position_by_id, self._co_parents_for_children,
+                        spouse_edges)
+                    if parent_midpoint:
+                        x2, y2 = parent_midpoint
+                        to_h = 0
+                start_y = from_y + (
+                    from_h / 2 if y2 > from_y else -from_h / 2)
+                end_y = y2 - (to_h / 2 if y2 > from_y else -to_h / 2)
+                mid_y = (start_y + end_y) / 2
+                line_options = self._graph_parent_line_options(
+                    self._edge_relationship_kind(
+                        layout[index - 1]['id'], layout[index]['id'],
+                        'children' if edge == 'child' else 'parents'),
+                    colors, scale)
+                points = (from_x, start_y, from_x, mid_y, x2, mid_y, x2, end_y)
+                self._draw_path_casing(
+                    canvas, points, colors['path_casing'],
+                    line_options['width'] + scale(4))
+                bold_options = dict(line_options)
+                bold_options['width'] = line_options['width'] + scale(1)
+                canvas.create_line(
+                    *points, arrow='last', **bold_options,
+                    arrowshape=(scale(12), scale(14), scale(5)))
 
         self._draw_graph_relationship_legend(
             canvas, colors, scale, label_font, relationship_kinds)
@@ -348,6 +361,11 @@ class PathGraphMixin:
             if redraw:
                 redraw()
 
+        path_step_numbers = {}
+        for node in layout:
+            if node.get('is_path_node'):
+                path_step_numbers[node['id']] = len(path_step_numbers) + 1
+
         for index, ((x, y), label_block) in enumerate(
                 zip(positions, wrapped_label_blocks)):
             node_id = layout[index]['id']
@@ -358,6 +376,7 @@ class PathGraphMixin:
             x2 = x + node_w / 2
             y2 = y + node_h / 2
             is_endpoint = layout[index].get('is_endpoint')
+            is_path_node = layout[index].get('is_path_node')
             fill = self._person_box_fill(self.individuals, node_id)
             if is_endpoint:
                 fill = self._endpoint_person_box_fill(fill, colors)
@@ -366,11 +385,35 @@ class PathGraphMixin:
                 fill = self.PERSON_BOX_FILL_HIGHLIGHT
                 node_outline = self.PERSON_BOX_OUTLINE_HIGHLIGHT
                 outline_width = scale(4)
+            elif is_path_node:
+                # On-path nodes form the spine: strong accent outline.
+                node_outline = colors['path_node_outline']
+                outline_width = scale(3)
             else:
-                node_outline = colors['node_outline']
+                # Off-path relatives recede: faded fill and outline.
+                fill = self._mix_hex_color(fill, colors['bg'], 0.5)
+                node_outline = muted['node_outline']
             canvas.create_rectangle(
                 x1, y1, x2, y2, fill=fill, outline=node_outline,
                 width=outline_width, tags=('path_node', node_tag))
+            step_number = path_step_numbers.get(node_id)
+            if step_number is not None:
+                badge_r = scale(9)
+                if is_endpoint:
+                    step_cx = x2 - badge_r - scale(3)
+                else:
+                    step_cx = x1 + badge_r + scale(3)
+                step_cy = y1 + badge_r + scale(3)
+                canvas.create_oval(
+                    step_cx - badge_r, step_cy - badge_r,
+                    step_cx + badge_r, step_cy + badge_r,
+                    fill=colors['step_badge_fill'],
+                    outline=colors['path_casing'], width=scale(1),
+                    tags=('path_node', node_tag))
+                canvas.create_text(
+                    step_cx, step_cy, text=str(step_number),
+                    fill=colors['step_badge_text'], font=badge_font,
+                    anchor='center', tags=('path_node', node_tag))
             if is_endpoint:
                 badge = PATH_GRAPH_START if index == 0 else PATH_GRAPH_END
                 badge_w = badge_font.measure(badge) + scale(12)
