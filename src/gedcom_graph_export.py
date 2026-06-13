@@ -5,6 +5,7 @@ gedcom_graph_export.py
 SVG and PNG export helpers for relationship graph canvases.
 """
 
+import base64
 import io
 import math
 import os
@@ -370,6 +371,30 @@ def canvas_to_png_bytes(canvas, width, height):
                     list(coords), fill=fill, outline=outline)
         elif item_type == 'text':
             _draw_canvas_text_png(draw, canvas, item_id)
+        elif item_type == 'image':
+            coords = canvas.coords(item_id)
+            if len(coords) < 2:
+                continue
+            cx, cy = coords[0], coords[1]
+            anchor = canvas.itemcget(item_id, 'anchor') or 'center'
+            image_name = canvas.itemcget(item_id, 'image')
+            if not image_name:
+                continue
+            try:
+                png_bytes_tk = canvas.tk.call(image_name, 'data', '-format', 'png')
+                from PIL import Image as PILImage  # pylint: disable=import-outside-toplevel
+                thumb = PILImage.open(io.BytesIO(bytes(png_bytes_tk)))
+                thumb_w, thumb_h = thumb.size
+                left = (int(cx) if anchor in ('nw', 'w', 'sw')
+                        else int(cx - thumb_w) if anchor in ('ne', 'e', 'se')
+                        else int(cx - thumb_w / 2))
+                top = (int(cy) if anchor in ('nw', 'n', 'ne')
+                       else int(cy - thumb_h) if anchor in ('sw', 's', 'se')
+                       else int(cy - thumb_h / 2))
+                mask = thumb.getchannel('A') if thumb.mode == 'RGBA' else None
+                image.paste(thumb.convert('RGB'), (left, top), mask=mask)
+            except Exception:  # pylint: disable=broad-except
+                pass
 
     out = io.BytesIO()
     image.save(out, format='PNG')
@@ -537,6 +562,32 @@ def canvas_to_svg(canvas, width, height):
             body.append(f'  <polygon{attrs}/>')
         elif item_type == 'text':
             body.append(_canvas_text_svg(canvas, item_id))
+        elif item_type == 'image':
+            coords = canvas.coords(item_id)
+            if len(coords) < 2:
+                continue
+            cx, cy = coords[0], coords[1]
+            anchor = canvas.itemcget(item_id, 'anchor') or 'center'
+            image_name = canvas.itemcget(item_id, 'image')
+            if not image_name:
+                continue
+            try:
+                png_bytes_tk = canvas.tk.call(image_name, 'data', '-format', 'png')
+                png_b64 = base64.b64encode(bytes(png_bytes_tk)).decode('ascii')
+                img_w = int(canvas.tk.call(image_name, 'width'))
+                img_h = int(canvas.tk.call(image_name, 'height'))
+                left = (cx if anchor in ('nw', 'w', 'sw')
+                        else cx - img_w if anchor in ('ne', 'e', 'se')
+                        else cx - img_w / 2)
+                top = (cy if anchor in ('nw', 'n', 'ne')
+                       else cy - img_h if anchor in ('sw', 's', 'se')
+                       else cy - img_h / 2)
+                body.append(
+                    f'  <image x="{_svg_number(left)}" y="{_svg_number(top)}" '
+                    f'width="{img_w}" height="{img_h}" '
+                    f'href="data:image/png;base64,{png_b64}"/>')
+            except Exception:  # pylint: disable=broad-except
+                pass
 
     if markers:
         lines.append('  <defs>')
