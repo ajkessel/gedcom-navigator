@@ -574,9 +574,10 @@ class PathGraphMixin:
                         'children': (
                             x, y2 + button_size / 2),
                     }
-                    # Keep the horizontal connector gap toward an adjacent path
-                    # node clear so its direction arrow stays visible: steer the
-                    # sibling/spouse button to the node's free outer side.
+                    # When a side button faces an adjacent same-row node, the
+                    # short connector gap between them carries a direction
+                    # arrow. Detect that per side so we can lift the button off
+                    # the connector line (below) rather than hide the arrow.
                     row_tol = v_gap * 0.5
                     left_blocked = any(
                         0 < (x - px) <= h_gap * 1.2 and abs(py - y) < row_tol
@@ -590,11 +591,13 @@ class PathGraphMixin:
                                 members):
                             continue
                         bx, by = button_specs[category]
-                        if category in ('siblings', 'spouses'):
-                            if bx < x and left_blocked and not right_blocked:
-                                bx = x2 + button_size / 2
-                            elif bx > x and right_blocked and not left_blocked:
-                                bx = x1 - button_size / 2
+                        # Sibling and spouse buttons always sit on opposite
+                        # sides, so lifting (not moving) the gap-facing one keeps
+                        # the arrow visible without ever stacking two buttons.
+                        if category in ('siblings', 'spouses') and (
+                                (bx < x and left_blocked)
+                                or (bx > x and right_blocked)):
+                            by = y - (button_size / 2 + scale(14))
                         button_side = 'right' if bx > x else 'left'
                         text = self._expansion_button_text(
                             expanded_set, node_id, category, button_side)
