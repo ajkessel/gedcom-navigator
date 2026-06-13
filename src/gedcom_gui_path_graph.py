@@ -574,12 +574,27 @@ class PathGraphMixin:
                         'children': (
                             x, y2 + button_size / 2),
                     }
+                    # Keep the horizontal connector gap toward an adjacent path
+                    # node clear so its direction arrow stays visible: steer the
+                    # sibling/spouse button to the node's free outer side.
+                    row_tol = v_gap * 0.5
+                    left_blocked = any(
+                        0 < (x - px) <= h_gap * 1.2 and abs(py - y) < row_tol
+                        for px, py in positions)
+                    right_blocked = any(
+                        0 < (px - x) <= h_gap * 1.2 and abs(py - y) < row_tol
+                        for px, py in positions)
                     for category in EXPANDABLE_TREE_CATEGORIES:
                         if not self._show_expansion_button(
                                 options, expanded_set, node_id, category,
                                 members):
                             continue
                         bx, by = button_specs[category]
+                        if category in ('siblings', 'spouses'):
+                            if bx < x and left_blocked and not right_blocked:
+                                bx = x2 + button_size / 2
+                            elif bx > x and right_blocked and not left_blocked:
+                                bx = x1 - button_size / 2
                         button_side = 'right' if bx > x else 'left'
                         text = self._expansion_button_text(
                             expanded_set, node_id, category, button_side)
