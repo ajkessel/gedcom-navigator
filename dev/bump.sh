@@ -1,11 +1,22 @@
 #!/usr/bin/env bash
-[ -z "${1}" ] && echo "Usage: $0 <version>/bump/clobber" && exit 1
+[ -z "${1}" ] && echo "Usage: $0 <version>/bump/clobber major/minor/patch" && exit 1
 set -euo pipefail
 current=$(git describe --tags --abbrev=0)
 [ -z "$current" ] && echo "No tags found. Please create a tag first." && exit 1
 [ "$1" = "bump" ] && {
 	IFS=. read -r major minor patch <<<"${current#v}"
-	patch=$((patch + 1))
+	[ "$2" = "major" ] && {
+		major=$((major + 1))
+		minor=0
+		patch=0
+	}
+	[ "$2" = "minor" ] && {
+		minor=$((minor + 1))
+		patch=0
+	}
+	[[ "$2" = "patch" || -z "$2" ]] && {
+		patch=$((patch + 1))
+	}
 	set -- "$major.$minor.$patch"
 }
 [ "$1" = "clobber" ] && {
@@ -15,7 +26,7 @@ tag="v${1}"
 printf "Current version: %s\nNew version: %s\n" "${current}" "${tag}"
 read -rp "Continue? [y/N] " answer
 [ "$answer" != "y" ] && echo "Aborting." && exit 1
-if git rev-parse "${tag}" &> /dev/null; then 
+if git rev-parse "${tag}" &>/dev/null; then
 	printf "Removing existing tag %s\n" "${tag}"
 	git tag -d "${1}"
 	git push origin --delete "${1}"

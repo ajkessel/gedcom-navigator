@@ -1,6 +1,6 @@
 # Changelog
 
-## [1.9.19]
+## [1.10.0]
 
 GEDCOM Navigator now finds DNA matches in family trees exported from any genealogy software, not just Ancestry.
 
