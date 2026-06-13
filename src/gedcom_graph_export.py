@@ -359,6 +359,15 @@ def canvas_to_png_bytes(canvas, width, height):
             draw.ellipse(
                 (x1, y1, x2, y2), fill=fill, outline=outline,
                 width=item_width)
+        elif item_type == 'polygon':
+            coords = canvas.coords(item_id)
+            if len(coords) >= 6:
+                fill = _canvas_color_to_rgb(
+                    canvas.itemcget(item_id, 'fill'), default=None)
+                outline = _canvas_color_to_rgb(
+                    canvas.itemcget(item_id, 'outline'), default=None)
+                draw.polygon(
+                    list(coords), fill=fill, outline=outline)
         elif item_type == 'text':
             _draw_canvas_text_png(draw, canvas, item_id)
 
@@ -515,6 +524,17 @@ def canvas_to_svg(canvas, width, height):
                 stroke_width=canvas.itemcget(item_id, 'width'),
             )
             body.append(f'  <ellipse{attrs}/>')
+        elif item_type == 'polygon':
+            coords = canvas.coords(item_id)
+            points = ' '.join(
+                f'{_svg_number(coords[i])},{_svg_number(coords[i + 1])}'
+                for i in range(0, len(coords), 2))
+            attrs = _svg_attrs(
+                points=points,
+                fill=canvas.itemcget(item_id, 'fill'),
+                stroke=canvas.itemcget(item_id, 'outline'),
+            )
+            body.append(f'  <polygon{attrs}/>')
         elif item_type == 'text':
             body.append(_canvas_text_svg(canvas, item_id))
 

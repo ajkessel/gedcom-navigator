@@ -124,13 +124,10 @@ class PathGraphMixin:
                 + max_label_h + text_bottom_margin)
         else:
             base_node_h = max(scale(82), max_label_h + scale(26))
-        badge_h = badge_font.metrics('linespace') + scale(4)
-        endpoint_header_h = badge_h + scale(14)
-        node_heights = [
-            base_node_h + endpoint_header_h
-            if node.get('is_endpoint') else base_node_h
-            for node in layout
-        ]
+        # Endpoints are distinguished by tint, outline and their step number,
+        # so they need no extra header band and share the common node height.
+        endpoint_header_h = 0
+        node_heights = [base_node_h for _node in layout]
         max_node_h = max(node_heights, default=base_node_h)
         h_gap = node_w + scale(52)
         v_gap = max(max_node_h + scale(86), scale(150))
@@ -294,7 +291,7 @@ class PathGraphMixin:
                 self._draw_spouse_line(
                     canvas, start_x, y1, end_x, y2, colors['spouse'], scale,
                     casing_color=colors['path_casing'],
-                    flow_color=colors['spouse'])
+                    flow_color=colors['parent'])
             elif edge == 'sibling':
                 start_x = x1 + node_w / 2
                 end_x = x2 - node_w / 2
@@ -304,7 +301,7 @@ class PathGraphMixin:
                         layout[index - 1]['id'], layout[index]['id'], edge),
                     colors, scale,
                     casing_color=colors['path_casing'],
-                    flow_color=colors['sibling'])
+                    flow_color=colors['parent'])
             else:
                 from_h = node_heights[index - 1]
                 to_h = node_heights[index]
@@ -397,20 +394,6 @@ class PathGraphMixin:
                 x1, y1, x2, y2, fill=fill, outline=node_outline,
                 width=outline_width, tags=('path_node', node_tag))
             if is_endpoint:
-                badge = PATH_GRAPH_START if index == 0 else PATH_GRAPH_END
-                badge_w = badge_font.measure(badge) + scale(12)
-                badge_x1 = x1 + scale(8)
-                badge_y1 = y1 + scale(6)
-                badge_x2 = badge_x1 + badge_w
-                badge_y2 = badge_y1 + badge_h
-                canvas.create_rectangle(
-                    badge_x1, badge_y1, badge_x2, badge_y2,
-                    fill=colors['badge_fill'], outline=colors['badge_fill'],
-                    tags=('path_node', node_tag))
-                canvas.create_text(
-                    (badge_x1 + badge_x2) / 2, (badge_y1 + badge_y2) / 2,
-                    text=badge, fill=colors['badge_text'], font=badge_font,
-                    anchor='center', tags=('path_node', node_tag))
                 text_y = y1 + endpoint_header_h + (
                     node_h - endpoint_header_h) / 2
                 name_label, detail_label = label_block
@@ -507,10 +490,7 @@ class PathGraphMixin:
             step_number = path_step_numbers.get(node_id)
             if step_number is not None:
                 badge_r = scale(9)
-                if is_endpoint:
-                    step_cx = x2 - badge_r - scale(3)
-                else:
-                    step_cx = x1 + badge_r + scale(3)
+                step_cx = x1 + badge_r + scale(3)
                 step_cy = y1 + badge_r + scale(3)
                 canvas.create_oval(
                     step_cx - badge_r, step_cy - badge_r,

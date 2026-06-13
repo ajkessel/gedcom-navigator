@@ -596,21 +596,27 @@ class GraphCommonMixin:
     @staticmethod
     def _draw_flow_chevron(canvas, start_x, start_y, end_x, end_y, color,
                            scale):
-        """Draw an open chevron pointing start->end to mark path direction."""
+        """Draw a solid arrowhead pointing start->end to mark path direction.
+
+        Horizontal spouse/sibling segments are short, so a filled triangle
+        reads far better than a thin open chevron in the tight gap.
+        """
         dx = end_x - start_x
         dy = end_y - start_y
         length = max((dx * dx + dy * dy) ** 0.5, 1)
         ux, uy = dx / length, dy / length
-        size = scale(8)
-        # Place the chevron tip a little past the segment midpoint.
+        size = scale(11)
+        half = size * 0.7
+        # Place the arrowhead tip a little past the segment midpoint.
         tip_x = start_x + dx * 0.6
         tip_y = start_y + dy * 0.6
-        for sign in (-1, 1):
-            back_x = tip_x - ux * size + sign * -uy * size * 0.7
-            back_y = tip_y - uy * size + sign * ux * size * 0.7
-            canvas.create_line(
-                back_x, back_y, tip_x, tip_y,
-                fill=color, width=scale(3), capstyle='round')
+        base_x = tip_x - ux * size
+        base_y = tip_y - uy * size
+        canvas.create_polygon(
+            tip_x, tip_y,
+            base_x - uy * half, base_y + ux * half,
+            base_x + uy * half, base_y - ux * half,
+            fill=color, outline=color)
 
     @classmethod
     def _draw_spouse_line(cls, canvas, start_x, start_y, end_x, end_y, color,
