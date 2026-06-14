@@ -325,6 +325,21 @@ def _snap(label: str = "", title: str = "GEDCOM"):
 TARGET_W, TARGET_H = 2560, 1600
 
 
+def _force_main_geometry():
+    """Force the main window to WIN_W×WIN_CONTENT_H and wait for it to settle.
+
+    The app may expand the window beyond WIN_W (e.g. due to a minimum-size
+    constraint on its sidebar/results pane).  Calling this before each main-
+    window screenshot ensures the Retina capture is exactly 2560×1600.
+    """
+    def _apply():
+        _root_ref.minsize(1, 1)  # lift any minimum-size floor
+        _root_ref.geometry(f"{WIN_W}x{WIN_CONTENT_H}+{WIN_X}+{WIN_Y}")
+
+    _ui(_apply)
+    time.sleep(0.4)
+
+
 def _screenshot(out_path: Path, title: str = "GEDCOM"):
     """Save a named screenshot, resized to 2560×1600 for the Mac App Store."""
     _capture(title, out_path)
@@ -332,8 +347,8 @@ def _screenshot(out_path: Path, title: str = "GEDCOM"):
     if img.size != (TARGET_W, TARGET_H):
         print(f"  Resize: {img.size[0]}×{img.size[1]} → {TARGET_W}×{TARGET_H}")
         img = img.resize((TARGET_W, TARGET_H), Image.LANCZOS)
-        img.save(out_path)
-    print(f"  Saved: {out_path.name}  ({TARGET_W}×{TARGET_H})")
+        img.save(out_path, format="PNG")
+    print(f"  Saved: {out_path.name}  ({img.size[0]}×{img.size[1]})")
 
 
 def _snaps(n: int, label: str = "", pause: float = 0.5, title: str = "GEDCOM"):
@@ -555,6 +570,7 @@ def automation(app, done_event: threading.Event, selected=None):
 
         _snaps(20, "main window loaded", pause=0.4)
         if want("main"):
+            _force_main_geometry()
             _screenshot(OUTPUT_DIR / "screenshot_01_main.png")
 
         if want("matches"):
@@ -590,6 +606,7 @@ def automation(app, done_event: threading.Event, selected=None):
 
             _ui(_scroll_results_bottom)
             time.sleep(0.5)
+            _force_main_geometry()
             _screenshot(OUTPUT_DIR / "screenshot_02_matches.png")
 
         # ---------------------------------------------------------------
@@ -620,6 +637,7 @@ def automation(app, done_event: threading.Event, selected=None):
                 _wait_not_busy(app, timeout=30)
                 time.sleep(0.5)
                 _snaps(8, "paths mode", pause=0.4)
+                _force_main_geometry()
                 _screenshot(OUTPUT_DIR / "screenshot_03_paths.png")
             else:
                 print(
@@ -658,6 +676,7 @@ def automation(app, done_event: threading.Event, selected=None):
                     pass
 
             _snaps(30, "graph open", pause=0.4)
+            _force_main_geometry()
             _screenshot(OUTPUT_DIR / "screenshot_04_with_graph.png")
 
             # Graph-only screenshot — resize to 1280×772 for 2560×1600 Retina.
