@@ -6,17 +6,18 @@ This application is for genealogists who manage large GEDCOM files, particularly
 
 ## What does it do?
 
-This application provides useful ways to rapidly explore a GEDCOM file exported from genealogy services like Ancestry, MyHeritage, Geni, and Family Tree Maker:
+This application provides useful ways to rapidly explore a GEDCOM file exported from genealogy applications like GRAMPS, Family Tree Maker, Roots Magic, as well as services like Ancestry, MyHeritage, and Geni.
 
 * Find the closest tagged people (e.g. DNA match) to any other person in a family tree
 * Show multiple relationship paths between any two people in your tree
 * Search your tree for variations on names (maiden/married name, alternate names, fuzzy matching, and Hebrew/Cyrillic transliterations) and filter on other information like geographical locations or occupation
 * Rapidly explore names and connections, even in a very large tree with very distant connections
-* Generate custom images of parts of your tree, expanding or collapsing the connections you want to see and saving them to your clipboard or an image file
+* Generate custom images of parts of your tree, expanding or collapsing only the connections and profiles you want to see and saving them to your clipboard or an image file
 * Visualize relationships between any two people graphically
-* If you have photos in your GEDCOM that are stored locally, they will appear in your tree as well
+* Generate pedigree (ancestor) and descendant reports in text or graphical format
+* View profile photos and image galleries for people in your tree if those images are available locally
 
-The tool does not modify your GEDCOM. It is used for exploring connections.
+The tool does not modify your GEDCOM. It is used for navigating and exploring your tree.
 
 In addition to the GUI, this application also includes a command-line tool for fast queries or incorporating into other programmatic workflows.
 
@@ -35,13 +36,6 @@ In addition to the GUI, this application also includes a command-line tool for f
 ```bash
 winget install --id AdamKessel.GEDCOMNavigator
 ```
-
-## Testing
-
-This is a beta release. If you are interested in experimenting with a "dummy" GEDCOM file rather than your own, here are a couple of options:
-
-* Use the [Fictional Genealogy](https://github.com/ajkessel/gedcom-navigator/blob/main/samples/fictional_genealogy.ged) sample file I built for testing this application. It contains 1,000 fictional people and illustrates various complicated family connections. If you want to download it from github for use with this tool, use the [raw ZIP version](https://raw.githubusercontent.com/ajkessel/gedcom-navigator/refs/heads/main/samples/fictional_genealogy.zip). This file is released under the [Unlicense](https://unlicense.org/), which means you can do anything you want with it.
-* [The FindMyPast Github Repository](https://github.com/findmypast/gedcom-samples) has several real and fictional family trees. I often use the [Game of Thrones family tree](https://github.com/findmypast/gedcom-samples/blob/main/GoT.ged) to avoid any privacy issues and also to show why it gets complicated when siblings marry one another.
 
 ## The problems this solves
 
@@ -72,12 +66,25 @@ I've also sought to make all actions accessible from the keyboard. See [the keyb
 
 For more details including the command-line tool, see [technical details](TECHNICAL.md)
 
+## Tags
+
+The "tag" concept is not fully standardized in genealogy software or the GEDCOM standard. For example, Ancestry exports "MyTreeTags" as `_MTTAG` fields and Ancestry-DNA matches as "PAGE" fileds in your GEDCOM file, but those conventions are not used by any other platform. RootsMagic uses the standard fact type "DNA" to flag DNA matches. In GRAMPS, you can create an Attribute Type called `_DNA` for yoru DNA matches and give the attribute the value of 1.
+
+If GEDCOM Navigator finds `_MTTAG` fields in your GEDCOM file, it will recognize it as an Ancestry exported GEDCOM file and treat it accordingly. If not, it will look for custom tags in any of the common format and catalog them automatically. So long as you have a custom fact, event, or attribute with "DNA" in the name, GEDCOM Navigator should be able to find it. You should then be able to find "the closest people with this tag" (using the "Matches" mode) in this tool.
+
 ## Images
 
 GEDCOM Navigator displays profile images if they exist in your GEDCOM file. You will also see a "Gallery" button if your records have other images associated with people. A few tips for images:
 * Images can be enable or disabled in Preferences.
 * The path to images in your GEDCOM files may not be correct if you've moved the GEDCOM file from its original environment. The first time you view a person with an associated image record, if the path to the image is not valid, the application will ask you to find the folder where images related to the GEDCOM file are stored. This mapping will then be remembered and work for all other images in your GEDCOM file.
 * Ancestry provides no mechanism to export media. If you have images in your Ancestry tree and want to see them in GEDCOM Navigator, the easiest option is first to sync your tree with Family Tree Maker or Roots Magic. A GEDCOM file exported from these applications will include the paths to all the images, which should then appear when you open the exported GEDCOM file in GEDCOM Navigator. Note that these applications do *not* export any "MyTreeTags" or DNA Page matches you may have put in your Ancestry tree. If you want *both* images *and* MyTreeTags, you can use [Ancestry Tag Converter](https://github.com/ajkessel/ancestry-tag-converter) to merge your Ancestry GEDCOM export with your Family Tree Maker or Roots Magic export into a single combined file that will have both images and tags.
+
+## Sample GEDCOM files
+
+If you are interested in experimenting with a "dummy" GEDCOM file rather than your own, here are a couple of options:
+
+* Use the [Fictional Genealogy](https://github.com/ajkessel/gedcom-navigator/blob/main/samples/fictional_genealogy.ged) sample file I built for testing this application. It contains 1,000 fictional people and illustrates various complicated family connections. If you want to download it from github for use with this tool, use the [raw ZIP version](https://raw.githubusercontent.com/ajkessel/gedcom-navigator/refs/heads/main/samples/fictional_genealogy.zip). This file is released under the [Unlicense](https://unlicense.org/), which means you can do anything you want with it.
+* [The FindMyPast Github Repository](https://github.com/findmypast/gedcom-samples) has several real and fictional family trees. I often use the [Game of Thrones family tree](https://github.com/findmypast/gedcom-samples/blob/main/GoT.ged) to avoid any privacy issues and also to show why it gets complicated when siblings marry one another.
 
 ## License
 
