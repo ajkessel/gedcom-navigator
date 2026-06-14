@@ -6,7 +6,7 @@ This application is for genealogists who manage large GEDCOM files, particularly
 
 ## What does it do?
 
-This application provides useful ways to rapidly explore a GEDCOM file exported from genealogy applications like [Gramps](https://www.gramps-project.org/wiki/index.php/Main_page), Family Tree Maker, Roots Magic, as well as services like Ancestry, MyHeritage, and Geni.
+This application provides useful ways to rapidly explore a GEDCOM file exported from genealogy applications like [Gramps](https://www.gramps-project.org/wiki/index.php/Main_page), [Family Tree Maker](https://www.mackiev.com/ftm/), [Roots Magic](https://www.rootsmagic.com/), as well as services like [Ancestry](https://ancestry.com), [MyHeritage](https://myheritage.com), and [Geni](https://geni.com).
 
 * Find the closest tagged people (e.g. DNA match) to any other person in a family tree
 * Show multiple relationship paths between any two people in your tree
