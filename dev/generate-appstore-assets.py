@@ -322,10 +322,18 @@ def _snap(label: str = "", title: str = "GEDCOM"):
     frame_idx += 1
 
 
+TARGET_W, TARGET_H = 2560, 1600
+
+
 def _screenshot(out_path: Path, title: str = "GEDCOM"):
-    """Save a named screenshot."""
+    """Save a named screenshot, resized to 2560×1600 for the Mac App Store."""
     _capture(title, out_path)
-    print(f"  Saved: {out_path.name}")
+    img = Image.open(out_path)
+    if img.size != (TARGET_W, TARGET_H):
+        print(f"  Resize: {img.size[0]}×{img.size[1]} → {TARGET_W}×{TARGET_H}")
+        img = img.resize((TARGET_W, TARGET_H), Image.LANCZOS)
+        img.save(out_path)
+    print(f"  Saved: {out_path.name}  ({TARGET_W}×{TARGET_H})")
 
 
 def _snaps(n: int, label: str = "", pause: float = 0.5, title: str = "GEDCOM"):
