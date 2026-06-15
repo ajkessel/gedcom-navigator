@@ -650,6 +650,16 @@ class AppearanceMixin:
                 except tk.TclError:
                     pass
 
+        # Cancel any debounced callbacks that reference the about-to-be-destroyed widgets.
+        for attr in ('_search_after_id', '_dna_settings_after_id', '_settings_after_id'):
+            after_id = getattr(self, attr, None)
+            if after_id is not None:
+                try:
+                    self.root.after_cancel(after_id)
+                except Exception:  # pylint: disable=broad-exception-caught
+                    pass
+                setattr(self, attr, None)
+
         for child in list(self.root.winfo_children()):
             if isinstance(child, tk.Toplevel):
                 continue

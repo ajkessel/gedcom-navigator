@@ -605,6 +605,8 @@ class SearchMixin:
     def _populate_tree(self):
         """Populate the people list using current search, filter, and sort settings."""
         self._search_after_id = None
+        if not getattr(self, 'tree', None) or not self.tree.winfo_exists():
+            return
         prev_sel = self.tree.selection()
         prev_id = prev_sel[0] if prev_sel else None
         old_suppress = getattr(self, '_suppress_display_refresh', False)
