@@ -733,12 +733,13 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
                                       value=value, width=0)
 
         def _option_label(parent, row, text, *, bold=False, pady=(0, 6)):
+            font_kwargs = {'font': ctk.CTkFont(weight='bold')} if bold else {}
             label = ctk.CTkLabel(
                 parent,
                 text=text,
                 width=self._PREFS_LABEL_WIDTH,
                 anchor='w',
-                font=ctk.CTkFont(weight='bold') if bold else None,
+                **font_kwargs,
             )
             label.grid(
                 row=row, column=0, sticky='nw', padx=(0, 12), pady=pady)
