@@ -42,6 +42,16 @@ class Tooltip(metaclass=_TooltipMeta):
     _instances: list = []
     _widget_texts = WeakKeyDictionary()
 
+    @classmethod
+    def destroy_all(cls):
+        """Destroy all tooltip instances and clear the registry (call before widget tree rebuild)."""
+        for tip in list(cls._instances):
+            try:
+                tip._impl.destroy()
+            except Exception:  # pylint: disable=broad-exception-caught
+                pass
+        cls._instances.clear()
+
     def __init__(self, widget, text: str):
         self.widget = widget
         self.text = text

@@ -581,6 +581,23 @@ class AppearanceMixin:
             else:
                 theme[widget]['fg_color'] = value
 
+    def _inject_platform_tooltip_theme(self):
+        """Override CTkToolTip theme values to match OS native tooltip appearance."""
+        tt = ctk.ThemeManager._theme.get('CTkToolTip')
+        if tt is None:
+            return
+        if sys.platform == 'win32':
+            # Windows 11: white/near-white background, 1px gray border, slight rounding
+            tt['fg_color'] = ['#F5F5F5', '#2C2C2C']
+            tt['border_width'] = 1
+            tt['border_color'] = ['#767676', '#9E9E9E']
+            tt['corner_radius'] = 4
+        elif sys.platform == 'darwin':
+            # macOS: light gray background, no border (system draws drop shadow)
+            tt['fg_color'] = ['#ECECEC', '#2D2D2D']
+            tt['border_width'] = 0
+            tt['corner_radius'] = 6
+
     def _apply_theme(self, theme_name):
         """Apply a named color theme to the application."""
         old_color_theme = CTK_THEME_MAP.get(
@@ -600,6 +617,7 @@ class AppearanceMixin:
             log_exception("restamping CTk theme font size after theme change")
             pass
         self._inject_theme_backgrounds(theme_name)
+        self._inject_platform_tooltip_theme()
         ctk.set_appearance_mode(mode)
         self._apply_window_background(self.root)
         for win in self.root.winfo_children():
@@ -659,6 +677,13 @@ class AppearanceMixin:
                 except Exception:  # pylint: disable=broad-exception-caught
                     pass
                 setattr(self, attr, None)
+
+        # Explicitly destroy all tooltips before the widget tree is torn down so that
+        # their CTkToplevel windows are properly unregistered from the AppearanceModeTracker
+        # before set_appearance_mode fires.  Cascade-destroy alone leaves them registered,
+        # causing configure() calls on dead Tcl widgets.
+        from gedcom_tooltip import Tooltip  # pylint: disable=import-outside-toplevel
+        Tooltip.destroy_all()
 
         for child in list(self.root.winfo_children()):
             if isinstance(child, tk.Toplevel):
