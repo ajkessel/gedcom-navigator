@@ -184,7 +184,7 @@ class AppearanceMixin:
                 hasattr(self, '_results_header_var')):
             return
         if self._results_header_var.get():
-            is_dark = ctk.get_appearance_mode() == 'Dark'
+            is_dark = ctk.get_appearance_mode() == 'dark'
             tc = ttk_colors(is_dark, self._theme_pref)
             self._results_header_label.configure(
                 fg_color=tc['select_bg'],
@@ -471,7 +471,7 @@ class AppearanceMixin:
     def _apply_styles(self):
         """Apply ttk styles for Treeview / Spinbox / PanedWindow to match the CTk theme."""
         style = ttk.Style()
-        is_dark = ctk.get_appearance_mode() == 'Dark'
+        is_dark = ctk.get_appearance_mode() == 'dark'
         t = ttk_colors(is_dark, getattr(self, '_theme_pref', None))
 
         try:
@@ -638,7 +638,7 @@ class AppearanceMixin:
                 pass
             self._apply_window_background(win)
         self._apply_styles()
-        is_dark = ctk.get_appearance_mode() == 'Dark'
+        is_dark = ctk.get_appearance_mode() == 'dark'
         self._link_color = get_link_color(is_dark, theme_name)
         if hasattr(self, 'tree'):
             self.tree.tag_configure(
@@ -718,7 +718,7 @@ class AppearanceMixin:
     def _apply_theme_to_window(self, win):
         """Update flagged-row tag colours in any Treeview inside a new window."""
         self._apply_window_background(win)
-        is_dark = ctk.get_appearance_mode() == 'Dark'
+        is_dark = ctk.get_appearance_mode() == 'dark'
         flag_bg = get_flag_bg(is_dark)
         self._update_flagged_rows(win, flag_bg)
 

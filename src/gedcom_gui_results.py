@@ -481,7 +481,7 @@ class ResultsMixin(GraphRenderMixin, GraphLayoutMixin):
 
         tw.update_idletasks()
         sep_width = max(tw.winfo_width() - 4, 100)
-        is_dark = ctk.get_appearance_mode() == 'Dark'
+        is_dark = ctk.get_appearance_mode() == 'dark'
         sep_color = '#DCE4EE' if is_dark else '#1a1a1a'
 
         tag_to_id = {}

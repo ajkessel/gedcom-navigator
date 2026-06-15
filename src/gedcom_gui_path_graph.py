@@ -703,7 +703,7 @@ class PathGraphMixin:
         if sys.platform != 'win32':
             win.transient(self.root)
 
-        is_dark = ctk.get_appearance_mode() == 'Dark'
+        is_dark = ctk.get_appearance_mode() == 'dark'
         colors = self._path_graph_colors(
             is_dark, getattr(self, '_theme_pref', None))
 

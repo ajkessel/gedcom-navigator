@@ -193,7 +193,7 @@ class BackgroundTaskMixin:
         bar.pack(pady=(0, 10 if on_cancel else 4))
         if on_cancel:
             if sys.platform == 'darwin':
-                is_dark = ctk.get_appearance_mode() == 'Dark'
+                is_dark = ctk.get_appearance_mode() == 'dark'
                 colors = ttk_colors(is_dark, self._theme_pref)
                 cancel_btn = tk.Label(
                     frame,

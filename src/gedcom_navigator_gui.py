@@ -337,7 +337,7 @@ class GedcomNavigatorApp(
         # supports per-pane minsize constraints; ttk.PanedWindow only supports
         # relative weights.
         _pane_colors = ttk_colors(
-            ctk.get_appearance_mode() == 'Dark', self._theme_pref)
+            ctk.get_appearance_mode() == 'dark', self._theme_pref)
         paned = tk.PanedWindow(
             outer,
             orient=tk.HORIZONTAL,
@@ -426,7 +426,7 @@ class GedcomNavigatorApp(
         self.tree.pack(side='left', fill='both', expand=True)
         ysb.pack(side='right', fill='y')
 
-        is_dark = ctk.get_appearance_mode() == 'Dark'
+        is_dark = ctk.get_appearance_mode() == 'dark'
         self.tree.tag_configure('flagged_row', background=get_flag_bg(is_dark))
 
         self.tree.bind('<<TreeviewSelect>>', self._on_tree_selection_change)

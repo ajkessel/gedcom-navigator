@@ -325,7 +325,7 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
         picker_tree.column('birth', width=55, anchor='w', stretch=False)
         picker_tree.column('death', width=55, anchor='w', stretch=False)
         picker_tree.column('flagged', width=50, anchor='center', stretch=False)
-        is_dark = ctk.get_appearance_mode() == 'Dark'
+        is_dark = ctk.get_appearance_mode() == 'dark'
         picker_tree.tag_configure(
             'flagged_row', background=get_flag_bg(is_dark))
 
@@ -712,7 +712,7 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
                 fg = frame._fg_color
                 if fg == 'transparent':
                     return _section_bg(frame.master)
-                is_dark = ctk.get_appearance_mode() == 'Dark'
+                is_dark = ctk.get_appearance_mode() == 'dark'
                 return (fg[1] if is_dark else fg[0]) if isinstance(fg, (list, tuple)) else fg
             except AttributeError:
                 return frame.cget('background')

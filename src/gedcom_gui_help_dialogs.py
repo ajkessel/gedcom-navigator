@@ -73,7 +73,7 @@ class HelpDialogsMixin:
         tree.column('key', width=90, minwidth=70, stretch=False, anchor='center')
         tree.column('action', width=420, minwidth=200, stretch=True, anchor='w')
 
-        is_dark = ctk.get_appearance_mode() == 'Dark'
+        is_dark = ctk.get_appearance_mode() == 'dark'
         odd_bg  = '#2f2f2f' if is_dark else '#f5f5f5'
         tree.tag_configure('odd', background=odd_bg)
 
@@ -322,7 +322,7 @@ class HelpDialogsMixin:
         win.protocol('WM_DELETE_WINDOW', _close)
         win.bind('<Escape>', _close)
 
-        is_dark = ctk.get_appearance_mode() == 'Dark'
+        is_dark = ctk.get_appearance_mode() == 'dark'
         code_bg = '#3a3a3a' if is_dark else '#f0f0f0'
 
         ui_size = self._FONT_SIZES[self._font_size_pref]['ui']
