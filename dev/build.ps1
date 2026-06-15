@@ -53,10 +53,6 @@ try {
         Write-Output "Virtual environment activation script not found. Please ensure the virtual environment is set up correctly." 
         exit 1
     }
-    Write-Output "Applying ctktooltip patch... (see https://github.com/Akascape/CTkToolTip/issues/20 for details)"
-    git apply --unsafe-paths -p1 --directory=$ENV:VIRTUAL_ENV/lib/site-packages ./dev/ctk_tooltip.patch || {
-        Write-Output "Failed to apply ctktooltip patch, may have been applied already. Proceeding anyway..."
-    }
     git pull
     & ".\venv\Scripts\activate.ps1"
     python .\dev\update_version.py

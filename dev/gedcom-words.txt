@@ -14,7 +14,7 @@ chil
 CHIL
 colours
 createcommand
-ctktooltip
+custom2kinter
 customtkinter
 darkcolor
 DEAT
