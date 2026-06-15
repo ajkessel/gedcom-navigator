@@ -353,7 +353,11 @@ class GedcomNavigatorApp(
         paned.pack(fill='both', expand=True, pady=(8, 0))
 
         # --- Left pane ---
-        left = ctk.CTkFrame(paned, fg_color='transparent')
+        # Use an explicit background colour (not 'transparent') so that nested
+        # transparent CTkFrames — and the Find/Filter CTkLabels inside them —
+        # detect the correct dark/light background at creation time rather than
+        # inheriting an unset system default from the PanedWindow master.
+        left = ctk.CTkFrame(paned, fg_color=_pane_colors['bg'], corner_radius=0)
 
         search_frame = ctk.CTkFrame(left, fg_color='transparent')
         search_frame.pack(fill='x')
@@ -758,6 +762,11 @@ class GedcomNavigatorApp(
         self._progress_bar.set(0)
         self._progress_bar.grid(row=0, column=3, columnspan=2, padx=(4, 8), pady=4)
         self._progress_bar.grid_remove()
+
+        # Apply TTK styles after the full widget tree exists so that the
+        # Treeview, PanedWindow sash, and Spinbox all pick up the correct
+        # dark/light colours on both initial startup and theme-change rebuilds.
+        self._apply_styles()
 
         self._setup_keybindings()
         self.root.after_idle(lambda: self._refresh_display_pane(prompt_for_path=False))

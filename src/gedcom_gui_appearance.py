@@ -606,38 +606,6 @@ class AppearanceMixin:
             tt['border_width'] = 0
             tt['corner_radius'] = 6
 
-    def _propagate_pane_bg(self):
-        """Re-detect bg_color on all transparent CTk widgets inside both paned panes.
-
-        Transparent CTkFrames detect their master's background at creation time.
-        If the paned window's background colour is updated after child creation
-        (by _apply_styles), this walk forces every CTk descendant to re-detect,
-        keeping Find/Filter labels and other transparent widgets correctly coloured.
-        """
-        try:
-            pane_names = list(self._paned.panes())
-        except Exception:  # pylint: disable=broad-exception-caught
-            return
-
-        def _walk(widget):
-            if isinstance(widget, ctk.CTkWidget):
-                try:
-                    widget.configure(bg_color='transparent')
-                except Exception:  # pylint: disable=broad-exception-caught
-                    pass
-            try:
-                for child in widget.winfo_children():
-                    _walk(child)
-            except Exception:  # pylint: disable=broad-exception-caught
-                pass
-
-        try:
-            for pane_name in pane_names:
-                pane = self.root.nametowidget(pane_name)
-                _walk(pane)
-        except Exception:  # pylint: disable=broad-exception-caught
-            log_exception("propagating pane background to CTk children")
-
     def _apply_theme(self, theme_name):
         """Apply a named color theme to the application."""
         old_color_theme = CTK_THEME_MAP.get(
@@ -733,8 +701,10 @@ class AppearanceMixin:
             except tk.TclError:
                 pass
         self._build_ui()
-        self._apply_styles()       # re-style new widget tree (Treeview, PanedWindow bg, etc.)
-        self._propagate_pane_bg()  # fix transparent-frame bg detection for Find/Filter labels
+        # _build_ui() now calls _apply_styles() internally, but call it again
+        # here as a safety net in case the Treeview style needs a second pass
+        # after the widget tree is fully wired into the root window.
+        self._apply_styles()
 
         # Re-register application traces (_build_ui already re-added CTk's own traces).
         for var, mode, cb in _app_traces:
