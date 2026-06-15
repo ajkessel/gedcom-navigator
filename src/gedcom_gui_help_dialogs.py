@@ -329,7 +329,7 @@ class HelpDialogsMixin:
         ui_family = tkfont.nametofont('TkDefaultFont').actual()['family']
         text = ctk.CTkTextbox(win, wrap='word', activate_scrollbars=True,
                               font=ctk.CTkFont(family=ui_family, size=ui_size))
-        text._textbox.configure(padx=12, pady=8)
+        text._text.configure(padx=12, pady=8)
         text.pack(fill='both', expand=True)
 
         base_dir = os.path.dirname(os.path.abspath(filepath))
@@ -338,9 +338,9 @@ class HelpDialogsMixin:
         def _set_state(enabled):
             if sys.platform == 'darwin':
                 if enabled:
-                    text._textbox.unbind('<Key>')
+                    text._text.unbind('<Key>')
                 else:
-                    text._textbox.bind('<Key>', lambda *_: 'break')
+                    text._text.bind('<Key>', lambda *_: 'break')
             else:
                 text.configure(state='normal' if enabled else 'disabled')
 
@@ -363,15 +363,15 @@ class HelpDialogsMixin:
                 webbrowser.open(url)
 
         def _clear_markdown_widgets():
-            for tag in list(text._textbox.tag_names()):
+            for tag in list(text._text.tag_names()):
                 if tag.startswith('_url_'):
-                    text._textbox.tag_delete(tag)
-            for canvas, _line_id in getattr(text._textbox, '_hr_canvases', []):
+                    text._text.tag_delete(tag)
+            for canvas, _line_id in getattr(text._text, '_hr_canvases', []):
                 try:
                     canvas.destroy()
                 except tk.TclError:
                     pass
-            text._textbox._hr_canvases = []
+            text._text._hr_canvases = []
             text._link_count = 0
 
         def _render_doc_content():
@@ -387,22 +387,22 @@ class HelpDialogsMixin:
             _set_state(False)
 
         def _apply_doc_zoom(size):
-            top_index = text._textbox.index('@0,0')
+            top_index = text._text.index('@0,0')
             text.configure(font=ctk.CTkFont(family=ui_family, size=size))
             if markdown:
                 _render_doc_content()
                 try:
-                    text._textbox.see(top_index)
+                    text._text.see(top_index)
                 except tk.TclError:
                     pass
 
         TextZoomController(
-            text, ui_size, _apply_doc_zoom, targets=(win, text._textbox))
+            text, ui_size, _apply_doc_zoom, targets=(win, text._text))
 
         _render_doc_content()
 
         if sys.platform == 'darwin':
-            text._textbox.bind('<Key>', lambda *_: 'break')
+            text._text.bind('<Key>', lambda *_: 'break')
         else:
             text.configure(state='disabled')
 

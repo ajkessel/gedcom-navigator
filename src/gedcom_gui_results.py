@@ -147,7 +147,7 @@ class ResultsMixin(GraphRenderMixin, GraphLayoutMixin):
         """Configure person-link tags on a CTkTextbox for the text report views."""
         if navigate_fn is None:
             navigate_fn = self._navigate_to
-        tw = w._textbox
+        tw = w._text
         tw.tag_configure('person_link', foreground=self._link_color)
         tw.tag_bind('person_link', '<Enter>',
                     lambda *_: tw.config(cursor='hand2'))
@@ -474,7 +474,7 @@ class ResultsMixin(GraphRenderMixin, GraphLayoutMixin):
             self._last_result['results'] = results
             self._last_result['home_paths'] = home_paths
         w = self.results
-        tw = w._textbox
+        tw = w._text
         w.configure(state='normal')
         w.delete('1.0', 'end')
         self._clear_person_tags(w)
@@ -791,7 +791,7 @@ class ResultsMixin(GraphRenderMixin, GraphLayoutMixin):
                     photo_bytes = self._pdf_profile_photo_bytes(header_id)
                 render_text_widget_pdf(
                     path,
-                    self.results._textbox,
+                    self.results._text,
                     report_title=report_title,
                     subject=header,
                     photo_bytes=photo_bytes,
@@ -872,7 +872,7 @@ class ResultsMixin(GraphRenderMixin, GraphLayoutMixin):
         return re.sub(r'\s*\(@[^@]+@\)\s*$', '', marker)
     def _clear_person_tags(self, widget):
         """Remove generated person-link tags from a Text-like widget."""
-        tw = getattr(widget, '_textbox', widget)
+        tw = getattr(widget, '_text', widget)
         for tag in tw.tag_names():
             if (tag.startswith('pers_') or
                     tag.startswith('path_graph_') or

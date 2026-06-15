@@ -382,7 +382,7 @@ class WalkthroughMixin:
                 return None
             return ring.move_to_widget(widget)
         if 'text' in step:
-            return ring.move_to_text_tag(self.results._textbox, step['text'])
+            return ring.move_to_text_tag(self.results._text, step['text'])
         if step.get('window'):
             win = getattr(self, '_secondary_win', None)
             if win is not None and win.winfo_exists():

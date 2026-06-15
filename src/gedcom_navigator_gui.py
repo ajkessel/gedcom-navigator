@@ -673,13 +673,13 @@ class GedcomNavigatorApp(
             activate_scrollbars=True,
         )
         self.results.pack(fill='both', expand=True, pady=(4, 0))
-        self.results._textbox.tag_configure(
+        self.results._text.tag_configure(
             'bold', font=self._results_bold_font(self._mono_size))
         self.results.configure(state='disabled')
 
         def _apply_results_zoom(size):
             self.results.configure(font=(self._mono_family, size))
-            self.results._textbox.tag_configure(
+            self.results._text.tag_configure(
                 'bold', font=self._results_bold_font(size))
 
         self._results_zoom = TextZoomController(
@@ -754,7 +754,7 @@ class GedcomNavigatorApp(
                 command=self._copy_paths_json)
             Tooltip(self._copy_json_btn, get_tip_copy_json())
             self._copy_json_btn.grid(row=0, column=6, padx=(0, 8), pady=4)
-        self._progress_bar = ctk.CTkProgressBar(status_bar, width=130)
+        self._progress_bar = ctk.CTkProgressBar(status_bar, length=130)
         self._progress_bar.set(0)
         self._progress_bar.grid(row=0, column=3, columnspan=2, padx=(4, 8), pady=4)
         self._progress_bar.grid_remove()
@@ -890,7 +890,7 @@ def _print_dpi_diagnostics(root):
         lines.append(f'  CTkFont:                ERROR {e}')
 
     try:
-        lines.append(f'  CTk theme CTkFont:      {ctk.ThemeManager.theme.get("CTkFont", "N/A")}')
+        lines.append(f'  CTk theme CTkFont:      {ctk.ThemeManager._theme.get("CTkFont", "N/A")}')
     except Exception as e:  # pylint: disable=broad-exception-caught
         log_exception("printing DPI diagnostic: CTk theme font")
         lines.append(f'  CTk theme CTkFont:      ERROR {e}')

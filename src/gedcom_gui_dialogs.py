@@ -542,17 +542,17 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
         w.delete('1.0', 'end')
         self._clear_person_tags(w)
 
-        w._textbox.tag_configure('person_link')
-        w._textbox.tag_bind('person_link', '<Enter>',
-                            lambda *_: w._textbox.config(cursor='hand2'))
-        w._textbox.tag_bind('person_link', '<Leave>',
-                            lambda *_: w._textbox.config(cursor=''))
-        w._textbox.tag_configure('relationship_link',
+        w._text.tag_configure('person_link')
+        w._text.tag_bind('person_link', '<Enter>',
+                            lambda *_: w._text.config(cursor='hand2'))
+        w._text.tag_bind('person_link', '<Leave>',
+                            lambda *_: w._text.config(cursor=''))
+        w._text.tag_configure('relationship_link',
                                  foreground=self._link_color, underline=1)
-        w._textbox.tag_bind('relationship_link', '<Enter>',
-                            lambda *_: w._textbox.config(cursor='hand2'))
-        w._textbox.tag_bind('relationship_link', '<Leave>',
-                            lambda *_: w._textbox.config(cursor=''))
+        w._text.tag_bind('relationship_link', '<Enter>',
+                            lambda *_: w._text.config(cursor='hand2'))
+        w._text.tag_bind('relationship_link', '<Leave>',
+                            lambda *_: w._text.config(cursor=''))
 
         def nl(text='', bold=False):
             w.insert('end', text + '\n', ('bold',) if bold else ())
@@ -564,8 +564,8 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
             w.insert('end', describe(self.individuals[indi_id],
                                      show_id=self.show_ids.get()),
                      ('person_link', tag))
-            w._textbox.tag_configure(tag, foreground=self._link_color)
-            w._textbox.tag_bind(tag, '<Button-1>',
+            w._text.tag_configure(tag, foreground=self._link_color)
+            w._text.tag_bind(tag, '<Button-1>',
                                 lambda _, iid=indi_id: self._navigate_to(iid))
             if suffix:
                 w.insert('end', suffix)
@@ -578,8 +578,8 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
             w.insert('end', describe(self.individuals[indi_id],
                                      show_id=self.show_ids.get()),
                      ('person_link', tag))
-            w._textbox.tag_configure(tag, foreground=self._link_color)
-            w._textbox.tag_bind(tag, '<Button-1>',
+            w._text.tag_configure(tag, foreground=self._link_color)
+            w._text.tag_bind(tag, '<Button-1>',
                                 lambda _, iid=indi_id: self._navigate_to(iid))
             if suffix:
                 w.insert('end', suffix)
@@ -594,7 +594,7 @@ class DialogsMixin(PersonDialogMixin, HelpDialogsMixin):
                 w.insert('end', prefix)
             w.insert('end', RESULT_RELATIONSHIP.format(rel=rel),
                      ('relationship_link', tag))
-            w._textbox.tag_bind(
+            w._text.tag_bind(
                 tag, '<Button-1>',
                 lambda _, p=tuple(path), r=rel: self._show_path_graph(p, r))
             w.insert('end', '\n')

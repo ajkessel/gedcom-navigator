@@ -1214,7 +1214,7 @@ class PersonDialogMixin:
         text._profile_image_label = None
         text._profile_image_refs = []
         try:
-            text._textbox.tag_delete('profile_image_wrap')
+            text._text.tag_delete('profile_image_wrap')
         except tk.TclError:
             pass
 
@@ -1222,7 +1222,7 @@ class PersonDialogMixin:
     def _profile_text_exists(text):
         """Return whether the wrapped Tk text widget still exists."""
         try:
-            winfo_exists = getattr(text._textbox, 'winfo_exists', None)
+            winfo_exists = getattr(text._text, 'winfo_exists', None)
             if winfo_exists is None:
                 return True
             return bool(winfo_exists())
@@ -1255,7 +1255,7 @@ class PersonDialogMixin:
         if label is None:
             return
         try:
-            inner = text._textbox
+            inner = text._text
             inner.update_idletasks()
             x = inner.winfo_x() + inner.winfo_width() - pad
             y = inner.winfo_y() + pad
@@ -1302,7 +1302,7 @@ class PersonDialogMixin:
         self._position_profile_thumbnail(text, pad)
         self._raise_profile_thumbnail(text)
         try:
-            text._textbox.bind(
+            text._text.bind(
                 '<Configure>',
                 lambda _event: self._position_profile_thumbnail(text, pad),
                 add='+',
@@ -1327,16 +1327,16 @@ class PersonDialogMixin:
         if not layout or not self._profile_text_exists(text):
             return
         try:
-            font = tkfont.Font(font=text._textbox.cget('font'))
+            font = tkfont.Font(font=text._text.cget('font'))
             line_space = max(font.metrics('linespace'), 1)
         except tk.TclError:
             line_space = max(int(self._mono_size * 1.4), 1)
         reserved_w = layout['width'] + layout['pad'] * 2
         reserved_h = layout['height'] + layout['pad'] * 2
         line_count = max(1, int((reserved_h + line_space - 1) // line_space))
-        text._textbox.tag_configure(
+        text._text.tag_configure(
             'profile_image_wrap', rmargin=reserved_w)
-        text._textbox.tag_add(
+        text._text.tag_add(
             'profile_image_wrap', '1.0', f'{line_count + 1}.0')
         self._raise_profile_thumbnail(text)
 
@@ -1393,46 +1393,46 @@ class PersonDialogMixin:
         self, text, current_id, navigate_callback, tag_callback=None, home_paths=None
     ):
         """Insert the textual profile for current_id into a textbox."""
-        text._textbox.tag_configure(
+        text._text.tag_configure(
             "bold",
             font=scaled_tag_font(
                 text, self._mono_family, self._mono_size, weight="bold"),
         )
-        text._textbox.tag_configure("person_link")
-        text._textbox.tag_bind(
-            "person_link", "<Enter>", lambda *_: text._textbox.config(cursor="hand2")
+        text._text.tag_configure("person_link")
+        text._text.tag_bind(
+            "person_link", "<Enter>", lambda *_: text._text.config(cursor="hand2")
         )
-        text._textbox.tag_bind(
-            "person_link", "<Leave>", lambda *_: text._textbox.config(cursor="")
+        text._text.tag_bind(
+            "person_link", "<Leave>", lambda *_: text._text.config(cursor="")
         )
-        text._textbox.tag_configure("tag_link")
-        text._textbox.tag_bind(
-            "tag_link", "<Enter>", lambda *_: text._textbox.config(cursor="hand2")
+        text._text.tag_configure("tag_link")
+        text._text.tag_bind(
+            "tag_link", "<Enter>", lambda *_: text._text.config(cursor="hand2")
         )
-        text._textbox.tag_bind(
-            "tag_link", "<Leave>", lambda *_: text._textbox.config(cursor="")
+        text._text.tag_bind(
+            "tag_link", "<Leave>", lambda *_: text._text.config(cursor="")
         )
-        text._textbox.tag_configure(
+        text._text.tag_configure(
             "gedcom_url_link", foreground=self._link_color, underline=1
         )
-        text._textbox.tag_bind(
+        text._text.tag_bind(
             "gedcom_url_link",
             "<Enter>",
-            lambda *_: text._textbox.config(cursor="hand2"),
+            lambda *_: text._text.config(cursor="hand2"),
         )
-        text._textbox.tag_bind(
-            "gedcom_url_link", "<Leave>", lambda *_: text._textbox.config(cursor="")
+        text._text.tag_bind(
+            "gedcom_url_link", "<Leave>", lambda *_: text._text.config(cursor="")
         )
-        text._textbox.tag_configure(
+        text._text.tag_configure(
             "relationship_link", foreground=self._link_color, underline=1
         )
-        text._textbox.tag_bind(
+        text._text.tag_bind(
             "relationship_link",
             "<Enter>",
-            lambda *_: text._textbox.config(cursor="hand2"),
+            lambda *_: text._text.config(cursor="hand2"),
         )
-        text._textbox.tag_bind(
-            "relationship_link", "<Leave>", lambda *_: text._textbox.config(cursor="")
+        text._text.tag_bind(
+            "relationship_link", "<Leave>", lambda *_: text._text.config(cursor="")
         )
         self._clear_person_tags(text)
 
@@ -1461,7 +1461,7 @@ class PersonDialogMixin:
                 tag = f"gedcom_url_{url_link_count}"
                 url_link_count += 1
                 text.insert("end", url, ("gedcom_url_link", tag))
-                text._textbox.tag_bind(
+                text._text.tag_bind(
                     tag, "<Button-1>", lambda _, u=url: webbrowser.open(u)
                 )
                 if url_end < end:
@@ -1480,7 +1480,7 @@ class PersonDialogMixin:
             tag = f"gedcom_url_{url_link_count}"
             url_link_count += 1
             text.insert("end", content, ("gedcom_url_link", tag))
-            text._textbox.tag_bind(
+            text._text.tag_bind(
                 tag, "<Button-1>", lambda _, u=url: webbrowser.open(u)
             )
             text.insert("end", "\n")
@@ -1494,8 +1494,8 @@ class PersonDialogMixin:
                 describe(self.individuals[pid], show_id=self.show_ids.get()),
                 ("person_link", tag),
             )
-            text._textbox.tag_configure(tag, foreground=self._link_color)
-            text._textbox.tag_bind(
+            text._text.tag_configure(tag, foreground=self._link_color)
+            text._text.tag_bind(
                 tag, "<Button-1>", lambda _, p=pid: navigate_callback(p)
             )
             text.insert("end", "\n")
@@ -1509,8 +1509,8 @@ class PersonDialogMixin:
                 describe(self.individuals[pid], show_id=self.show_ids.get()),
                 ("person_link", tag),
             )
-            text._textbox.tag_configure(tag, foreground=self._link_color)
-            text._textbox.tag_bind(
+            text._text.tag_configure(tag, foreground=self._link_color)
+            text._text.tag_bind(
                 tag, "<Button-1>", lambda _, p=pid: navigate_callback(p)
             )
             if suffix:
@@ -1531,7 +1531,7 @@ class PersonDialogMixin:
             text.insert(
                 "end", RESULT_RELATIONSHIP.format(rel=rel), ("relationship_link", tag)
             )
-            text._textbox.tag_bind(
+            text._text.tag_bind(
                 tag,
                 "<Button-1>",
                 lambda _, p=tuple(path), r=rel: self._show_path_graph(p, r),
@@ -1696,9 +1696,9 @@ class PersonDialogMixin:
                 text.insert("end", "  ")
                 text.insert("end", tag_name, ("tag_link", tlink))
                 text.insert("end", "\n")
-                text._textbox.tag_configure(tlink, foreground=self._link_color)
+                text._text.tag_configure(tlink, foreground=self._link_color)
                 if tag_callback is not None:
-                    text._textbox.tag_bind(
+                    text._text.tag_bind(
                         tlink, "<Button-1>", lambda _, n=tag_name: tag_callback(n)
                     )
             add("")
@@ -2071,19 +2071,19 @@ class PersonDialogMixin:
             text = ctk.CTkTextbox(
                 content_frame, font=(self._mono_family, self._mono_size), wrap="none"
             )
-            text._textbox.configure(padx=8, pady=8)
+            text._text.configure(padx=8, pady=8)
             text.pack(fill="both", expand=True)
 
             def _apply_person_zoom(size):
                 text.configure(font=(self._mono_family, size))
-                text._textbox.tag_configure(
+                text._text.tag_configure(
                     "bold",
                     font=scaled_tag_font(
                         text, self._mono_family, size, weight="bold"),
                 )
 
             state["zoom_controller"] = TextZoomController(
-                text, self._mono_size, _apply_person_zoom, targets=(text._textbox,)
+                text, self._mono_size, _apply_person_zoom, targets=(text._text,)
             )
             _bind_text_navigation(text)
             win.bind(back_seq, lambda *_: _go_back() or "break")
@@ -2159,7 +2159,7 @@ class PersonDialogMixin:
                             photo_bytes = self._pdf_profile_photo_bytes(current_id)
                         render_text_widget_pdf(
                             path,
-                            text._textbox,
+                            text._text,
                             report_title=DISPLAY_MODE_PROFILE,
                             subject=name + lifespan,
                             photo_bytes=photo_bytes,

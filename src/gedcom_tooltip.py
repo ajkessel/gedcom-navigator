@@ -46,7 +46,8 @@ class Tooltip(metaclass=_TooltipMeta):
         self.widget = widget
         self.text = text
         title, body = _split_message(text)
-        self._impl = CTkToolTip(widget, title=title, text=body, mode="live_mouse")
+        self._impl = CTkToolTip(widget, title=title, text=body, mode="live_mouse",
+                                label={"wraplength": 360})
         if not Tooltip._enabled:
             self._impl.configure(state="disabled")
         Tooltip._instances.append(self)
@@ -88,7 +89,8 @@ class TextTagTooltip:
         self._destroyed = False
         self._anchor = tk.Frame(text_widget)
         title, body = _split_message(text)
-        self._impl = CTkToolTip(self._anchor, title=title, text=body, delay=-1, mode="mouse")
+        self._impl = CTkToolTip(self._anchor, title=title, text=body, delay=-1, mode="mouse",
+                                label={"wraplength": 360})
         if not Tooltip._enabled:
             self._impl.configure(state="disabled")
         Tooltip._instances.append(self)
@@ -131,7 +133,8 @@ class CanvasTagTooltip:
         self._destroyed = False
         self._anchor = tk.Frame(canvas)
         title, body = _split_message(text)
-        self._impl = CTkToolTip(self._anchor, title=title, text=body, delay=-1, mode="mouse")
+        self._impl = CTkToolTip(self._anchor, title=title, text=body, delay=-1, mode="mouse",
+                                label={"wraplength": 360})
         if not Tooltip._enabled:
             self._impl.configure(state="disabled")
         Tooltip._instances.append(self)

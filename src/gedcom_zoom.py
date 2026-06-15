@@ -74,7 +74,7 @@ class TextZoomController:
         self.min_size = min_size
         self.max_size = max_size
         self._apply_size = apply_size
-        for target in targets or (getattr(widget, '_textbox', widget),):
+        for target in targets or (getattr(widget, '_text', widget),):
             bind_zoom_shortcuts(
                 target, self.zoom_in, self.zoom_out, self.zoom_reset)
 

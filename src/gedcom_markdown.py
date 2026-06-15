@@ -3,7 +3,7 @@ gedcom_markdown.py
 
 Standalone markdown-to-tkinter-Text renderer.  No dependency on the app
 class; callers pass link_color explicitly.  Supports both tk.Text widgets
-and customtkinter CTkTextbox (resolved via the _textbox attribute).
+and customtkinter CTkTextbox (resolved via the _text attribute).
 """
 
 import re
@@ -27,7 +27,7 @@ _INLINE_RE = re.compile(
 
 def _raw(widget):
     """Return the underlying tk.Text for a CTkTextbox, or the widget itself."""
-    return getattr(widget, '_textbox', widget)
+    return getattr(widget, '_text', widget)
 
 
 def _visual_len(text):

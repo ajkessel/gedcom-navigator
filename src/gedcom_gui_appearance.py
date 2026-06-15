@@ -21,8 +21,6 @@ from gedcom_theme import (
 # Each value is [light_color, dark_color]; only the mode-appropriate one shows.
 _BG_TINTS = {
     'Blue': {
-        'tooltip_bg_color':     ['#3C9FD0', '#3C9FD0'],
-        'tooltip_text_color':     ['#EEEEEE', '#EEEEEE'],
         'CTk':         ['#EBF0FA', '#1A2535'],
         'CTkToplevel': ['#EBF0FA', '#1A2535'],
         'CTkFrame':    {'fg_color':     ['#E3EAF5', '#1F2D3D'],
@@ -30,8 +28,6 @@ _BG_TINTS = {
                         'border_color': ['#B9C7DF', '#324760']},
     },
     'Green': {
-        'tooltip_bg_color':     ['#aaeeaa', '#aaeeaa'],
-        'tooltip_text_color':     ['#333333', '#333333'],
         'CTk':         ['#EBF5EB', '#1D2B1D'],
         'CTkToplevel': ['#EBF5EB', '#1D2B1D'],
         'CTkFrame':    {'fg_color':     ['#E1EDE1', '#223122'],
@@ -248,7 +244,7 @@ class AppearanceMixin:
         # Update the CTk theme default so that CTkFont() instances created later
         # (e.g. when a dialog is re-opened) inherit the new size.
         try:
-            ctk.ThemeManager.theme["CTkFont"]["size"] = ui_sz
+            ctk.ThemeManager._theme["CTkFont"]["size"] = ui_sz
         except Exception:  # pylint: disable=broad-except
             log_exception("updating CTk theme font size")
             pass
@@ -287,7 +283,7 @@ class AppearanceMixin:
                 self._results_zoom.set_base_size(mono_sz)
             else:
                 self.results.configure(font=(self._mono_family, mono_sz))
-                self.results._textbox.tag_configure(
+                self.results._text.tag_configure(
                     'bold', font=self._results_bold_font(mono_sz))
             if hasattr(self, '_results_header_label'):
                 self._results_header_label.configure(
@@ -562,7 +558,7 @@ class AppearanceMixin:
         """Apply the current CTk root/toplevel background to an existing window."""
         widget_key = 'CTkToplevel' if isinstance(
             win, ctk.CTkToplevel) else 'CTk'
-        fg_color = ctk.ThemeManager.theme.get(widget_key, {}).get('fg_color')
+        fg_color = ctk.ThemeManager._theme.get(widget_key, {}).get('fg_color')
         if fg_color is None:
             return
         try:
@@ -575,11 +571,7 @@ class AppearanceMixin:
         tint = _BG_TINTS.get(theme_name)
         if tint is None:
             return
-        theme = ctk.ThemeManager.theme
-        theme['CTkToplevel']['tooltip_bg_color'] = tint.get(
-            'tooltip_bg_color', "#EEEEEE")
-        theme['CTkToplevel']['tooltip_text_color'] = tint.get(
-            'tooltip_text_color', "#222222")
+        theme = ctk.ThemeManager._theme
         for widget, value in tint.items():
             if widget not in theme:
                 continue
@@ -603,7 +595,7 @@ class AppearanceMixin:
         try:
             ui_sz = self._FONT_SIZES.get(
                 self._font_size_pref, self._FONT_SIZES['medium'])['ui']
-            ctk.ThemeManager.theme["CTkFont"]["size"] = ui_sz
+            ctk.ThemeManager._theme["CTkFont"]["size"] = ui_sz
         except Exception:  # pylint: disable=broad-except
             log_exception("restamping CTk theme font size after theme change")
             pass
@@ -822,7 +814,7 @@ class AppearanceMixin:
         # Explicit tab chain via the internal tk widgets for CTk widgets:
         # tree → display mode → results_text → top_n_spin → max_depth_spin →
         # set_home_btn
-        results_inner = self.results._textbox
+        results_inner = self.results._text
         results_inner.configure(takefocus=True)
         mode_widgets = list(getattr(
             self._display_mode_selector, '_buttons_dict', {}).values())
@@ -848,7 +840,7 @@ class AppearanceMixin:
             except NotImplementedError:
                 continue
 
-        r_inner = self.results._textbox
+        r_inner = self.results._text
         r_inner.bind(
             '<Up>', lambda *_: self.results.yview_scroll(-1, 'units') or 'break')
         r_inner.bind(
