@@ -99,7 +99,7 @@ class TextTagTooltip:
         self._destroyed = False
         self._anchor = tk.Frame(text_widget)
         title, body = _split_message(text)
-        self._impl = CTkToolTip(self._anchor, title=title, text=body, delay=-1, mode="mouse",
+        self._impl = CTkToolTip(self._anchor, title=title, text=body, delay=-1, mode="master",
                                 label={"wraplength": 360})
         if not Tooltip._enabled:
             self._impl.configure(state="disabled")
@@ -131,7 +131,7 @@ class TextTagTooltip:
             pass
         try:
             self._impl.destroy()
-        except tk.TclError:
+        except Exception:  # pylint: disable=broad-exception-caught
             pass
 
 
@@ -143,7 +143,7 @@ class CanvasTagTooltip:
         self._destroyed = False
         self._anchor = tk.Frame(canvas)
         title, body = _split_message(text)
-        self._impl = CTkToolTip(self._anchor, title=title, text=body, delay=-1, mode="mouse",
+        self._impl = CTkToolTip(self._anchor, title=title, text=body, delay=-1, mode="master",
                                 label={"wraplength": 360})
         if not Tooltip._enabled:
             self._impl.configure(state="disabled")
@@ -176,5 +176,5 @@ class CanvasTagTooltip:
             pass
         try:
             self._impl.destroy()
-        except tk.TclError:
+        except Exception:  # pylint: disable=broad-exception-caught
             pass

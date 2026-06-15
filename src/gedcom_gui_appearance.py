@@ -18,6 +18,19 @@ import customtkinter as ctk
 if not hasattr(ctk.CTkToplevel, 'deactivate_window_header_manipulation'):
     ctk.CTkToplevel.deactivate_window_header_manipulation = True
 
+# Work around a Windows custom2kinter bug: _revert_withdraw_after_windows_set_titlebar_color
+# is scheduled via after() and can fire after the CTkToplevel (e.g. a tooltip window) is
+# already destroyed, raising TclError "bad window path name".  Guard with winfo_exists().
+_orig_revert = getattr(ctk.CTkToplevel, '_revert_withdraw_after_windows_set_titlebar_color', None)
+if _orig_revert is not None:
+    def _safe_revert_withdraw(self):
+        try:
+            if self.winfo_exists():
+                _orig_revert(self)
+        except tk.TclError:
+            pass
+    ctk.CTkToplevel._revert_withdraw_after_windows_set_titlebar_color = _safe_revert_withdraw
+
 from gedcom_debug import log_debug, log_exception, log_exception_once
 from gedcom_shortcuts import main_window_shortcuts, shortcut_by_action
 from gedcom_strings import *  # noqa: F401,F403 # pylint: disable=unused-wildcard-import
