@@ -56,7 +56,7 @@ class Tooltip(metaclass=_TooltipMeta):
         self.widget = widget
         self.text = text
         title, body = _split_message(text)
-        self._impl = CTkToolTip(widget, title=title, text=body, mode="live_mouse",
+        self._impl = CTkToolTip(widget, title=title, text=body, mode="master",
                                 label={"wraplength": 360})
         if not Tooltip._enabled:
             self._impl.configure(state="disabled")
