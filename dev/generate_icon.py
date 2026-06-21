@@ -29,7 +29,7 @@ if not (input_file.is_file() and os.access(input_file, os.R_OK)):
     print(f"Can't open input file {str(input_file)}. Exiting.")
     exit()
 
-if input_file.stat().st_mtime <= output_file.stat().st_mtime:
+if output_file.is_file() and input_file.stat().st_mtime <= output_file.stat().st_mtime:
     print("Newer icon file already exists. Skipping generation.")
     exit()
 
