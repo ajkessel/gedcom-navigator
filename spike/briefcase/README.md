@@ -101,6 +101,21 @@ codesign --force --verbose --sign "$APP_CERT" --entitlements "$ENTITLEMENTS" "$A
 productbuild --component "$APP" /Applications --sign "$INST_CERT" "$PKG"
 ```
 
+### Troubleshooting: `codesign … errSecInternalComponent`
+Two distinct causes:
+- **On Python `.so` files only:** `--deep` / signing `.so` with `--options runtime
+  --entitlements`. Avoided above by signing `.so` plainly (`--force --sign` only).
+- **On any binary (incl. the main exe):** codesign can't reach the signing key —
+  keychain locked, key ACL not granting `codesign`, or an SSH/no-GUI session. Fix:
+  ```bash
+  security unlock-keychain ~/Library/Keychains/login.keychain-db
+  security set-key-partition-list -S apple-tool:,apple:,codesign: \
+    -s -k "<login-password>" ~/Library/Keychains/login.keychain-db
+  ```
+  Then re-run codesign. Confirm `echo "$APP_CERT"` prints a 40-hex hash and the cert
+  appears in `security find-identity -v -p codesigning`. If the cert lives in a non-login
+  keychain, target that keychain path instead (`security list-keychains`).
+
 ## Step 4 — validate / upload to App Store
 Uses the App Store Connect API key your script reads from `~/.appstoreconnect/`
 (`apikey.txt`, `apiissuer.txt`, `appid.txt`). Validate first:
