@@ -84,10 +84,16 @@ Solution proven in `spike/toga_richtext_spike.py`:
 This removes what the plan called Toga's "biggest genuine gap." WebView backends:
 WKWebView (macOS), WebView2/Edge (Windows), WebKitGTK (Linux).
 
-On-device check needed: confirm `on_navigation_starting` **cancel** actually blocks the
-load on WKWebView + WebView2 (the return-False contract). If a backend treats it as
-advisory-only, fall back to a custom URL scheme handled at the native webview, or a JS
-bridge via `evaluate_javascript` — either is an isolated per-backend reach.
+**On-device gotcha (found + fixed on macOS):** links must use a real **http(s)** scheme,
+not a custom one. WKWebView silently ignores unregistered schemes, and Toga's cleanup runs
+`self.url = url` on an *allowed* nav — and `WebView.url` **raises `ValueError` on any
+non-http(s) URL**. So: person links are `https://…/person/<id>`, and `on_navigation_starting`
+returns `False` for person links (recenter in-app) and for any non-http(s) scheme (else the
+cleanup ValueError recurs), `True` only for genuine http(s) pages. Contract confirmed from
+source: `return True` = allow (Toga then navigates), `False` = block. Verified on Mac: renders
+and (after the fix) intercepts cleanly. `on_navigation_starting` is **not supported on GTK/Qt**
+(macOS + Windows only) — fine for the App Store + Windows targets; the Linux build would need
+the native-webkit signal or a JS bridge.
 
 ## Not verifiable in this Linux sandbox ❗
 

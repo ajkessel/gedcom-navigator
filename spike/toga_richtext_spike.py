@@ -15,6 +15,7 @@ Emit HTML:   GEDCOM_SPIKE_HTML=out.html spike-venv/bin/python spike/toga_richtex
 import html
 import os
 import sys
+from urllib.parse import quote, unquote
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
@@ -26,7 +27,11 @@ import gedcom_family_tree as ft
 
 SAMPLE = os.path.join(os.path.dirname(__file__), "..", "samples", "fictional_genealogy.ged")
 ROOT_URL = "https://spike.local/"
-LINK_SCHEME = "person:"
+# Person links must use a REAL http(s) scheme: WKWebView ignores unregistered custom
+# schemes, and Toga's WebView.url setter rejects any non-http(s) URL (used by the
+# on_navigation_starting cleanup). We intercept these and cancel before they load.
+PERSON_MARKER = "/person/"
+PERSON_BASE = ROOT_URL.rstrip("/") + PERSON_MARKER
 
 
 class Data:
@@ -85,7 +90,8 @@ def render_html(data, center):
             parts.append(f"<div class='gen'>{html.escape(gen_labels.get(depth, f'Generation +{depth}'))}</div>")
             last_depth = depth
         name, years = data.label(iid)
-        link = f"<a class='person' href='{LINK_SCHEME}{html.escape(iid)}'>{html.escape(name)}</a>"
+        href = PERSON_BASE + quote(iid, safe="")
+        link = f"<a class='person' href='{html.escape(href)}'>{html.escape(name)}</a>"
         parts.append(f"<div class='row'>{link} <span class='years'>{html.escape(years)}</span></div>")
     return "\n".join(parts)
 
@@ -93,7 +99,7 @@ def render_html(data, center):
 class RichTextApp(toga.App):
     def startup(self):
         self.data = Data(SAMPLE)
-        self.header = toga.Label("", style=Pack(padding=(8, 10), font_weight="bold"))
+        self.header = toga.Label("", style=Pack(margin=(8, 10), font_weight="bold"))
         self.web = toga.WebView(
             style=Pack(flex=1),
             on_navigation_starting=self.on_nav,
@@ -113,15 +119,21 @@ class RichTextApp(toga.App):
         self.web.set_content(ROOT_URL, render_html(self.data, self.data.center))
 
     def on_nav(self, widget, url, **kw):
-        """Intercept person: links → recenter and CANCEL the navigation.
-        Return True to allow (real content loads), False to cancel (link clicks)."""
-        if url.startswith(LINK_SCHEME):
-            iid = url[len(LINK_SCHEME):]
+        """on_navigation_starting: return True = allow (Toga then sets self.url),
+        False = block. We never want the WebView to leave our injected content:
+          - person link  -> recenter in-app, block (False)
+          - any non-http(s) scheme -> block (False), else Toga's cleanup would try
+            self.url = <bad scheme> and raise ValueError
+          - a genuine http(s) page (none in this spike) -> allow (True)"""
+        if PERSON_MARKER in url:
+            iid = unquote(url.split(PERSON_MARKER, 1)[1])
             if iid in self.data.individuals:
                 self.data.center = iid
                 self._render()
-            return False  # cancel — we handled it in-app
-        return True  # allow the set_content load and any real URL
+            return False
+        if url.startswith(("http://", "https://")):
+            return True
+        return False
 
     async def _dump_and_exit(self, widget, **kw):
         path = os.environ["GEDCOM_SPIKE_HTML"]
