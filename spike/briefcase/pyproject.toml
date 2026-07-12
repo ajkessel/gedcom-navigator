@@ -23,7 +23,7 @@ author_email = "kessel@fr.com"
 formal_name = "GEDCOM Navigator"
 description = "Briefcase App Store packaging spike"
 long_description = "Minimal Toga app to validate the Toga -> Briefcase -> Mac App Store .pkg pipeline."
-sources = ["src/gedcomspike"]
+sources = ["src/gedcom_navigator"]
 # Minimal deps for the spike. Real migration: the project's runtime deps MINUS
 # custom2kinter PLUS toga (e.g. cyrtranslit, hebrew, pillow, reportlab, ...).
 requires = ["toga-core>=0.5"]
