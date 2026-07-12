@@ -12,6 +12,7 @@ This one widget also covers the markdown help/about dialogs (markdown -> HTML ->
 Run headed:  spike-venv/bin/python spike/toga_richtext_spike.py
 Emit HTML:   GEDCOM_SPIKE_HTML=out.html spike-venv/bin/python spike/toga_richtext_spike.py
 """
+import asyncio
 import html
 import json
 import os
@@ -109,21 +110,20 @@ class RichTextApp(toga.App):
         self.main_window.content = root
         self.main_window.show()
         self._render()
-        self.add_background_task(self._poll_clicks)
+        asyncio.create_task(self._poll_clicks())
 
         if os.environ.get("GEDCOM_SPIKE_HTML"):
-            self.add_background_task(self._dump_and_exit)
+            asyncio.create_task(self._dump_and_exit())
 
     def _render(self):
         name, years = self.data.label(self.data.center)
         self.header.text = f"Center: {name}{years}"
         self.web.set_content(ROOT_URL, render_html(self.data, self.data.center))
 
-    async def _poll_clicks(self, widget, **kw):
+    async def _poll_clicks(self):
         """Public-API link handling: poll window.__nav (set by a link's onclick) via
         evaluate_javascript. No navigation, no _impl reach — identical on WKWebView +
         WebView2."""
-        import asyncio
         while True:
             await asyncio.sleep(POLL_INTERVAL)
             try:
@@ -134,7 +134,7 @@ class RichTextApp(toga.App):
                 self.data.center = iid
                 self._render()
 
-    async def _dump_and_exit(self, widget, **kw):
+    async def _dump_and_exit(self):
         path = os.environ["GEDCOM_SPIKE_HTML"]
         with open(path, "w") as fh:
             fh.write(render_html(self.data, self.data.center))

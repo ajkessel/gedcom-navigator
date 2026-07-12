@@ -13,6 +13,7 @@ Proves that the existing, tkinter-free layout engine
 Run headed:   spike-venv/bin/python spike/toga_graph_spike.py
 Render a PNG:  GEDCOM_SPIKE_SNAPSHOT=out.png spike-venv/bin/python spike/toga_graph_spike.py
 """
+import asyncio
 import os
 import sys
 
@@ -134,13 +135,13 @@ class SpikeApp(toga.App):
             horizontal=True, vertical=True, content=self.canvas, style=Pack(flex=1)
         )
         self.info = toga.Label(
-            self._info_text(), style=Pack(padding=(6, 8), flex=1)
+            self._info_text(), style=Pack(margin=(6, 8), flex=1)
         )
         btn_out = toga.Button("Zoom −", on_press=lambda w: self.bump_zoom(1 / 1.25))
         btn_in = toga.Button("Zoom +", on_press=lambda w: self.bump_zoom(1.25))
         btn_reset = toga.Button("Reset", on_press=lambda w: self.reset_view())
         controls = toga.Box(
-            style=Pack(direction=ROW, padding=4),
+            style=Pack(direction=ROW, margin=4),
             children=[btn_out, btn_in, btn_reset, self.info],
         )
         root = toga.Box(style=Pack(direction=COLUMN), children=[controls, self.scroller])
@@ -174,7 +175,7 @@ class SpikeApp(toga.App):
         snapshot = os.environ.get("GEDCOM_SPIKE_SNAPSHOT")
         if snapshot:
             # render one frame to PNG for headless verification, then exit
-            self.add_background_task(self._snapshot_and_exit)
+            asyncio.create_task(self._snapshot_and_exit())
 
     # ---- rendering -------------------------------------------------------
     def redraw(self):
@@ -273,8 +274,7 @@ class SpikeApp(toga.App):
         name, years = self.model.label(self.selected)
         return f"Selected: {name}{years}   |   nodes: {len(self.model.boxes)}   zoom: {self.zoom:.2f}"
 
-    async def _snapshot_and_exit(self, widget, **kw):
-        import asyncio
+    async def _snapshot_and_exit(self):
         await asyncio.sleep(0.5)
         path = os.environ["GEDCOM_SPIKE_SNAPSHOT"]
         try:

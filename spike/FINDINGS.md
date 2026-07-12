@@ -94,6 +94,26 @@ clear routes WebView2's internal `about:blank` navs into the handler, which canc
 **blanks the page**. Also `on_navigation_starting` is unsupported on GTK/Qt. The
 `evaluate_javascript` poll above avoids all of this. Left here as the cautionary trail.
 
+## Deprecation warnings / Toga API churn (decision signal)
+
+On-device runs emit several `DeprecationWarning`s. Diagnosed headlessly:
+- `Pack(padding=)` → `Pack(margin=)` — **fixed**.
+- `App.add_background_task()` → `asyncio.create_task()` — **fixed** (Toga's recommended
+  replacement; re-run to confirm the loop is running at `startup`).
+- **Canvas drawing API overhaul (Toga 0.6, renamed 2026-02, compat shims through
+  2026-05)** — the graph spike uses the 0.5 spelling, which still works but warns:
+  `Canvas.context`→`root_state`; `Context()/Fill()/Stroke()`→`state()/fill()/stroke()`;
+  drawing methods are now called **on the canvas** inside a `with canvas.fill()/stroke()/
+  state()` block (not on the returned state); `write_text()`→`fill_text()`/`stroke_text()`.
+  Not rewritten blind (can't render-test here; the clear-and-redraw idiom is ambiguous
+  from source) — do this deliberately with an on-device render check.
+
+**This churn is itself a data point for the go/no-go:** Toga's canvas API was renamed
+wholesale within the last few months, with dated backwards-compat shims. A migration now
+means tracking an API that is still actively moving — real maintenance overhead, and
+another facet of the young-ecosystem cost (alongside the per-backend native-layer tax).
+wxPython's API is comparatively frozen.
+
 ## Not verifiable in this Linux sandbox ❗
 
 - **Live window rendering.** `toga-gtk` 0.5.5 is incompatible with the system's very
