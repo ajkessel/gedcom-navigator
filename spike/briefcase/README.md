@@ -39,30 +39,42 @@ briefcase build macOS
 
 ## Step 3 — App Store signing (the part Briefcase doesn't fully automate)
 
-**Try the Briefcase-native path first** — package a `.pkg` with the distribution
-identities and skip notarization:
+**First, get your EXACT signing identities** — do not hand-type the names (Briefcase
+validates `--identity` against the Keychain and rejects any mismatch, e.g.
+`Invalid application signing identity ...`):
+```bash
+security find-identity -v -p codesigning
+```
+This lists each cert's 40-char SHA-1 hash + common name. For App Store you need two, both
+Team ID 4GT4UKXZ4V (these are the names your dev/build-mac-appstore.sh already greps):
+- **app cert:** `3rd Party Mac Developer Application: …`  (newer accounts may show `Apple Distribution: …`)
+- **installer cert:** `3rd Party Mac Developer Installer: …`
+
+**Then try the Briefcase-native path** — pass the **SHA-1 hashes** (unambiguous; avoids
+name-format issues) and skip notarization:
 ```bash
 briefcase package macOS -p pkg \
-  --identity "Apple Distribution: Adam Kessel (4GT4UKXZ4V)" \
-  --installer-identity "3rd Party Mac Developer Installer: Adam Kessel (4GT4UKXZ4V)" \
+  --identity <APP_CERT_SHA1> \
+  --installer-identity <INSTALLER_CERT_SHA1> \
   --no-notarize
 ```
-**Unknowns to check on-device:** (a) does Briefcase accept the Apple Distribution app
-identity, and (b) does the resulting `.app` contain the **provisioning profile**?
-Briefcase has no documented profile-embedding step, so likely **no** — which App Store
-validation rejects.
+**Unknowns to check on-device:** (a) does Briefcase accept the App Store distribution app
+identity, and (b) does the resulting `.app` contain the **provisioning profile**? Briefcase
+has no documented profile-embedding step, so likely **no** — which App Store validation
+rejects.
 
 **If the profile is missing (expected), do the hybrid:** build with Briefcase (Step 2),
 then reuse your existing App Store signing logic against Briefcase's `.app`:
 ```bash
 APP="build/gedcom-navigator/macos/app/GEDCOM Navigator.app"
+# Use the SHA-1 hashes from `security find-identity -v -p codesigning` (above).
 # 1. embed the provisioning profile (mirrors dev/build-mac-appstore.sh)
 cp dev/gedcom-navigator.provisionprofile "$APP/Contents/embedded.provisionprofile"
-# 2. deep-sign with App Store entitlements + Apple Distribution cert (profile must be
-#    embedded BEFORE signing), then build the installer .pkg with the Installer cert:
+# 2. deep-sign with App Store entitlements + the APP cert (profile must be embedded
+#    BEFORE signing), then build the installer .pkg with the INSTALLER cert:
 #    (lift the exact codesign/productbuild invocation from dev/build-mac-appstore.sh)
 productbuild --component "$APP" /Applications \
-  --sign "3rd Party Mac Developer Installer: Adam Kessel (4GT4UKXZ4V)" \
+  --sign <INSTALLER_CERT_SHA1> \
   dist/GEDCOM-Navigator.pkg
 ```
 

@@ -15,9 +15,10 @@ project_name = "GEDCOM Navigator"
 bundle = "com.ajkessel"
 version = "1.9.18"
 url = "https://github.com/ajkessel/gedcom-navigator"
-license.text = "BSD-2-Clause"
+license = "BSD-2-Clause"
+license-files = ["../../LICENSE"]
 author = "Adam J. Kessel"
-author_email = "kessel@fr.com"
+author_email = "adam@rosi-kessel.org"
 
 [tool.briefcase.app.gedcom-navigator]
 formal_name = "GEDCOM Navigator"
