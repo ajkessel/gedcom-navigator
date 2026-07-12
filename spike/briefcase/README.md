@@ -124,11 +124,12 @@ codesign --force --verbose --sign "$APP_CERT" --entitlements "$ENTITLEMENTS" "$M
 codesign --force --verbose --sign "$APP_CERT" --entitlements "$ENTITLEMENTS" "$APP"
 
 # --- VERIFY every Mach-O carries the App Store cert BEFORE packaging ----------
-# Authority line must read "3rd Party Mac Developer Application" (not Developer ID / adhoc):
+# Authority must be your App Store app cert (Apple Distribution OR 3rd Party Mac Developer
+# Application) — NOT Developer ID and NOT adhoc:
 codesign -dvv "$APP/Contents/Frameworks/Python.framework/Versions/3.14/lib/python3.14/lib-dynload/zlib.cpython-314-darwin.so" 2>&1 | grep Authority
-# fail loudly if ANY nested Mach-O is signed by something other than the App Store cert:
 WRONG=0; while IFS= read -r -d '' f; do
-  codesign -dvv "$f" 2>&1 | grep -q "Authority=3rd Party Mac Developer Application" || { echo "WRONG CERT: $f"; WRONG=1; }
+  codesign -dvv "$f" 2>&1 | grep -qE "Authority=(Apple Distribution|3rd Party Mac Developer Application)" \
+    || { echo "WRONG CERT: $f"; WRONG=1; }
 done < <(find "$APP" -type f \( -name "*.so" -o -name "*.dylib" -o -name "Python" \) -print0)
 [ "$WRONG" = 0 ] && echo "All nested Mach-O signed with the App Store cert."
 
@@ -150,9 +151,14 @@ Two distinct causes:
   security set-key-partition-list -S apple-tool:,apple:,codesign: \
     -s -k "<login-password>" ~/Library/Keychains/login.keychain-db
   ```
-  Then re-run codesign. Confirm `echo "$APP_CERT"` prints a 40-hex hash and the cert
-  appears in `security find-identity -v -p codesigning`. If the cert lives in a non-login
-  keychain, target that keychain path instead (`security list-keychains`).
+  Then re-run codesign. **Re-run this after installing/creating a NEW signing cert** — the
+  partition list only covers keys present when it ran, so a freshly-imported key
+  (e.g. a just-created Apple Distribution cert) still throws `errSecInternalComponent`
+  until you run it again. Confirm `echo "$APP_CERT"` prints a 40-hex hash and the cert
+  appears in `find-identity`. If it still fails: you're likely over SSH (codesign needs a
+  GUI session), or the key's ACL is set to prompt — in Keychain Access, select the private
+  key → Get Info → Access Control → allow `codesign`/all apps. Non-login keychain? Target
+  its path (`security list-keychains`).
 
 ## Step 4 — validate / upload to App Store
 Uses the App Store Connect API key your script reads from `~/.appstoreconnect/`
