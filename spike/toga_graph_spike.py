@@ -34,6 +34,26 @@ NODE_H = 46.0
 MARGIN = 60.0
 
 
+def add_native_tooltip(widget, text):
+    """Workaround for Toga's missing tooltip API: set the OS-native tooltip on the
+    backing widget. macOS: NSView.toolTip; GTK: set_tooltip_text(). Isolated here so
+    the whole app's tooltip dependency on private `_impl.native` lives in one place."""
+    try:
+        native = widget._impl.native  # private API — the isolated bet
+    except AttributeError:
+        return False
+    # GTK
+    if hasattr(native, "set_tooltip_text"):
+        native.set_tooltip_text(text)
+        return True
+    # Cocoa (rubicon-objc): NSView/NSControl exposes a toolTip property
+    try:
+        native.toolTip = text
+        return True
+    except Exception:  # noqa: BLE001 — spike diagnostic
+        return False
+
+
 class GraphModel:
     """Owns the parsed data + current center; produces positioned nodes/edges."""
 
@@ -85,31 +105,50 @@ class SpikeApp(toga.App):
     def startup(self):
         self.model = GraphModel(SAMPLE)
         self.zoom = 1.0
-        self.pan = [0.0, 0.0]
-        self._drag_anchor = None
         self.selected = self.model.center
 
+        # Canvas sized to content*zoom; a ScrollContainer provides NATIVE
+        # wheel/trackpad panning (the scroll-wheel workaround). Zoom is
+        # buttons + Cmd +/-/0 keyboard commands (no wheel-zoom in Toga).
         self.canvas = toga.Canvas(
-            style=Pack(flex=1),
             on_press=self.on_press,
-            on_drag=self.on_drag,
             on_release=self.on_release,
+        )
+        self.scroller = toga.ScrollContainer(
+            horizontal=True, vertical=True, content=self.canvas, style=Pack(flex=1)
         )
         self.info = toga.Label(
             self._info_text(), style=Pack(padding=(6, 8), flex=1)
         )
+        btn_out = toga.Button("Zoom −", on_press=lambda w: self.bump_zoom(1 / 1.25))
+        btn_in = toga.Button("Zoom +", on_press=lambda w: self.bump_zoom(1.25))
+        btn_reset = toga.Button("Reset", on_press=lambda w: self.reset_view())
         controls = toga.Box(
             style=Pack(direction=ROW, padding=4),
-            children=[
-                toga.Button("Zoom −", on_press=lambda w: self.bump_zoom(1 / 1.25)),
-                toga.Button("Zoom +", on_press=lambda w: self.bump_zoom(1.25)),
-                toga.Button("Reset", on_press=lambda w: self.reset_view()),
-                self.info,
-            ],
+            children=[btn_out, btn_in, btn_reset, self.info],
         )
-        root = toga.Box(style=Pack(direction=COLUMN), children=[controls, self.canvas])
+        root = toga.Box(style=Pack(direction=COLUMN), children=[controls, self.scroller])
         self.main_window = toga.MainWindow(title="Toga Graph Spike", size=(1100, 760))
         self.main_window.content = root
+
+        # Tooltip workaround: native OS tooltips via _impl.native (test on Mac).
+        self._tooltips_ok = all([
+            add_native_tooltip(btn_out, "Zoom out (Cmd −)"),
+            add_native_tooltip(btn_in, "Zoom in (Cmd +)"),
+            add_native_tooltip(btn_reset, "Reset zoom (Cmd 0)"),
+        ])
+
+        # Keyboard zoom as proper Mac menu commands.
+        grp = toga.Group.VIEW
+        self.commands.add(
+            toga.Command(lambda w: self.bump_zoom(1.25), "Zoom In",
+                         shortcut=toga.Key.MOD_1 + "+", group=grp),
+            toga.Command(lambda w: self.bump_zoom(1 / 1.25), "Zoom Out",
+                         shortcut=toga.Key.MOD_1 + "-", group=grp),
+            toga.Command(lambda w: self.reset_view(), "Actual Size",
+                         shortcut=toga.Key.MOD_1 + "0", group=grp),
+        )
+
         self.main_window.show()
         self.redraw()
 
@@ -121,10 +160,13 @@ class SpikeApp(toga.App):
     # ---- rendering -------------------------------------------------------
     def redraw(self):
         c = self.canvas
+        # size the canvas to content*zoom so the ScrollContainer can pan it natively
+        cw, ch = self.model.content_size()
+        c.style.width = int(cw * self.zoom)
+        c.style.height = int(ch * self.zoom)
         c.context.clear()
         with c.context.Context() as ctx:
-            ctx.translate(self.pan[0], self.pan[1])
-            ctx.scale(self.zoom, self.zoom)
+            ctx.scale(self.zoom, self.zoom)  # pan is the ScrollContainer's job
             self._draw_edges(ctx)
             self._draw_nodes(ctx)
         c.redraw()
@@ -162,29 +204,20 @@ class SpikeApp(toga.App):
 
     # ---- interaction -----------------------------------------------------
     def _hit(self, x, y):
-        """Map screen coords back through pan/zoom to a node id."""
-        wx = (x - self.pan[0]) / self.zoom
-        wy = (y - self.pan[1]) / self.zoom
+        """Canvas-local press coords → node id (undo only the zoom scale;
+        pan is handled by the ScrollContainer so x,y are already content-local)."""
+        wx, wy = x / self.zoom, y / self.zoom
         for indi_id, (bx, by, bw, bh) in self.model.boxes.items():
             if bx <= wx <= bx + bw and by <= wy <= by + bh:
                 return indi_id
         return None
 
     def on_press(self, widget, x, y, **kw):
-        self._drag_anchor = (x, y, self.pan[0], self.pan[1])
         self._press_at = (x, y)
-
-    def on_drag(self, widget, x, y, **kw):
-        if not self._drag_anchor:
-            return
-        ax, ay, px, py = self._drag_anchor
-        self.pan = [px + (x - ax), py + (y - ay)]
-        self.redraw()
 
     def on_release(self, widget, x, y, **kw):
         moved = abs(x - self._press_at[0]) + abs(y - self._press_at[1])
-        self._drag_anchor = None
-        if moved < 4:  # treat as a click, not a pan
+        if moved < 4:  # a click, not a drag-scroll
             hit = self._hit(x, y)
             if hit:
                 self.selected = hit
@@ -196,10 +229,12 @@ class SpikeApp(toga.App):
 
     def bump_zoom(self, factor):
         self.zoom = max(0.3, min(3.0, self.zoom * factor))
+        self.info.text = self._info_text()
         self.redraw()
 
     def reset_view(self):
-        self.zoom, self.pan = 1.0, [0.0, 0.0]
+        self.zoom = 1.0
+        self.info.text = self._info_text()
         self.redraw()
 
     def _info_text(self):

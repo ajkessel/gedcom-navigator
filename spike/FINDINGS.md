@@ -25,17 +25,33 @@ touch the project `.venv`.
   containment returns the right node across zoom {0.5, 1.0, 2.0} × pan offsets.
   Click-to-recenter rebuilds the graph correctly.
 
-## Gaps ⚠️ (Toga Canvas)
+## Gaps ⚠️ and workarounds
 
-- **No hover / mouse-move event.** Per-node hover tooltips (tk `CanvasTagTooltip`)
-  cannot be reproduced. Degrade to **click-to-select + an info panel** (implemented in
-  the spike). wxPython *does* have `EVT_MOTION` — a point for the fallback if hover is
-  a hard requirement.
-- **No scroll-wheel event.** Wheel-zoom becomes **+/− buttons or keyboard** (implemented).
-  wxPython has `EVT_MOUSEWHEEL`.
+### Tooltips — Toga has NO tooltip API at all (verified 0.5.5 AND 0.5.6)
+No `tooltip` on `Widget` base or any widget. The current app uses tooltips heavily
+(~64 hint tooltips on controls across 12 files, 9 canvas-node-tooltip refs, 3 in results).
+Two tiers:
+- **Control hints (~64): recoverable via native layer.** `add_native_tooltip()` in the
+  spike sets `widget._impl.native.toolTip` (Cocoa) / `.set_tooltip_text()` (GTK) — gives
+  real OS tooltips (more native than customtkinter's custom-drawn ones). Cost: depends on
+  private `_impl.native`, isolated to one helper.
+- **Per-node graph hover: the hard one.** The canvas is one native widget with no
+  sub-views and Toga has no mouse-move event, so hover-over-node tooltips can't be done
+  in pure Toga. Options: degrade to **click-to-select + info panel** (implemented), or
+  bind the platform-native motion event via `canvas._impl.native` + hit-test (backend
+  plumbing). wxPython has `EVT_MOTION` built in.
 
-Neither gap blocks core functionality; both are auxiliary interactions with reasonable
-degradations. They are the clearest Toga-vs-wx tradeoff the spike surfaced.
+### Scroll wheel — native pan works; wheel-zoom doesn't
+- **Wheel/trackpad PAN works natively** by wrapping the canvas in a `ScrollContainer`
+  (has `on_scroll` + native scrolling) — implemented; the canvas is sized to content×zoom
+  and the ScrollContainer pans it. This covers the common "navigate a big tree" case.
+- **Wheel-SPIN-to-zoom is not exposed** (no wheel delta/modifier on the canvas). Zoom is
+  **Cmd +/−/0 keyboard commands + on-screen buttons** (implemented via `toga.Command`).
+  wxPython has `EVT_MOUSEWHEEL` for true wheel-zoom.
+
+Net: core functionality is preservable, but tooltips (especially graph hover) and
+wheel-zoom are where Toga's youth shows and where several fixes reach into `_impl.native`.
+That accumulating native-layer tax is the central Toga-vs-wxPython tradeoff.
 
 ## Not verifiable in this Linux sandbox ❗
 
