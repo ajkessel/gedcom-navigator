@@ -1,0 +1,47 @@
+# Briefcase packaging spike (deliverable c) — proves the Toga→Briefcase→Mac App Store
+# .pkg pipeline. Packages a MINIMAL Toga app (fast, reliable build) that exercises the
+# App Store sandbox; the real migration would point `sources`/`requires` at the project.
+#
+# Bundle id / team come from the existing App Store build:
+#   bundle id  = com.ajkessel.gedcom-navigator   (bundle "com.ajkessel" + app "gedcom-navigator")
+#   team id    = 4GT4UKXZ4V
+#
+# NOTE: field spellings are cross-checked against `briefcase new` output; if a key is
+# rejected, run `briefcase new` once and diff. Version must be PEP440 (the project's
+# __version__ is a git-describe string like "1.9.18-4-g8936fbb" — strip to "1.9.18").
+
+[tool.briefcase]
+project_name = "GEDCOM Navigator"
+bundle = "com.ajkessel"
+version = "1.9.18"
+url = "https://github.com/ajkessel/gedcom-navigator"
+license.text = "BSD-2-Clause"
+author = "Adam J. Kessel"
+author_email = "kessel@fr.com"
+
+[tool.briefcase.app.gedcom-navigator]
+formal_name = "GEDCOM Navigator"
+description = "Briefcase App Store packaging spike"
+long_description = "Minimal Toga app to validate the Toga -> Briefcase -> Mac App Store .pkg pipeline."
+sources = ["src/gedcomspike"]
+# Minimal deps for the spike. Real migration: the project's runtime deps MINUS
+# custom2kinter PLUS toga (e.g. cyrtranslit, hebrew, pillow, reportlab, ...).
+requires = ["toga-core>=0.5"]
+
+[tool.briefcase.app.gedcom-navigator.macOS]
+universal_build = true
+requires = [
+    "toga-cocoa>=0.5",
+    "std-nslog>=1.0.3",
+]
+
+# Entitlements → Entitlements.plist. Mirrors dev/entitlements-appstore.plist:
+# sandbox + JIT/unsigned-exec (CPython/PyInstaller-style needs) + user-selected files.
+[tool.briefcase.app.gedcom-navigator.macOS.entitlement]
+"com.apple.security.app-sandbox" = true
+"com.apple.security.cs.allow-jit" = true
+"com.apple.security.cs.allow-unsigned-executable-memory" = true
+"com.apple.security.files.user-selected.read-write" = true
+
+# The App Store application-identifier is injected by the provisioning profile at sign
+# time (4GT4UKXZ4V.com.ajkessel.gedcom-navigator); it is not set here.
