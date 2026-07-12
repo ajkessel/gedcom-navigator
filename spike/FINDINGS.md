@@ -38,8 +38,12 @@ Two tiers:
 - **Per-node graph hover: the hard one.** The canvas is one native widget with no
   sub-views and Toga has no mouse-move event, so hover-over-node tooltips can't be done
   in pure Toga. Options: degrade to **click-to-select + info panel** (implemented), or
-  bind the platform-native motion event via `canvas._impl.native` + hit-test (backend
-  plumbing). wxPython has `EVT_MOTION` built in.
+  the native-layer route — **prototyped in `spike/mac_canvas_hover.py`** (macOS): uses
+  Cocoa's `addToolTipRect:owner:userData:` machinery via rubicon-objc so the OS renders
+  the tooltip with its standard hover delay; our callback just hit-tests the point.
+  ~40 isolated lines, no-ops off macOS. UNTESTED on-device (watch for Y-flip). GTK would
+  need the analogous `has-tooltip`/`query-tooltip` signal. wxPython has `EVT_MOTION`
+  built in — no native-layer reach needed.
 
 ### Scroll wheel — native pan works; wheel-zoom doesn't
 - **Wheel/trackpad PAN works natively** by wrapping the canvas in a `ScrollContainer`

@@ -17,8 +17,10 @@ import os
 import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
+sys.path.insert(0, os.path.dirname(__file__))
 
 import toga
+import mac_canvas_hover
 from toga.style.pack import COLUMN, ROW, Pack
 
 from gedcom_parser import build_model
@@ -150,7 +152,10 @@ class SpikeApp(toga.App):
         )
 
         self.main_window.show()
+        self._hover_refresh = None
         self.redraw()
+        # native canvas hover tooltips (macOS only; no-op elsewhere)
+        self._hover_refresh = mac_canvas_hover.install(self.canvas, self._hover_text)
 
         snapshot = os.environ.get("GEDCOM_SPIKE_SNAPSHOT")
         if snapshot:
@@ -170,6 +175,17 @@ class SpikeApp(toga.App):
             self._draw_edges(ctx)
             self._draw_nodes(ctx)
         c.redraw()
+        # canvas resized (zoom/recenter) → re-register the native tooltip rect
+        if getattr(self, "_hover_refresh", None):
+            self._hover_refresh()
+
+    def _hover_text(self, x, y):
+        """Resolve a hover point (canvas coords) to a person label, or None."""
+        hit = self._hit(x, y)
+        if not hit:
+            return None
+        name, years = self.model.label(hit)
+        return f"{name}{years}"
 
     def _draw_edges(self, ctx):
         for child_id, parent_id in self.model.edges:
