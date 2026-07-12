@@ -63,28 +63,67 @@ identity, and (b) does the resulting `.app` contain the **provisioning profile**
 has no documented profile-embedding step, so likely **no** — which App Store validation
 rejects.
 
-**If the profile is missing (expected), do the hybrid:** build with Briefcase (Step 2),
-then reuse your existing App Store signing logic against Briefcase's `.app`:
+**If the profile is missing (expected), do the hybrid** — skip `briefcase package` and
+instead manually sign the `briefcase build` output, then build the `.pkg` yourself. The
+sequence below is lifted verbatim from `dev/build-mac-appstore.sh` (lines ~100–183),
+adapted to Briefcase's bundle layout. Run from `spike/briefcase/`:
+
 ```bash
-APP="build/gedcom-navigator/macos/app/GEDCOM Navigator.app"
-# Use the SHA-1 hashes from `security find-identity -v -p codesigning` (above).
-# 1. embed the provisioning profile (mirrors dev/build-mac-appstore.sh)
-cp dev/gedcom-navigator.provisionprofile "$APP/Contents/embedded.provisionprofile"
-# 2. deep-sign with App Store entitlements + the APP cert (profile must be embedded
-#    BEFORE signing), then build the installer .pkg with the INSTALLER cert:
-#    (lift the exact codesign/productbuild invocation from dev/build-mac-appstore.sh)
-productbuild --component "$APP" /Applications \
-  --sign <INSTALLER_CERT_SHA1> \
-  dist/GEDCOM-Navigator.pkg
+# --- inputs -------------------------------------------------------------------
+APP="$(ls -d build/gedcom-navigator/macos/app/*.app | head -1)"   # Briefcase's built bundle
+MAIN_EXE="$APP/Contents/MacOS/GEDCOM Navigator"                    # = formal_name (has a space)
+ENTITLEMENTS="../../dev/entitlements-appstore.plist"              # reuse the known-good plist
+PROFILE="../../dev/gedcom-navigator.provisionprofile"
+APP_CERT=<APP_CERT_SHA1>            # 3rd Party Mac Developer Application  (from find-identity)
+INST_CERT=<INSTALLER_CERT_SHA1>     # 3rd Party Mac Developer Installer
+PKG="dist/GEDCOM-Navigator.pkg"; mkdir -p dist
+
+# --- (optional) only if bundled dylibs point at Homebrew ----------------------
+# Briefcase installs wheels that usually vendor their own libs, so this is often a
+# no-op — run it only if the sandboxed self-test later fails on /usr/local|/opt/homebrew:
+#   ../../dev/fix-dylib-paths.sh "$APP"
+
+# --- embed provisioning profile (must happen BEFORE signing) ------------------
+cp "$PROFILE" "$APP/Contents/embedded.provisionprofile"
+chmod -R a+rX "$APP"                                   # App Store error 90255 guard
+xattr -rd com.apple.quarantine "$APP" 2>/dev/null || true
+xattr -c "$APP/Contents/embedded.provisionprofile"
+
+# --- sign bottom-up (‑‑deep breaks on Python .so, so sign nested items first) -
+# every .so/.dylib and any file literally named "Python" (the framework binary):
+find "$APP" -type f \( -name "*.so" -o -name "*.dylib" -o -name "Python" \) -print0 \
+  | while IFS= read -r -d '' f; do codesign --force --sign "$APP_CERT" "$f"; done
+# every other executable, with the hardened runtime:
+find "$APP" -type f -perm +111 -exec codesign --force --options runtime --sign "$APP_CERT" {} \;
+# main executable + whole bundle, WITH the sandbox entitlements (only these two need it):
+codesign --force --verbose --sign "$APP_CERT" --entitlements "$ENTITLEMENTS" "$MAIN_EXE"
+codesign --force --verbose --sign "$APP_CERT" --entitlements "$ENTITLEMENTS" "$APP"
+
+# --- sandboxed smoke test (mirrors the script's --self-test gate) -------------
+"$MAIN_EXE" &   # confirm the signed, sandboxed bundle launches; Ctrl-C / kill after
+
+# --- build the App Store installer .pkg with the INSTALLER cert ---------------
+productbuild --component "$APP" /Applications --sign "$INST_CERT" "$PKG"
 ```
 
-## Step 4 — validate against App Store
+## Step 4 — validate / upload to App Store
+Uses the App Store Connect API key your script reads from `~/.appstoreconnect/`
+(`apikey.txt`, `apiissuer.txt`, `appid.txt`). Validate first:
 ```bash
-xcrun altool --validate-app -f dist/GEDCOM-Navigator.pkg -t macos \
-  -u "<apple-id>" -p "<app-specific-password>"
-# then --upload-app to submit, or use the Transporter.app GUI
+API_KEY=$(cat ~/.appstoreconnect/apikey.txt); API_ISSUER=$(cat ~/.appstoreconnect/apiissuer.txt)
+xcrun altool --validate-app -f dist/GEDCOM-Navigator.pkg --type osx \
+  --apiKey "$API_KEY" --apiIssuer "$API_ISSUER"
 ```
-Success here = deliverable (c) proven: a Toga/Briefcase build is App-Store-acceptable.
+Then upload (the exact form from `build-mac-appstore.sh`):
+```bash
+xcrun altool --upload-package dist/GEDCOM-Navigator.pkg --type osx \
+  --apiKey "$API_KEY" --apiIssuer "$API_ISSUER" \
+  --apple-id "$(cat ~/.appstoreconnect/appid.txt)" \
+  --bundle-id "com.ajkessel.gedcom-navigator" \
+  --bundle-version 1.9.18 --bundle-short-version-string 1.9.18
+```
+A clean `--validate-app` = deliverable (c) proven: a Toga/Briefcase build is
+App-Store-acceptable. (Transporter.app is the GUI equivalent if you prefer.)
 
 ## What to report back
 1. Did `briefcase dev` / `build` produce a launchable sandboxed `.app`?
