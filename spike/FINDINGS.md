@@ -40,8 +40,10 @@ Two tiers:
   in pure Toga. Options: degrade to **click-to-select + info panel** (implemented), or
   the native-layer route — **prototyped in `spike/native_canvas_hover.py`**: Cocoa's
   `addToolTipRect:owner:userData:` machinery (macOS) and WinForms `MouseMove` + a
-  persistent `ToolTip` (Windows), each reaching into `canvas._impl.native`. UNTESTED
-  on-device (macOS: watch for Y-flip). GTK not implemented (would use `query-tooltip`).
+  persistent `ToolTip` (Windows), each reaching into `canvas._impl.native`. NOTE:
+  register **one rect per node**, not one canvas-sized rect — Cocoa only re-queries /
+  hides at rect boundaries, so a single big rect leaves stale tooltips that never
+  dismiss. Verify on-device (macOS: watch for Y-flip). GTK not implemented (`query-tooltip`).
   wxPython has `EVT_MOTION` built in on every platform — no native-layer reach needed.
 
 **Per-backend native-layer tax (the recurring theme):** every tooltip/hover fix is

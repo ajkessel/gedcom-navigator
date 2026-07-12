@@ -169,7 +169,7 @@ class SpikeApp(toga.App):
         self._hover_refresh = None
         self.redraw()
         # native canvas hover tooltips (macOS + Windows; no-op on GTK)
-        self._hover_refresh = native_canvas_hover.install(self.canvas, self._hover_text)
+        self._hover_refresh = native_canvas_hover.install(self.canvas, self._hover_regions)
 
         snapshot = os.environ.get("GEDCOM_SPIKE_SNAPSHOT")
         if snapshot:
@@ -193,13 +193,15 @@ class SpikeApp(toga.App):
         if getattr(self, "_hover_refresh", None):
             self._hover_refresh()
 
-    def _hover_text(self, x, y):
-        """Resolve a hover point (canvas coords) to a person label, or None."""
-        hit = self._hit(x, y)
-        if not hit:
-            return None
-        name, years = self.model.label(hit)
-        return f"{name}{years}"
+    def _hover_regions(self):
+        """Node rectangles + text in canvas pixel coords (content * zoom) for the
+        native per-node tooltip machinery. Recomputed on each redraw."""
+        z = self.zoom
+        regions = []
+        for indi_id, (x, y, w, h) in self.model.boxes.items():
+            name, years = self.model.label(indi_id)
+            regions.append((x * z, y * z, w * z, h * z, f"{name}{years}"))
+        return regions
 
     def _draw_edges(self, ctx):
         for child_id, parent_id in self.model.edges:
