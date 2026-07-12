@@ -137,6 +137,15 @@ Briefcase's `.app`. Entitlements mirror `dev/entitlements-appstore.plist`; bundl
 `com.ajkessel.gedcom-navigator`, team `4GT4UKXZ4V`. On-device validation (`briefcase build`
 → App Store sign → `altool --validate-app`) is the remaining check — see the runbook.
 
+**Confirmed on-device:** `briefcase package macOS` is NOT usable for App Store — it (1)
+auto-selects the **Developer ID** cert (direct-download, not App Store) and (2) signs every
+`.so` with `--options runtime --entitlements`, hitting `errSecInternalComponent` on Python
+extension modules — the exact failure `build-mac-appstore.sh` avoids by signing `.so`
+plainly. Flow is firmly **`briefcase build` (bundler) → manual App Store signing from
+`build-mac-appstore.sh`** (now inlined in `spike/briefcase/README.md`). Prerequisite: the
+"3rd Party Mac Developer Application/Installer" certs must be in the keychain (owner's
+keychain showed only Developer ID so far — may need to create them in the portal).
+
 ## Verdict
 
 Both technical gaps the plan flagged are resolved and confirmed on Mac + Windows: the

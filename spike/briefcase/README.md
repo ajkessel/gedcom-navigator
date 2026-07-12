@@ -50,20 +50,15 @@ Team ID 4GT4UKXZ4V (these are the names your dev/build-mac-appstore.sh already g
 - **app cert:** `3rd Party Mac Developer Application: …`  (newer accounts may show `Apple Distribution: …`)
 - **installer cert:** `3rd Party Mac Developer Installer: …`
 
-**Then try the Briefcase-native path** — pass the **SHA-1 hashes** (unambiguous; avoids
-name-format issues) and skip notarization:
-```bash
-briefcase package macOS -p pkg \
-  --identity <APP_CERT_SHA1> \
-  --installer-identity <INSTALLER_CERT_SHA1> \
-  --no-notarize
-```
-**Unknowns to check on-device:** (a) does Briefcase accept the App Store distribution app
-identity, and (b) does the resulting `.app` contain the **provisioning profile**? Briefcase
-has no documented profile-embedding step, so likely **no** — which App Store validation
-rejects.
+> ⚠️ **`briefcase package` is NOT the App Store path — confirmed on-device.** It selects the
+> **Developer ID** cert (direct download, not App Store), and it signs every `.so` with
+> `--options runtime --entitlements`, which trips `errSecInternalComponent` on Python
+> extension modules (e.g. `iup.cpython-3XX-darwin.so`) — the exact failure your
+> `build-mac-appstore.sh` works around by signing `.so` files plainly. **Do not use
+> `briefcase package` for App Store.** Use `briefcase build` (Step 2) for the `.app`, then
+> the hybrid signing below.
 
-**If the profile is missing (expected), do the hybrid** — skip `briefcase package` and
+**Hybrid App Store signing** — skip `briefcase package` and
 instead manually sign the `briefcase build` output, then build the `.pkg` yourself. The
 sequence below is lifted verbatim from `dev/build-mac-appstore.sh` (lines ~100–183),
 adapted to Briefcase's bundle layout. Run from `spike/briefcase/`:
