@@ -68,7 +68,10 @@ adapted to Briefcase's bundle layout. Run from `spike/briefcase/`:
 APP="$(ls -d build/gedcom-navigator/macos/app/*.app | head -1)"   # Briefcase's built bundle
 MAIN_EXE="$APP/Contents/MacOS/GEDCOM Navigator"                    # = formal_name (has a space)
 ENTITLEMENTS="../../dev/entitlements-appstore.plist"              # reuse the known-good plist
-PROFILE="../../dev/gedcom-navigator.provisionprofile"
+# Use your REAL profile (not committed to the repo). It must be the App Store profile for
+# App ID 4GT4UKXZ4V.com.ajkessel.gedcom-navigator, matching the entitlements' application-identifier.
+PROFILE="$HOME/Library/MobileDevice/Provisioning Profiles/gedcom-navigator.provisionprofile"
+[ -f "$PROFILE" ] || { echo "MISSING provisioning profile: $PROFILE"; }  # error 1 if absent
 APP_CERT=<APP_CERT_SHA1>            # 3rd Party Mac Developer Application  (from find-identity)
 INST_CERT=<INSTALLER_CERT_SHA1>     # 3rd Party Mac Developer Installer
 PKG="dist/GEDCOM-Navigator.pkg"; mkdir -p dist
@@ -80,7 +83,8 @@ PKG="dist/GEDCOM-Navigator.pkg"; mkdir -p dist
 
 # --- embed provisioning profile (must happen BEFORE signing) ------------------
 cp "$PROFILE" "$APP/Contents/embedded.provisionprofile"
-chmod -R a+rX "$APP"                                   # App Store error 90255 guard
+ls -l "$APP/Contents/embedded.provisionprofile"        # verify it actually landed (fixes error 1)
+chmod -R a+rX "$APP"                                   # REQUIRED: root-only files → error 90255 / 4
 xattr -rd com.apple.quarantine "$APP" 2>/dev/null || true
 xattr -c "$APP/Contents/embedded.provisionprofile"
 
@@ -134,6 +138,18 @@ xcrun altool --upload-package dist/GEDCOM-Navigator.pkg --type osx \
 ```
 A clean `--validate-app` = deliverable (c) proven: a Toga/Briefcase build is
 App-Store-acceptable. (Transporter.app is the GUI equivalent if you prefer.)
+
+> **Benign altool noise:** a `403` on `.../iris/v1/metricsAndLogging` (`logKpiName`) is
+> altool's internal analytics logging failing — cosmetic, does NOT affect validation. The
+> real verdict is the final line (`No errors validating …` / `UPLOAD SUCCEEDED`) and the
+> exit code (`echo $?`). Judge success by those, not by the metrics 403.
+>
+> **Account-agreement block (NOT a technical failure):**
+> `FORBIDDEN.REQUIRED_AGREEMENTS_MISSING_OR_EXPIRED` means an Apple legal agreement isn't
+> signed/current — nothing to do with the package. Getting this far *confirms the package
+> is structurally App-Store-acceptable* (auth OK, no ITMS entitlement/provisioning errors).
+> Fix: **Account Holder** signs the pending agreement at App Store Connect → Business
+> (Agreements, Tax, and Banking), then re-run `--validate-app`.
 
 ## What to report back
 1. Did `briefcase dev` / `build` produce a launchable sandboxed `.app`?

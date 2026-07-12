@@ -146,6 +146,17 @@ plainly. Flow is firmly **`briefcase build` (bundler) → manual App Store signi
 "3rd Party Mac Developer Application/Installer" certs must be in the keychain (owner's
 keychain showed only Developer ID so far — may need to create them in the portal).
 
+**Validation reached Apple's backend — technical pipeline PROVEN.** After manual signing +
+`productbuild`, `altool --validate-app` was rejected only with
+`FORBIDDEN.REQUIRED_AGREEMENTS_MISSING_OR_EXPIRED` — an unsigned/expired Apple legal
+agreement (App Store Connect → Business), **not** a package/signing/entitlement error (zero
+`ITMS-xxxxx`). i.e. the Toga → `briefcase build` → manual App Store sign → `.pkg` pipeline
+produces a structurally App-Store-acceptable package; auth and package structure passed.
+Remaining (account paperwork, outside the migration): Account Holder signs the agreement,
+then re-validate to confirm no technical errors hide behind the short-circuited check. Also
+resolved en route: `errSecInternalComponent` = keychain key access → `security
+unlock-keychain` + `set-key-partition-list` (documented in the runbook).
+
 ## Verdict
 
 Both technical gaps the plan flagged are resolved and confirmed on Mac + Windows: the

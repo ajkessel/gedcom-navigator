@@ -13,7 +13,11 @@
 [tool.briefcase]
 project_name = "GEDCOM Navigator"
 bundle = "com.ajkessel"
-version = "1.9.18"
+# Bumped above the live App Store build (1.11.0). The spike shares the real bundle id +
+# App Store Connect record, so validation compares against the published app. NOTE: this
+# is for --validate-app ONLY — never --upload-package the spike (it would inject a junk
+# build into the real GEDCOM Navigator listing).
+version = "1.11.1"
 url = "https://github.com/ajkessel/gedcom-navigator"
 license = "BSD-2-Clause"
 license-files = ["../../LICENSE"]
@@ -46,3 +50,11 @@ requires = [
 
 # The App Store application-identifier is injected by the provisioning profile at sign
 # time (4GT4UKXZ4V.com.ajkessel.gedcom-navigator); it is not set here.
+
+# Info.plist keys. LSApplicationCategoryType is REQUIRED by App Store validation
+# (matches dev/gedcom_navigator_gui.spec). If CFBundleVersion still validates as "1",
+# uncomment the overrides to force it above the live build.
+[tool.briefcase.app.gedcom-navigator.macOS.info]
+LSApplicationCategoryType = "public.app-category.utilities"
+# CFBundleVersion = "1.11.1"
+# CFBundleShortVersionString = "1.11.1"
