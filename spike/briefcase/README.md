@@ -89,14 +89,28 @@ xattr -rd com.apple.quarantine "$APP" 2>/dev/null || true
 xattr -c "$APP/Contents/embedded.provisionprofile"
 
 # --- sign bottom-up (‑‑deep breaks on Python .so, so sign nested items first) -
-# every .so/.dylib and any file literally named "Python" (the framework binary):
+# EVERY nested Mach-O must be re-signed with $APP_CERT, or App Store validation rejects
+# any that still carry Briefcase's / Developer-ID signature (e.g. zlib.cpython-*.so).
+# The `|| { ...; break; }` makes a per-file failure LOUD — do NOT let it silently continue
+# (a swallowed errSecInternalComponent here is what leaves stale-signed .so files behind).
 find "$APP" -type f \( -name "*.so" -o -name "*.dylib" -o -name "Python" \) -print0 \
-  | while IFS= read -r -d '' f; do codesign --force --sign "$APP_CERT" "$f"; done
+  | while IFS= read -r -d '' f; do
+      codesign --force --sign "$APP_CERT" "$f" || { echo "SIGN FAILED: $f"; break; }
+    done
 # every other executable, with the hardened runtime:
 find "$APP" -type f -perm +111 -exec codesign --force --options runtime --sign "$APP_CERT" {} \;
 # main executable + whole bundle, WITH the sandbox entitlements (only these two need it):
 codesign --force --verbose --sign "$APP_CERT" --entitlements "$ENTITLEMENTS" "$MAIN_EXE"
 codesign --force --verbose --sign "$APP_CERT" --entitlements "$ENTITLEMENTS" "$APP"
+
+# --- VERIFY every Mach-O carries the App Store cert BEFORE packaging ----------
+# Authority line must read "3rd Party Mac Developer Application" (not Developer ID / adhoc):
+codesign -dvv "$APP/Contents/Frameworks/Python.framework/Versions/3.14/lib/python3.14/lib-dynload/zlib.cpython-314-darwin.so" 2>&1 | grep Authority
+# fail loudly if ANY nested Mach-O is signed by something other than the App Store cert:
+WRONG=0; while IFS= read -r -d '' f; do
+  codesign -dvv "$f" 2>&1 | grep -q "Authority=3rd Party Mac Developer Application" || { echo "WRONG CERT: $f"; WRONG=1; }
+done < <(find "$APP" -type f \( -name "*.so" -o -name "*.dylib" -o -name "Python" \) -print0)
+[ "$WRONG" = 0 ] && echo "All nested Mach-O signed with the App Store cert."
 
 # --- sandboxed smoke test (mirrors the script's --self-test gate) -------------
 "$MAIN_EXE" &   # confirm the signed, sandboxed bundle launches; Ctrl-C / kill after
