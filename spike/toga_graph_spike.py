@@ -20,7 +20,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 sys.path.insert(0, os.path.dirname(__file__))
 
 import toga
-import mac_canvas_hover
+import native_canvas_hover
 from toga.style.pack import COLUMN, ROW, Pack
 
 from gedcom_parser import build_model
@@ -36,10 +36,15 @@ NODE_H = 46.0
 MARGIN = 60.0
 
 
+_WINFORMS_TOOLTIP = None  # one persistent ToolTip component for all controls
+
+
 def add_native_tooltip(widget, text):
     """Workaround for Toga's missing tooltip API: set the OS-native tooltip on the
-    backing widget. macOS: NSView.toolTip; GTK: set_tooltip_text(). Isolated here so
+    backing widget, per backend. GTK: set_tooltip_text(); WinForms: a shared
+    System.Windows.Forms.ToolTip.SetToolTip(); macOS: NSView.toolTip. Isolated here so
     the whole app's tooltip dependency on private `_impl.native` lives in one place."""
+    global _WINFORMS_TOOLTIP
     try:
         native = widget._impl.native  # private API — the isolated bet
     except AttributeError:
@@ -48,6 +53,15 @@ def add_native_tooltip(widget, text):
     if hasattr(native, "set_tooltip_text"):
         native.set_tooltip_text(text)
         return True
+    # WinForms (Python.NET): one ToolTip component, kept alive at module scope
+    try:
+        from System.Windows.Forms import ToolTip
+        if _WINFORMS_TOOLTIP is None:
+            _WINFORMS_TOOLTIP = ToolTip()
+        _WINFORMS_TOOLTIP.SetToolTip(native, text)
+        return True
+    except Exception:  # noqa: BLE001 — not WinForms
+        pass
     # Cocoa (rubicon-objc): NSView/NSControl exposes a toolTip property
     try:
         native.toolTip = text
@@ -154,8 +168,8 @@ class SpikeApp(toga.App):
         self.main_window.show()
         self._hover_refresh = None
         self.redraw()
-        # native canvas hover tooltips (macOS only; no-op elsewhere)
-        self._hover_refresh = mac_canvas_hover.install(self.canvas, self._hover_text)
+        # native canvas hover tooltips (macOS + Windows; no-op on GTK)
+        self._hover_refresh = native_canvas_hover.install(self.canvas, self._hover_text)
 
         snapshot = os.environ.get("GEDCOM_SPIKE_SNAPSHOT")
         if snapshot:

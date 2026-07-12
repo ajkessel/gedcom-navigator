@@ -38,12 +38,18 @@ Two tiers:
 - **Per-node graph hover: the hard one.** The canvas is one native widget with no
   sub-views and Toga has no mouse-move event, so hover-over-node tooltips can't be done
   in pure Toga. Options: degrade to **click-to-select + info panel** (implemented), or
-  the native-layer route — **prototyped in `spike/mac_canvas_hover.py`** (macOS): uses
-  Cocoa's `addToolTipRect:owner:userData:` machinery via rubicon-objc so the OS renders
-  the tooltip with its standard hover delay; our callback just hit-tests the point.
-  ~40 isolated lines, no-ops off macOS. UNTESTED on-device (watch for Y-flip). GTK would
-  need the analogous `has-tooltip`/`query-tooltip` signal. wxPython has `EVT_MOTION`
-  built in — no native-layer reach needed.
+  the native-layer route — **prototyped in `spike/native_canvas_hover.py`**: Cocoa's
+  `addToolTipRect:owner:userData:` machinery (macOS) and WinForms `MouseMove` + a
+  persistent `ToolTip` (Windows), each reaching into `canvas._impl.native`. UNTESTED
+  on-device (macOS: watch for Y-flip). GTK not implemented (would use `query-tooltip`).
+  wxPython has `EVT_MOTION` built in on every platform — no native-layer reach needed.
+
+**Per-backend native-layer tax (the recurring theme):** every tooltip/hover fix is
+backend-specific — GTK `set_tooltip_text`, WinForms `ToolTip.SetToolTip` + `MouseMove`,
+Cocoa `.toolTip` / `addToolTipRect`. `add_native_tooltip()` now covers all three for
+control hints; canvas hover covers macOS + Windows. This 3× per-feature cost across
+backends is the clearest argument for wxPython, which provides tooltips, `EVT_MOTION`,
+and `EVT_MOUSEWHEEL` uniformly.
 
 ### Scroll wheel — native pan works; wheel-zoom doesn't
 - **Wheel/trackpad PAN works natively** by wrapping the canvas in a `ScrollContainer`
