@@ -157,6 +157,16 @@ then re-validate to confirm no technical errors hide behind the short-circuited 
 resolved en route: `errSecInternalComponent` = keychain key access → `security
 unlock-keychain` + `set-key-partition-list` (documented in the runbook).
 
+**Agreement signed → full validation ran → 4 standard config issues, none Toga/Briefcase:**
+(1) provisioning profile wasn't embedded (spike pointed at a non-existent repo path — use the
+real `~/Library/MobileDevice/Provisioning Profiles/…`), (2) missing `LSApplicationCategoryType`
+(real app uses `public.app-category.utilities`; now in the Briefcase `info` table), (3)
+`CFBundleVersion` must exceed the live build 1.11.0 — an artifact of the spike sharing the
+REAL bundle id + App Store Connect record (bumped to 1.11.1; **must never `--upload-package`
+the spike**), (4) root-only files → `chmod -R a+rX` before `productbuild`. All four are the
+Info.plist/entitlements/permission bits the real `build-mac-appstore.sh` + `.spec` already set;
+porting them into the Briefcase config is Phase-6 work. Pipeline is proven end-to-end.
+
 ## Verdict
 
 Both technical gaps the plan flagged are resolved and confirmed on Mac + Windows: the
