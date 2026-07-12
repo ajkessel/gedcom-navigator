@@ -167,6 +167,15 @@ the spike**), (4) root-only files → `chmod -R a+rX` before `productbuild`. All
 Info.plist/entitlements/permission bits the real `build-mac-appstore.sh` + `.spec` already set;
 porting them into the Briefcase config is Phase-6 work. Pipeline is proven end-to-end.
 
+**Cert gap (account setup, not migration):** the owner's keychain has `Developer ID
+Application` (direct-download, wrong for App Store) + `3rd Party Mac Developer Installer`
+(correct for the `.pkg`), but is **missing the App Store app-signing cert** (`Apple
+Distribution` / `3rd Party Mac Developer Application`). Signing nested `.so` with the
+Developer ID cert is what tripped the final "must be signed with the certificate contained
+in the provisioning profile" error. Fix is portal-side: create the Apple Distribution cert
+(CSR from this Mac so the private key is local), install it, regenerate + re-embed the App
+Store provisioning profile, then re-sign with that cert. Independent of Toga/Briefcase.
+
 ## Verdict
 
 Both technical gaps the plan flagged are resolved and confirmed on Mac + Windows: the

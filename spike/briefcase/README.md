@@ -45,10 +45,22 @@ validates `--identity` against the Keychain and rejects any mismatch, e.g.
 ```bash
 security find-identity -v -p codesigning
 ```
-This lists each cert's 40-char SHA-1 hash + common name. For App Store you need two, both
-Team ID 4GT4UKXZ4V (these are the names your dev/build-mac-appstore.sh already greps):
-- **app cert:** `3rd Party Mac Developer Application: …`  (newer accounts may show `Apple Distribution: …`)
-- **installer cert:** `3rd Party Mac Developer Installer: …`
+This lists each cert's 40-char SHA-1 hash + common name. For App Store you need **two**,
+both Team ID 4GT4UKXZ4V:
+- **app cert** (signs the `.app` + every nested Mach-O): `Apple Distribution: …`  (older
+  Mac-only name: `3rd Party Mac Developer Application: …`)
+- **installer cert** (signs the `.pkg`): `3rd Party Mac Developer Installer: …`
+
+> ⚠️ **`Developer ID Application` is NOT the app cert.** It signs apps for *direct download*
+> (notarized), and App Store validation rejects anything signed with it ("must be signed with
+> the certificate contained in the provisioning profile"). If `find-identity` shows only
+> `Developer ID Application` + `3rd Party Mac Developer Installer` (no Apple Distribution /
+> 3rd Party Mac Developer Application), the App Store **app** cert is missing or its private
+> key isn't on this Mac. Create it: Keychain Access → Certificate Assistant → *Request a
+> Certificate from a CA* (makes the private key here) → developer.apple.com → Certificates →
+> `+` → **Apple Distribution** → upload the CSR → download → double-click to install → confirm
+> it now appears in `find-identity`. Then regenerate + re-embed the App Store provisioning
+> profile so it references this cert.
 
 > ⚠️ **`briefcase package` is NOT the App Store path — confirmed on-device.** It selects the
 > **Developer ID** cert (direct download, not App Store), and it signs every `.so` with
@@ -57,6 +69,14 @@ Team ID 4GT4UKXZ4V (these are the names your dev/build-mac-appstore.sh already g
 > `build-mac-appstore.sh` works around by signing `.so` files plainly. **Do not use
 > `briefcase package` for App Store.** Use `briefcase build` (Step 2) for the `.app`, then
 > the hybrid signing below.
+
+> ⚠️ **Never run `briefcase package` for App Store, and always re-sign after every
+> `briefcase build`.** `briefcase build` adhoc-signs the whole bundle; `briefcase package`
+> then re-signs every `.so` with `--entitlements --options runtime`, which throws
+> `errSecInternalComponent` (entitlements on a Python `.so`). The manual loop below signs
+> `.so` files *plainly* (entitlements only on the main exe + bundle) — the same approach
+> `build-mac-appstore.sh` uses. Because a rebuild resets everything to adhoc, the manual
+> sign must run **after** each `briefcase build`.
 
 **Hybrid App Store signing** — skip `briefcase package` and
 instead manually sign the `briefcase build` output, then build the `.pkg` yourself. The
