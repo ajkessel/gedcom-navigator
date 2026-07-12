@@ -65,6 +65,30 @@ Net: core functionality is preservable, but tooltips (especially graph hover) an
 wheel-zoom are where Toga's youth shows and where several fixes reach into `_impl.native`.
 That accumulating native-layer tax is the central Toga-vs-wxPython tradeoff.
 
+## Rich results view (deliverable b) — WebView + HTML ✅ (logic proven)
+
+The current results pane is inline rich text (bold headers, indentation, clickable
+person-name links in flowing paragraphs) via tk.Text `tag_bind` — no native Toga analog.
+Solution proven in `spike/toga_richtext_spike.py`:
+- Render results as styled **HTML** and load via `WebView.set_content(root_url, html)` —
+  full fidelity for bold/indent/color/inline links (better than the tk.Text tags).
+- Person names are `<a href="person:ID">`. **`WebView.on_navigation_starting` exists**
+  and its docstring is "requesting permission to navigate" → returning **`False` cancels**
+  the navigation. So a link click is intercepted, canceled, and handled in-app (recenter),
+  exactly replacing the `person_link` tag_bind. Verified headlessly: 13 links generated,
+  clicking returns `False` + recenters, real content loads return `True`.
+- **Bonus:** the same WebView+HTML path covers the markdown help/about dialogs
+  (`gedcom_markdown.py`) — markdown → HTML → WebView, retiring the bespoke tk-tag markdown
+  renderer.
+
+This removes what the plan called Toga's "biggest genuine gap." WebView backends:
+WKWebView (macOS), WebView2/Edge (Windows), WebKitGTK (Linux).
+
+On-device check needed: confirm `on_navigation_starting` **cancel** actually blocks the
+load on WKWebView + WebView2 (the return-False contract). If a backend treats it as
+advisory-only, fall back to a custom URL scheme handled at the native webview, or a JS
+bridge via `evaluate_javascript` — either is an isolated per-backend reach.
+
 ## Not verifiable in this Linux sandbox ❗
 
 - **Live window rendering.** `toga-gtk` 0.5.5 is incompatible with the system's very
@@ -77,8 +101,6 @@ That accumulating native-layer tax is the central Toga-vs-wxPython tradeoff.
 
 ## Still outstanding for the full go/no-go
 
-- (b) Rich results view with clickable person links — Toga's biggest genuine gap; needs
-  a running window to evaluate (blocked here by the same GTK issue).
 - (c) Briefcase → signed **Mac App Store `.pkg`** that passes `altool`/Transporter —
   requires the owner's Mac + Apple Developer account. Cannot run in this environment.
 
