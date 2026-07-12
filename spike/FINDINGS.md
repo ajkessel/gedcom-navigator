@@ -84,6 +84,16 @@ Solution proven in `spike/toga_richtext_spike.py`:
 This removes what the plan called Toga's "biggest genuine gap." WebView backends:
 WKWebView (macOS), WebView2/Edge (Windows), WebKitGTK (Linux).
 
+**Windows-specific gotcha (found on-device + fixed):** links worked on macOS but were
+*not intercepted* on Windows. Cause (from `toga_winforms/widgets/webview.py`):
+`set_content()` uses `NavigateToString` and sets the backend's `_allowed_url =
+"about:blank"`; its `NavigationStarting` handler allows any nav whose `_allowed_url ==
+"about:blank"` and **never clears that sentinel on an allowed nav**, so
+`on_navigation_starting` is bypassed for every click after the first `set_content`.
+Fix: an `on_webview_load` handler resets `self.web._impl._allowed_url = None` after each
+load (Windows-only, guarded on `_impl.__module__`) so the next click reaches the handler.
+Another small `_impl` reach — Windows entry in the native-layer ledger.
+
 **On-device gotcha (found + fixed on macOS):** links must use a real **http(s)** scheme,
 not a custom one. WKWebView silently ignores unregistered schemes, and Toga's cleanup runs
 `self.url = url` on an *allowed* nav — and `WebView.url` **raises `ValueError` on any

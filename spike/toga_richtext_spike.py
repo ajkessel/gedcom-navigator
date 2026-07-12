@@ -103,6 +103,7 @@ class RichTextApp(toga.App):
         self.web = toga.WebView(
             style=Pack(flex=1),
             on_navigation_starting=self.on_nav,
+            on_webview_load=self.on_loaded,
         )
         root = toga.Box(style=Pack(direction=COLUMN), children=[self.header, self.web])
         self.main_window = toga.MainWindow(title="Toga Rich-Text Results Spike", size=(760, 820))
@@ -134,6 +135,16 @@ class RichTextApp(toga.App):
         if url.startswith(("http://", "https://")):
             return True
         return False
+
+    def on_loaded(self, widget, **kw):
+        """WINDOWS re-arm: toga-winforms leaves its internal `_allowed_url` set to
+        "about:blank" after set_content() and never clears it on an allowed nav, so
+        on_navigation_starting is bypassed for every later click. Reset it once the
+        page has loaded so the next link click reaches our handler. Windows-only and
+        guarded — macOS (WKWebView) uses a different path and already works."""
+        impl = self.web._impl
+        if type(impl).__module__.startswith("toga_winforms") and hasattr(impl, "_allowed_url"):
+            impl._allowed_url = None
 
     async def _dump_and_exit(self, widget, **kw):
         path = os.environ["GEDCOM_SPIKE_HTML"]
