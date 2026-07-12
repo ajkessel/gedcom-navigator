@@ -72,38 +72,27 @@ person-name links in flowing paragraphs) via tk.Text `tag_bind` — no native To
 Solution proven in `spike/toga_richtext_spike.py`:
 - Render results as styled **HTML** and load via `WebView.set_content(root_url, html)` —
   full fidelity for bold/indent/color/inline links (better than the tk.Text tags).
-- Person names are `<a href="person:ID">`. **`WebView.on_navigation_starting` exists**
-  and its docstring is "requesting permission to navigate" → returning **`False` cancels**
-  the navigation. So a link click is intercepted, canceled, and handled in-app (recenter),
-  exactly replacing the `person_link` tag_bind. Verified headlessly: 13 links generated,
-  clicking returns `False` + recenters, real content loads return `True`.
+- **Link handling uses PUBLIC API only — no `_impl` reach, no navigation.** A clicked
+  link's `onclick` sets `window.__nav = "<id>"; return false;` (so the page never
+  navigates), and a background poll reads it via the public `evaluate_javascript()` API,
+  then recenters. Identical on WKWebView + WebView2. Verified headlessly: 13 onclick links,
+  ids round-trip, poll JS well-formed.
 - **Bonus:** the same WebView+HTML path covers the markdown help/about dialogs
-  (`gedcom_markdown.py`) — markdown → HTML → WebView, retiring the bespoke tk-tag markdown
-  renderer.
+  (`gedcom_markdown.py`) — markdown → HTML → WebView, retiring the bespoke tk-tag renderer.
 
-This removes what the plan called Toga's "biggest genuine gap." WebView backends:
-WKWebView (macOS), WebView2/Edge (Windows), WebKitGTK (Linux).
+This removes what the plan called Toga's "biggest genuine gap" — and notably, it's the ONE
+gap that turned out **not** to need a native-layer reach. WebView backends: WKWebView
+(macOS), WebView2/Edge (Windows), WebKitGTK (Linux).
 
-**Windows-specific gotcha (found on-device + fixed):** links worked on macOS but were
-*not intercepted* on Windows. Cause (from `toga_winforms/widgets/webview.py`):
-`set_content()` uses `NavigateToString` and sets the backend's `_allowed_url =
-"about:blank"`; its `NavigationStarting` handler allows any nav whose `_allowed_url ==
-"about:blank"` and **never clears that sentinel on an allowed nav**, so
-`on_navigation_starting` is bypassed for every click after the first `set_content`.
-Fix: an `on_webview_load` handler resets `self.web._impl._allowed_url = None` after each
-load (Windows-only, guarded on `_impl.__module__`) so the next click reaches the handler.
-Another small `_impl` reach — Windows entry in the native-layer ledger.
-
-**On-device gotcha (found + fixed on macOS):** links must use a real **http(s)** scheme,
-not a custom one. WKWebView silently ignores unregistered schemes, and Toga's cleanup runs
-`self.url = url` on an *allowed* nav — and `WebView.url` **raises `ValueError` on any
-non-http(s) URL**. So: person links are `https://…/person/<id>`, and `on_navigation_starting`
-returns `False` for person links (recenter in-app) and for any non-http(s) scheme (else the
-cleanup ValueError recurs), `True` only for genuine http(s) pages. Contract confirmed from
-source: `return True` = allow (Toga then navigates), `False` = block. Verified on Mac: renders
-and (after the fix) intercepts cleanly. `on_navigation_starting` is **not supported on GTK/Qt**
-(macOS + Windows only) — fine for the App Store + Windows targets; the Linux build would need
-the native-webkit signal or a JS bridge.
+**Rejected approach — `on_navigation_starting` interception (don't use it here).** The
+obvious approach (person links → intercept navigation → cancel) works on macOS but is a
+per-backend minefield: WKWebView ignores unregistered custom schemes and Toga's cleanup
+runs `self.url = url` which **raises `ValueError` on any non-http(s) URL** (so links must be
+`https://`); and toga-winforms pins its internal `_allowed_url` to `"about:blank"` after
+`set_content()` and never clears it, so the handler is bypassed on Windows — and forcing it
+clear routes WebView2's internal `about:blank` navs into the handler, which cancels them and
+**blanks the page**. Also `on_navigation_starting` is unsupported on GTK/Qt. The
+`evaluate_javascript` poll above avoids all of this. Left here as the cautionary trail.
 
 ## Not verifiable in this Linux sandbox ❗
 

@@ -13,9 +13,9 @@ Run headed:  spike-venv/bin/python spike/toga_richtext_spike.py
 Emit HTML:   GEDCOM_SPIKE_HTML=out.html spike-venv/bin/python spike/toga_richtext_spike.py
 """
 import html
+import json
 import os
 import sys
-from urllib.parse import quote, unquote
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
@@ -27,11 +27,13 @@ import gedcom_family_tree as ft
 
 SAMPLE = os.path.join(os.path.dirname(__file__), "..", "samples", "fictional_genealogy.ged")
 ROOT_URL = "https://spike.local/"
-# Person links must use a REAL http(s) scheme: WKWebView ignores unregistered custom
-# schemes, and Toga's WebView.url setter rejects any non-http(s) URL (used by the
-# on_navigation_starting cleanup). We intercept these and cancel before they load.
-PERSON_MARKER = "/person/"
-PERSON_BASE = ROOT_URL.rstrip("/") + PERSON_MARKER
+# Link handling uses NO navigation and NO _impl reach: a clicked link sets a JS var
+# (window.__nav) and cancels its own navigation (return false); a poll reads the var via
+# the public evaluate_javascript() API. Identical on WKWebView + WebView2, sidestepping
+# the on_navigation_starting quirks (WKWebView custom-scheme rejection; toga-winforms
+# leaving _allowed_url pinned to "about:blank"). This is the portable, public-API path.
+POLL_INTERVAL = 0.15
+POLL_JS = "(function(){var v=window.__nav||null;window.__nav=null;return v;})()"
 
 
 class Data:
@@ -90,8 +92,9 @@ def render_html(data, center):
             parts.append(f"<div class='gen'>{html.escape(gen_labels.get(depth, f'Generation +{depth}'))}</div>")
             last_depth = depth
         name, years = data.label(iid)
-        href = PERSON_BASE + quote(iid, safe="")
-        link = f"<a class='person' href='{html.escape(href)}'>{html.escape(name)}</a>"
+        # onclick sets a JS var and returns false so the page never navigates.
+        onclick = html.escape(f"window.__nav={json.dumps(iid)};return false;", quote=True)
+        link = f"<a class='person' href='#' onclick=\"{onclick}\">{html.escape(name)}</a>"
         parts.append(f"<div class='row'>{link} <span class='years'>{html.escape(years)}</span></div>")
     return "\n".join(parts)
 
@@ -100,16 +103,13 @@ class RichTextApp(toga.App):
     def startup(self):
         self.data = Data(SAMPLE)
         self.header = toga.Label("", style=Pack(margin=(8, 10), font_weight="bold"))
-        self.web = toga.WebView(
-            style=Pack(flex=1),
-            on_navigation_starting=self.on_nav,
-            on_webview_load=self.on_loaded,
-        )
+        self.web = toga.WebView(style=Pack(flex=1))
         root = toga.Box(style=Pack(direction=COLUMN), children=[self.header, self.web])
         self.main_window = toga.MainWindow(title="Toga Rich-Text Results Spike", size=(760, 820))
         self.main_window.content = root
         self.main_window.show()
         self._render()
+        self.add_background_task(self._poll_clicks)
 
         if os.environ.get("GEDCOM_SPIKE_HTML"):
             self.add_background_task(self._dump_and_exit)
@@ -119,32 +119,20 @@ class RichTextApp(toga.App):
         self.header.text = f"Center: {name}{years}"
         self.web.set_content(ROOT_URL, render_html(self.data, self.data.center))
 
-    def on_nav(self, widget, url, **kw):
-        """on_navigation_starting: return True = allow (Toga then sets self.url),
-        False = block. We never want the WebView to leave our injected content:
-          - person link  -> recenter in-app, block (False)
-          - any non-http(s) scheme -> block (False), else Toga's cleanup would try
-            self.url = <bad scheme> and raise ValueError
-          - a genuine http(s) page (none in this spike) -> allow (True)"""
-        if PERSON_MARKER in url:
-            iid = unquote(url.split(PERSON_MARKER, 1)[1])
-            if iid in self.data.individuals:
+    async def _poll_clicks(self, widget, **kw):
+        """Public-API link handling: poll window.__nav (set by a link's onclick) via
+        evaluate_javascript. No navigation, no _impl reach — identical on WKWebView +
+        WebView2."""
+        import asyncio
+        while True:
+            await asyncio.sleep(POLL_INTERVAL)
+            try:
+                iid = await self.web.evaluate_javascript(POLL_JS)
+            except Exception:  # noqa: BLE001 — webview not ready / eval hiccup
+                continue
+            if iid and iid in self.data.individuals and iid != self.data.center:
                 self.data.center = iid
                 self._render()
-            return False
-        if url.startswith(("http://", "https://")):
-            return True
-        return False
-
-    def on_loaded(self, widget, **kw):
-        """WINDOWS re-arm: toga-winforms leaves its internal `_allowed_url` set to
-        "about:blank" after set_content() and never clears it on an allowed nav, so
-        on_navigation_starting is bypassed for every later click. Reset it once the
-        page has loaded so the next link click reaches our handler. Windows-only and
-        guarded — macOS (WKWebView) uses a different path and already works."""
-        impl = self.web._impl
-        if type(impl).__module__.startswith("toga_winforms") and hasattr(impl, "_allowed_url"):
-            impl._allowed_url = None
 
     async def _dump_and_exit(self, widget, **kw):
         path = os.environ["GEDCOM_SPIKE_HTML"]
