@@ -124,10 +124,26 @@ wxPython's API is comparatively frozen.
   target. **Final visual confirmation of painting + interaction must be done on macOS**
   (or a Linux box with a matching PyGObject/toga-gtk pair).
 
-## Still outstanding for the full go/no-go
+## Packaging (deliverable c) — Briefcase scaffold ✅ (needs on-device validation)
 
-- (c) Briefcase → signed **Mac App Store `.pkg`** that passes `altool`/Transporter —
-  requires the owner's Mac + Apple Developer account. Cannot run in this environment.
+Scaffold in `spike/briefcase/` (pyproject.toml + minimal Toga app + runbook). Key finding
+from the Briefcase docs: **Briefcase does not first-class Mac App Store distribution** — its
+`package -p pkg` targets Developer ID + notarization, with no automation for the Apple
+Distribution / "3rd Party Mac Developer" certs or provisioning-profile embedding, and App
+Store `.pkg`s aren't notarized. So the migration **swaps the bundler** (PyInstaller →
+Briefcase, which handles the sandboxed universal `.app` + entitlements) but **keeps the App
+Store sign/provision/validate steps** already in `dev/build-mac-appstore.sh`, pointed at
+Briefcase's `.app`. Entitlements mirror `dev/entitlements-appstore.plist`; bundle id
+`com.ajkessel.gedcom-navigator`, team `4GT4UKXZ4V`. On-device validation (`briefcase build`
+→ App Store sign → `altool --validate-app`) is the remaining check — see the runbook.
+
+## Verdict
+
+Both technical gaps the plan flagged are resolved and confirmed on Mac + Windows: the
+**graph canvas** (render, click-recenter, zoom, native wheel-pan, tooltips, node hover) and
+the **rich results view** (WebView+HTML, public-API link handling). Packaging is scaffolded
+with a clear (if partly manual) App Store path. **Toga is viable**; the cost is the
+recurring native-layer tax (tooltips/hover/wheel) + tracking Toga's still-moving canvas API.
 
 ## Reproduce
 
