@@ -54,7 +54,11 @@ class GedcomNavigatorToga(toga.App):
             "Show IDs", value=self.config.get_show_ids(),
             on_change=self.on_toggle, style=Pack(margin=(0, 8)))
         self.people = toga.Table(
-            columns=["Name", "Born", "Died"],
+            columns=[
+                toga.Column("Name", accessor="name", width=None),
+                toga.Column("Born", accessor="born", width=80),
+                toga.Column("Died", accessor="died", width=80),
+            ],
             on_select=self.on_person_select, style=Pack(flex=1))
         self.detail = toga.MultilineTextInput(readonly=True, style=Pack(flex=1))
 
