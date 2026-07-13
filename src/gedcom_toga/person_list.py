@@ -31,9 +31,10 @@ def person_row(individuals, iid, *, show_id=False):
 
 
 def visible_ids(individuals, query, sorted_ids, *, fuzzy=False,
-                fuzzy_threshold=0.72, max_display=2000):
+                fuzzy_threshold=0.72, max_display=2000, dna_only=False):
     """Ids to display: the full sorted list when the query is empty, otherwise the
-    ranked search candidates from `find_candidates`. Capped at `max_display`.
+    ranked search candidates from `find_candidates`. Optionally restricted to
+    DNA-flagged people, then capped at `max_display`.
 
     Returns `(ids, truncated)`.
     """
@@ -43,5 +44,7 @@ def visible_ids(individuals, query, sorted_ids, *, fuzzy=False,
     else:
         ids = [iid for iid, _score in find_candidates(
             individuals, q, fuzzy=fuzzy, fuzzy_threshold=fuzzy_threshold)]
+    if dna_only:
+        ids = [iid for iid in ids if individuals[iid].get("dna_markers")]
     truncated = len(ids) > max_display
     return ids[:max_display], truncated

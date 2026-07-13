@@ -13,8 +13,8 @@ import toga
 from toga.style.pack import COLUMN, ROW, Pack
 
 from gedcom_data_model import GedcomDataModel
-from gedcom_display import describe, lifespan
 
+from . import person_detail as pd
 from . import person_list as pl
 
 # DNA-flag detection defaults (mirrors CLI defaults); wire to ConfigManager later.
@@ -26,16 +26,18 @@ class GedcomNavigatorToga(toga.App):
     def startup(self):
         self.model = GedcomDataModel()
         self.sorted_ids = []
-        self._show_id = False
 
         self.search = toga.TextInput(
             placeholder="Search people (name or ID)…",
             on_change=self.on_search,
             style=Pack(flex=1),
         )
+        self.dna_switch = toga.Switch(
+            "DNA only", on_change=self.on_toggle, style=Pack(margin=(0, 8)))
+        self.id_switch = toga.Switch(
+            "Show IDs", on_change=self.on_toggle, style=Pack(margin=(0, 8)))
         self.people = toga.Table(
-            headings=["Name", "Born", "Died"],
-            accessors=["name", "born", "died"],
+            columns=["Name", "Born", "Died"],   # default accessors: name/born/died
             on_select=self.on_person_select,
             style=Pack(flex=1),
         )
@@ -45,7 +47,10 @@ class GedcomNavigatorToga(toga.App):
         left = toga.Box(
             style=Pack(direction=COLUMN, flex=1),
             children=[
-                toga.Box(style=Pack(direction=ROW, margin=6), children=[self.search]),
+                toga.Box(
+                    style=Pack(direction=ROW, margin=6),
+                    children=[self.search, self.dna_switch, self.id_switch],
+                ),
                 self.people,
             ],
         )
@@ -95,19 +100,30 @@ class GedcomNavigatorToga(toga.App):
 
     # ---- person list ----------------------------------------------------
     def _refresh_people(self):
+        show_id = self.id_switch.value
         ids, truncated = pl.visible_ids(
-            self.model.individuals, self.search.value, self.sorted_ids)
+            self.model.individuals, self.search.value, self.sorted_ids,
+            dna_only=self.dna_switch.value,
+        )
         self.people.data = [
-            pl.person_row(self.model.individuals, iid, show_id=self._show_id)
+            pl.person_row(self.model.individuals, iid, show_id=show_id)
             for iid in ids
         ]
+        total = len(self.model.individuals)
+        shown = len(self.people.data)
+        msg = f"Showing {shown} of {total} people"
         if truncated:
-            self.status.text = (
-                f"Showing first {len(self.people.data)} matches — narrow your search.")
+            msg += " — narrow your search"
+        self.status.text = msg
 
     def on_search(self, widget, **kw):
         if self.model.individuals:
             self._refresh_people()
+
+    def on_toggle(self, widget, **kw):
+        if self.model.individuals:
+            self._refresh_people()
+            self.on_person_select(self.people)   # reflect Show-IDs in the open detail
 
     def on_person_select(self, widget, **kw):
         row = self.people.selection
@@ -115,12 +131,10 @@ class GedcomNavigatorToga(toga.App):
             self.detail.value = ""
             return
         iid = getattr(row, "id", None)
-        indi = self.model.individuals.get(iid, {})
-        span = lifespan(indi)
-        lines = [describe(indi, show_id=True)]
-        if span:
-            lines.append(span)
-        self.detail.value = "\n".join(lines)
+        self.detail.value = pd.detail_text(
+            self.model.individuals, self.model.families, iid,
+            show_id=self.id_switch.value,
+        )
 
 
 def main():
