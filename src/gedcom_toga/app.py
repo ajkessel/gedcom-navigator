@@ -53,16 +53,20 @@ class GedcomNavigatorToga(toga.App):
         self.id_switch = toga.Switch(
             "Show IDs", value=self.config.get_show_ids(),
             on_change=self.on_toggle, style=Pack(margin=(0, 8)))
+        # Use AccessorColumn to explicitly map accessors to headings
+        from toga.sources import AccessorColumn
         self.people = toga.Table(
             columns=[
-                toga.Column("Name", accessor="name", width=None),
-                toga.Column("Born", accessor="born", width=80),
-                toga.Column("Died", accessor="died", width=80),
+                AccessorColumn("Name", "name"),
+                AccessorColumn("Born", "born"),
+                AccessorColumn("Died", "died"),
             ],
-            on_select=self.on_person_select, style=Pack(flex=1))
+            on_select=self.on_person_select,
+            style=Pack(flex=1)
+        )
         self.detail = toga.MultilineTextInput(readonly=True, style=Pack(flex=1))
 
-        left = toga.Box(style=Pack(direction=COLUMN, flex=1), children=[
+        left = toga.Box(style=Pack(direction=COLUMN, flex=1, width=400), children=[
             toga.Box(style=Pack(direction=ROW, margin=6),
                      children=[self.search, self.dna_switch, self.id_switch]),
             self.people,
