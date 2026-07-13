@@ -1,9 +1,10 @@
-"""GEDCOM Navigator — Toga application (Phase 3: core UI complete).
+"""GEDCOM Navigator — Toga application (Phase 4 complete).
 
-Main window with an async (non-blocking) GEDCOM load, a searchable/filterable person
-list, a detail pane, preferences persisted to the *same* settings.json as the tkinter
-app (via ConfigManager), recent-file reopen, and a per-file home person. Graph + rich
-results views arrive in Phase 4 (see spike/ for the proven approaches).
+4-tab interface with List, Graph (Canvas pedigree tree), Pedigree (WebView ancestor
+report), and Descendants (WebView descendant report). Features: async GEDCOM load,
+searchable/filterable person list, cross-view navigation, zoom/pan graph controls,
+clickable HTML person links, preferences persisted to the *same* settings.json as
+the tkinter app, recent-file reopen, and per-file home person.
 
 Run:  PYTHONPATH=src python -m gedcom_toga
 """
@@ -18,6 +19,8 @@ from gedcom_data_model import GedcomDataModel
 
 from . import person_detail as pd
 from . import person_list as pl
+from .graph_view import GraphView
+from .results_view import ResultsView
 
 # (stored value, menu label) for the name-order preference
 NAME_ORDER_ITEMS = [("first_last", "Given name first"), ("last_first", "Surname first")]
@@ -30,6 +33,7 @@ class GedcomNavigatorToga(toga.App):
         self.sorted_ids = []
         self._display_ids = []
         self.current_path = None
+        self.current_person = None
 
         # preferences (shared with the tkinter app's settings.json)
         self.fuzzy = bool(self.config.load_value("fuzzy_search", False))
@@ -40,6 +44,7 @@ class GedcomNavigatorToga(toga.App):
         self.page_marker = self.config.get_page_marker()
         self.detection_fields = self.config.get_detection_fields()
 
+        # List view (left pane + detail)
         self.search = toga.TextInput(
             placeholder="Search people (name or ID)…",
             on_change=self.on_search, style=Pack(flex=1))
@@ -52,7 +57,6 @@ class GedcomNavigatorToga(toga.App):
             columns=["Name", "Born", "Died"],
             on_select=self.on_person_select, style=Pack(flex=1))
         self.detail = toga.MultilineTextInput(readonly=True, style=Pack(flex=1))
-        self.status = toga.Label("Open a GEDCOM file to begin.", style=Pack(margin=6))
 
         left = toga.Box(style=Pack(direction=COLUMN, flex=1), children=[
             toga.Box(style=Pack(direction=ROW, margin=6),
@@ -60,12 +64,47 @@ class GedcomNavigatorToga(toga.App):
             self.people,
         ])
         split = toga.SplitContainer(content=[left, self.detail], style=Pack(flex=1))
-        root = toga.Box(style=Pack(direction=COLUMN), children=[split, self.status])
-        self.main_window = toga.MainWindow(title="GEDCOM Navigator (Toga)", size=(1100, 760))
+
+        # Graph view
+        self.graph_view = GraphView(
+            self.model.individuals, self.model.families,
+            on_person_select=self._on_graph_person_select
+        )
+        self.graph_view.install_hover_tooltips()
+
+        # Results views
+        self.pedigree_view = ResultsView(
+            self.model.individuals, self.model.families,
+            on_person_click=self._on_results_person_click
+        )
+        self.descendants_view = ResultsView(
+            self.model.individuals, self.model.families,
+            on_person_click=self._on_results_person_click
+        )
+
+        # Tabbed container
+        self.tabs = toga.OptionContainer(
+            content=[
+                ("List", split),
+                ("Graph", self.graph_view.container),
+                ("Pedigree", self.pedigree_view.container),
+                ("Descendants", self.descendants_view.container),
+            ],
+            on_select=self._on_tab_change,
+            style=Pack(flex=1)
+        )
+
+        self.status = toga.Label("Open a GEDCOM file to begin.", style=Pack(margin=6))
+        root = toga.Box(style=Pack(direction=COLUMN), children=[self.tabs, self.status])
+        self.main_window = toga.MainWindow(title="GEDCOM Navigator", size=(1100, 760))
         self.main_window.content = root
 
         self._build_commands()
         self.main_window.show()
+
+        # Start polling for results view link clicks
+        self.pedigree_view.start_polling()
+        self.descendants_view.start_polling()
 
         # reopen the most recent file if it still exists
         recent = [p for p in self.config.get_recent_files() if Path(p).exists()]
@@ -80,6 +119,9 @@ class GedcomNavigatorToga(toga.App):
         self.cmd_go_home = toga.Command(
             self.on_go_home, "Go to Home Person",
             group=toga.Group.FILE, section=1, enabled=False)
+
+        # View menu commands
+        view_group = toga.Group.VIEW
         self.commands.add(
             toga.Command(self.on_open, "Open GEDCOM…",
                          shortcut=toga.Key.MOD_1 + "o", group=toga.Group.FILE, order=1),
@@ -87,7 +129,59 @@ class GedcomNavigatorToga(toga.App):
                          shortcut=toga.Key.MOD_1 + ",", group=toga.Group.SETTINGS),
             self.cmd_set_home,
             self.cmd_go_home,
+            toga.Command(lambda w: self._switch_to_tab(0), "Show List",
+                         shortcut=toga.Key.MOD_1 + "1", group=view_group),
+            toga.Command(lambda w: self._switch_to_tab(1), "Show Graph",
+                         shortcut=toga.Key.MOD_1 + "2", group=view_group),
+            toga.Command(lambda w: self._switch_to_tab(2), "Show Pedigree",
+                         shortcut=toga.Key.MOD_1 + "3", group=view_group),
+            toga.Command(lambda w: self._switch_to_tab(3), "Show Descendants",
+                         shortcut=toga.Key.MOD_1 + "4", group=view_group),
         )
+
+        # Add zoom commands for graph view
+        self.commands.add(
+            toga.Command(lambda w: self.graph_view._bump_zoom(1.25), "Zoom In",
+                         shortcut=toga.Key.MOD_1 + "+", group=view_group),
+            toga.Command(lambda w: self.graph_view._bump_zoom(1 / 1.25), "Zoom Out",
+                         shortcut=toga.Key.MOD_1 + "-", group=view_group),
+            toga.Command(lambda w: self.graph_view._reset_view(), "Actual Size",
+                         shortcut=toga.Key.MOD_1 + "0", group=view_group),
+        )
+
+    # ---- view switching -------------------------------------------------
+    def _switch_to_tab(self, index):
+        """Switch to a specific tab by index."""
+        if 0 <= index < len(self.tabs.content):
+            self.tabs.current_tab = self.tabs.content[index]
+
+    def _on_tab_change(self, widget, **kw):
+        """Handle tab change events to update views."""
+        if not self.current_person or not self.model.individuals:
+            return
+        tab_index = self.tabs.content.index(self.tabs.current_tab)
+        if tab_index == 1:  # Graph
+            self.graph_view.set_center(self.current_person)
+        elif tab_index == 2:  # Pedigree
+            self.pedigree_view.set_center(self.current_person, mode="pedigree")
+        elif tab_index == 3:  # Descendants
+            self.descendants_view.set_center(self.current_person, mode="descendants")
+
+    def _on_graph_person_select(self, person_id):
+        """Handle person selection from graph view."""
+        self.current_person = person_id
+        self._select_person(person_id)
+
+    def _on_results_person_click(self, person_id):
+        """Handle person link clicks from results views."""
+        self.current_person = person_id
+        self._select_person(person_id)
+        # Update the other views
+        tab_index = self.tabs.content.index(self.tabs.current_tab)
+        if tab_index == 2:  # In pedigree view
+            self.pedigree_view.set_center(person_id, mode="pedigree")
+        elif tab_index == 3:  # In descendants view
+            self.descendants_view.set_center(person_id, mode="descendants")
 
     # ---- file loading ---------------------------------------------------
     async def on_open(self, widget, **kw):
@@ -120,11 +214,20 @@ class GedcomNavigatorToga(toga.App):
         warn = f"   ⚠ {warning}" if warning else ""
         self.status.text = f"Loaded {len(self.model.individuals)} people{note}.{warn}"
 
+        # Update all views with new data
+        self.graph_view.update_data(self.model.individuals, self.model.families)
+        self.pedigree_view.update_data(self.model.individuals, self.model.families)
+        self.descendants_view.update_data(self.model.individuals, self.model.families)
+
         home = self.config.get_home_person(str(path))
         has_home = bool(home and home in self.model.individuals)
         self.cmd_go_home.enabled = has_home
         if has_home:
+            self.current_person = home
             self._select_person(home)
+            self.graph_view.set_center(home)
+            self.pedigree_view.set_center(home, mode="pedigree")
+            self.descendants_view.set_center(home, mode="descendants")
 
     # ---- person list ----------------------------------------------------
     def _refresh_people(self):
@@ -172,6 +275,7 @@ class GedcomNavigatorToga(toga.App):
             self.detail.value = ""
             self.cmd_set_home.enabled = False
             return
+        self.current_person = iid
         self.detail.value = pd.detail_text(
             self.model.individuals, self.model.families, iid, show_id=self.id_switch.value)
         self.cmd_set_home.enabled = True
@@ -190,9 +294,14 @@ class GedcomNavigatorToga(toga.App):
             return
         home = self.config.get_home_person(str(self.current_path))
         if home and home in self.model.individuals:
+            self.current_person = home
             self.search.value = ""
             self._refresh_people()
             self._select_person(home)
+            # Update views
+            self.graph_view.set_center(home)
+            self.pedigree_view.set_center(home, mode="pedigree")
+            self.descendants_view.set_center(home, mode="descendants")
 
     # ---- preferences ----------------------------------------------------
     def on_preferences(self, widget, **kw):
