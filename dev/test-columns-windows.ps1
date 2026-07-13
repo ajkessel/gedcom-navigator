@@ -61,10 +61,12 @@ Add-Type -Namespace Win -Name Dpi -MemberDefinition @"
 try { [void][Win.Dpi]::SetProcessDpiAwarenessContext([System.IntPtr](-4)) }
 catch { try { [void][Win.Dpi]::SetProcessDPIAware() } catch {} }
 
-# Window helpers: find our app's top-level window by PID (robust — does NOT rely on
-# Process.MainWindowHandle, which a python.exe console window can hijack), and find a
-# native child control by class (the person-list is a SysListView32) so the zoomed crop
-# targets the list exactly regardless of window size / split / DPI.
+# Window helpers. We match the app window BY TITLE across all top-level windows rather
+# than by PID: a venv / Store python.exe frequently re-execs the real interpreter as a
+# CHILD process, so the visible window is owned by a different PID than the one we
+# launched (this also defeats Process.MainWindowHandle). FindByClass locates the native
+# person-list (SysListView32) so the zoomed crop is exact; ListWindows dumps candidates
+# for diagnostics if the match ever fails.
 Add-Type -Namespace Win -Name Child -MemberDefinition @"
     private delegate bool EnumProc(System.IntPtr h, System.IntPtr l);
     [System.Runtime.InteropServices.DllImport("user32.dll")]
@@ -91,23 +93,34 @@ Add-Type -Namespace Win -Name Child -MemberDefinition @"
         return found;
     }
 
-    public static System.IntPtr FindTopWindow(uint pid, string substr) {
-        System.IntPtr titled = System.IntPtr.Zero;
-        System.IntPtr match = System.IntPtr.Zero;
+    public static System.IntPtr FindByTitle(string substr) {
+        System.IntPtr found = System.IntPtr.Zero;
         EnumWindows(delegate (System.IntPtr h, System.IntPtr l) {
-            uint wpid; GetWindowThreadProcessId(h, out wpid);
-            if (wpid != pid || !IsWindowVisible(h)) return true;
+            if (!IsWindowVisible(h)) return true;
             var sb = new System.Text.StringBuilder(512);
             GetWindowText(h, sb, sb.Capacity);
             string t = sb.ToString();
-            if (t.Length == 0) return true;
-            if (t.IndexOf(substr, System.StringComparison.OrdinalIgnoreCase) >= 0) {
-                match = h; return false;   // best: visible, our PID, title contains substr
+            if (t.Length > 0 && t.IndexOf(substr, System.StringComparison.OrdinalIgnoreCase) >= 0) {
+                found = h; return false;
             }
-            if (titled == System.IntPtr.Zero) titled = h;  // fallback: any titled window
             return true;
         }, System.IntPtr.Zero);
-        return match != System.IntPtr.Zero ? match : titled;
+        return found;
+    }
+
+    public static uint PidOf(System.IntPtr h) { uint pid; GetWindowThreadProcessId(h, out pid); return pid; }
+
+    public static string[] ListWindows() {
+        var list = new System.Collections.Generic.List<string>();
+        EnumWindows(delegate (System.IntPtr h, System.IntPtr l) {
+            if (!IsWindowVisible(h)) return true;
+            var sb = new System.Text.StringBuilder(512);
+            GetWindowText(h, sb, sb.Capacity);
+            string t = sb.ToString();
+            if (t.Length > 0) { uint pid; GetWindowThreadProcessId(h, out pid); list.Add(pid + "  " + t); }
+            return true;
+        }, System.IntPtr.Zero);
+        return list.ToArray();
     }
 "@
 
@@ -153,19 +166,25 @@ $proc = Start-Process -FilePath $Python -ArgumentList "-m","gedcom_toga" `
     -RedirectStandardOutput $stdout -RedirectStandardError $stderr
 Write-Host "Launched pid $($proc.Id); waiting for window..."
 
-# --- Wait for our app's top-level window (by PID, not MainWindowHandle) ---------------
+# --- Wait for the app's top-level window (matched by title across all processes) ------
 $hwnd = [System.IntPtr]::Zero
 for ($i = 0; $i -lt 60; $i++) {
     Start-Sleep -Milliseconds 500
-    $p = Get-Process -Id $proc.Id -ErrorAction SilentlyContinue
-    if (-not $p) { throw "App exited early. stderr:`n$(Get-Content $stderr -Raw)" }
-    $hwnd = [Win.Child]::FindTopWindow([uint32]$proc.Id, "GEDCOM")
+    if (-not (Get-Process -Id $proc.Id -ErrorAction SilentlyContinue)) {
+        # The launcher may have re-exec'd into a child; only fail if NO GEDCOM window
+        # ever appears (handled by the timeout below), so don't throw here.
+    }
+    $hwnd = [Win.Child]::FindByTitle("GEDCOM")
     if ($hwnd -ne [System.IntPtr]::Zero) { break }
 }
 if ($hwnd -eq [System.IntPtr]::Zero) {
-    $proc | Stop-Process -Force
-    throw "Timed out waiting for the app window. stderr:`n$(Get-Content $stderr -Raw)"
+    Write-Host "Timed out. Visible top-level windows (pid  title):" -ForegroundColor Yellow
+    foreach ($wline in [Win.Child]::ListWindows()) { Write-Host "  $wline" }
+    Write-Host "--- app stderr ---"; Get-Content $stderr -Raw -ErrorAction SilentlyContinue
+    taskkill /PID $proc.Id /T /F 2>$null | Out-Null
+    throw "Could not find a window whose title contains 'GEDCOM'. See the window list above."
 }
+$winPid = [Win.Child]::PidOf($hwnd)   # real owning PID (may differ from $proc.Id)
 
 # --- Best-effort: read the diagnostic line (independent of window detection). Its
 #     absence means the sample didn't auto-load, not that the window is missing. -------
@@ -265,6 +284,7 @@ $resfile = Join-Path $OutDir "results.txt"
     $stamp, $scale, $dpi, $verdict, ($diag.widths -join ","), (Split-Path -Leaf $png)) |
     Add-Content -Path $resfile
 
-# --- Clean up -------------------------------------------------------------------------
-$proc | Stop-Process -Force -ErrorAction SilentlyContinue
+# --- Clean up (kill the whole tree; the window may be owned by a re-exec'd child) -----
+taskkill /PID $proc.Id /T /F 2>$null | Out-Null
+if ($winPid -and $winPid -ne $proc.Id) { taskkill /PID $winPid /T /F 2>$null | Out-Null }
 Write-Host "`nDone. Change Display scaling and re-run to test another setting; results accumulate in $resfile"
