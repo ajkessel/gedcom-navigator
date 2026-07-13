@@ -49,7 +49,7 @@ class GedcomNavigatorToga(toga.App):
                 self.people,
             ],
         )
-        split = toga.SplitContainer(content=[left, self.detail])
+        split = toga.SplitContainer(content=[left, self.detail], style=Pack(flex=1))
         root = toga.Box(style=Pack(direction=COLUMN), children=[split, self.status])
 
         self.main_window = toga.MainWindow(title="GEDCOM Navigator (Toga)", size=(1100, 760))
