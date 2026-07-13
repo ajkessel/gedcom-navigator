@@ -61,14 +61,25 @@ Add-Type -Namespace Win -Name Dpi -MemberDefinition @"
 try { [void][Win.Dpi]::SetProcessDpiAwarenessContext([System.IntPtr](-4)) }
 catch { try { [void][Win.Dpi]::SetProcessDPIAware() } catch {} }
 
-# Helper to locate a native child control (the person-list is a SysListView32) by class,
-# so the zoomed crop targets the list exactly regardless of window size / split / DPI.
+# Window helpers: find our app's top-level window by PID (robust — does NOT rely on
+# Process.MainWindowHandle, which a python.exe console window can hijack), and find a
+# native child control by class (the person-list is a SysListView32) so the zoomed crop
+# targets the list exactly regardless of window size / split / DPI.
 Add-Type -Namespace Win -Name Child -MemberDefinition @"
     private delegate bool EnumProc(System.IntPtr h, System.IntPtr l);
     [System.Runtime.InteropServices.DllImport("user32.dll")]
     private static extern bool EnumChildWindows(System.IntPtr parent, EnumProc cb, System.IntPtr l);
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern bool EnumWindows(EnumProc cb, System.IntPtr l);
     [System.Runtime.InteropServices.DllImport("user32.dll", CharSet=System.Runtime.InteropServices.CharSet.Auto)]
     private static extern int GetClassName(System.IntPtr h, System.Text.StringBuilder s, int max);
+    [System.Runtime.InteropServices.DllImport("user32.dll", CharSet=System.Runtime.InteropServices.CharSet.Auto)]
+    private static extern int GetWindowText(System.IntPtr h, System.Text.StringBuilder s, int max);
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern uint GetWindowThreadProcessId(System.IntPtr h, out uint pid);
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern bool IsWindowVisible(System.IntPtr h);
+
     public static System.IntPtr FindByClass(System.IntPtr parent, string cls) {
         System.IntPtr found = System.IntPtr.Zero;
         EnumChildWindows(parent, delegate (System.IntPtr h, System.IntPtr l) {
@@ -78,6 +89,25 @@ Add-Type -Namespace Win -Name Child -MemberDefinition @"
             return true;
         }, System.IntPtr.Zero);
         return found;
+    }
+
+    public static System.IntPtr FindTopWindow(uint pid, string substr) {
+        System.IntPtr titled = System.IntPtr.Zero;
+        System.IntPtr match = System.IntPtr.Zero;
+        EnumWindows(delegate (System.IntPtr h, System.IntPtr l) {
+            uint wpid; GetWindowThreadProcessId(h, out wpid);
+            if (wpid != pid || !IsWindowVisible(h)) return true;
+            var sb = new System.Text.StringBuilder(512);
+            GetWindowText(h, sb, sb.Capacity);
+            string t = sb.ToString();
+            if (t.Length == 0) return true;
+            if (t.IndexOf(substr, System.StringComparison.OrdinalIgnoreCase) >= 0) {
+                match = h; return false;   // best: visible, our PID, title contains substr
+            }
+            if (titled == System.IntPtr.Zero) titled = h;  // fallback: any titled window
+            return true;
+        }, System.IntPtr.Zero);
+        return match != System.IntPtr.Zero ? match : titled;
     }
 "@
 
@@ -123,23 +153,34 @@ $proc = Start-Process -FilePath $Python -ArgumentList "-m","gedcom_toga" `
     -RedirectStandardOutput $stdout -RedirectStandardError $stderr
 Write-Host "Launched pid $($proc.Id); waiting for window..."
 
-# --- Wait for the window handle + the diagnostic line --------------------------------
+# --- Wait for our app's top-level window (by PID, not MainWindowHandle) ---------------
 $hwnd = [System.IntPtr]::Zero
-$diag = $null
 for ($i = 0; $i -lt 60; $i++) {
     Start-Sleep -Milliseconds 500
     $p = Get-Process -Id $proc.Id -ErrorAction SilentlyContinue
     if (-not $p) { throw "App exited early. stderr:`n$(Get-Content $stderr -Raw)" }
-    if ($p.MainWindowHandle -ne 0 -and $p.MainWindowTitle -like "*GEDCOM*") {
-        $hwnd = $p.MainWindowHandle
-    }
+    $hwnd = [Win.Child]::FindTopWindow([uint32]$proc.Id, "GEDCOM")
+    if ($hwnd -ne [System.IntPtr]::Zero) { break }
+}
+if ($hwnd -eq [System.IntPtr]::Zero) {
+    $proc | Stop-Process -Force
+    throw "Timed out waiting for the app window. stderr:`n$(Get-Content $stderr -Raw)"
+}
+
+# --- Best-effort: read the diagnostic line (independent of window detection). Its
+#     absence means the sample didn't auto-load, not that the window is missing. -------
+$diag = $null
+for ($j = 0; $j -lt 20; $j++) {
     $line = Select-String -Path $stdout -Pattern "GEDCOM_DIAG_COLUMNS" -ErrorAction SilentlyContinue | Select-Object -Last 1
-    if ($line -and $hwnd -ne 0) {
-        $diag = ($line.Line -replace "^.*GEDCOM_DIAG_COLUMNS\s*", "") | ConvertFrom-Json
+    if ($line) {
+        try { $diag = ($line.Line -replace "^.*GEDCOM_DIAG_COLUMNS\s*", "") | ConvertFrom-Json } catch {}
         break
     }
+    Start-Sleep -Milliseconds 500
 }
-if ($hwnd -eq 0) { $proc | Stop-Process -Force; throw "Timed out waiting for the app window." }
+if (-not $diag) {
+    Write-Host "(no GEDCOM_DIAG_COLUMNS line — sample may not have auto-loaded; screenshots still captured)" -ForegroundColor Yellow
+}
 
 # --- Detect the window's DPI/scale and capture the window ----------------------------
 [void][Win.Dpi]::ShowWindow($hwnd, 9)            # SW_RESTORE
