@@ -17,10 +17,14 @@ from toga.style.pack import COLUMN, ROW, Pack
 from gedcom_config import ConfigManager
 from gedcom_data_model import GedcomDataModel
 
+from . import native_table as nt
 from . import person_detail as pd
 from . import person_list as pl
 from .graph_view import GraphView
 from .results_view import ResultsView
+
+# Fixed pixel widths for the year columns; Name (None) absorbs the remaining space.
+PEOPLE_COLUMN_WIDTHS = [None, 64, 64]
 
 # (stored value, menu label) for the name-order preference
 NAME_ORDER_ITEMS = [("first_last", "Given name first"), ("last_first", "Surname first")]
@@ -53,7 +57,9 @@ class GedcomNavigatorToga(toga.App):
         self.id_switch = toga.Switch(
             "Show IDs", value=self.config.get_show_ids(),
             on_change=self.on_toggle, style=Pack(margin=(0, 8)))
-        # Use AccessorColumn to explicitly map accessors to headings
+        # AccessorColumn maps each heading to its data accessor. Toga has no public
+        # column-width API (beeware/toga#4238) — widths are applied natively after
+        # layout via nt.apply_column_widths(); see native_table.py.
         from toga.sources import AccessorColumn
         self.people = toga.Table(
             columns=[
@@ -66,12 +72,15 @@ class GedcomNavigatorToga(toga.App):
         )
         self.detail = toga.MultilineTextInput(readonly=True, style=Pack(flex=1))
 
-        left = toga.Box(style=Pack(direction=COLUMN, flex=1, width=400), children=[
+        left = toga.Box(style=Pack(direction=COLUMN, flex=1), children=[
             toga.Box(style=Pack(direction=ROW, margin=6),
                      children=[self.search, self.dna_switch, self.id_switch]),
             self.people,
         ])
-        split = toga.SplitContainer(content=[left, self.detail], style=Pack(flex=1))
+        # Split proportions are set via (widget, flex) tuples — the documented way.
+        # Setting a fixed width on a child instead leaves gray space in its panel.
+        split = toga.SplitContainer(
+            content=[(left, 2), (self.detail, 3)], style=Pack(flex=1))
 
         # Graph view
         self.graph_view = GraphView(
@@ -109,6 +118,10 @@ class GedcomNavigatorToga(toga.App):
 
         self._build_commands()
         self.main_window.show()
+
+        # Toga has no column-width API (beeware/toga#4238); set them natively now that
+        # the table is realized. Reapplied after each data load in _refresh_people.
+        nt.apply_column_widths(self.people, PEOPLE_COLUMN_WIDTHS)
 
         # Start polling for results view link clicks
         self.pedigree_view.start_polling()
@@ -250,6 +263,7 @@ class GedcomNavigatorToga(toga.App):
                           show_id=show_id, name_order=self.name_order)
             for iid in ids
         ]
+        nt.apply_column_widths(self.people, PEOPLE_COLUMN_WIDTHS)
         total, shown = len(self.model.individuals), len(ids)
         msg = f"Showing {shown} of {total} people"
         if truncated:
