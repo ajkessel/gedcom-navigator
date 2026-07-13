@@ -1,0 +1,11 @@
+Metadata-Version: 2.1
+Briefcase-Version: 0.4.4
+Name: gedcom-navigator
+Formal-Name: GEDCOM Navigator
+App-ID: com.ajkessel.gedcom-navigator
+Version: 1.9.18
+Home-page: https://github.com/ajkessel/gedcom-navigator
+Download-URL: https://github.com/ajkessel/gedcom-navigator
+Author: Adam J. Kessel
+Author-email: adam@rosi-kessel.org
+Summary: Briefcase App Store packaging spike
