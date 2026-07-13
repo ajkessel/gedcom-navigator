@@ -159,6 +159,20 @@ Two distinct causes:
   GUI session), or the key's ACL is set to prompt — in Keychain Access, select the private
   key → Get Info → Access Control → allow `codesign`/all apps. Non-login keychain? Target
   its path (`security list-keychains`).
+- **`Invalid Provisioning Profile Signature` (validation):** the embedded profile isn't a
+  valid Apple-signed **Mac App Store** distribution profile — usually because it predates a
+  newly-created signing cert (a profile embeds the certs it authorizes) or is the wrong type
+  (Development / Developer ID). **Regenerate a Mac App Store profile in the portal against the
+  current Apple Distribution cert**, download it, re-embed, and **re-sign** (embed BEFORE the
+  final `codesign "$APP"` so the bundle seals over it). Inspect any profile with
+  `security cms -D -i <file> | plutil -p -` (check `ExpirationDate`, `DeveloperCertificates`,
+  and `Entitlements.com.apple.application-identifier`).
+- **Signing over SSH:** the login keychain starts *locked* over SSH, so `unlock-keychain`
+  is mandatory (not just `set-key-partition-list`). If codesign still fails after both,
+  either sign from a GUI session (Screen Sharing / console — auto-unlocks + gives codesign
+  its "security session"), or use a dedicated keychain (CI pattern): `create-keychain` →
+  `import identity.p12 -T /usr/bin/codesign` → `list-keychains -s` → `unlock-keychain` →
+  `set-key-partition-list`. The Keychain Access GUI cannot be opened over plain SSH.
 
 ## Step 4 — validate / upload to App Store
 Uses the App Store Connect API key your script reads from `~/.appstoreconnect/`
@@ -178,6 +192,13 @@ xcrun altool --upload-package dist/GEDCOM-Navigator.pkg --type osx \
 ```
 A clean `--validate-app` = deliverable (c) proven: a Toga/Briefcase build is
 App-Store-acceptable. (Transporter.app is the GUI equivalent if you prefer.)
+
+> 🛑 **Do NOT `--upload-package` the spike.** It shares the real bundle id + App Store
+> Connect record, so an upload injects a junk build onto the live GEDCOM Navigator listing.
+> Validation is the deliverable; stop there. (For real uploads in Phase 6: `--apple-id`
+> must be the app's **numeric** App Store Apple ID from App Store Connect → App Information,
+> NOT the bundle id — passing the bundle id / an empty `appid.txt` gives
+> `ENTITY_ERROR.RELATIONSHIP.INVALID` at `/data/relationships/app/data/id`.)
 
 > **Benign altool noise:** a `403` on `.../iris/v1/metricsAndLogging` (`logKpiName`) is
 > altool's internal analytics logging failing — cosmetic, does NOT affect validation. The

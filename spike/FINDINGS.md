@@ -176,6 +176,14 @@ in the provisioning profile" error. Fix is portal-side: create the Apple Distrib
 (CSR from this Mac so the private key is local), install it, regenerate + re-embed the App
 Store provisioning profile, then re-sign with that cert. Independent of Toga/Briefcase.
 
+**✅ VALIDATED (2026-07-12):** after creating the Apple Distribution cert, granting codesign
+key access (`set-key-partition-list` / Keychain Access ACL), and regenerating the Mac App
+Store provisioning profile against that cert, `xcrun altool --validate-app` returned **"No
+errors validating archive"**. Deliverable (c) CLOSED — the Toga → `briefcase build` → manual
+App Store signing → `.pkg` pipeline is proven App-Store-acceptable end-to-end. Every hurdle
+along the way (agreement, cert, key ACL, profile, permissions, category, version) was Apple
+account/keychain/portal config — none touched Toga or Briefcase.
+
 ## Verdict
 
 Both technical gaps the plan flagged are resolved and confirmed on Mac + Windows: the
