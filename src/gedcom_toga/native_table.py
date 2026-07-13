@@ -18,6 +18,13 @@ Neither backend re-equalizes on window resize — Cocoa `sizeToFit` and WinForms
 construction — so widths applied once survive. On Cocoa the flexible column keeps
 absorbing slack on resize via FirstColumnOnly autoresizing; on WinForms a SizeChanged
 handler recomputes it (installed once).
+
+DPI / scaling: the fixed `widths` are **logical** pixels. On Cocoa they're used as-is
+because AppKit geometry is in device-independent points (Retina + display scaling are
+handled by the system). On WinForms the native ListView takes **physical** pixels, and
+Toga is DPI-aware and scales the font up with DPI, so we multiply by the backend's
+`dpi_scale` — otherwise the columns would be too narrow and clip the text at 125/150/
+200% scaling. This keeps the layout correct regardless of resolution, DPI, and scaling.
 """
 
 _WIN_HANDLERS = set()  # ListView ids with a SizeChanged handler already installed
@@ -34,7 +41,7 @@ def apply_column_widths(table, widths):
     # WinForms: impl.native is the ListView, with a .Columns collection.
     native = getattr(impl, "native", None)
     if native is not None and hasattr(native, "Columns"):
-        return _apply_winforms(native, widths)
+        return _apply_winforms(impl, native, widths)
     return False
 
 
@@ -42,6 +49,36 @@ def _flex_index(widths):
     for i, w in enumerate(widths):
         if w is None:
             return i
+    return None
+
+
+def describe_columns(table):
+    """Return the *actual* native column state for diagnostics/verification:
+    {backend, headings, widths, dpi_scale, client_width}. Widths are physical pixels
+    (WinForms) or points (Cocoa). Used by the Windows DPI test harness. Returns None if
+    the table isn't realized on a supported backend."""
+    impl = getattr(table, "_impl", None)
+    if impl is None:
+        return None
+    if hasattr(impl, "columns") and hasattr(impl, "native_table"):
+        cols = impl.columns
+        return {
+            "backend": "cocoa",
+            "headings": [str(c.headerCell.stringValue) for c in cols],
+            "widths": [round(float(c.width)) for c in cols],
+            "dpi_scale": 1.0,
+            "client_width": round(float(impl.native_table.frame.size.width)),
+        }
+    native = getattr(impl, "native", None)
+    if native is not None and hasattr(native, "Columns"):
+        cols = native.Columns
+        return {
+            "backend": "winforms",
+            "headings": [str(cols[i].Text) for i in range(cols.Count)],
+            "widths": [int(cols[i].Width) for i in range(cols.Count)],
+            "dpi_scale": float(getattr(impl, "dpi_scale", 1) or 1),
+            "client_width": int(native.ClientSize.Width),
+        }
     return None
 
 
@@ -77,17 +114,24 @@ def _apply_cocoa(impl, widths):
 
 
 # ------------------------------------------------------------- Windows (WinForms)
-def _apply_winforms(native, widths):
+def _apply_winforms(impl, native, widths):
     columns = native.Columns
     if columns.Count != len(widths):
         return False
     flex = _flex_index(widths)
 
     def resize(*_):
-        used = sum(w for w in widths if w is not None)
-        for i, w in enumerate(widths):
+        # Native ListView widths are physical pixels; convert our logical widths using
+        # the DPI-aware backend scale so year columns don't clip at >100% scaling. Read
+        # dpi_scale live here (not captured once) so moving the window between monitors
+        # of different DPI — which also fires SizeChanged — rescales correctly.
+        scale = getattr(impl, "dpi_scale", 1) or 1
+        phys = [None if w is None else max(1, round(w * scale)) for w in widths]
+        used = sum(w for w in phys if w is not None)
+        min_flex = max(1, round(120 * scale))
+        for i, w in enumerate(phys):
             if w is None:
-                columns[i].Width = max(120, native.ClientSize.Width - used)
+                columns[i].Width = max(min_flex, native.ClientSize.Width - used)
             else:
                 columns[i].Width = w
 

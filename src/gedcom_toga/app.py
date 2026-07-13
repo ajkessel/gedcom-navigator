@@ -9,6 +9,8 @@ the tkinter app, recent-file reopen, and per-file home person.
 Run:  PYTHONPATH=src python -m gedcom_toga
 """
 import asyncio
+import json
+import os
 from pathlib import Path
 
 import toga
@@ -249,6 +251,18 @@ class GedcomNavigatorToga(toga.App):
             self.graph_view.set_center(home)
             self.pedigree_view.set_center(home, mode="pedigree")
             self.descendants_view.set_center(home, mode="descendants")
+
+        self._dump_columns_if_diag()
+
+    def _dump_columns_if_diag(self):
+        """When GEDCOM_DIAG is set, print the realized native column widths + DPI scale
+        as one JSON line (`GEDCOM_DIAG_COLUMNS {...}`) so the Windows test harness can
+        verify column sizing quantitatively. No-op otherwise."""
+        if not os.environ.get("GEDCOM_DIAG"):
+            return
+        info = nt.describe_columns(self.people)
+        if info is not None:
+            print("GEDCOM_DIAG_COLUMNS " + json.dumps(info), flush=True)
 
     # ---- person list ----------------------------------------------------
     def _refresh_people(self):
