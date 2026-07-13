@@ -16,10 +16,23 @@ def sorted_person_ids(individuals):
     )
 
 
-def person_row(individuals, iid, *, show_id=False):
+def display_name(indi, name_order="first_last"):
+    """Display name honouring the name-order preference (mirrors the tkinter
+    `_display_name`): `last_first` -> "Surname, Given" when both are known."""
+    if name_order == "last_first":
+        surname = indi.get("surname", "")
+        given = indi.get("given_name", "")
+        if surname and given:
+            return f"{surname}, {given}"
+        if surname:
+            return surname
+    return indi.get("name") or "(unknown)"
+
+
+def person_row(individuals, iid, *, show_id=False, name_order="first_last"):
     """One table row as a dict keyed by the Toga Table accessors (+ `id` for lookup)."""
     indi = individuals.get(iid, {})
-    name = indi.get("name") or iid
+    name = display_name(indi, name_order)
     if show_id:
         name = f"{name}  [{iid}]"
     return {
@@ -28,6 +41,13 @@ def person_row(individuals, iid, *, show_id=False):
         "born": format_year(indi.get("birth_year")),
         "died": format_year(indi.get("death_year")),
     }
+
+
+def updated_recent(recent, path, *, cap=10):
+    """Return the recent-files list with `path` moved to the front, de-duplicated
+    and capped at `cap`."""
+    path = str(path)
+    return ([path] + [p for p in (recent or []) if p != path])[:cap]
 
 
 def visible_ids(individuals, query, sorted_ids, *, fuzzy=False,
