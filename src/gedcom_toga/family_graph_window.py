@@ -30,11 +30,17 @@ from . import graph_geometry as gg
 from . import media_resolve
 
 MARGIN = 50.0
-NODE_W = 178.0
-IMG_H = 66.0          # image band height when images are shown
-TEXT_H = 46.0         # text band height
+NODE_W = 184.0
+IMG_H = 62.0          # image band height when images are shown
+NAME_H = 40.0         # name + years band height
+CHIP_H = 20.0         # per-category expand-chip band height (tree / descendant)
 GAP_X = 40.0
-GAP_Y = 34.0
+GAP_Y = 30.0
+
+# Category → short chip label. Order matches the tkinter expand affordances.
+CHIP_LABELS = [
+    ("parents", "Par"), ("siblings", "Sib"), ("spouses", "Sps"), ("children", "Chi"),
+]
 
 FILL_MALE = "#d9ecff"
 FILL_FEMALE = "#ffe1ec"
@@ -44,7 +50,6 @@ SUBTEXT_COLOR = "#5a6068"
 OUTLINE = "#9aa4af"
 CENTER_OUTLINE = "#1155bb"
 
-TREE_CATEGORIES = ("parents", "siblings", "spouses", "children")
 GRAPH_TYPES = [("tree", "Tree"), ("pedigree", "Pedigree"), ("descendant", "Descendant")]
 
 
@@ -67,10 +72,11 @@ class FamilyGraphWindow:
         self.on_person_select = on_person_select
         self.zoom = 1.0
         self.show_images = True
-        self.expanded_nodes = set()
+        self.tree_expanded = set()   # (id, category) requests for the tree view
+        self.desc_expanded = set()   # ids whose children are shown (descendant view)
         self._press_at = (0, 0)
         self._img_cache = {}
-        self._expand_hits = {}
+        self._chip_hits = {}         # id -> [(category, x, y, w, h), ...]
 
         self._family_lookup = lambda i: gg.family_members(
             i, self.model.individuals, self.model.families)
@@ -107,8 +113,16 @@ class FamilyGraphWindow:
         self.redraw()
 
     # ---- geometry --------------------------------------------------------
+    def _expandable_type(self):
+        return self.graph_type in ("tree", "descendant")
+
     def _node_h(self):
-        return (IMG_H + TEXT_H) if self.show_images else TEXT_H
+        h = NAME_H
+        if self.show_images:
+            h += IMG_H
+        if self._expandable_type():
+            h += CHIP_H
+        return h
 
     def _rebuild(self):
         m = self.model
@@ -117,12 +131,12 @@ class FamilyGraphWindow:
             visible, edges = build_pedigree_tree_graph(c, m.individuals, m.families)
             nodes = layout_pedigree_tree(c, visible, edges)
         elif self.graph_type == "descendant":
-            expanded = set(self.expanded_nodes) | {c}
+            expanded = set(self.desc_expanded) | {c}
             visible, edges = build_descendant_tree_graph(
                 c, expanded, m.individuals, m.families)
             nodes = layout_descendant_tree(c, visible, edges)
         else:  # tree
-            requests = [(i, cat) for i in self.expanded_nodes for cat in TREE_CATEGORIES]
+            requests = list(self.tree_expanded)
             visible, edges = build_family_tree_graph(
                 c, requests, self._family_lookup, self._coparent_lookup)
             nodes = layout_family_tree_units(c, visible, edges)
@@ -149,14 +163,23 @@ class FamilyGraphWindow:
         max_y = max(y + h for (x, y, w, h) in self.boxes.values())
         return max_x + MARGIN, max_y + MARGIN
 
-    def _has_hidden(self, iid):
+    def _node_chips(self, iid):
+        """Return [(category, label, is_expanded)] for the node's expand chips —
+        one per category that has hidden relatives or is already expanded."""
         if self.graph_type == "tree":
             opts = family_tree_expansion_options(iid, self._visible, self._family_lookup)
-            return any(opts.get(cat) for cat in opts)
+            chips = []
+            for cat, label in CHIP_LABELS:
+                expanded = (iid, cat) in self.tree_expanded
+                if opts.get(cat) or expanded:
+                    chips.append((cat, label, expanded))
+            return chips
         if self.graph_type == "descendant":
             opts = descendant_tree_expansion_options(iid, self._visible, self._family_lookup)
-            return bool(opts.get("children"))
-        return False
+            expanded = iid in self.desc_expanded
+            if opts.get("children") or expanded:
+                return [("children", "Chi", expanded)]
+        return []
 
     def _label(self, iid):
         ind = self.model.individuals.get(iid, {})
@@ -214,7 +237,7 @@ class FamilyGraphWindow:
 
     def _draw_nodes(self):
         c = self.canvas
-        self._expand_hits = {}
+        self._chip_hits = {}
         for iid, (x, y, w, h) in self.boxes.items():
             is_center = self._is_center.get(iid)
             fill = self._fill_for(iid, is_center)
@@ -223,18 +246,40 @@ class FamilyGraphWindow:
             with c.stroke(color=CENTER_OUTLINE if is_center else OUTLINE,
                           line_width=2.4 if is_center else 1.4):
                 c.round_rect(x, y, w, h, 8)
-            text_top = y + 8
+            text_top = y + 6
             if self.show_images:
-                text_top = y + IMG_H + 4
+                text_top = y + IMG_H + 2
                 self._draw_image(iid, x, y, w)
             name, years = self._label(iid)
             with c.fill(color=TEXT_COLOR):
-                c.fill_text(name[:26], x + 10, text_top + 12, font=toga.Font("sans-serif", 12))
+                c.fill_text(name[:26], x + 10, text_top + 14, font=toga.Font("sans-serif", 12))
             if years:
                 with c.fill(color=SUBTEXT_COLOR):
-                    c.fill_text(years, x + 10, text_top + 30, font=toga.Font("sans-serif", 10))
-            if self._has_hidden(iid) or iid in self.expanded_nodes:
-                self._draw_expand_toggle(iid, x, y, w)
+                    c.fill_text(years, x + 10, text_top + 31, font=toga.Font("sans-serif", 10))
+            if self._expandable_type():
+                self._draw_chips(iid, x, y, w, h)
+
+    def _draw_chips(self, iid, x, y, w, h):
+        chips = self._node_chips(iid)
+        if not chips:
+            return
+        cx = x + 8
+        cy = y + h - CHIP_H + 2
+        ch = CHIP_H - 6
+        hits = []
+        for cat, label, expanded in chips:
+            text = ("−" if expanded else "+") + label
+            cw = 10 + len(text) * 6.5
+            with self.canvas.fill(color="#cfe3ff" if expanded else "#eef1f4"):
+                self.canvas.round_rect(cx, cy, cw, ch, 4)
+            with self.canvas.stroke(color=OUTLINE, line_width=1.0):
+                self.canvas.round_rect(cx, cy, cw, ch, 4)
+            with self.canvas.fill(color=TEXT_COLOR):
+                self.canvas.fill_text(text, cx + 5, cy + ch - 4,
+                                      font=toga.Font("sans-serif", 10))
+            hits.append((cat, cx, cy, cw, ch))
+            cx += cw + 4
+        self._chip_hits[iid] = hits
 
     def _draw_image(self, iid, x, y, w):
         img = self._image_for(iid)
@@ -256,17 +301,6 @@ class FamilyGraphWindow:
         except Exception:  # noqa: BLE001 — backend draw hiccup
             pass
 
-    def _draw_expand_toggle(self, iid, x, y, w):
-        cx, cy, r = x + w - 4, y + 4, 9.0
-        self._expand_hits[iid] = (cx, cy, r)
-        with self.canvas.fill(color="#ffffff"):
-            self.canvas.arc(cx, cy, r, 0, 6.2832)
-        with self.canvas.stroke(color=OUTLINE, line_width=1.2):
-            self.canvas.arc(cx, cy, r, 0, 6.2832)
-        sign = "−" if iid in self.expanded_nodes else "+"
-        with self.canvas.fill(color=TEXT_COLOR):
-            self.canvas.fill_text(sign, cx - 3, cy + 4, font=toga.Font("sans-serif", 12))
-
     # ---- interaction -----------------------------------------------------
     def _on_press(self, widget, x, y, **kw):
         self._press_at = (x, y)
@@ -275,20 +309,22 @@ class FamilyGraphWindow:
         if abs(x - self._press_at[0]) + abs(y - self._press_at[1]) >= 4:
             return
         wx, wy = x / self.zoom, y / self.zoom
-        for iid, (cx, cy, r) in self._expand_hits.items():
-            if (wx - cx) ** 2 + (wy - cy) ** 2 <= (r + 2) ** 2:
-                self._toggle_expand(iid)
-                return
+        # expand chips take priority over node-body recenter
+        for iid, chips in self._chip_hits.items():
+            for cat, cx, cy, cw, ch in chips:
+                if cx <= wx <= cx + cw and cy <= wy <= cy + ch:
+                    self._toggle_category(iid, cat)
+                    return
         for iid, (bx, by, bw, bh) in self.boxes.items():
             if bx <= wx <= bx + bw and by <= wy <= by + bh:
                 self._recenter(iid)
                 return
 
-    def _toggle_expand(self, iid):
-        if iid in self.expanded_nodes:
-            self.expanded_nodes.discard(iid)
-        else:
-            self.expanded_nodes.add(iid)
+    def _toggle_category(self, iid, cat):
+        if self.graph_type == "descendant":
+            self.desc_expanded.symmetric_difference_update({iid})
+        else:  # tree
+            self.tree_expanded.symmetric_difference_update({(iid, cat)})
         self._rebuild()
         self.redraw()
 
@@ -298,7 +334,8 @@ class FamilyGraphWindow:
                 self.on_person_select(iid)
             return
         self.center = iid
-        self.expanded_nodes = set()
+        self.tree_expanded = set()
+        self.desc_expanded = set()
         self._rebuild()
         self.redraw()
         if self.on_person_select:
@@ -306,7 +343,8 @@ class FamilyGraphWindow:
 
     def set_type(self, graph_type, *, notify=True):
         self.graph_type = graph_type
-        self.expanded_nodes = set()
+        self.tree_expanded = set()
+        self.desc_expanded = set()
         self._refresh_type_styles()
         self._rebuild()
         self.redraw()
