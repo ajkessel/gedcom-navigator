@@ -28,6 +28,7 @@ from gedcom_family_tree_layout import layout_family_tree_units
 
 from . import graph_geometry as gg
 from . import media_resolve
+from . import native_canvas_hover
 
 MARGIN = 54.0
 NODE_W = 128.0        # narrow node (tkinter-style): 3 short text lines
@@ -41,6 +42,20 @@ HANDLE_R = 8.0
 EXPAND_CATEGORIES = ("parents", "children", "siblings", "spouses")
 HANDLE_EDGE = {"parents": "top", "children": "bottom",
                "siblings": "left", "spouses": "right"}
+# Glyph per (category, is_expanded) — matches the tkinter TREE_BUTTON_* icons:
+# up/down arrows for parents/children, an out/in arrow for siblings, a heart for spouses.
+HANDLE_GLYPH = {
+    ("parents", False): "↑", ("parents", True): "↓",
+    ("children", False): "↓", ("children", True): "↑",
+    ("siblings", False): "←", ("siblings", True): "→",
+    ("spouses", False): "♥", ("spouses", True): "♡",
+}
+HANDLE_TIP = {
+    "parents": ("Show parents", "Hide parents"),
+    "siblings": ("Show siblings", "Hide siblings"),
+    "spouses": ("Show spouses", "Hide spouses"),
+    "children": ("Show children", "Hide children"),
+}
 
 FILL_MALE = "#d9ecff"
 FILL_FEMALE = "#ffe1ec"
@@ -76,7 +91,8 @@ class FamilyGraphWindow:
         self.desc_expanded = set()   # ids whose children are shown (descendant view)
         self._press_at = (0, 0)
         self._img_cache = {}
-        self._handle_hits = {}       # id -> [(category, cx, cy, r), ...]
+        self._handle_hits = {}       # id -> [(category, cx, cy, r, tip), ...]
+        self._hover_refresh = None   # native per-handle tooltip refresher
 
         self._family_lookup = lambda i: gg.family_members(
             i, self.model.individuals, self.model.families)
@@ -111,6 +127,22 @@ class FamilyGraphWindow:
         self.window.show()
         self._refresh_type_styles()
         self.redraw()
+        # Native per-handle tooltips (macOS + Windows; no-op on GTK). Installed after
+        # the canvas is realized; refreshed on every redraw as handles move.
+        try:
+            self._hover_refresh = native_canvas_hover.install(
+                self.canvas, self._hover_regions)
+        except Exception:  # noqa: BLE001 — tooltips are best-effort
+            self._hover_refresh = None
+
+    def _hover_regions(self):
+        """Handle rectangles + tooltip text in canvas pixel coords (world × zoom)."""
+        z = self.zoom
+        regions = []
+        for handles in self._handle_hits.values():
+            for _cat, cx, cy, r, tip in handles:
+                regions.append(((cx - r) * z, (cy - r) * z, 2 * r * z, 2 * r * z, tip))
+        return regions
 
     # ---- geometry --------------------------------------------------------
     def _expandable_type(self):
@@ -233,6 +265,8 @@ class FamilyGraphWindow:
             self._draw_edges()
             self._draw_nodes()
         c.redraw()
+        if self._hover_refresh:
+            self._hover_refresh()
 
     def _draw_edges(self):
         c = self.canvas
@@ -287,15 +321,18 @@ class FamilyGraphWindow:
         hits = []
         for cat, expanded in cats:
             cx, cy = centers[HANDLE_EDGE[cat]]
-            with self.canvas.fill(color="#cfe3ff" if expanded else "#eef1f4"):
+            glyph = HANDLE_GLYPH[(cat, expanded)]
+            tip = HANDLE_TIP[cat][1 if expanded else 0]
+            with self.canvas.fill(color="#ffd9e6" if cat == "spouses" and expanded
+                                  else "#cfe3ff" if expanded else "#eef1f4"):
                 self.canvas.arc(cx, cy, HANDLE_R, 0, 6.2832)
             with self.canvas.stroke(color=CENTER_OUTLINE if expanded else OUTLINE,
                                     line_width=1.2):
                 self.canvas.arc(cx, cy, HANDLE_R, 0, 6.2832)
-            with self.canvas.fill(color=TEXT_COLOR):
-                self.canvas.fill_text("−" if expanded else "+", cx - 3, cy + 4,
-                                      font=toga.Font("sans-serif", 12))
-            hits.append((cat, cx, cy, HANDLE_R))
+            with self.canvas.fill(color="#c2185b" if cat == "spouses" else TEXT_COLOR):
+                self.canvas.fill_text(glyph, cx - 4, cy + 4,
+                                      font=toga.Font("sans-serif", 11))
+            hits.append((cat, cx, cy, HANDLE_R, tip))
         self._handle_hits[iid] = hits
 
     def _draw_image(self, iid, x, y, w):
@@ -328,7 +365,7 @@ class FamilyGraphWindow:
         wx, wy = x / self.zoom, y / self.zoom
         # edge handles take priority over node-body recenter
         for iid, handles in self._handle_hits.items():
-            for cat, cx, cy, r in handles:
+            for cat, cx, cy, r, _tip in handles:
                 if (wx - cx) ** 2 + (wy - cy) ** 2 <= (r + 2) ** 2:
                     self._toggle_category(iid, cat)
                     return
