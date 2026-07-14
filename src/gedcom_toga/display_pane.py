@@ -15,9 +15,10 @@ import toga
 from toga.style.pack import COLUMN, ROW, Pack
 
 MODES = [("profile", "Profile"), ("matches", "Matches"), ("paths", "Paths")]
+# Graph views open in their own windows (not the display pane), so Graph is not a
+# sub-mode — see app.py's "Show Family Graph" command.
 PROFILE_SUBMODES = [
-    ("bio", "Bio"), ("pedigree", "Pedigree"),
-    ("descendants", "Descendants"), ("graph", "Graph"),
+    ("bio", "Bio"), ("pedigree", "Pedigree"), ("descendants", "Descendants"),
 ]
 ACTIVE_BG = "#1f6feb"
 

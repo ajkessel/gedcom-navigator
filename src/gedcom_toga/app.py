@@ -27,7 +27,6 @@ except Exception:  # noqa: BLE001 — fall back to a broad guard if the name mov
         pass
 
 from . import native_table as nt
-from . import person_detail as pd
 from . import person_list as pl
 from gedcom_relationship import (
     describe_relationship,
@@ -35,6 +34,7 @@ from gedcom_relationship import (
     get_descendant_depths,
 )
 
+from .bio_view import BioView
 from .display_pane import DisplayPane
 from .graph_view import GraphView
 from .matches_view import MatchesView
@@ -102,13 +102,12 @@ class GedcomNavigatorToga(toga.App):
         ])
 
         # ---- display-pane views ----
-        # Bio (Profile → Bio): the person-detail text.
-        self.detail = toga.MultilineTextInput(readonly=True, style=Pack(flex=1))
-        # Graph (Profile → Graph): canvas pedigree tree.
-        self.graph_view = GraphView(
-            self.model.individuals, self.model.families,
-            on_person_select=self._on_graph_person_select)
-        self.graph_view.install_hover_tooltips()
+        # Bio (Profile → Bio): WebView profile with clickable family links.
+        self.bio_view = BioView(
+            self.model, on_person_click=self._on_results_person_click)
+        # Family graph opens in its own window (see _open_graph_window); not a sub-mode.
+        self._graph_window = None
+        self._graph_view_popup = None
         # Pedigree / Descendants (Profile sub-modes): WebView reports.
         self.pedigree_view = ResultsView(
             self.model.individuals, self.model.families,
@@ -139,10 +138,9 @@ class GedcomNavigatorToga(toga.App):
             on_reverse=self._on_reverse,
             on_copy=self._on_copy,
             on_save=self._on_save)
-        self.display.register_view("bio", self.detail)
+        self.display.register_view("bio", self.bio_view.container)
         self.display.register_view("pedigree", self.pedigree_view.container)
         self.display.register_view("descendants", self.descendants_view.container)
-        self.display.register_view("graph", self.graph_view.container)
         self.display.register_view("matches", self.matches_view.container)
         self.display.register_view("paths", self.paths_view.container)
         self.display.show_view("bio")
@@ -164,6 +162,7 @@ class GedcomNavigatorToga(toga.App):
         nt.apply_column_widths(self.people, PEOPLE_COLUMN_WIDTHS)
 
         # Start polling for results/matches view link clicks
+        self.bio_view.start_polling()
         self.pedigree_view.start_polling()
         self.descendants_view.start_polling()
         self.matches_view.start_polling()
@@ -205,23 +204,13 @@ class GedcomNavigatorToga(toga.App):
             toga.Command(lambda w: self._set_submode("descendants"), "Profile: Descendants",
                          shortcut=toga.Key.MOD_1 + toga.Key.SHIFT + "d",
                          group=view_group, section=0),
-            toga.Command(lambda w: self._set_submode("graph"), "Profile: Graph",
-                         shortcut=toga.Key.MOD_1 + toga.Key.SHIFT + "g",
-                         group=view_group, section=0),
             toga.Command(lambda w: self._set_mode("matches"), "DNA Matches",
                          shortcut=toga.Key.MOD_1 + "n", group=view_group, section=1),
             toga.Command(lambda w: self._set_mode("paths"), "Relationship Paths",
                          shortcut=toga.Key.MOD_1 + "p", group=view_group, section=1),
-        )
-
-        # Zoom commands (act on the graph view; meaningful when Graph is shown).
-        self.commands.add(
-            toga.Command(lambda w: self.graph_view._bump_zoom(1.25), "Zoom In",
-                         shortcut=toga.Key.MOD_1 + "+", group=view_group, section=2),
-            toga.Command(lambda w: self.graph_view._bump_zoom(1 / 1.25), "Zoom Out",
-                         shortcut=toga.Key.MOD_1 + "-", group=view_group, section=2),
-            toga.Command(lambda w: self.graph_view._reset_view(), "Actual Size",
-                         shortcut=toga.Key.MOD_1 + "0", group=view_group, section=2),
+            toga.Command(lambda w: self._open_graph_window(), "Show Family Graph",
+                         shortcut=toga.Key.MOD_1 + toga.Key.SHIFT + "g",
+                         group=view_group, section=1),
         )
 
     # ---- mode / view switching ------------------------------------------
@@ -267,19 +256,32 @@ class GedcomNavigatorToga(toga.App):
         key = self._active_view_key()
         cp = self.current_person
         if key == "bio":
-            self.detail.value = pd.detail_text(
-                self.model.individuals, self.model.families, cp,
-                show_id=self.id_switch.value)
+            self.bio_view.set_center(cp, show_id=self.id_switch.value)
         elif key == "pedigree":
             self.pedigree_view.set_center(cp, mode="pedigree")
         elif key == "descendants":
             self.descendants_view.set_center(cp, mode="descendants")
-        elif key == "graph":
-            self.graph_view.set_center(cp)
         elif key == "matches":
             self._trigger_matches()
         elif key == "paths":
             asyncio.create_task(self._enter_paths_mode())
+
+    # ---- family graph popup ---------------------------------------------
+    def _open_graph_window(self):
+        """Open the pedigree/family graph centered on the current person, in its own
+        window (created fresh each time so re-opening after close is clean)."""
+        if not self.current_person or not self.model.individuals:
+            return
+        gv = GraphView(
+            self.model.individuals, self.model.families,
+            on_person_select=self._on_graph_person_select)
+        win = toga.Window(title="Family Graph", size=(960, 720))
+        win.content = gv.container
+        self._graph_window = win
+        self._graph_view_popup = gv
+        win.show()
+        gv.install_hover_tooltips()
+        gv.set_center(self.current_person)
 
     # ---- DNA matches (background search) --------------------------------
     def _trigger_matches(self):
@@ -444,8 +446,7 @@ class GedcomNavigatorToga(toga.App):
         warn = f"   ⚠ {warning}" if warning else ""
         self.status.text = f"Loaded {len(self.model.individuals)} people{note}.{warn}"
 
-        # Update all views with new data
-        self.graph_view.update_data(self.model.individuals, self.model.families)
+        # Update views that cache the data dicts (bio/matches/paths hold the model live).
         self.pedigree_view.update_data(self.model.individuals, self.model.families)
         self.descendants_view.update_data(self.model.individuals, self.model.families)
 
@@ -490,14 +491,12 @@ class GedcomNavigatorToga(toga.App):
         self.status.text = msg
 
     def _select_person(self, iid):
-        """Scroll to a person in the current list and show their detail."""
+        """Scroll to a person in the current list; the active view renders their detail."""
         if iid in self._display_ids:
             try:
                 self.people.scroll_to_row(self._display_ids.index(iid))
             except Exception:  # noqa: BLE001 — scrolling is best-effort
                 pass
-        self.detail.value = pd.detail_text(
-            self.model.individuals, self.model.families, iid, show_id=self.id_switch.value)
         self.cmd_set_home.enabled = True
 
     def on_search(self, widget, **kw):
@@ -507,18 +506,15 @@ class GedcomNavigatorToga(toga.App):
     def on_toggle(self, widget, **kw):
         if self.model.individuals:
             self._refresh_people()
-            self.on_person_select(self.people)   # reflect Show-IDs in the open detail
+            self._refresh_active_view()   # reflect Show-IDs in the open view
 
     def on_person_select(self, widget, **kw):
         row = self.people.selection
         iid = getattr(row, "id", None) if row else None
         if iid is None:
-            self.detail.value = ""
             self.cmd_set_home.enabled = False
             return
         self.current_person = iid
-        self.detail.value = pd.detail_text(
-            self.model.individuals, self.model.families, iid, show_id=self.id_switch.value)
         self.cmd_set_home.enabled = True
         self._refresh_active_view()
 
