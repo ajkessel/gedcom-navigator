@@ -12,6 +12,8 @@ else #f2f2f2, dark text) and show a profile image where one resolves on disk (to
 relatives. Layout coordinates (generation/column) map to pixels with the same
 column*gap / generation*gap scheme used across the canvas views.
 """
+from collections import defaultdict
+
 import toga
 from toga.style.pack import COLUMN, ROW, Pack
 
@@ -169,6 +171,7 @@ class FamilyGraphWindow:
             nodes = layout_family_tree_units(c, visible, edges)
         self._visible = visible
         self.edges = edges
+        self.buses = list(getattr(nodes, "child_buses", []))  # tree only
         nh = self._node_h()
         col_gap = NODE_W + GAP_X
         row_gap = nh + GAP_Y
@@ -269,19 +272,84 @@ class FamilyGraphWindow:
             self._hover_refresh()
 
     def _draw_edges(self):
+        """Connector rules (matching tkinter): a horizontal midpoint line joins only
+        SPOUSES; parents↔children (and thus siblings) join through a family "bus" — a
+        horizontal rail above the children with a drop to each child and a riser to the
+        parent(s). Siblings are never joined by a direct horizontal line (that would read
+        as a spouse link). Pedigree (ancestor-only) keeps simple child→parent elbows."""
+        if self.graph_type == "pedigree":
+            for src, dst, *_ in self.edges:
+                self._draw_elbow(src, dst)
+            return
+        for src, dst, cat in self.edges:
+            if cat == "spouses":
+                self._draw_spouse_line(src, dst)
+        for bus in self._family_buses():
+            self._draw_bus(bus)
+
+    def _family_buses(self):
+        """Family units to draw as buses: the layout's child_buses for the tree view;
+        for the descendant view, group `children` edges by their parent."""
+        if self.graph_type == "tree":
+            return self.buses
+        groups = defaultdict(list)
+        for src, dst, cat in self.edges:
+            if cat == "children":
+                groups[src].append(dst)
+        return [{"parent_ids": [p], "children": kids} for p, kids in groups.items()]
+
+    def _draw_elbow(self, src, dst):
+        sb, db = self.boxes.get(src), self.boxes.get(dst)
+        if not sb or not db:
+            return
+        sx, sy = sb[0] + sb[2] / 2, sb[1] + sb[3] / 2
+        dx, dy = db[0] + db[2] / 2, db[1] + db[3] / 2
+        with self.canvas.stroke(color=OUTLINE, line_width=1.6):
+            self.canvas.move_to(sx, sy)
+            midx = (sx + dx) / 2
+            self.canvas.line_to(midx, sy)
+            self.canvas.line_to(midx, dy)
+            self.canvas.line_to(dx, dy)
+
+    def _draw_spouse_line(self, a, b):
+        ba, bb = self.boxes.get(a), self.boxes.get(b)
+        if not ba or not bb:
+            return
+        y = ba[1] + ba[3] / 2
+        if ba[0] <= bb[0]:
+            x1, x2 = ba[0] + ba[2], bb[0]
+        else:
+            x1, x2 = bb[0] + bb[2], ba[0]
+        with self.canvas.stroke(color="#c98aa6", line_width=1.8):
+            self.canvas.move_to(x1, y)
+            self.canvas.line_to(x2, y)
+
+    def _draw_bus(self, bus):
+        children = [cid for cid in bus.get("children", ()) if cid in self.boxes]
+        if not children:
+            return
+        parents = [pid for pid in bus.get("parent_ids", ()) if pid in self.boxes]
+        child_centers = [(cid, self.boxes[cid][0] + self.boxes[cid][2] / 2)
+                         for cid in children]
+        child_top = min(self.boxes[cid][1] for cid in children)
+        bus_y = child_top - GAP_Y / 2
+        xs = [cx for _cid, cx in child_centers]
         c = self.canvas
-        for src, dst, *_ in self.edges:
-            sb, db = self.boxes.get(src), self.boxes.get(dst)
-            if not sb or not db:
-                continue
-            sx, sy = sb[0] + sb[2] / 2, sb[1] + sb[3] / 2
-            dx, dy = db[0] + db[2] / 2, db[1] + db[3] / 2
+        if parents:
+            parent_mid = sum(self.boxes[p][0] + self.boxes[p][2] / 2
+                             for p in parents) / len(parents)
+            parent_bottom = max(self.boxes[p][1] + self.boxes[p][3] for p in parents)
+            xs.append(parent_mid)
             with c.stroke(color=OUTLINE, line_width=1.6):
-                c.move_to(sx, sy)
-                midy = (sy + dy) / 2
-                c.line_to(sx, midy)
-                c.line_to(dx, midy)
-                c.line_to(dx, dy)
+                c.move_to(parent_mid, parent_bottom)
+                c.line_to(parent_mid, bus_y)
+        with c.stroke(color=OUTLINE, line_width=1.6):   # horizontal rail above children
+            c.move_to(min(xs), bus_y)
+            c.line_to(max(xs), bus_y)
+        for cid, cx in child_centers:                    # drop to each child
+            with c.stroke(color=OUTLINE, line_width=1.6):
+                c.move_to(cx, bus_y)
+                c.line_to(cx, self.boxes[cid][1])
 
     def _draw_nodes(self):
         c = self.canvas
