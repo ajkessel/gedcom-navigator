@@ -36,7 +36,7 @@ from gedcom_relationship import (
 
 from .bio_view import BioView
 from .display_pane import DisplayPane
-from .graph_view import GraphView
+from .family_graph_window import FamilyGraphWindow
 from .matches_view import MatchesView
 from .path_graph_window import PathGraphWindow
 from .paths_view import PathsView
@@ -107,7 +107,6 @@ class GedcomNavigatorToga(toga.App):
             self.model, on_person_click=self._on_results_person_click)
         # Family graph opens in its own window (see _open_graph_window); not a sub-mode.
         self._graph_window = None
-        self._graph_view_popup = None
         # Pedigree / Descendants (Profile sub-modes): WebView reports.
         self.pedigree_view = ResultsView(
             self.model.individuals, self.model.families,
@@ -210,9 +209,14 @@ class GedcomNavigatorToga(toga.App):
                          shortcut=toga.Key.MOD_1 + "n", group=view_group, section=1),
             toga.Command(lambda w: self._set_mode("paths"), "Relationship Paths",
                          shortcut=toga.Key.MOD_1 + "p", group=view_group, section=1),
-            toga.Command(lambda w: self._open_graph_window(), "Show Family Graph",
+            toga.Command(lambda w: self._open_graph_window("tree"), "Show Family Tree",
+                         shortcut=toga.Key.MOD_1 + toga.Key.SHIFT + "t",
+                         group=view_group, section=2),
+            toga.Command(lambda w: self._open_graph_window("pedigree"), "Show Pedigree Graph",
                          shortcut=toga.Key.MOD_1 + toga.Key.SHIFT + "g",
-                         group=view_group, section=1),
+                         group=view_group, section=2),
+            toga.Command(lambda w: self._open_graph_window("descendant"),
+                         "Show Descendant Graph", group=view_group, section=2),
         )
 
     # ---- mode / view switching ------------------------------------------
@@ -269,21 +273,16 @@ class GedcomNavigatorToga(toga.App):
             asyncio.create_task(self._enter_paths_mode())
 
     # ---- family graph popup ---------------------------------------------
-    def _open_graph_window(self):
-        """Open the pedigree/family graph centered on the current person, in its own
-        window (created fresh each time so re-opening after close is clean)."""
+    def _open_graph_window(self, graph_type="pedigree"):
+        """Open a family graph (tree / pedigree / descendant) centered on the current
+        person, in its own window (created fresh each time)."""
         if not self.current_person or not self.model.individuals:
             return
-        gv = GraphView(
-            self.model.individuals, self.model.families,
-            on_person_select=self._on_graph_person_select)
-        win = toga.Window(title="Family Graph", size=(960, 720))
-        win.content = gv.container
+        win = FamilyGraphWindow(
+            self.model, self.current_person, self.current_path,
+            graph_type=graph_type, on_person_select=self._on_graph_person_select)
         self._graph_window = win
-        self._graph_view_popup = gv
         win.show()
-        gv.install_hover_tooltips()
-        gv.set_center(self.current_person)
 
     # ---- DNA matches (background search) --------------------------------
     def _trigger_matches(self):
