@@ -9,7 +9,8 @@ One window renders any of the three tkinter graph types, switchable via a select
 Nodes are color-coded by gender (matching the tkinter palette: M #d9ecff, F #ffe1ec,
 else #f2f2f2, dark text) and show a profile image where one resolves on disk (toga.Image
 + Canvas.draw_image). Click a node to recenter; "+"/"−" toggles expand descendants/tree
-relatives. Layout coordinates (generation/column) map to pixels exactly as graph_view.py.
+relatives. Layout coordinates (generation/column) map to pixels with the same
+column*gap / generation*gap scheme used across the canvas views.
 """
 import toga
 from toga.style.pack import COLUMN, ROW, Pack

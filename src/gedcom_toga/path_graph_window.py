@@ -4,7 +4,7 @@ Opens in its own toga.Window (like the tkinter Toplevel) and renders a relations
 path between two people as a canvas graph: a spine of the path nodes plus, on demand,
 expanded off-path relatives. Reuses the pure layout from GraphLayoutMixin
 (gedcom_gui_graph_layout — verified import-clean), the family/coparent lookups from
-graph_geometry, and the Toga canvas draw idiom from graph_view.py.
+graph_geometry, and a Toga canvas draw idiom (state/scale + fill/stroke/round_rect).
 
 Interaction (Toga has no canvas context menu, so the tkinter right-click menu becomes an
 action bar): click a node to select it → the action bar's Show person / Find matches /
