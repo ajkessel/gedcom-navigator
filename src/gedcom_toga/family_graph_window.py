@@ -29,18 +29,18 @@ from gedcom_family_tree_layout import layout_family_tree_units
 from . import graph_geometry as gg
 from . import media_resolve
 
-MARGIN = 50.0
-NODE_W = 184.0
-IMG_H = 62.0          # image band height when images are shown
-NAME_H = 40.0         # name + years band height
-CHIP_H = 20.0         # per-category expand-chip band height (tree / descendant)
-GAP_X = 40.0
-GAP_Y = 30.0
+MARGIN = 54.0
+NODE_W = 128.0        # narrow node (tkinter-style): 3 short text lines
+IMG_H = 60.0          # image band height when images are shown
+TEXT_H = 54.0         # three text lines: given+initials / surname / dates
+GAP_X = 48.0
+GAP_Y = 44.0          # room for the top/bottom edge handles
+HANDLE_R = 8.0
 
-# Category → short chip label. Order matches the tkinter expand affordances.
-CHIP_LABELS = [
-    ("parents", "Par"), ("siblings", "Sib"), ("spouses", "Sps"), ("children", "Chi"),
-]
+# Expansion categories in draw order, and which node edge each handle sits on.
+EXPAND_CATEGORIES = ("parents", "children", "siblings", "spouses")
+HANDLE_EDGE = {"parents": "top", "children": "bottom",
+               "siblings": "left", "spouses": "right"}
 
 FILL_MALE = "#d9ecff"
 FILL_FEMALE = "#ffe1ec"
@@ -76,7 +76,7 @@ class FamilyGraphWindow:
         self.desc_expanded = set()   # ids whose children are shown (descendant view)
         self._press_at = (0, 0)
         self._img_cache = {}
-        self._chip_hits = {}         # id -> [(category, x, y, w, h), ...]
+        self._handle_hits = {}       # id -> [(category, cx, cy, r), ...]
 
         self._family_lookup = lambda i: gg.family_members(
             i, self.model.individuals, self.model.families)
@@ -117,12 +117,7 @@ class FamilyGraphWindow:
         return self.graph_type in ("tree", "descendant")
 
     def _node_h(self):
-        h = NAME_H
-        if self.show_images:
-            h += IMG_H
-        if self._expandable_type():
-            h += CHIP_H
-        return h
+        return TEXT_H + (IMG_H if self.show_images else 0)
 
     def _rebuild(self):
         m = self.model
@@ -163,23 +158,42 @@ class FamilyGraphWindow:
         max_y = max(y + h for (x, y, w, h) in self.boxes.values())
         return max_x + MARGIN, max_y + MARGIN
 
-    def _node_chips(self, iid):
-        """Return [(category, label, is_expanded)] for the node's expand chips —
-        one per category that has hidden relatives or is already expanded."""
+    def _node_categories(self, iid):
+        """Return [(category, is_expanded)] for the node's expand handles — one per
+        category that has hidden relatives or is already expanded."""
         if self.graph_type == "tree":
             opts = family_tree_expansion_options(iid, self._visible, self._family_lookup)
-            chips = []
-            for cat, label in CHIP_LABELS:
+            out = []
+            for cat in EXPAND_CATEGORIES:
                 expanded = (iid, cat) in self.tree_expanded
                 if opts.get(cat) or expanded:
-                    chips.append((cat, label, expanded))
-            return chips
+                    out.append((cat, expanded))
+            return out
         if self.graph_type == "descendant":
             opts = descendant_tree_expansion_options(iid, self._visible, self._family_lookup)
             expanded = iid in self.desc_expanded
             if opts.get("children") or expanded:
-                return [("children", "Chi", expanded)]
+                return [("children", expanded)]
         return []
+
+    def _name_lines(self, iid):
+        """(line1, line2, line3): given + middle initials / surname / lifespan."""
+        ind = self.model.individuals.get(iid, {})
+        given = (ind.get("given_name") or "").strip()
+        surname = (ind.get("surname") or "").strip()
+        by, dy = ind.get("birth_year"), ind.get("death_year")
+        years = f"({by or '?'}–{dy or ''})" if (by or dy) else ""
+        if given:
+            toks = given.split()
+            line1 = toks[0]
+            initials = " ".join(f"{t[0]}." for t in toks[1:] if t)
+            if initials:
+                line1 = f"{line1} {initials}"
+            line2 = surname
+        else:
+            line1 = ind.get("name") or iid
+            line2 = ""
+        return line1[:18], line2[:18], years
 
     def _label(self, iid):
         ind = self.model.individuals.get(iid, {})
@@ -237,7 +251,7 @@ class FamilyGraphWindow:
 
     def _draw_nodes(self):
         c = self.canvas
-        self._chip_hits = {}
+        self._handle_hits = {}
         for iid, (x, y, w, h) in self.boxes.items():
             is_center = self._is_center.get(iid)
             fill = self._fill_for(iid, is_center)
@@ -246,40 +260,43 @@ class FamilyGraphWindow:
             with c.stroke(color=CENTER_OUTLINE if is_center else OUTLINE,
                           line_width=2.4 if is_center else 1.4):
                 c.round_rect(x, y, w, h, 8)
-            text_top = y + 6
+            text_top = y + IMG_H if self.show_images else y
             if self.show_images:
-                text_top = y + IMG_H + 2
                 self._draw_image(iid, x, y, w)
-            name, years = self._label(iid)
+            line1, line2, line3 = self._name_lines(iid)
             with c.fill(color=TEXT_COLOR):
-                c.fill_text(name[:26], x + 10, text_top + 14, font=toga.Font("sans-serif", 12))
-            if years:
+                c.fill_text(line1, x + 8, text_top + 15, font=toga.Font("sans-serif", 11))
+                if line2:
+                    c.fill_text(line2, x + 8, text_top + 31, font=toga.Font("sans-serif", 11))
+            if line3:
                 with c.fill(color=SUBTEXT_COLOR):
-                    c.fill_text(years, x + 10, text_top + 31, font=toga.Font("sans-serif", 10))
+                    c.fill_text(line3, x + 8, text_top + 47, font=toga.Font("sans-serif", 9))
             if self._expandable_type():
-                self._draw_chips(iid, x, y, w, h)
+                self._draw_handles(iid, x, y, w, h)
 
-    def _draw_chips(self, iid, x, y, w, h):
-        chips = self._node_chips(iid)
-        if not chips:
+    def _draw_handles(self, iid, x, y, w, h):
+        """Draw expand/collapse handles as small nubs on the node edges — parents top,
+        children bottom, siblings left, spouses right (tkinter convention)."""
+        cats = self._node_categories(iid)
+        if not cats:
             return
-        cx = x + 8
-        cy = y + h - CHIP_H + 2
-        ch = CHIP_H - 6
+        centers = {
+            "top": (x + w / 2, y), "bottom": (x + w / 2, y + h),
+            "left": (x, y + h / 2), "right": (x + w, y + h / 2),
+        }
         hits = []
-        for cat, label, expanded in chips:
-            text = ("−" if expanded else "+") + label
-            cw = 10 + len(text) * 6.5
+        for cat, expanded in cats:
+            cx, cy = centers[HANDLE_EDGE[cat]]
             with self.canvas.fill(color="#cfe3ff" if expanded else "#eef1f4"):
-                self.canvas.round_rect(cx, cy, cw, ch, 4)
-            with self.canvas.stroke(color=OUTLINE, line_width=1.0):
-                self.canvas.round_rect(cx, cy, cw, ch, 4)
+                self.canvas.arc(cx, cy, HANDLE_R, 0, 6.2832)
+            with self.canvas.stroke(color=CENTER_OUTLINE if expanded else OUTLINE,
+                                    line_width=1.2):
+                self.canvas.arc(cx, cy, HANDLE_R, 0, 6.2832)
             with self.canvas.fill(color=TEXT_COLOR):
-                self.canvas.fill_text(text, cx + 5, cy + ch - 4,
-                                      font=toga.Font("sans-serif", 10))
-            hits.append((cat, cx, cy, cw, ch))
-            cx += cw + 4
-        self._chip_hits[iid] = hits
+                self.canvas.fill_text("−" if expanded else "+", cx - 3, cy + 4,
+                                      font=toga.Font("sans-serif", 12))
+            hits.append((cat, cx, cy, HANDLE_R))
+        self._handle_hits[iid] = hits
 
     def _draw_image(self, iid, x, y, w):
         img = self._image_for(iid)
@@ -309,10 +326,10 @@ class FamilyGraphWindow:
         if abs(x - self._press_at[0]) + abs(y - self._press_at[1]) >= 4:
             return
         wx, wy = x / self.zoom, y / self.zoom
-        # expand chips take priority over node-body recenter
-        for iid, chips in self._chip_hits.items():
-            for cat, cx, cy, cw, ch in chips:
-                if cx <= wx <= cx + cw and cy <= wy <= cy + ch:
+        # edge handles take priority over node-body recenter
+        for iid, handles in self._handle_hits.items():
+            for cat, cx, cy, r in handles:
+                if (wx - cx) ** 2 + (wy - cy) ** 2 <= (r + 2) ** 2:
                     self._toggle_category(iid, cat)
                     return
         for iid, (bx, by, bw, bh) in self.boxes.items():
