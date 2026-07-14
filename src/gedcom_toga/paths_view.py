@@ -48,26 +48,49 @@ STYLE = """<style>
 
 class PathsView:
     def __init__(self, model, *, on_person_click=None, on_change_target=None,
-                 on_relationship_click=None):
+                 on_relationship_click=None, on_params_change=None,
+                 top_n=3, max_depth=10):
         self.model = model
         self.on_person_click = on_person_click
         self.on_change_target = on_change_target
         self.on_relationship_click = on_relationship_click
+        self.on_params_change = on_params_change
         self.start_id = None
         self.end_id = None
         self._paths = []
 
+        self.top_n_input = toga.NumberInput(
+            min=1, max=100, step=1, value=top_n,
+            on_change=self._params_changed, style=Pack(width=70))
+        self.max_depth_input = toga.NumberInput(
+            min=1, max=100, step=1, value=max_depth,
+            on_change=self._params_changed, style=Pack(width=70))
         self.status = toga.Label("", style=Pack(margin=(4, 8), flex=1))
         change_btn = toga.Button(
             "Change target…", on_press=self._change_target, style=Pack(margin=(0, 4)))
-        controls = toga.Box(style=Pack(direction=ROW, margin=(6, 8, 2, 8)),
-                            children=[self.status, change_btn])
+        controls = toga.Box(style=Pack(direction=ROW, margin=(6, 8, 2, 8)), children=[
+            toga.Label("Max paths:", style=Pack(margin=(4, 4))), self.top_n_input,
+            toga.Label("Max depth:", style=Pack(margin=(4, 4))), self.max_depth_input,
+            self.status, change_btn,
+        ])
         self.web = toga.WebView(style=Pack(flex=1))
         self.container = toga.Box(
             style=Pack(direction=COLUMN, flex=1), children=[controls, self.web])
         self._poll_task = None
         self.set_content("<p class='note'>Choose a target person to find "
                          "relationship paths.</p>")
+
+    @property
+    def top_n(self):
+        return int(self.top_n_input.value or 3)
+
+    @property
+    def max_depth(self):
+        return int(self.max_depth_input.value or 10)
+
+    def _params_changed(self, widget, **kw):
+        if self.on_params_change:
+            self.on_params_change()
 
     def set_status(self, text):
         self.status.text = text

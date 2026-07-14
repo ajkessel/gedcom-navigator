@@ -126,7 +126,9 @@ class GedcomNavigatorToga(toga.App):
             self.model,
             on_person_click=self._on_results_person_click,
             on_change_target=self._change_path_target,
-            on_relationship_click=self._open_path_graph)
+            on_relationship_click=self._open_path_graph,
+            on_params_change=self._trigger_paths,
+            top_n=self.config.get_top_n(), max_depth=self.config.get_max_depth())
         self._path_graph_window = None
 
         # Current mode/sub-mode (mirrors the tkinter display_mode / profile_sub_mode).
@@ -337,6 +339,14 @@ class GedcomNavigatorToga(toga.App):
         self._path_target = None
         asyncio.create_task(self._enter_paths_mode())
 
+    def _trigger_paths(self):
+        """Re-run the path search when the max-paths / max-depth controls change."""
+        if (self.current_person and self._path_target
+                and self._path_target in self.model.individuals):
+            self.config.set_top_n(self.paths_view.top_n)
+            self.config.set_max_depth(self.paths_view.max_depth)
+            asyncio.create_task(self._run_paths(self.current_person, self._path_target))
+
     async def _run_paths(self, start_id, end_id):
         if self._paths_cancel is not None:
             self._paths_cancel.set()
@@ -344,8 +354,8 @@ class GedcomNavigatorToga(toga.App):
         self._paths_cancel = cancel
         self._paths_gen += 1
         gen = self._paths_gen
-        top_n = self.config.get_top_n()
-        max_depth = self.config.get_max_depth()
+        top_n = self.paths_view.top_n
+        max_depth = self.paths_view.max_depth
         self.paths_view.set_status("Searching for paths…")
         try:
             paths, truncated = await asyncio.to_thread(
