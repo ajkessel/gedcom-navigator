@@ -288,15 +288,27 @@ class FamilyGraphWindow:
             self._draw_bus(bus)
 
     def _family_buses(self):
-        """Family units to draw as buses: the layout's child_buses for the tree view;
-        for the descendant view, group `children` edges by their parent."""
+        """Family units to draw as buses. Tree: the layout's child_buses (already one per
+        couple). Descendant: one bus per FAMILY from the model, so a parent with children
+        by two different spouses yields two buses (each riser meets that couple's line)."""
         if self.graph_type == "tree":
             return self.buses
-        groups = defaultdict(list)
-        for src, dst, cat in self.edges:
-            if cat == "children":
-                groups[src].append(dst)
-        return [{"parent_ids": [p], "children": kids} for p, kids in groups.items()]
+        buses, seen = [], set()
+        for pid in self._visible:
+            for fam_id in self.model.individuals.get(pid, {}).get("fams", ()):
+                if fam_id in seen:
+                    continue
+                fam = self.model.families.get(fam_id)
+                if not fam:
+                    continue
+                kids = [c for c in fam.get("chil", ()) if c in self.boxes]
+                if not kids:
+                    continue
+                seen.add(fam_id)
+                parents = [p for p in (fam.get("husb"), fam.get("wife"))
+                           if p in self.boxes]
+                buses.append({"parent_ids": parents, "children": kids})
+        return buses
 
     def _draw_elbow(self, src, dst):
         sb, db = self.boxes.get(src), self.boxes.get(dst)
@@ -336,12 +348,17 @@ class FamilyGraphWindow:
         xs = [cx for _cid, cx in child_centers]
         c = self.canvas
         if parents:
-            parent_mid = sum(self.boxes[p][0] + self.boxes[p][2] / 2
-                             for p in parents) / len(parents)
-            parent_bottom = max(self.boxes[p][1] + self.boxes[p][3] for p in parents)
+            pboxes = [self.boxes[p] for p in parents]
+            pcenters = [b[0] + b[2] / 2 for b in pboxes]
+            parent_mid = sum(pcenters) / len(pcenters)
             xs.append(parent_mid)
+            if len(parents) >= 2:
+                # meet the spouse line at the couple's vertical center (no gap)
+                riser_top = pboxes[0][1] + pboxes[0][3] / 2
+            else:
+                riser_top = pboxes[0][1] + pboxes[0][3]  # single parent: bottom edge
             with c.stroke(color=OUTLINE, line_width=1.6):
-                c.move_to(parent_mid, parent_bottom)
+                c.move_to(parent_mid, riser_top)
                 c.line_to(parent_mid, bus_y)
         with c.stroke(color=OUTLINE, line_width=1.6):   # horizontal rail above children
             c.move_to(min(xs), bus_y)
@@ -351,9 +368,19 @@ class FamilyGraphWindow:
                 c.move_to(cx, bus_y)
                 c.line_to(cx, self.boxes[cid][1])
 
+    def _cx(self, text, font, x, w):
+        """Left x that horizontally centers `text` within a node of width w at left x."""
+        try:
+            tw, _ = self.canvas.measure_text(text, font)
+        except Exception:  # noqa: BLE001 — measurement unavailable
+            tw = len(text) * 6.5
+        return x + max(2, (w - tw) / 2)
+
     def _draw_nodes(self):
         c = self.canvas
         self._handle_hits = {}
+        name_font = toga.Font("sans-serif", 11)
+        year_font = toga.Font("sans-serif", 9)
         for iid, (x, y, w, h) in self.boxes.items():
             is_center = self._is_center.get(iid)
             fill = self._fill_for(iid, is_center)
@@ -367,12 +394,15 @@ class FamilyGraphWindow:
                 self._draw_image(iid, x, y, w)
             line1, line2, line3 = self._name_lines(iid)
             with c.fill(color=TEXT_COLOR):
-                c.fill_text(line1, x + 8, text_top + 15, font=toga.Font("sans-serif", 11))
+                c.fill_text(line1, self._cx(line1, name_font, x, w), text_top + 15,
+                            font=name_font)
                 if line2:
-                    c.fill_text(line2, x + 8, text_top + 31, font=toga.Font("sans-serif", 11))
+                    c.fill_text(line2, self._cx(line2, name_font, x, w), text_top + 31,
+                                font=name_font)
             if line3:
                 with c.fill(color=SUBTEXT_COLOR):
-                    c.fill_text(line3, x + 8, text_top + 47, font=toga.Font("sans-serif", 9))
+                    c.fill_text(line3, self._cx(line3, year_font, x, w), text_top + 47,
+                                font=year_font)
             if self._expandable_type():
                 self._draw_handles(iid, x, y, w, h)
 
