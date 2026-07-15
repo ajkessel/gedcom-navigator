@@ -531,8 +531,13 @@ class FamilyGraphWindow:
     @staticmethod
     def _center_seed(center_id):
         """Center's immediate-family categories, pre-marked expanded so their handles
-        render as collapse toggles (matches tkinter's initial expansion state)."""
-        return {(center_id, cat) for cat in INITIAL_TREE_CATEGORIES}
+        render as collapse toggles (matches tkinter's initial expansion state).
+
+        An insertion-ordered dict (not a set): build_family_tree_graph applies requests
+        sequentially and can only reveal a node already made visible by an earlier
+        request, so requests must replay in click order — a node is only clickable once
+        an earlier expansion has revealed it."""
+        return {(center_id, cat): True for cat in INITIAL_TREE_CATEGORIES}
 
     def _on_press(self, widget, x, y, **kw):
         self._press_at = (x, y)
@@ -574,9 +579,13 @@ class FamilyGraphWindow:
         if self.graph_type == "descendant":
             expanding = iid not in self.desc_expanded
             self.desc_expanded.symmetric_difference_update({iid})
-        else:  # tree
-            expanding = (iid, cat) not in self.tree_expanded
-            self.tree_expanded.symmetric_difference_update({(iid, cat)})
+        else:  # tree — preserve click order (see _center_seed)
+            key = (iid, cat)
+            expanding = key not in self.tree_expanded
+            if expanding:
+                self.tree_expanded[key] = True
+            else:
+                del self.tree_expanded[key]
         self._rebuild()
         self.redraw()
         if expanding and os.environ.get("GEDCOM_DIAG"):
