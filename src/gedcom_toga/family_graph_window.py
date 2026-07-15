@@ -12,6 +12,7 @@ else #f2f2f2, dark text) and show a profile image where one resolves on disk (to
 relatives. Layout coordinates (generation/column) map to pixels with the same
 column*gap / generation*gap scheme used across the canvas views.
 """
+import os
 from collections import defaultdict
 
 import toga
@@ -571,11 +572,38 @@ class FamilyGraphWindow:
 
     def _toggle_category(self, iid, cat):
         if self.graph_type == "descendant":
+            expanding = iid not in self.desc_expanded
             self.desc_expanded.symmetric_difference_update({iid})
         else:  # tree
+            expanding = (iid, cat) not in self.tree_expanded
             self.tree_expanded.symmetric_difference_update({(iid, cat)})
         self._rebuild()
         self.redraw()
+        if expanding and os.environ.get("GEDCOM_DIAG"):
+            self._diag_expand(iid, cat)
+
+    def _diag_expand(self, iid, cat):
+        """When GEDCOM_DIAG is set, report why an expand did/didn't reveal relatives —
+        distinguishing 'not revealed by build' from 'revealed but dropped by layout'
+        from 'laid out but off-screen'. Prints one block to stdout."""
+        nm = lambda i: self.model.individuals.get(i, {}).get("name", i)
+        expected = [t for t in self._family_lookup(iid).get(cat, ()) if t and t != iid]
+        in_vis = [t for t in expected if t in self._visible]
+        in_box = [t for t in expected if t in self.boxes]
+        miss_build = [t for t in expected if t not in self._visible]
+        miss_layout = [t for t in expected if t in self._visible and t not in self.boxes]
+        print(f"GEDCOM_DIAG expand {cat} of {nm(iid)} [{iid}]: "
+              f"expected={len(expected)} revealed={len(in_vis)} laid_out={len(in_box)}",
+              flush=True)
+        if miss_build:
+            print(f"  NOT REVEALED by build_family_tree_graph: "
+                  f"{[nm(t) for t in miss_build]}", flush=True)
+        if miss_layout:
+            print(f"  REVEALED but DROPPED by layout_family_tree_units: "
+                  f"{[nm(t) for t in miss_layout]}", flush=True)
+        for t in in_box:  # positions, to catch off-screen placement
+            bx, by, bw, bh = self.boxes[t]
+            print(f"  placed {nm(t)} at ({int(bx)},{int(by)})", flush=True)
 
     def _recenter(self, iid):
         if iid == self.center:
