@@ -18,6 +18,7 @@ import toga
 from toga.style.pack import COLUMN, ROW, Pack
 
 from gedcom_family_tree import (
+    INITIAL_TREE_CATEGORIES,
     build_descendant_tree_graph,
     build_family_tree_graph,
     build_pedigree_tree_graph,
@@ -42,16 +43,9 @@ HANDLE_R = 8.0
 
 # Expansion categories in draw order, and which node edge each handle sits on.
 EXPAND_CATEGORIES = ("parents", "children", "siblings", "spouses")
-HANDLE_EDGE = {"parents": "top", "children": "bottom",
-               "siblings": "left", "spouses": "right"}
-# Glyph per (category, is_expanded) — matches the tkinter TREE_BUTTON_* icons:
-# up/down arrows for parents/children, an out/in arrow for siblings, a heart for spouses.
-HANDLE_GLYPH = {
-    ("parents", False): "↑", ("parents", True): "↓",
-    ("children", False): "↓", ("children", True): "↑",
-    ("siblings", False): "←", ("siblings", True): "→",
-    ("spouses", False): "♥", ("spouses", True): "♡",
-}
+# Handle edges + glyphs are resolved dynamically (see _handle_edge / _handle_glyph) so
+# the spouse heart sits on the spouse's side and siblings on the opposite side, matching
+# the tkinter TREE_BUTTON_* icons (up/down arrows, out/in sibling arrow, heart).
 HANDLE_TIP = {
     "parents": ("Show parents", "Hide parents"),
     "siblings": ("Show siblings", "Hide siblings"),
@@ -89,9 +83,12 @@ class FamilyGraphWindow:
         self.on_person_select = on_person_select
         self.zoom = 1.0
         self.show_images = True
-        self.tree_expanded = set()   # (id, category) requests for the tree view
+        # Seed the center's immediate-family categories so their handles render as
+        # collapsible (e.g. a "hide parents" toggle on the center), matching tkinter.
+        self.tree_expanded = self._center_seed(center_id)  # (id, category) requests
         self.desc_expanded = set()   # ids whose children are shown (descendant view)
         self._press_at = (0, 0)
+        self._pan = None             # (press_x, press_y, scroll_h, scroll_v) while panning
         self._img_cache = {}
         self._handle_hits = {}       # id -> [(category, cx, cy, r, tip), ...]
         self._hover_refresh = None   # native per-handle tooltip refresher
@@ -115,7 +112,8 @@ class FamilyGraphWindow:
             toga.Button("Reset", on_press=lambda w: self._reset_view()),
             self.images_btn, self.info,
         ])
-        self.canvas = toga.Canvas(on_press=self._on_press, on_release=self._on_release)
+        self.canvas = toga.Canvas(on_press=self._on_press, on_drag=self._on_drag,
+                                  on_release=self._on_release)
         self.scroller = toga.ScrollContainer(
             horizontal=True, vertical=True, content=self.canvas, style=Pack(flex=1))
         root = toga.Box(style=Pack(direction=COLUMN, flex=1),
@@ -268,8 +266,26 @@ class FamilyGraphWindow:
             self._draw_edges()
             self._draw_nodes()
         c.redraw()
+        self._fit_window(cw, ch)
         if self._hover_refresh:
             self._hover_refresh()
+
+    def _fit_window(self, content_w, content_h):
+        """Grow the window to fit the graph (never shrink), capped to the screen — the
+        tkinter behavior of expanding up to maximize."""
+        try:
+            screen_w, screen_h = self.window.screen.size
+        except Exception:  # noqa: BLE001 — fall back to a conservative cap
+            screen_w, screen_h = 1440, 900
+        want_w = min(int(content_w * self.zoom) + 32, int(screen_w * 0.96))
+        want_h = min(int(content_h * self.zoom) + 96, int(screen_h * 0.92))
+        try:
+            cur_w, cur_h = self.window.size
+            new_w, new_h = max(cur_w, want_w), max(cur_h, want_h)
+            if (new_w, new_h) != (cur_w, cur_h):
+                self.window.size = (new_w, new_h)
+        except Exception:  # noqa: BLE001 — sizing is best-effort
+            pass
 
     def _draw_edges(self):
         """Connector rules (matching tkinter): a horizontal midpoint line joins only
@@ -406,20 +422,67 @@ class FamilyGraphWindow:
             if self._expandable_type():
                 self._draw_handles(iid, x, y, w, h)
 
+    def _spouse_on_left(self, iid):
+        """True if a visible spouse of `iid` is positioned to its left — used to place
+        the spouse handle toward the spouse and siblings on the opposite side."""
+        box = self.boxes.get(iid)
+        if not box:
+            return False
+        cx = box[0] + box[2] / 2
+        for src, dst, cat in self.edges:
+            if cat != "spouses":
+                continue
+            other = dst if src == iid else src if dst == iid else None
+            if other and other in self.boxes:
+                ocx = self.boxes[other][0] + self.boxes[other][2] / 2
+                if ocx < cx:
+                    return True
+        return False
+
+    def _handle_edge(self, cat, spouse_left):
+        """Spouse handle sits on the spouse's side (default right); siblings opposite."""
+        if cat == "parents":
+            return "top"
+        if cat == "children":
+            return "bottom"
+        if cat == "spouses":
+            return "left" if spouse_left else "right"
+        return "right" if spouse_left else "left"   # siblings
+
+    @staticmethod
+    def _handle_glyph(cat, expanded, edge):
+        if cat == "spouses":
+            return "♡" if expanded else "♥"
+        if cat == "parents":
+            return "↓" if expanded else "↑"
+        if cat == "children":
+            return "↑" if expanded else "↓"
+        # siblings: arrow points outward (away from node) to reveal, inward to hide
+        outward = "→" if edge == "right" else "←"
+        inward = "←" if edge == "right" else "→"
+        return inward if expanded else outward
+
     def _draw_handles(self, iid, x, y, w, h):
-        """Draw expand/collapse handles as small nubs on the node edges — parents top,
-        children bottom, siblings left, spouses right (tkinter convention)."""
+        """Draw expand/collapse handles as small nubs on the node edges: parents top,
+        children bottom, and — matching tkinter — the spouse (heart) handle on the side
+        where the spouse sits with the siblings handle on the opposite side."""
         cats = self._node_categories(iid)
         if not cats:
             return
+        # Handles sit just OUTSIDE each edge (tangent to the border) so they never cover
+        # the image or dates — symmetric on all four sides, like the tkinter tabs.
         centers = {
-            "top": (x + w / 2, y), "bottom": (x + w / 2, y + h),
-            "left": (x, y + h / 2), "right": (x + w, y + h / 2),
+            "top": (x + w / 2, y - HANDLE_R),
+            "bottom": (x + w / 2, y + h + HANDLE_R),
+            "left": (x - HANDLE_R, y + h / 2),
+            "right": (x + w + HANDLE_R, y + h / 2),
         }
+        spouse_left = self._spouse_on_left(iid)
         hits = []
         for cat, expanded in cats:
-            cx, cy = centers[HANDLE_EDGE[cat]]
-            glyph = HANDLE_GLYPH[(cat, expanded)]
+            edge = self._handle_edge(cat, spouse_left)
+            cx, cy = centers[edge]
+            glyph = self._handle_glyph(cat, expanded, edge)
             tip = HANDLE_TIP[cat][1 if expanded else 0]
             with self.canvas.fill(color="#ffd9e6" if cat == "spouses" and expanded
                                   else "#cfe3ff" if expanded else "#eef1f4"):
@@ -427,9 +490,10 @@ class FamilyGraphWindow:
             with self.canvas.stroke(color=CENTER_OUTLINE if expanded else OUTLINE,
                                     line_width=1.2):
                 self.canvas.arc(cx, cy, HANDLE_R, 0, 6.2832)
+            glyph_font = toga.Font("sans-serif", 11)
+            gx, gy = self._glyph_origin(glyph, glyph_font, cx, cy)
             with self.canvas.fill(color="#c2185b" if cat == "spouses" else TEXT_COLOR):
-                self.canvas.fill_text(glyph, cx - 4, cy + 4,
-                                      font=toga.Font("sans-serif", 11))
+                self.canvas.fill_text(glyph, gx, gy, font=glyph_font)
             hits.append((cat, cx, cy, HANDLE_R, tip))
         self._handle_hits[iid] = hits
 
@@ -454,10 +518,43 @@ class FamilyGraphWindow:
             pass
 
     # ---- interaction -----------------------------------------------------
+    def _glyph_origin(self, glyph, font, cx, cy):
+        """Baseline origin (x, y) that centers `glyph` on the point (cx, cy)."""
+        try:
+            gw, gh = self.canvas.measure_text(glyph, font)
+        except Exception:  # noqa: BLE001 — measurement unavailable
+            gw, gh = len(glyph) * 6.0, 12.0
+        # fill_text y is the baseline; drop it ~0.32·height below center to visually center
+        return cx - gw / 2, cy + gh * 0.32
+
+    @staticmethod
+    def _center_seed(center_id):
+        """Center's immediate-family categories, pre-marked expanded so their handles
+        render as collapse toggles (matches tkinter's initial expansion state)."""
+        return {(center_id, cat) for cat in INITIAL_TREE_CATEGORIES}
+
     def _on_press(self, widget, x, y, **kw):
         self._press_at = (x, y)
+        self._pan = (x, y, self.scroller.horizontal_position,
+                     self.scroller.vertical_position)
+
+    def _on_drag(self, widget, x, y, **kw):
+        """Click-drag panning (tkinter scan_dragto): keep the grabbed content point under
+        the cursor. Canvas coords are content-absolute (they already include the current
+        scroll), so the stable update is new_scroll = press_point − x + current_scroll."""
+        if self._pan is None:
+            return
+        px, py, _sh, _sv = self._pan
+        try:
+            self.scroller.horizontal_position = max(
+                0, px - x + self.scroller.horizontal_position)
+            self.scroller.vertical_position = max(
+                0, py - y + self.scroller.vertical_position)
+        except Exception:  # noqa: BLE001 — position out of range mid-drag
+            pass
 
     def _on_release(self, widget, x, y, **kw):
+        self._pan = None
         if abs(x - self._press_at[0]) + abs(y - self._press_at[1]) >= 4:
             return
         wx, wy = x / self.zoom, y / self.zoom
@@ -486,7 +583,7 @@ class FamilyGraphWindow:
                 self.on_person_select(iid)
             return
         self.center = iid
-        self.tree_expanded = set()
+        self.tree_expanded = self._center_seed(iid)
         self.desc_expanded = set()
         self._rebuild()
         self.redraw()
@@ -495,7 +592,7 @@ class FamilyGraphWindow:
 
     def set_type(self, graph_type, *, notify=True):
         self.graph_type = graph_type
-        self.tree_expanded = set()
+        self.tree_expanded = self._center_seed(self.center)
         self.desc_expanded = set()
         self._refresh_type_styles()
         self._rebuild()
